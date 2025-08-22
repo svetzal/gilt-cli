@@ -1,0 +1,67 @@
+# Accounts configuration
+# Purpose: define internal account_ids and light metadata to normalize raw bank exports.
+# Keep sensitive details (full account numbers) out of this file.
+
+accounts:
+  - account_id: RBC_CHQ
+    institution: RBC
+    product: Chequing
+    currency: CAD
+    description: RBC Personal Chequing
+    nature: asset
+    source_patterns:
+      - '*rbc*chequing*.csv'
+    import_hints:
+      date_format: auto    # try to auto-detect; override if needed (e.g., "%Y-%m-%d")
+      decimal: .
+      thousands: ','
+      amount_sign: expenses_negative # expenses negative, income positive; adjust if bank exports all positive
+      possible_columns:
+        date: [Date, Transaction Date, Posted Date]
+        description: [Description, Memo, Details]
+        amount: [Amount, CAD$]
+        currency: [Currency]
+
+  - account_id: SCOTIA_CURR
+    institution: Scotiabank
+    product: Chequing/Current
+    currency: CAD
+    description: Scotiabank Business Current Account
+    nature: asset
+    source_patterns:
+      - '*scotia*current*.csv'
+    import_hints:
+      date_format: auto
+      decimal: .
+      thousands: ','
+      amount_sign: expenses_negative
+      possible_columns:
+        date: [Date, Transaction Date, Posted Date]
+        description: [Description, Memo, Details]
+        amount: [Amount]
+        currency: [Currency]
+
+  - account_id: SCOTIA_LOC
+    institution: Scotiabank
+    product: Line of Credit
+    currency: CAD
+    description: Scotiabank Line of Credit
+    nature: liability
+    source_patterns:
+      - '*scotia*line*.csv'
+    import_hints:
+      date_format: auto
+      decimal: .
+      thousands: ','
+      amount_sign: expenses_negative
+      possible_columns:
+        date: [Date, Transaction Date, Posted Date]
+        description: [Description, Memo, Details]
+        amount: [Amount]
+        currency: [Currency]
+
+# Notes:
+# - account_id values are the canonical keys used in processed outputs.
+# - source_patterns help ingestion scripts route CSVs to the right account mapping.
+# - possible_columns are suggestions for column mapping during normalization; exact mapping will be detected.
+# - Do NOT place raw account numbers here. If needed, create a private mapping in data/private/ and git-ignore it.

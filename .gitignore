@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.dylib
+
+# Virtual environments
+.venv/
+venv/
+.env
+.env.*
+
+# Jupyter
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
+
+# IDEs
+.vscode
+.idea
+
+# Project data outputs (raw inputs live in ingest/ and are ignored)
+ingest/
+data/
+reports/
+
+# Optional: model artifacts
+models/
+
+# Logs
+logs/
+*.log
+
+# Packaging metadata
+*.egg-info/
+*.egg
