@@ -88,8 +88,8 @@ def _link_transfers_and_report(output_dir: Path) -> int:
     modified = link_transfers(
         processed_dir=output_dir,
         window_days=3,
-        epsilon_direct=0.01,
-        epsilon_interac=1.75,
+        epsilon_direct=0.0,
+        epsilon_interac=0.0,
         fee_max_amount=3.00,
         fee_day_window=1,
         write=True,

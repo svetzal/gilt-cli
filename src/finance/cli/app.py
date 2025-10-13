@@ -36,6 +36,21 @@ app = typer.Typer(no_args_is_help=True, add_completion=False, help=APP_HELP)
 
 
 @app.command()
+def accounts(
+    config: Path = typer.Option(DEFAULT_CONFIG_PATH, "--config", help="Accounts config YAML path"),
+    data_dir: Path = typer.Option(DEFAULT_DATA_DIR, "--data-dir", help=HELP_LEDGER_DIR),
+):
+    """List available accounts (IDs and descriptions)."""
+    from finance.cli.command import accounts as cmd_accounts
+
+    code = cmd_accounts.run(
+        config=config,
+        data_dir=data_dir,
+    )
+    raise typer.Exit(code=code)
+
+
+@app.command()
 def ytd(
     account: str = typer.Option(..., "--account", "-a", help=HELP_ACCOUNT_DISPLAY),
     year: Optional[int] = typer.Option(None, "--year", "-y", help="Year to filter (defaults to current year)"),
@@ -59,12 +74,20 @@ def ytd(
 @app.command()
 def note(
     account: str = typer.Option(..., "--account", "-a", help=HELP_ACCOUNT_WITH_TX),
-    txid: str = typer.Option(..., "--txid", "-t", help="Transaction ID prefix (TxnID8 as shown in tables)"),
-    note: str = typer.Option(..., "--note", "-n", help="Note text to set on the transaction"),
+    txid: Optional[str] = typer.Option(None, "--txid", "-t", help="Transaction ID prefix (TxnID8 as shown in tables)"),
+    description: Optional[str] = typer.Option(None, "--description", "-d", help="Exact description to match (batch mode)"),
+    desc_prefix: Optional[str] = typer.Option(None, "--desc-prefix", "-p", help="Description prefix to match (batch mode, case-insensitive)"),
+    amount: Optional[float] = typer.Option(None, "--amount", "-m", help="Exact amount to match (batch mode)"),
+    note: str = typer.Option(..., "--note", "-n", help="Note text to set on the transaction(s)"),
+    yes: bool = typer.Option(False, "--yes", "-y", "-r", help="Assume 'yes' for all confirmations in batch mode"),
     data_dir: Path = typer.Option(DEFAULT_DATA_DIR, "--data-dir", help=HELP_LEDGER_DIR),
     write: bool = typer.Option(False, "--write", help=HELP_WRITE),
 ):
-    """Attach or update a note on a specific transaction in the account ledger.
+    """Attach or update notes on transactions in the account ledger.
+
+    Modes:
+    - Single: use --txid/-t to target one transaction.
+    - Batch: use --description/-d (optionally with --amount/-m) to target recurring transactions.
 
     Safety: dry-run by default. Use --write to persist changes.
     """
@@ -74,6 +97,10 @@ def note(
         account=account,
         txid=txid,
         note_text=note,
+        description=description,
+        desc_prefix=desc_prefix,
+        amount=amount,
+        assume_yes=yes,
         data_dir=data_dir,
         write=write,
     )

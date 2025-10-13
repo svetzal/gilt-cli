@@ -121,7 +121,13 @@ def load_normalized(processed_dir: Path) -> List[Txn]:
 
 
 def _amount_closeness(a: float, b: float, epsilon: float) -> float:
+    """Return 1.0 when amounts match within epsilon, else a decaying score.
+
+    When epsilon <= 0, enforce exact absolute-amount equality to avoid fuzzy matches.
+    """
     diff = abs(abs(a) - abs(b))
+    if epsilon <= 0:
+        return 1.0 if diff == 0 else 0.0
     if diff <= epsilon:
         return 1.0
     return max(0.0, 1.0 - (diff - epsilon) / (epsilon * 2.0))
@@ -267,8 +273,8 @@ def _try_match_for_debit(
 def compute_matches(
     processed_dir: Path,
     window_days: int = 3,
-    epsilon_direct: float = 0.01,
-    epsilon_interac: float = 1.75,
+    epsilon_direct: float = 0.0,
+    epsilon_interac: float = 0.0,
     fee_max_amount: float = 3.00,
     fee_day_window: int = 1,
 ) -> List[Match]:

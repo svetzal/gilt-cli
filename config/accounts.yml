@@ -60,6 +60,26 @@ accounts:
         amount: [Amount]
         currency: [Currency]
 
+  - account_id: RBC_MC
+    institution: RBC
+    product: Mastercard
+    currency: CAD
+    description: RBC Personal Mastercard
+    nature: liability
+    source_patterns:
+      - '*rbc*mc*.csv'
+      - '*rbc*mastercard*.csv'
+    import_hints:
+      date_format: auto
+      decimal: .
+      thousands: ','
+      amount_sign: expenses_negative
+      possible_columns:
+        date: [Date, Transaction Date, Posted Date]
+        description: [Description, Memo, Details, Merchant]
+        amount: [Amount, CAD$]
+        currency: [Currency]
+
 # Notes:
 # - account_id values are the canonical keys used in processed outputs.
 # - source_patterns help ingestion scripts route CSVs to the right account mapping.
