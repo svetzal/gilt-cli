@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 import csv
+import re
 
 import typer
+from rich.table import Table
 
 from .util import console, read_ledger_text
 from finance.ingest import STANDARD_FIELDS
@@ -78,6 +80,44 @@ def _write_rows(ledger_path: Path, header: list[str], rows: list[dict]) -> None:
             writer.writerow(r)
 
 
+def _display_matches(
+    account: str,
+    rows: list[dict],
+    match_indexes: list[int],
+    note_text: str,
+    desc_prefix: str | None = None,
+) -> None:
+    """Display matched transactions in a table."""
+    table = Table(title="Matched Transactions", show_lines=False)
+    table.add_column("Account", style="cyan", no_wrap=True)
+    table.add_column("TxnID", style="blue", no_wrap=True)
+    table.add_column("Date", style="white")
+    table.add_column("Description", style="white")
+    table.add_column("Amount", style="yellow", justify="right")
+    table.add_column("Current Note", style="dim")
+    table.add_column("→ New Note", style="green")
+    
+    for i in match_indexes[:50]:  # Limit display to 50
+        r = rows[i]
+        raw_desc = (r.get('description') or '').strip()
+        desc_display = _highlight_prefix(raw_desc, desc_prefix) if desc_prefix else raw_desc
+        
+        table.add_row(
+            account,
+            (r.get('transaction_id') or '')[:8],
+            r.get('date') or '',
+            desc_display[:40],
+            r.get('amount') or '',
+            (r.get('notes') or '')[:30] if r.get('notes') else "—",
+            note_text[:30],
+        )
+    
+    console.print(table)
+    
+    if len(match_indexes) > 50:
+        console.print(f"[dim]... and {len(match_indexes) - 50} more[/]")
+
+
 def run(
     *,
     account: str,
@@ -85,6 +125,7 @@ def run(
     note_text: str,
     description: str | None = None,
     desc_prefix: str | None = None,
+    pattern: str | None = None,
     amount: float | None = None,
     assume_yes: bool = False,
     data_dir: Path = Path("data/accounts"),
@@ -94,7 +135,7 @@ def run(
 
     Modes:
     - Single: specify --txid/-t (TxnID8 prefix) to update a single transaction.
-    - Batch: specify --description/-d (and optionally --amount/-m) to update all matching rows.
+    - Batch: specify --description/-d, --desc-prefix/-p, or --pattern (and optionally --amount/-m) to update all matching rows.
 
     Returns an exit code (0 success; non-zero for errors). Dry-run when write=False.
     """
@@ -104,10 +145,11 @@ def run(
     single_mode = bool((txid or "").strip())
     batch_exact_mode = (description is not None)
     batch_prefix_mode = (desc_prefix is not None)
+    batch_pattern_mode = (pattern is not None)
 
-    modes_selected = sum([1 if single_mode else 0, 1 if batch_exact_mode else 0, 1 if batch_prefix_mode else 0])
+    modes_selected = sum([1 if single_mode else 0, 1 if batch_exact_mode else 0, 1 if batch_prefix_mode else 0, 1 if batch_pattern_mode else 0])
     if modes_selected != 1:
-        console.print("[red]Specify exactly one of --txid, --description, or --desc-prefix.[/]")
+        console.print("[red]Specify exactly one of --txid, --description, --desc-prefix, or --pattern.[/]")
         return 2
 
     try:
@@ -312,46 +354,97 @@ def run(
                 f"matching description prefix='{desc_prefix}' and amount={amount}."
             )
 
-    # Show up to 5 examples (include description; highlight prefix in prefix mode)
-    for i in match_indexes[:5]:
-        r = rows[i]
-        raw_desc = (r.get('description') or '').strip()
-        desc_display = _highlight_prefix(raw_desc, desc_prefix) if batch_prefix_mode else raw_desc
-        console.print(
-            f" - {(r.get('date') or '')} id={(r.get('transaction_id') or '')[:8]} amt={(r.get('amount') or '')} desc='{desc_display}' current_note='{r.get('notes') or ''}'"
-        )
-    console.print(f"New note: '{note_text}'")
+    elif batch_pattern_mode:
+        # Compile regex pattern
+        try:
+            regex = re.compile(pattern or "", re.IGNORECASE)
+        except re.error as e:
+            console.print(f"[red]Invalid regex pattern:[/] {e}")
+            return 2
+        
+        used_sign_insensitive = False
+        for i, r in enumerate(rows):
+            r_desc = (r.get("description") or "").strip()
+            if not regex.search(r_desc):
+                continue
+            if amt_target is None:
+                match_indexes.append(i)
+                continue
+            r_amt = _to_float(r.get("amount"))
+            if r_amt is None:
+                continue
+            if r_amt == amt_target:
+                match_indexes.append(i)
+        
+        # Fallback by absolute value if needed
+        if not match_indexes and amt_target is not None:
+            for i, r in enumerate(rows):
+                r_desc = (r.get("description") or "").strip()
+                if not regex.search(r_desc):
+                    continue
+                r_amt = _to_float(r.get("amount"))
+                if r_amt is None:
+                    continue
+                if abs(r_amt) == abs(amt_target):
+                    match_indexes.append(i)
+            if match_indexes:
+                used_sign_insensitive = True
+        
+        if not match_indexes:
+            if amt_target is None:
+                console.print(
+                    f"[red]No transactions found[/] in [bold]{account}[/] with description matching pattern '{pattern}'."
+                )
+            else:
+                console.print(
+                    f"[red]No transactions found[/] in [bold]{account}[/] with description matching pattern '{pattern}' and amount {amount}."
+                )
+                console.print("Hint: amounts are signed in the ledger (debits negative, credits positive). Try negating --amount if this was a debit.")
+            return 1
+        
+        if used_sign_insensitive:
+            console.print(
+                "[yellow]Note:[/] matched by absolute amount since no signed matches were found. Ledger stores debits as negative amounts."
+            )
+        
+        if amt_target is None:
+            console.print(
+                f"[cyan]Will set note[/] for [bold]{len(match_indexes)}[/] transactions in [bold]{account}[/] "
+                f"matching description pattern='{pattern}'."
+            )
+        else:
+            console.print(
+                f"[cyan]Will set note[/] for [bold]{len(match_indexes)}[/] transactions in [bold]{account}[/] "
+                f"matching description pattern='{pattern}' and amount={amount}."
+            )
 
+    # Show matched transactions in table
+    _display_matches(account, rows, match_indexes, note_text, desc_prefix if batch_prefix_mode else None)
+
+    # Batch mode: require confirmation if multiple matches
+    if len(match_indexes) > 1 and not assume_yes:
+        if not write:
+            console.print(
+                f"[yellow]Batch mode:[/] {len(match_indexes)} transactions would be updated. "
+                f"Use --yes to auto-confirm (dry-run)"
+            )
+        else:
+            import sys
+            # Only prompt if in an interactive terminal
+            if sys.stdin.isatty():
+                if not typer.confirm(f"Set note on {len(match_indexes)} transaction(s)?"):
+                    console.print("Cancelled")
+                    return 0
+            # Non-interactive environment (e.g., tests): proceed without prompting
+    
     if not write:
         console.print("[green]Dry-run:[/] no changes written. Use --write to persist.")
         return 0
 
-    # Apply with optional per-transaction confirmation
-    applied = 0
-    if assume_yes:
-        for i in match_indexes:
-            rows[i]["notes"] = note_text
-            applied += 1
-    else:
-        for i in match_indexes:
-            r = rows[i]
-            tx_preview = f"{(r.get('date') or '')} id={(r.get('transaction_id') or '')[:8]} amt={(r.get('amount') or '')}"
-            old_note = r.get('notes') or ''
-            # Show description with highlight if prefix mode is active
-            raw_desc = (r.get('description') or '').strip()
-            desc_display = _highlight_prefix(raw_desc, desc_prefix) if batch_prefix_mode else raw_desc
-            console.print(f"Description: '{desc_display}'")
-            msg = (
-                f"Apply note to {tx_preview}?\n"
-                f"  Current note: '{old_note}'\n"
-                f"  New note:     '{note_text}'"
-            )
-            if typer.confirm(msg, default=False):
-                rows[i]["notes"] = note_text
-                applied += 1
-            else:
-                console.print(f"[yellow]Skipped[/] {tx_preview}")
+    # Apply note to all matched transactions
+    for i in match_indexes:
+        rows[i]["notes"] = note_text
 
     _write_rows(ledger_path, header, rows)
-    console.print(f"[green]Saved notes to ledger successfully.[/] Applied to {applied} of {len(match_indexes)} matches.")
+    console.print(f"[green]Saved notes to ledger successfully.[/] Applied to {len(match_indexes)} transaction(s).")
     return 0

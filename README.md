@@ -225,7 +225,7 @@ finance note --account RBC_CHQ --txid a1b2c3d4 --note "Reimbursable expense" --w
 
 #### Batch Mode
 
-Use `--description` or `--desc-prefix` with optional `--amount` to target multiple recurring transactions:
+Use `--description`, `--desc-prefix`, or `--pattern` with optional `--amount` to target multiple recurring transactions:
 
 ```bash
 # Match exact description
@@ -238,6 +238,12 @@ finance note --account RBC_MC \
 finance note --account RBC_CHQ \
              --desc-prefix "TRANSFER FROM" \
              --note "Inter-account transfer" \
+             --write
+
+# Match by regex pattern (case-insensitive)
+finance note --account RBC_CHQ \
+             --pattern "Payment - WWW Payment - \d+ HYDRO ONE" \
+             --note "Hydro bill" \
              --write
 
 # Match description and specific amount
@@ -260,11 +266,281 @@ finance note --account RBC_MC \
 - `--txid, -t ID`: Transaction ID prefix (single mode)
 - `--description, -d TEXT`: Exact description match (batch mode)
 - `--desc-prefix, -p TEXT`: Description prefix match, case-insensitive (batch mode)
+- `--pattern TEXT`: Regex pattern to match description, case-insensitive (batch mode)
 - `--amount, -m AMOUNT`: Exact amount match (batch mode, optional)
 - `--note, -n TEXT`: Note text to set (required)
 - `--yes, -y, -r`: Skip confirmations in batch mode
 - `--data-dir PATH`: Directory containing ledgers (default: `data/accounts`)
 - `--write`: Persist changes (default: dry-run)
+
+---
+
+## Budgeting & Categorization
+
+The finance tool includes powerful budgeting features for tracking and categorizing spending across all your accounts.
+
+### `categories` - List Categories
+
+Display all defined categories with usage statistics from your transactions.
+
+```bash
+# List all categories with usage counts and totals
+finance categories
+
+# Use custom config location
+finance categories --config /path/to/categories.yml
+```
+
+**Options:**
+- `--config PATH`: Path to categories.yml (default: `config/categories.yml`)
+- `--data-dir PATH`: Directory containing ledgers (default: `data/accounts`)
+
+**Output:**
+Shows a table with:
+- Category and subcategory names
+- Descriptions
+- Budget amounts (if set)
+- Transaction count per category
+- Total spending per category
+
+---
+
+### `category` - Manage Categories
+
+Add, remove, or set budgets for categories.
+
+```bash
+# Add a new category
+finance category --add "Housing" --description "Housing and utilities" --write
+
+# Add a subcategory
+finance category --add "Housing:Utilities" --description "Electric, gas, water" --write
+
+# Set a budget
+finance category --set-budget "Dining Out" --amount 400 --period monthly --write
+
+# Remove a category (requires confirmation if used)
+finance category --remove "Old Category" --write
+
+# Force remove without confirmation
+finance category --remove "Housing:Utilities" --force --write
+```
+
+**Options:**
+- `--add CATEGORY`: Add a new category (supports "Category:Subcategory" syntax)
+- `--remove CATEGORY`: Remove a category
+- `--set-budget CATEGORY`: Set budget amount for a category
+- `--description TEXT`: Description for new category
+- `--amount FLOAT`: Budget amount (required with --set-budget)
+- `--period monthly|yearly`: Budget period (default: monthly)
+- `--force`: Skip confirmations when removing used categories
+- `--config PATH`: Path to categories.yml (default: `config/categories.yml`)
+- `--data-dir PATH`: Directory containing ledgers (default: `data/accounts`)
+- `--write`: Persist changes (default: dry-run)
+
+---
+
+### `categorize` - Categorize Transactions
+
+Assign categories to one or many transactions.
+
+#### Single Transaction Mode
+
+```bash
+# Categorize one transaction by ID
+finance categorize --account RBC_CHQ --txid a1b2c3d4 --category "Housing:Utilities" --write
+```
+
+#### Batch Mode
+
+```bash
+# Categorize all matching transactions by description prefix
+finance categorize --desc-prefix "SPOTIFY" --category "Entertainment:Music" --yes --write
+
+# Categorize exact description match
+finance categorize --account RBC_MC --description "Monthly Fee" --category "Banking:Fees" --write
+
+# Categorize by regex pattern
+finance categorize --pattern "Payment.*HYDRO ONE" --category "Housing:Utilities" --yes --write
+
+# Categorize across all accounts
+finance categorize --desc-prefix "AMAZON" --category "Shopping:Online" --yes --write
+
+# With amount filter
+finance categorize --account RBC_CHQ --description "Service Fee" --amount -12.95 --category "Banking:Fees" --write
+```
+
+**Options:**
+- `--account, -a ACCOUNT`: Account ID (omit to categorize across all accounts)
+- `--txid, -t ID`: Transaction ID prefix (single mode)
+- `--description, -d TEXT`: Exact description match (batch mode)
+- `--desc-prefix, -p TEXT`: Description prefix match, case-insensitive (batch mode)
+- `--pattern TEXT`: Regex pattern to match description, case-insensitive (batch mode)
+- `--amount, -m AMOUNT`: Exact amount match (batch mode, optional)
+- `--category, -c CATEGORY`: Category name (supports "Category:Subcategory" syntax)
+- `--subcategory, -s SUBCAT`: Subcategory name (alternative to colon syntax)
+- `--yes, -y`: Skip confirmations in batch mode
+- `--config PATH`: Path to categories.yml (default: `config/categories.yml`)
+- `--data-dir PATH`: Directory containing ledgers (default: `data/accounts`)
+- `--write`: Persist changes (default: dry-run)
+
+**Category Syntax:**
+- `--category "Housing"` - Category only
+- `--category "Housing:Utilities"` - Category with subcategory (shorthand)
+- `--category "Housing" --subcategory "Utilities"` - Alternative syntax
+
+---
+
+### `recategorize` - Rename Categories in Ledgers
+
+Rename a category across all ledger files. Useful when renaming categories in `categories.yml` to update existing transaction categorizations.
+
+```bash
+# Rename a category
+finance recategorize --from "Business" --to "Mojility" --write
+
+# Rename a category with subcategory
+finance recategorize --from "Business:Subscriptions" --to "Mojility:Subscriptions" --write
+
+# Preview changes without writing (dry-run)
+finance recategorize --from "Old Category" --to "New Category"
+```
+
+**Options:**
+- `--from TEXT`: Original category name (supports "Category:Subcategory" syntax) (required)
+- `--to TEXT`: New category name (supports "Category:Subcategory" syntax) (required)
+- `--data-dir PATH`: Directory containing ledgers (default: `data/accounts`)
+- `--write`: Persist changes (default: dry-run)
+
+**How it works:**
+1. Searches all ledger files for transactions with the specified category
+2. Shows a preview table of all matching transactions
+3. In dry-run mode (default), displays what would be changed
+4. With `--write`, prompts for confirmation and updates all matching transactions
+
+**Use case:**
+When you rename a category in `config/categories.yml`, existing transactions in ledger files still reference the old category name. Use this command to bulk-update all historical transactions to use the new category name.
+
+---
+
+### `diagnose-categories` - Find Orphaned Categories
+
+Diagnose category issues by finding categories used in transactions that aren't defined in `categories.yml`. Helps identify orphaned, misspelled, or forgotten categories.
+
+```bash
+# Check all ledgers for orphaned categories
+finance diagnose-categories
+
+# Use custom config location
+finance diagnose-categories --config /path/to/categories.yml
+```
+
+**Options:**
+- `--config PATH`: Path to categories.yml (default: `config/categories.yml`)
+- `--data-dir PATH`: Directory containing ledgers (default: `data/accounts`)
+
+**Output:**
+- Exit code 0: All categories in transactions are defined in config (no issues)
+- Exit code 1: Found orphaned categories (issues require attention)
+
+Displays a table showing:
+- Category and subcategory names found in transactions but not in config
+- Transaction count for each orphaned category
+- Suggested actions (add to config or fix typo)
+- Similar category names if potential typos detected
+
+**Use case:**
+After categorizing many transactions, this command helps you discover:
+- Categories that need to be added to `categories.yml`
+- Typos in category names that should be fixed with `recategorize`
+- Subcategories that exist in transactions but not in the parent category definition
+
+**Example workflow:**
+```bash
+# 1. Run diagnostic
+finance diagnose-categories
+
+# 2a. If legitimate category, add it to config
+finance category --add "NewCategory" --write
+
+# 2b. If typo, fix all transactions
+finance recategorize --from "Transporation" --to "Transportation" --write
+
+# 3. Re-run diagnostic to verify
+finance diagnose-categories
+```
+
+---
+
+### `uncategorized` - Find Uncategorized Transactions
+
+Display transactions that haven't been categorized yet.
+
+```bash
+# Show all uncategorized transactions
+finance uncategorized
+
+# Filter by account
+finance uncategorized --account RBC_CHQ
+
+# Filter by year
+finance uncategorized --year 2025
+
+# Show only large transactions
+finance uncategorized --min-amount 100
+
+# Limit results
+finance uncategorized --limit 50
+```
+
+**Options:**
+- `--account, -a ACCOUNT`: Account ID to filter (omit for all accounts)
+- `--year, -y YEAR`: Year to filter
+- `--limit, -n N`: Max number of transactions to show
+- `--min-amount AMOUNT`: Minimum absolute amount to include
+- `--data-dir PATH`: Directory containing ledgers (default: `data/accounts`)
+
+**Output:**
+Transactions are sorted by description (to group similar ones), then date. This makes it easy to identify patterns and batch categorize recurring expenses.
+
+---
+
+### `budget` - Budget Reporting
+
+View budget vs actual spending by category.
+
+```bash
+# Current year summary
+finance budget
+
+# Specific year
+finance budget --year 2025
+
+# Specific month
+finance budget --year 2025 --month 10
+
+# Single category detail
+finance budget --category "Dining Out" --year 2025
+```
+
+**Options:**
+- `--year, -y YEAR`: Year to report (default: current year)
+- `--month, -m MONTH`: Month to report (1-12, requires --year)
+- `--category, -c CATEGORY`: Filter to specific category
+- `--config PATH`: Path to categories.yml (default: `config/categories.yml`)
+- `--data-dir PATH`: Directory containing ledgers (default: `data/accounts`)
+
+**Output:**
+Shows a table with:
+- Category and subcategory breakdowns
+- Budgeted amount (automatically prorated for monthly/yearly reports)
+- Actual spending
+- Remaining budget (or over-budget amount in red)
+- Percentage of budget used (color-coded: green < 90%, yellow 90-100%, red > 100%)
+
+**Budget Proration:**
+- Monthly reports use monthly budgets directly, or divide yearly budgets by 12
+- Yearly reports use yearly budgets directly, or multiply monthly budgets by 12
 
 ---
 
@@ -377,6 +653,41 @@ finance note --account RBC_MC --desc-prefix "SPOTIFY" --note "Music subscription
 # Mark all gym membership fees
 finance note --account RBC_CHQ --description "GoodLife Fitness" --note "Gym membership" --yes --write
 ```
+
+### Setting Up Budget Tracking
+
+1. Define categories in `config/categories.yml` (or use the provided defaults)
+2. Review categories: `finance categories`
+3. Add custom categories if needed: `finance category --add "Custom Category" --description "..." --write`
+4. Set budgets: `finance category --set-budget "Dining Out" --amount 400 --period monthly --write`
+
+### Categorizing Transactions
+
+1. Find uncategorized transactions: `finance uncategorized`
+2. Categorize recurring expenses in batch:
+   ```bash
+   finance categorize --desc-prefix "SPOTIFY" --category "Entertainment:Music" --yes --write
+   finance categorize --desc-prefix "UBER" --category "Transportation" --yes --write
+   ```
+3. Categorize individual transactions:
+   ```bash
+   finance categorize --account RBC_CHQ --txid a1b2c3d4 --category "Housing:Rent" --write
+   ```
+4. Check progress: `finance uncategorized` (should show fewer transactions)
+
+### Monthly Budget Review
+
+1. View current month's spending:
+   ```bash
+   finance budget --year 2025 --month 10
+   ```
+2. Check which categories are over budget
+3. Review large uncategorized expenses:
+   ```bash
+   finance uncategorized --min-amount 100 --year 2025
+   ```
+4. Categorize any remaining transactions
+5. Re-run budget report to see updated totals
 
 ## Troubleshooting
 

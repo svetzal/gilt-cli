@@ -92,8 +92,17 @@ def run(
         else:
             debits_amount += amt
 
-        # Build notes with transfer counterparty when available
-        display_notes = t.notes or ""
+        # Build notes with category and transfer counterparty when available
+        note_parts = []
+        
+        # Add category if present
+        if t.category:
+            cat_display = t.category
+            if t.subcategory:
+                cat_display += f":{t.subcategory}"
+            note_parts.append(f"[yellow]{cat_display}[/yellow]")
+        
+        # Add transfer info if present
         try:
             transfer = (t.metadata or {}).get("transfer") if hasattr(t, "metadata") else None
             if isinstance(transfer, dict):
@@ -107,10 +116,16 @@ def run(
                         tr_note = f"Transfer from {cp_label}"
                     else:
                         tr_note = f"Transfer {cp_label}"
-                    display_notes = tr_note if not display_notes else f"{tr_note}, {display_notes}"
+                    note_parts.append(tr_note)
         except Exception:
             # Be resilient if metadata shape is unexpected
             pass
+        
+        # Add user notes if present
+        if t.notes:
+            note_parts.append(t.notes)
+        
+        display_notes = " | ".join(note_parts) if note_parts else ""
 
         table.add_row(
             t.date.strftime("%Y-%m-%d"),

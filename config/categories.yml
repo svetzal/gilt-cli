@@ -1,0 +1,111 @@
+categories:
+  - name: "Housing"
+    description: "Housing expenses including rent, mortgage, utilities"
+    subcategories:
+      - name: "Mortgage"
+        description: "Bi-weekly mortgage payments"
+      - name: "Utilities"
+        description: "Electric, cell phones, internet"
+      - name: "Maintenance"
+        description: "Repairs and maintenance"
+      - name: "Insurance"
+        description: "Home insurance"
+    budget:
+      amount: 2500.00
+      period: monthly
+    
+  - name: "Transportation"
+    description: "Vehicle and transit expenses"
+    subcategories:
+      - name: "F-150 Loan"
+      - name: "Fuel"
+      - name: "Maintenance"
+      - name: "Insurance"
+      - name: "Transit"
+      - name: "Tolls"
+      - name: "Parking"
+    budget:
+      amount: 800.00
+      period: monthly
+    
+  - name: "Dining Out"
+    description: "Restaurants and takeout"
+    budget:
+      amount: 400.00
+      period: monthly
+    tax_deductible: false
+
+  - name: "Pets"
+    description: "Pets and animal expenses"
+    budget:
+      amount: 150.00
+      period: monthly
+    tax_deductible: false
+
+  - name: "Groceries"
+    description: "Food and household supplies"
+    budget:
+      amount: 600.00
+      period: monthly
+    
+  - name: "Entertainment"
+    description: "Entertainment and leisure activities"
+    subcategories:
+      - name: "Subscriptions"
+        description: "Streaming and subscription services for movies, tv, apps"
+      - name: "Games"
+        description: "Video games"
+      - name: "Outings"
+        description: "Outings and activities"
+      - name: "Books"
+        description: "Books, audiobooks and reading materials"
+      - name: "Hobby"
+        description: "Hobbies and activities"
+    budget:
+      amount: 200.00
+      period: monthly
+    
+  - name: "Shopping"
+    description: "General shopping and online purchases"
+    subcategories:
+      - name: "Online"
+        description: "Online purchases"
+      - name: "Clothing"
+        description: "Clothing and accessories"
+    
+  - name: "Healthcare"
+    description: "Medical and health expenses"
+    subcategories:
+      - name: "Medical"
+        description: "Doctor visits and prescriptions"
+      - name: "Dental"
+        description: "Dental care"
+      - name: "Vision"
+        description: "Eye care and glasses"
+    
+  - name: "Banking"
+    description: "Bank fees and charges"
+    subcategories:
+      - name: "Interest"
+        description: "Interest on borrowing"
+      - name: "Fees"
+        description: "Account fees and service charges"
+
+  - name: "RBC"
+    description: "Costs of working at RBC"
+    subcategories:
+      - name: Parking
+
+  - name: "Mojility"
+    description: "Business-related expenses"
+    subcategories:
+      - name: "Bank Fees"
+      - name: "Loan"
+      - name: "Subscriptions"
+      - name: "Meals"
+        description: "Business meal expenses"
+      - name: "Travel"
+        description: "Business travel"
+      - name: "Supplies"
+        description: "Office supplies"
+    tax_deductible: true

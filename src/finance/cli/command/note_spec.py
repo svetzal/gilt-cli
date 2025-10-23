@@ -75,7 +75,7 @@ def it_should_update_note_with_write_and_be_dry_run_by_default(tmp_path: Path):
     assert rows[0]["notes"] == "old"
 
     # Now write changes
-    rc2 = run(account=acc, txid=tid1[:8], note_text="new-note", data_dir=tmp_path, write=True)
+    rc2 = run(account=acc, txid=tid1[:8], note_text="new-note", data_dir=tmp_path, write=True, assume_yes=True)
     assert rc2 == 0
     rows2 = list(csv.DictReader(ledger_path.read_text(encoding="utf-8").splitlines()))
     assert rows2[0]["notes"] == "new-note"
@@ -460,3 +460,126 @@ def it_should_update_notes_by_description_prefix_case_insensitive(tmp_path: Path
     assert rows_after2[0]["notes"] == "ai-tools"
     assert rows_after2[1]["notes"] == "ai-tools"
     assert rows_after2[2]["notes"] == ""
+
+
+def it_should_update_notes_by_regex_pattern(tmp_path: Path):
+    acc = "PATTERNACC"
+    ledger_path = tmp_path / f"{acc}.csv"
+    _write_simple_ledger(
+        ledger_path,
+        [
+            {
+                "transaction_id": "aaaa111111111111",
+                "date": "2025-09-01",
+                "description": "Payment - WWW Payment - 12345 HYDRO ONE",
+                "amount": -150.0,
+                "currency": "CAD",
+                "account_id": acc,
+                "counterparty": "",
+                "category": "",
+                "subcategory": "",
+                "notes": "",
+                "source_file": "x.csv",
+            },
+            {
+                "transaction_id": "bbbb222222222222",
+                "date": "2025-09-02",
+                "description": "Payment - WWW Payment - 67890 HYDRO ONE",
+                "amount": -145.0,
+                "currency": "CAD",
+                "account_id": acc,
+                "counterparty": "",
+                "category": "",
+                "subcategory": "",
+                "notes": "",
+                "source_file": "x.csv",
+            },
+            {
+                "transaction_id": "cccc333333333333",
+                "date": "2025-09-03",
+                "description": "Payment - DIFFERENT VENDOR",
+                "amount": -50.0,
+                "currency": "CAD",
+                "account_id": acc,
+                "counterparty": "",
+                "category": "",
+                "subcategory": "",
+                "notes": "",
+                "source_file": "x.csv",
+            },
+        ],
+    )
+
+    # Test with regex pattern matching variable payment numbers
+    rc = run(
+        account=acc,
+        txid=None,
+        note_text="hydro-bill",
+        description=None,
+        desc_prefix=None,
+        pattern=r"Payment - WWW Payment - \d+ HYDRO ONE",
+        amount=None,
+        data_dir=tmp_path,
+        write=False,
+    )
+    assert rc == 0
+    rows_after = list(csv.DictReader(ledger_path.read_text(encoding="utf-8").splitlines()))
+    assert rows_after[0]["notes"] == ""
+    assert rows_after[1]["notes"] == ""
+    assert rows_after[2]["notes"] == ""
+
+    # Write with pattern; should match first two rows only
+    rc2 = run(
+        account=acc,
+        txid=None,
+        note_text="hydro-bill",
+        description=None,
+        desc_prefix=None,
+        pattern=r"Payment - WWW Payment - \d+ HYDRO ONE",
+        amount=None,
+        data_dir=tmp_path,
+        write=True,
+        assume_yes=True,
+    )
+    assert rc2 == 0
+    rows_after2 = list(csv.DictReader(ledger_path.read_text(encoding="utf-8").splitlines()))
+    assert rows_after2[0]["notes"] == "hydro-bill"
+    assert rows_after2[1]["notes"] == "hydro-bill"
+    assert rows_after2[2]["notes"] == ""
+
+
+def it_should_error_on_invalid_regex_pattern(tmp_path: Path):
+    acc = "BADPATTERN"
+    ledger_path = tmp_path / f"{acc}.csv"
+    _write_simple_ledger(
+        ledger_path,
+        [
+            {
+                "transaction_id": "dddd444444444444",
+                "date": "2025-09-01",
+                "description": "Test",
+                "amount": -10.0,
+                "currency": "CAD",
+                "account_id": acc,
+                "counterparty": "",
+                "category": "",
+                "subcategory": "",
+                "notes": "",
+                "source_file": "x.csv",
+            },
+        ],
+    )
+
+    # Invalid regex should return error code
+    rc = run(
+        account=acc,
+        txid=None,
+        note_text="test",
+        description=None,
+        desc_prefix=None,
+        pattern=r"[invalid(regex",  # Unclosed bracket
+        amount=None,
+        data_dir=tmp_path,
+        write=False,
+    )
+    assert rc == 2  # Error code for invalid pattern
