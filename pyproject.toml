@@ -20,8 +20,14 @@ dev = [
   "pytest",
 ]
 
+# GUI dependencies (install with: pip install -e ".[gui]")
+gui = [
+  "PySide6>=6.5",
+]
+
 [project.scripts]
 finance = "finance.cli.app:app"
+finance-gui = "finance.gui.app:main"
 
 [tool.ruff]
 # Target Python 3.13 syntax/features for linting and rules
