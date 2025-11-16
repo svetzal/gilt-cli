@@ -1,0 +1,150 @@
+from __future__ import annotations
+
+"""
+CLI command to detect duplicate transactions using LLM-based analysis.
+
+This command scans all ledger files for potential duplicate transactions,
+using an LLM to assess whether transactions are duplicates despite variations
+in description text that banks may apply over time.
+
+Privacy:
+- Uses local LLM inference (no external API calls).
+- All analysis happens on local files only.
+"""
+
+from pathlib import Path
+from typing import Optional
+
+from rich.console import Console
+from rich.table import Table
+from rich.prompt import Confirm
+
+from finance.transfer.duplicate_detector import DuplicateDetector
+
+
+def run(
+    data_dir: Path,
+    model: str = "qwen2.5:3b",
+    max_days_apart: int = 1,
+    amount_tolerance: float = 0.001,
+    min_confidence: float = 0.0,
+    interactive: bool = False,
+) -> int:
+    """Scan ledgers for duplicate transactions using LLM analysis.
+
+    Uses strict filtering to only check transactions that are very likely duplicates:
+    - Same account
+    - Same amount (within 0.001 tolerance)
+    - Same day or within max_days_apart (default 1 day)
+    - Different descriptions (bank description variations)
+
+    Args:
+        data_dir: Directory containing ledger CSV files
+        model: Ollama model to use for duplicate detection
+        max_days_apart: Maximum days between potential duplicates (default 1)
+        amount_tolerance: Acceptable difference in amounts (default 0.001)
+        min_confidence: Minimum confidence threshold to display (0.0-1.0)
+        interactive: Enable interactive mode to confirm/deny each duplicate
+
+    Returns:
+        Exit code (0 = success)
+    """
+    console = Console()
+
+    if not data_dir.exists():
+        console.print(f"[red]Error:[/red] Data directory not found: {data_dir}")
+        return 1
+
+    console.print(f"[cyan]Scanning for duplicates in:[/cyan] {data_dir}")
+    console.print(f"[dim]Using model:[/dim] {model}")
+    console.print(f"[dim]Max days apart:[/dim] {max_days_apart}")
+    console.print(f"[dim]Amount tolerance:[/dim] {amount_tolerance}")
+    if interactive:
+        console.print(f"[yellow]Interactive mode:[/yellow] enabled (will learn from your feedback)")
+    console.print()
+
+    # Initialize detector with prompt manager if interactive
+    detector = DuplicateDetector(model=model, data_dir=data_dir if interactive else None)
+
+    # Load transactions
+    console.print("[yellow]Loading transactions...[/yellow]")
+    transactions = detector.load_all_transactions(data_dir)
+    console.print(f"[green]Loaded {len(transactions)} transactions[/green]")
+
+    # Find candidates
+    console.print("[yellow]Finding candidate pairs...[/yellow]")
+    candidates = detector.find_potential_duplicates(
+        transactions,
+        max_days_apart=max_days_apart,
+        amount_tolerance=amount_tolerance,
+    )
+    console.print(f"[green]Found {len(candidates)} candidate pairs[/green]")
+
+    if not candidates:
+        console.print("[green]No potential duplicates found![/green]")
+        return 0
+
+    # Analyze candidates with LLM
+    console.print(f"[yellow]Analyzing candidates with {model}...[/yellow]")
+    console.print()
+
+    matches = detector.scan_for_duplicates(
+        data_dir,
+        max_days_apart=max_days_apart,
+        amount_tolerance=amount_tolerance,
+    )
+
+    # Filter by confidence threshold
+    filtered_matches = [m for m in matches if m.assessment.confidence >= min_confidence]
+
+    if not filtered_matches:
+        console.print(
+            f"[green]No duplicates found with confidence >= {min_confidence:.0%}[/green]"
+        )
+        return 0
+
+    # Display results
+    console.print(
+        f"[cyan]Found {len(filtered_matches)} potential duplicate(s) "
+        f"with confidence >= {min_confidence:.0%}:[/cyan]"
+    )
+    console.print()
+
+    for i, match in enumerate(filtered_matches, 1):
+        pair = match.pair
+        assessment = match.assessment
+
+        # Create a table for each match
+        table = Table(
+            title=f"Match {i}/{len(filtered_matches)} - "
+            f"Confidence: {match.confidence_pct:.1f}% - "
+            f"{'[red]DUPLICATE[/red]' if assessment.is_duplicate else '[green]NOT DUPLICATE[/green]'}",
+            show_header=True,
+            show_lines=True,
+        )
+
+        table.add_column("Field", style="cyan")
+        table.add_column("Transaction 1", style="yellow")
+        table.add_column("Transaction 2", style="magenta")
+
+        table.add_row("ID", pair.txn1_id[:8], pair.txn2_id[:8])
+        table.add_row("Date", str(pair.txn1_date), str(pair.txn2_date))
+        table.add_row("Account", pair.txn1_account, pair.txn2_account)
+        table.add_row("Amount", f"{pair.txn1_amount:.2f}", f"{pair.txn2_amount:.2f}")
+        table.add_row("Description", pair.txn1_description, pair.txn2_description)
+
+        console.print(table)
+        console.print(f"[dim]Reasoning:[/dim] {assessment.reasoning}")
+        console.print()
+
+    # Summary
+    duplicate_count = sum(1 for m in filtered_matches if m.assessment.is_duplicate)
+    console.print(f"[cyan]Summary:[/cyan]")
+    console.print(f"  Total matches analyzed: {len(filtered_matches)}")
+    console.print(f"  Confirmed duplicates: {duplicate_count}")
+    console.print(f"  Not duplicates: {len(filtered_matches) - duplicate_count}")
+
+    return 0
+
+
+__all__ = ["run"]

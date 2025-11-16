@@ -79,13 +79,13 @@ def category(
     write: bool = typer.Option(False, "--write", help=HELP_WRITE),
 ):
     """Manage categories: add, remove, or set budget.
-    
+
     Examples:
       finance category --add "Housing" --description "Housing expenses" --write
       finance category --add "Housing:Utilities" --write
       finance category --set-budget "Dining Out" --amount 400 --write
       finance category --remove "Old Category" --write
-    
+
     Safety: dry-run by default. Use --write to persist changes.
     """
     from finance.cli.command import category as cmd_category
@@ -142,17 +142,17 @@ def categorize(
     write: bool = typer.Option(False, "--write", help=HELP_WRITE),
 ):
     """Categorize transactions (single or batch mode).
-    
+
     Modes:
     - Single: use --txid/-t to target one transaction
     - Batch: use --description/-d, --desc-prefix/-p, or --pattern to target multiple transactions
-    
+
     Examples:
       finance categorize --account RBC_CHQ --txid a1b2c3d4 --category "Housing:Utilities" --write
       finance categorize --desc-prefix "SPOTIFY" --category "Entertainment:Music" --yes --write
       finance categorize --pattern "Payment.*HYDRO ONE" --category "Housing:Utilities" --yes --write
       finance categorize --account RBC_MC --description "Monthly Fee" --category "Banking:Fees" --write
-    
+
     Safety: dry-run by default. Use --write to persist changes.
     """
     from finance.cli.command import categorize as cmd_categorize
@@ -182,14 +182,14 @@ def recategorize(
     write: bool = typer.Option(False, "--write", help=HELP_WRITE),
 ):
     """Rename a category across all ledger files.
-    
+
     Useful when renaming categories in categories.yml to update existing
     transaction categorizations in ledger files.
-    
+
     Examples:
       finance recategorize --from "Business" --to "Mojility" --write
       finance recategorize --from "Business:Meals" --to "Mojility:Meals" --write
-    
+
     Safety: dry-run by default. Use --write to persist changes.
     """
     from finance.cli.command import recategorize as cmd_recategorize
@@ -212,10 +212,10 @@ def uncategorized(
     data_dir: Path = typer.Option(DEFAULT_DATA_DIR, "--data-dir", help=HELP_LEDGER_DIR),
 ):
     """Display transactions without categories.
-    
+
     Shows uncategorized transactions sorted by description (for grouping similar ones), then date.
     Helps identify which transactions still need categorization.
-    
+
     Examples:
       finance uncategorized
       finance uncategorized --account RBC_CHQ --year 2025
@@ -242,10 +242,10 @@ def budget(
     data_dir: Path = typer.Option(DEFAULT_DATA_DIR, "--data-dir", help=HELP_LEDGER_DIR),
 ):
     """Display budget summary comparing actual spending vs budgeted amounts.
-    
+
     Shows spending by category with budget comparison when budgets are defined.
     Automatically prorates monthly/yearly budgets based on report period.
-    
+
     Examples:
       finance budget                              # Current year
       finance budget --year 2025                  # Specific year
@@ -270,11 +270,11 @@ def diagnose_categories(
     data_dir: Path = typer.Option(DEFAULT_DATA_DIR, "--data-dir", help=HELP_LEDGER_DIR),
 ):
     """Diagnose category issues by finding categories in transactions not in config.
-    
+
     Scans all ledger files and reports any categories used in transactions that
     aren't defined in categories.yml. Helps identify orphaned, misspelled, or
     forgotten categories.
-    
+
     Examples:
       finance diagnose-categories                     # Check all ledgers
       finance diagnose-categories --config custom.yml # Use custom config
@@ -298,16 +298,16 @@ def report(
     write: bool = typer.Option(False, "--write", help=HELP_WRITE),
 ):
     """Generate budget report as markdown and Word document (.docx).
-    
+
     Creates a comprehensive budget report comparing actual spending vs budgeted amounts.
     Outputs both markdown (.md) and Word (.docx) formats using pandoc.
-    
+
     Examples:
       finance report                              # Current year (dry-run)
       finance report --year 2025 --write          # Full year report
       finance report --year 2025 --month 10 --write  # Single month
       finance report --output custom/report --write  # Custom output path
-    
+
     Safety: dry-run by default. Use --write to persist files.
     Note: Requires pandoc for .docx generation (brew install pandoc on macOS).
     """
@@ -380,6 +380,45 @@ def ingest(
         ingest_dir=ingest_dir,
         output_dir=output_dir,
         write=write,
+    )
+    raise typer.Exit(code=code)
+
+
+@app.command()
+def duplicates(
+    data_dir: Path = typer.Option(DEFAULT_DATA_DIR, "--data-dir", help=HELP_LEDGER_DIR),
+    model: str = typer.Option("qwen2.5:3b", "--model", help="Ollama model to use for duplicate detection"),
+    max_days_apart: int = typer.Option(1, "--max-days", help="Maximum days between potential duplicates"),
+    amount_tolerance: float = typer.Option(0.001, "--amount-tolerance", help="Acceptable difference in amounts"),
+    min_confidence: float = typer.Option(0.0, "--min-confidence", help="Minimum confidence threshold to display (0.0-1.0)"),
+    interactive: bool = typer.Option(False, "--interactive", "-i", help="Enable interactive mode to confirm/deny each duplicate and improve prompt"),
+):
+    """Scan ledgers for duplicate transactions using LLM analysis.
+
+    Focuses on bank description variations: same account, same amount, same/adjacent day,
+    but different descriptions. Uses local LLM to assess if variations are duplicates.
+
+    Interactive mode learns from your feedback and adapts the prompt over time to better
+    match your personal transaction patterns. Feedback is stored locally in data/.
+
+    Examples:
+      finance duplicates                              # Scan with default settings
+      finance duplicates --model qwen3:30b            # Use larger model
+      finance duplicates --interactive                # Learn from your feedback
+      finance duplicates -i --min-confidence 0.7      # Interactive, high-confidence only
+      finance duplicates --max-days 2                 # Check +/- 2 days
+
+    Note: Requires Ollama with specified model installed locally.
+    """
+    from finance.cli.command import duplicates as cmd_duplicates
+
+    code = cmd_duplicates.run(
+        data_dir=data_dir,
+        model=model,
+        max_days_apart=max_days_apart,
+        amount_tolerance=amount_tolerance,
+        min_confidence=min_confidence,
+        interactive=interactive,
     )
     raise typer.Exit(code=code)
 
