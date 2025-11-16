@@ -1,7 +1,7 @@
 """
-Finance Local - Qt6 GUI
+Finance - Qt6 GUI
 
-Privacy-first graphical user interface for Finance Local.
+Privacy-first graphical user interface for Finance.
 All data processing remains local-only with no network I/O.
 """
 

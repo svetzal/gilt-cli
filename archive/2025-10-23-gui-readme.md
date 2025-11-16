@@ -1,6 +1,6 @@
-# Finance Local - Qt6 GUI
+# Finance - Qt6 GUI
 
-This is the graphical user interface for Finance Local, built with Qt6 (PySide6).
+This is the graphical user interface for Finance, built with Qt6 (PySide6).
 
 ## Installation
 
@@ -146,9 +146,9 @@ Check the following:
 ### Settings don't persist
 
 Settings are stored using Qt's QSettings:
-- **macOS**: `~/Library/Preferences/com.Mojility.Finance Local.plist`
-- **Linux**: `~/.config/Mojility/Finance Local.conf`
-- **Windows**: Registry under `HKEY_CURRENT_USER\Software\Mojility\Finance Local`
+- **macOS**: `~/Library/Preferences/com.Mojility.Finance.plist`
+- **Linux**: `~/.config/Mojility/Finance.conf`
+- **Windows**: Registry under `HKEY_CURRENT_USER\Software\Mojility\Finance`
 
 ### Application crashes on startup
 

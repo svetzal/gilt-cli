@@ -24,8 +24,13 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QAction, QIcon
 
+from finance.gui.views.dashboard_view import DashboardView
 from finance.gui.views.transactions_view import TransactionsView
+from finance.gui.views.categories_view import CategoriesView
+from finance.gui.views.budget_view import BudgetView
+from finance.gui.views.import_wizard import ImportWizard
 from finance.gui.dialogs.settings_dialog import SettingsDialog
+from finance.gui.services.import_service import ImportService
 
 
 class MainWindow(QMainWindow):
@@ -34,11 +39,12 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("Finance Local")
+        self.setWindowTitle("Finance")
         self.setMinimumSize(1200, 800)
 
-        # Get data directory from settings
+        # Get data directory and config paths from settings
         self.data_dir = SettingsDialog.get_data_dir()
+        self.categories_config = SettingsDialog.get_categories_config()
 
         self._init_ui()
         self._create_menu_bar()
@@ -86,7 +92,7 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
 
         # App title
-        self.nav_title = QLabel("Finance Local")
+        self.nav_title = QLabel("Finance")
         self.nav_title.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.nav_title)
 
@@ -94,9 +100,11 @@ class MainWindow(QMainWindow):
         self.nav_list = QListWidget()
         self.nav_list.setIconSize(QSize(24, 24))
 
-        # Add navigation items
+        # Add navigation items (only for views, not dialogs)
+        self.nav_list.addItem(self._create_nav_item("📊 Dashboard"))
         self.nav_list.addItem(self._create_nav_item("💰 Transactions"))
-        self.nav_list.addItem(self._create_nav_item("⚙️  Settings"))
+        self.nav_list.addItem(self._create_nav_item("📁 Categories"))
+        self.nav_list.addItem(self._create_nav_item("📈 Budget"))
 
         self.nav_list.currentRowChanged.connect(self._on_nav_changed)
 
@@ -185,25 +193,41 @@ class MainWindow(QMainWindow):
 
     def _create_views(self):
         """Create and add views to the content stack."""
-        # Transactions view
+        # Dashboard view (index 0)
+        self.dashboard_view = DashboardView(self.data_dir, self.categories_config, self)
+        self.dashboard_view.navigate_to.connect(self._on_navigate_to_view)
+        self.content_stack.addWidget(self.dashboard_view)
+
+        # Transactions view (index 1)
         self.transactions_view = TransactionsView(self.data_dir, self)
         self.content_stack.addWidget(self.transactions_view)
 
-        # Settings placeholder (we'll show dialog instead)
-        settings_placeholder = QLabel("Settings\n\n(Use File → Settings)")
-        settings_placeholder.setAlignment(Qt.AlignCenter)
-        settings_placeholder.setStyleSheet("font-size: 16pt; color: gray;")
-        self.content_stack.addWidget(settings_placeholder)
+        # Categories view (index 2)
+        self.categories_view = CategoriesView(self.categories_config, self)
+        self.content_stack.addWidget(self.categories_view)
+
+        # Budget view (index 3)
+        self.budget_view = BudgetView(self.data_dir, self.categories_config, self)
+        self.content_stack.addWidget(self.budget_view)
 
     def _on_nav_changed(self, index: int):
         """Handle navigation item change."""
-        if index == 0:  # Transactions
+        # Map navigation index to content stack index
+        # Dialogs (Import, Settings) are accessed via menu
+        if index == 0:  # Dashboard
             self.content_stack.setCurrentIndex(0)
-        elif index == 1:  # Settings
-            # Show settings dialog instead of switching view
-            self._show_settings()
-            # Revert selection to previous view
-            self.nav_list.setCurrentRow(0)
+        elif index == 1:  # Transactions
+            self.content_stack.setCurrentIndex(1)
+        elif index == 2:  # Categories
+            self.content_stack.setCurrentIndex(2)
+        elif index == 3:  # Budget
+            self.content_stack.setCurrentIndex(3)
+
+    def _on_navigate_to_view(self, view_index: int):
+        """Handle navigation request from dashboard."""
+        # Set both the content stack and navigation list
+        self.content_stack.setCurrentIndex(view_index)
+        self.nav_list.setCurrentRow(view_index)
 
     def _create_menu_bar(self):
         """Create the menu bar."""
@@ -211,6 +235,13 @@ class MainWindow(QMainWindow):
 
         # File menu
         file_menu = menubar.addMenu("&File")
+
+        import_action = QAction("&Import CSV Files...", self)
+        import_action.setShortcut("Ctrl+I")
+        import_action.triggered.connect(self._show_import_wizard)
+        file_menu.addAction(import_action)
+
+        file_menu.addSeparator()
 
         settings_action = QAction("&Settings...", self)
         settings_action.setShortcut("Ctrl+,")
@@ -235,13 +266,28 @@ class MainWindow(QMainWindow):
         # Help menu
         help_menu = menubar.addMenu("&Help")
 
-        about_action = QAction("&About Finance Local", self)
+        about_action = QAction("&About Finance", self)
         about_action.triggered.connect(self._show_about)
         help_menu.addAction(about_action)
 
     def _create_status_bar(self):
         """Create the status bar."""
         self.statusBar().showMessage("Ready")
+
+    def _show_import_wizard(self):
+        """Show the import wizard."""
+        # Get accounts config path
+        accounts_config = self.data_dir.parent / "config" / "accounts.yml"
+
+        # Create import service
+        import_service = ImportService(self.data_dir, accounts_config)
+
+        # Show wizard
+        wizard = ImportWizard(import_service, self)
+        if wizard.exec():
+            # Import completed, reload transactions
+            self.transactions_view.reload_transactions()
+            self.statusBar().showMessage("Import completed", 3000)
 
     def _show_settings(self):
         """Show the settings dialog."""
@@ -255,9 +301,18 @@ class MainWindow(QMainWindow):
     def _refresh_current_view(self):
         """Refresh the current view."""
         current_index = self.content_stack.currentIndex()
-        if current_index == 0:  # Transactions view
+        if current_index == 0:  # Dashboard view
+            self.dashboard_view.reload_dashboard()
+            self.statusBar().showMessage("Dashboard reloaded", 3000)
+        elif current_index == 1:  # Transactions view
             self.transactions_view.reload_transactions()
             self.statusBar().showMessage("Transactions reloaded", 3000)
+        elif current_index == 2:  # Categories view
+            self.categories_view._load_categories()
+            self.statusBar().showMessage("Categories reloaded", 3000)
+        elif current_index == 3:  # Budget view
+            self.budget_view.reload_budget()
+            self.statusBar().showMessage("Budget reloaded", 3000)
 
     def _show_about(self):
         """Show about dialog."""
@@ -265,8 +320,8 @@ class MainWindow(QMainWindow):
 
         QMessageBox.about(
             self,
-            "About Finance Local",
-            "<h2>Finance Local</h2>"
+            "About Finance",
+            "<h2>Finance</h2>"
             "<p>Version 0.0.0</p>"
             "<p>A <b>local-only, privacy-first</b> financial management tool.</p>"
             "<p>All data processing happens on your machine with no network I/O.</p>"

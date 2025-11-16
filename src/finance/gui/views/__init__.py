@@ -1,1 +1,1 @@
-"""View widgets for Finance Local GUI."""
+"""View widgets for Finance GUI."""

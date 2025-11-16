@@ -8,6 +8,7 @@ Provides filter controls and transaction table for comprehensive transaction man
 
 from pathlib import Path
 from datetime import date, datetime
+import csv
 
 from PySide6.QtWidgets import (
     QWidget,
@@ -21,12 +22,17 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QGroupBox,
     QStatusBar,
+    QMessageBox,
 )
 from PySide6.QtCore import Qt, QDate, Signal
 
 from finance.gui.widgets.transaction_table import TransactionTableWidget
 from finance.gui.services.transaction_service import TransactionService
+from finance.gui.dialogs.note_dialog import NoteDialog
+from finance.gui.dialogs.categorize_dialog import CategorizeDialog
+from finance.gui.dialogs.settings_dialog import SettingsDialog
 from finance.model.account import TransactionGroup
+from finance.model.ledger_io import dump_ledger_csv, load_ledger_csv
 
 
 class TransactionsView(QWidget):
@@ -153,6 +159,10 @@ class TransactionsView(QWidget):
         # Update status when selection changes
         self.table.selection_changed.connect(self._update_status)
 
+        # Context menu actions
+        self.table.categorize_requested.connect(self._on_categorize_requested)
+        self.table.note_requested.connect(self._on_note_requested)
+
     def reload_transactions(self):
         """Reload all transactions from disk."""
         # Clear cache
@@ -278,3 +288,145 @@ class TransactionsView(QWidget):
     def get_selected_transactions(self) -> list[TransactionGroup]:
         """Get currently selected transactions."""
         return self.table.get_selected_transactions()
+
+    def _on_categorize_requested(self):
+        """Handle categorize request from context menu."""
+        selected = self.table.get_selected_transactions()
+        if not selected:
+            return
+
+        # Get categories config path
+        categories_config = SettingsDialog.get_categories_config()
+
+        # Show categorize dialog
+        dialog = CategorizeDialog(selected, categories_config, self)
+        if dialog.exec():
+            # Get selected category
+            category, subcategory = dialog.get_selected_category()
+
+            # Apply categorization
+            self._apply_categorization(selected, category, subcategory)
+
+    def _apply_categorization(
+        self,
+        transactions: list[TransactionGroup],
+        category: str,
+        subcategory: str | None,
+    ):
+        """
+        Apply categorization to transactions and save to disk.
+
+        Args:
+            transactions: List of transactions to categorize
+            category: Category name
+            subcategory: Optional subcategory name
+        """
+        try:
+            # Group transactions by account
+            by_account = {}
+            for txn_group in transactions:
+                account_id = txn_group.primary.account_id
+                if account_id not in by_account:
+                    by_account[account_id] = []
+                by_account[account_id].append(txn_group.primary.transaction_id)
+
+            # Update each account file
+            for account_id, txn_ids in by_account.items():
+                ledger_path = self.service.data_dir / f"{account_id}.csv"
+                if not ledger_path.exists():
+                    continue
+
+                # Load ledger
+                text = ledger_path.read_text(encoding="utf-8")
+                groups = load_ledger_csv(text)
+
+                # Update transactions
+                for group in groups:
+                    if group.primary.transaction_id in txn_ids:
+                        group.primary.category = category
+                        group.primary.subcategory = subcategory
+
+                # Save back to file
+                updated_csv = dump_ledger_csv(groups)
+                ledger_path.write_text(updated_csv, encoding="utf-8")
+
+            # Reload transactions
+            self.reload_transactions()
+
+            # Show success message
+            QMessageBox.information(
+                self,
+                "Success",
+                f"Categorized {len(transactions)} transaction(s) as '{category}"
+                + (f":{subcategory}'" if subcategory else "'"),
+            )
+
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Error", f"Failed to categorize transactions:\n{str(e)}"
+            )
+
+    def _on_note_requested(self):
+        """Handle note edit request from context menu."""
+        selected = self.table.get_selected_transactions()
+        if len(selected) != 1:
+            return
+
+        txn_group = selected[0]
+        txn = txn_group.primary
+
+        # Show note dialog
+        dialog = NoteDialog(
+            current_note=txn.notes or "",
+            transaction_desc=txn.description or "",
+            parent=self,
+        )
+
+        if dialog.exec():
+            # Get new note
+            new_note = dialog.get_note()
+
+            # Apply note
+            self._apply_note(txn_group, new_note)
+
+    def _apply_note(self, transaction: TransactionGroup, note: str):
+        """
+        Apply note to a transaction and save to disk.
+
+        Args:
+            transaction: Transaction to update
+            note: New note text
+        """
+        try:
+            account_id = transaction.primary.account_id
+            ledger_path = self.service.data_dir / f"{account_id}.csv"
+
+            if not ledger_path.exists():
+                raise FileNotFoundError(f"Ledger file not found: {ledger_path}")
+
+            # Load ledger
+            text = ledger_path.read_text(encoding="utf-8")
+            groups = load_ledger_csv(text)
+
+            # Update transaction
+            for group in groups:
+                if group.primary.transaction_id == transaction.primary.transaction_id:
+                    group.primary.notes = note if note else None
+                    break
+
+            # Save back to file
+            updated_csv = dump_ledger_csv(groups)
+            ledger_path.write_text(updated_csv, encoding="utf-8")
+
+            # Reload transactions
+            self.reload_transactions()
+
+            # Show success message
+            QMessageBox.information(
+                self, "Success", "Note updated successfully"
+            )
+
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Error", f"Failed to update note:\n{str(e)}"
+            )

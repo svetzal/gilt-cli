@@ -1,8 +1,8 @@
 # Qt6 User Interface Plan
 
-**Finance Local - Qt6 GUI**
+**Finance - Qt6 GUI**
 
-This document outlines the design and implementation plan for a feature-rich Qt6 graphical user interface for the Finance Local privacy-first financial management tool.
+This document outlines the design and implementation plan for a feature-rich Qt6 graphical user interface for the Finance privacy-first financial management tool.
 
 ## Overview
 
@@ -101,7 +101,7 @@ src/finance/
 ### Layout Overview
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Finance Local                                    [_][□][×] │
+│  Finance                                    [_][□][×] │
 ├─────────────────────────────────────────────────────────────┤
 │  File  Edit  View  Tools  Help                              │
 ├──────────┬──────────────────────────────────────────────────┤
@@ -986,7 +986,7 @@ def show_toast(main_window, message, duration_ms=3000):
 # src/finance/gui/app.py
 def main():
     app = QApplication(sys.argv)
-    app.setApplicationName("Finance Local")
+    app.setApplicationName("Finance")
     app.setOrganizationName("Mojility")
 
     # Load settings
@@ -1079,4 +1079,4 @@ This Qt6 UI plan provides:
 5. **Phased implementation** for iterative development
 6. **Professional polish** with themes, shortcuts, animations
 
-The GUI will make Finance Local accessible to non-technical users while preserving the power and flexibility of the CLI for advanced workflows.
+The GUI will make Finance accessible to non-technical users while preserving the power and flexibility of the CLI for advanced workflows.

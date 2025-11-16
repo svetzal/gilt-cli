@@ -37,3 +37,6 @@ logs/
 # Packaging metadata
 *.egg-info/
 *.egg
+
+# MkDocs build output
+site/

@@ -1,4 +1,4 @@
-# Finance Local
+# Finance
 
 A **local-only, privacy-first** command-line tool for managing personal finance data from multiple bank accounts.
 

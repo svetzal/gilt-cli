@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 """
-Finance Local GUI Application
+Finance GUI Application
 
-Privacy-first Qt6 graphical user interface for Finance Local.
+Privacy-first Qt6 graphical user interface for Finance.
 All data processing remains local-only with no network I/O.
 """
 
@@ -123,7 +123,7 @@ def main():
     app = QApplication(sys.argv)
 
     # Set application metadata
-    app.setApplicationName("Finance Local")
+    app.setApplicationName("Finance")
     app.setOrganizationName("Mojility")
     app.setOrganizationDomain("mojility.com")
 

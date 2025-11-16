@@ -1,1 +1,1 @@
-"""Business logic services for Finance Local GUI."""
+"""Business logic services for Finance GUI."""

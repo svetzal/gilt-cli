@@ -1,0 +1,95 @@
+site_name: Finance - Privacy-First Financial Management
+site_description: Local-only, privacy-first financial management tool with CLI and GUI
+site_author: Mojility
+repo_url: https://github.com/svetzal/finance
+repo_name: svetzal/finance
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+plugins:
+  - search
+  - awesome-pages
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+
+  - User Guide:
+    - Overview: user/index.md
+    - Installation: user/installation.md
+    - CLI Guide:
+      - Overview: user/cli/index.md
+      - Account Management: user/cli/accounts.md
+      - Importing Data: user/cli/importing.md
+      - Categorization: user/cli/categorization.md
+      - Budgeting: user/cli/budgeting.md
+      - Viewing & Reporting: user/cli/viewing.md
+    - GUI Guide:
+      - Overview: user/gui/index.md
+      - Installation: user/gui/installation.md
+      - Dashboard: user/gui/dashboard.md
+      - Transactions: user/gui/transactions.md
+      - Categories: user/gui/categories.md
+      - Budget Tracking: user/gui/budget.md
+      - Importing: user/gui/importing.md
+    - Workflows:
+      - Initial Setup: user/workflows/initial-setup.md
+      - Monthly Review: user/workflows/monthly-review.md
+      - Budget Tracking: user/workflows/budget-tracking.md
+
+  - Developer Guide:
+    - Overview: developer/index.md
+    - Architecture:
+      - System Design: developer/architecture/system-design.md
+      - Project Structure: developer/architecture/project-structure.md
+      - Data Model: developer/architecture/data-model.md
+    - Technical Details:
+      - CLI Implementation: developer/technical/cli-implementation.md
+      - GUI Implementation: developer/technical/gui-implementation.md
+      - Budgeting System: developer/technical/budgeting-system.md
+      - Transfer Linking: developer/technical/transfer-linking.md
+    - Development:
+      - Setup: developer/development/setup.md
+      - Testing: developer/development/testing.md
+      - Contributing: developer/development/contributing.md
+    - Implementation History:
+      - Phase 2 Summary: developer/history/phase2-summary.md
+      - Phase 3 Summary: developer/history/phase3-summary.md
+      - Phase 4 Summary: developer/history/phase4-summary.md

@@ -6,8 +6,9 @@ Transaction Table Widget - Enhanced table view for transactions
 Custom table widget with sorting, selection, and formatting capabilities.
 """
 
-from PySide6.QtWidgets import QTableView, QHeaderView
-from PySide6.QtCore import Qt, Signal, QSortFilterProxyModel
+from PySide6.QtWidgets import QTableView, QHeaderView, QMenu
+from PySide6.QtCore import Qt, Signal, QSortFilterProxyModel, QPoint
+from PySide6.QtGui import QAction
 
 from finance.gui.models.transaction_model import TransactionTableModel
 from finance.model.account import TransactionGroup
@@ -18,6 +19,10 @@ class TransactionTableWidget(QTableView):
 
     # Signal emitted when selection changes
     selection_changed = Signal()
+
+    # Signals for context menu actions
+    categorize_requested = Signal()  # User wants to categorize selected transactions
+    note_requested = Signal()  # User wants to add/edit note on selected transaction
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -42,37 +47,27 @@ class TransactionTableWidget(QTableView):
 
         # Configure horizontal header
         header = self.horizontalHeader()
-        header.setStretchLastSection(False)
-        header.setSectionResizeMode(
-            TransactionTableModel.COL_DATE, QHeaderView.ResizeToContents
-        )
-        header.setSectionResizeMode(
-            TransactionTableModel.COL_ACCOUNT, QHeaderView.ResizeToContents
-        )
-        header.setSectionResizeMode(
-            TransactionTableModel.COL_DESCRIPTION, QHeaderView.Stretch
-        )
-        header.setSectionResizeMode(
-            TransactionTableModel.COL_AMOUNT, QHeaderView.ResizeToContents
-        )
-        header.setSectionResizeMode(
-            TransactionTableModel.COL_CURRENCY, QHeaderView.ResizeToContents
-        )
-        header.setSectionResizeMode(
-            TransactionTableModel.COL_CATEGORY, QHeaderView.ResizeToContents
-        )
-        header.setSectionResizeMode(
-            TransactionTableModel.COL_SUBCATEGORY, QHeaderView.ResizeToContents
-        )
-        header.setSectionResizeMode(
-            TransactionTableModel.COL_NOTES, QHeaderView.Stretch
-        )
-        header.setSectionResizeMode(
-            TransactionTableModel.COL_TRANSFER, QHeaderView.ResizeToContents
-        )
+        header.setStretchLastSection(True)
+        # Make all columns interactively resizable by user
+        header.setSectionResizeMode(QHeaderView.Interactive)
+
+        # Set initial default widths for better UX
+        header.resizeSection(TransactionTableModel.COL_DATE, 100)
+        header.resizeSection(TransactionTableModel.COL_ACCOUNT, 120)
+        header.resizeSection(TransactionTableModel.COL_DESCRIPTION, 300)
+        header.resizeSection(TransactionTableModel.COL_AMOUNT, 100)
+        header.resizeSection(TransactionTableModel.COL_CURRENCY, 80)
+        header.resizeSection(TransactionTableModel.COL_CATEGORY, 120)
+        header.resizeSection(TransactionTableModel.COL_SUBCATEGORY, 120)
+        header.resizeSection(TransactionTableModel.COL_NOTES, 200)
+        header.resizeSection(TransactionTableModel.COL_TRANSFER, 100)
 
         # Connect signals
         self.selectionModel().selectionChanged.connect(self._on_selection_changed)
+
+        # Enable context menu
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self._show_context_menu)
 
     def _on_selection_changed(self):
         """Handle selection change."""
@@ -119,3 +114,52 @@ class TransactionTableWidget(QTableView):
     def get_total_count(self) -> int:
         """Get the total number of transactions in the model."""
         return self._model.rowCount()
+
+    def _show_context_menu(self, position: QPoint):
+        """
+        Show context menu at the specified position.
+
+        Args:
+            position: Position where the menu should be shown
+        """
+        selected = self.get_selected_transactions()
+        if not selected:
+            return
+
+        menu = QMenu(self)
+
+        # Categorize action
+        categorize_action = QAction("Categorize...", self)
+        categorize_action.triggered.connect(self.categorize_requested.emit)
+        menu.addAction(categorize_action)
+
+        # Note action (only for single selection)
+        if len(selected) == 1:
+            note_action = QAction("Edit Note...", self)
+            note_action.triggered.connect(self.note_requested.emit)
+            menu.addAction(note_action)
+
+        menu.addSeparator()
+
+        # Copy transaction ID
+        if len(selected) == 1:
+            copy_action = QAction("Copy Transaction ID", self)
+            copy_action.triggered.connect(
+                lambda: self._copy_transaction_id(selected[0])
+            )
+            menu.addAction(copy_action)
+
+        # Show menu
+        menu.exec(self.viewport().mapToGlobal(position))
+
+    def _copy_transaction_id(self, transaction: TransactionGroup):
+        """
+        Copy transaction ID to clipboard.
+
+        Args:
+            transaction: Transaction group
+        """
+        from PySide6.QtWidgets import QApplication
+
+        clipboard = QApplication.clipboard()
+        clipboard.setText(transaction.primary.transaction_id)

@@ -1,1 +1,1 @@
-"""Dialog windows for Finance Local GUI."""
+"""Dialog windows for Finance GUI."""

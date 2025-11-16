@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Finance Local is a **local-only, privacy-first** Python CLI tool for personal finance management. It normalizes bank CSV exports into standardized ledger files, links inter-account transfers, and provides budgeting and categorization features.
+Finance is a **local-only, privacy-first** Python CLI tool for personal finance management. It normalizes bank CSV exports into standardized ledger files, links inter-account transfers, and provides budgeting and categorization features.
 
 **Core Principles:**
 - Local-only: No network I/O, all processing happens on the user's machine

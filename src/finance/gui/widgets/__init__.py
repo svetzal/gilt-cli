@@ -1,1 +1,1 @@
-"""Custom reusable widgets for Finance Local GUI."""
+"""Custom reusable widgets for Finance GUI."""
