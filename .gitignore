@@ -23,7 +23,7 @@ venv/
 .idea
 
 # Project data outputs (raw inputs live in ingest/ and are ignored)
-ingest/
+/ingest/
 data/
 reports/
 
