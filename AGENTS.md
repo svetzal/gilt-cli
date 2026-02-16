@@ -146,7 +146,7 @@ Services are UI-agnostic and testable independently (functional core). Views/dia
 
 ## Privacy & Redaction
 
-**This is a public repository. Real financial data MUST NEVER appear in tracked files.**
+**This is a public repository. Real financial and personally identifying data MUST NEVER appear in tracked files.**
 
 ### No Real Data in Code or Git History
 
