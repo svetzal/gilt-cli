@@ -1,3 +1,7 @@
+import pytest
+
+pytest.importorskip("PySide6")
+
 from unittest.mock import Mock
 from datetime import date
 
