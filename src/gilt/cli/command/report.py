@@ -9,11 +9,12 @@ to Word format via pandoc.
 
 import subprocess
 from collections import defaultdict
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 from typing import Dict, Optional, Tuple
 
 from .util import console
+from gilt.model.account import Transaction
 from gilt.workspace import Workspace
 from gilt.model.category import BudgetPeriod
 from gilt.model.category_io import load_categories_config
@@ -48,17 +49,18 @@ def _aggregate_spending(
         if not row.get("category"):
             continue
 
+        # Convert to Transaction object
+        txn = Transaction.from_projection_row(row)
+
         # Filter by date
-        txn_date = datetime.fromisoformat(row["transaction_date"]).date()
-        if year is not None and txn_date.year != year:
+        if year is not None and txn.date.year != year:
             continue
-        if month is not None and txn_date.month != month:
+        if month is not None and txn.date.month != month:
             continue
 
         # Aggregate (negative amounts are expenses)
-        amount = float(row["amount"])
-        key = (row["category"], row.get("subcategory"))
-        spending[key] += abs(amount) if amount < 0 else 0.0
+        key = (txn.category, txn.subcategory)
+        spending[key] += abs(txn.amount) if txn.amount < 0 else 0.0
 
     return dict(spending)
 
@@ -91,25 +93,26 @@ def _collect_transactions(
         if not row.get("category"):
             continue
 
+        # Convert to Transaction object
+        txn = Transaction.from_projection_row(row)
+
         # Filter by date
-        txn_date = datetime.fromisoformat(row["transaction_date"]).date()
-        if year is not None and txn_date.year != year:
+        if year is not None and txn.date.year != year:
             continue
-        if month is not None and txn_date.month != month:
+        if month is not None and txn.date.month != month:
             continue
 
         # Only expenses count toward budget impact
-        amount = float(row["amount"])
-        if amount >= 0:
+        if txn.amount >= 0:
             continue
 
-        result[row["category"]].append(
+        result[txn.category].append(
             (
-                row["transaction_date"],  # Already ISO format
-                row["canonical_description"] or "",
-                row.get("subcategory") or "",
-                abs(amount),
-                row["account_id"] or "",
+                str(txn.date),  # ISO format string
+                txn.description or "",
+                txn.subcategory or "",
+                abs(txn.amount),
+                txn.account_id or "",
             )
         )
 

@@ -1,32 +1,40 @@
 from __future__ import annotations
 
 from pathlib import Path
-import csv
+from datetime import date as dt_date
 
 from gilt.cli.command.note import run
+from gilt.model.account import Transaction, TransactionGroup
+from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
 from gilt.workspace import Workspace
 
 
 def _write_simple_ledger(path: Path, rows: list[dict]):
-    # Minimal processed schema header
-    fieldnames = [
-        "transaction_id",
-        "date",
-        "description",
-        "amount",
-        "currency",
-        "account_id",
-        "counterparty",
-        "category",
-        "subcategory",
-        "notes",
-        "source_file",
-    ]
-    with open(path, "w", encoding="utf-8", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=fieldnames, lineterminator="\n")
-        w.writeheader()
-        for r in rows:
-            w.writerow(r)
+    """Write a ledger CSV using the modern format via dump_ledger_csv."""
+    groups = []
+    for r in rows:
+        txn = Transaction(
+            transaction_id=r["transaction_id"],
+            date=dt_date.fromisoformat(r["date"]),
+            description=r.get("description", ""),
+            amount=float(r["amount"]),
+            currency=r.get("currency", "CAD"),
+            account_id=r.get("account_id", ""),
+            counterparty=r.get("counterparty"),
+            category=r.get("category"),
+            subcategory=r.get("subcategory"),
+            notes=r.get("notes"),
+            source_file=r.get("source_file"),
+        )
+        groups.append(TransactionGroup(group_id=r["transaction_id"], primary=txn))
+    csv_text = dump_ledger_csv(groups)
+    path.write_text(csv_text, encoding="utf-8")
+
+
+def _read_ledger_notes(path: Path) -> list[str]:
+    """Read a ledger CSV and return list of notes in order."""
+    groups = load_ledger_csv(path.read_text(encoding="utf-8"))
+    return [g.primary.notes or "" for g in groups]
 
 
 def it_should_update_note_with_write_and_be_dry_run_by_default(tmp_path: Path):
@@ -75,8 +83,8 @@ def it_should_update_note_with_write_and_be_dry_run_by_default(tmp_path: Path):
     rc = run(account=acc, txid=tid1[:8], note_text="new-note", workspace=workspace, write=False)
     assert rc == 0
     # Verify unchanged
-    rows = list(csv.DictReader(ledger_path.read_text(encoding="utf-8").splitlines()))
-    assert rows[0]["notes"] == "old"
+    notes = _read_ledger_notes(ledger_path)
+    assert notes[0] == "old"
 
     # Now write changes
     rc2 = run(
@@ -88,8 +96,8 @@ def it_should_update_note_with_write_and_be_dry_run_by_default(tmp_path: Path):
         assume_yes=True,
     )
     assert rc2 == 0
-    rows2 = list(csv.DictReader(ledger_path.read_text(encoding="utf-8").splitlines()))
-    assert rows2[0]["notes"] == "new-note"
+    notes2 = _read_ledger_notes(ledger_path)
+    assert notes2[0] == "new-note"
 
 
 def it_should_complain_on_short_or_ambiguous_prefix(tmp_path: Path):
@@ -206,9 +214,9 @@ def it_should_update_notes_in_batch_by_description_and_amount(tmp_path: Path):
         write=False,
     )
     assert rc == 0
-    rows_after = list(csv.DictReader(ledger_path.read_text(encoding="utf-8").splitlines()))
-    assert rows_after[0]["notes"] == ""
-    assert rows_after[1]["notes"] == "old"
+    notes_after = _read_ledger_notes(ledger_path)
+    assert notes_after[0] == ""
+    assert notes_after[1] == "old"
 
     # Write should update the two matching rows
     rc2 = run(
@@ -222,10 +230,10 @@ def it_should_update_notes_in_batch_by_description_and_amount(tmp_path: Path):
         write=True,
     )
     assert rc2 == 0
-    rows_after2 = list(csv.DictReader(ledger_path.read_text(encoding="utf-8").splitlines()))
-    assert rows_after2[0]["notes"] == "subscription"
-    assert rows_after2[1]["notes"] == "subscription"
-    assert rows_after2[2]["notes"] == ""
+    notes_after2 = _read_ledger_notes(ledger_path)
+    assert notes_after2[0] == "subscription"
+    assert notes_after2[1] == "subscription"
+    assert notes_after2[2] == ""
 
 
 def it_should_return_error_when_no_batch_matches(tmp_path: Path):
@@ -316,8 +324,8 @@ def it_should_match_batch_on_description_with_whitespace_and_amount_by_absolute_
         assume_yes=True,
     )
     assert rc2 == 0
-    rows = list(csv.DictReader(ledger_path.read_text(encoding="utf-8").splitlines()))
-    assert rows[0]["notes"] == "locker"
+    notes = _read_ledger_notes(ledger_path)
+    assert notes[0] == "locker"
 
 
 def it_should_update_notes_in_batch_by_description_only(tmp_path: Path):
@@ -382,10 +390,10 @@ def it_should_update_notes_in_batch_by_description_only(tmp_path: Path):
         write=False,
     )
     assert rc == 0
-    rows_after = list(csv.DictReader(ledger_path.read_text(encoding="utf-8").splitlines()))
-    assert rows_after[0]["notes"] == ""
-    assert rows_after[1]["notes"] == "old"
-    assert rows_after[2]["notes"] == ""
+    notes_after = _read_ledger_notes(ledger_path)
+    assert notes_after[0] == ""
+    assert notes_after[1] == "old"
+    assert notes_after[2] == ""
 
     # Write description-only batch
     rc2 = run(
@@ -399,10 +407,10 @@ def it_should_update_notes_in_batch_by_description_only(tmp_path: Path):
         assume_yes=True,
     )
     assert rc2 == 0
-    rows_after2 = list(csv.DictReader(ledger_path.read_text(encoding="utf-8").splitlines()))
-    assert rows_after2[0]["notes"] == "morning-coffee"
-    assert rows_after2[1]["notes"] == "morning-coffee"
-    assert rows_after2[2]["notes"] == ""
+    notes_after2 = _read_ledger_notes(ledger_path)
+    assert notes_after2[0] == "morning-coffee"
+    assert notes_after2[1] == "morning-coffee"
+    assert notes_after2[2] == ""
 
 
 def it_should_update_notes_by_description_prefix_case_insensitive(tmp_path: Path):
@@ -468,10 +476,10 @@ def it_should_update_notes_by_description_prefix_case_insensitive(tmp_path: Path
         write=False,
     )
     assert rc == 0
-    rows_after = list(csv.DictReader(ledger_path.read_text(encoding="utf-8").splitlines()))
-    assert rows_after[0]["notes"] == ""
-    assert rows_after[1]["notes"] == "old"
-    assert rows_after[2]["notes"] == ""
+    notes_after = _read_ledger_notes(ledger_path)
+    assert notes_after[0] == ""
+    assert notes_after[1] == "old"
+    assert notes_after[2] == ""
 
     # Write with assume_yes; should update the two matching rows, leaving the third untouched
     rc2 = run(
@@ -486,10 +494,10 @@ def it_should_update_notes_by_description_prefix_case_insensitive(tmp_path: Path
         assume_yes=True,
     )
     assert rc2 == 0
-    rows_after2 = list(csv.DictReader(ledger_path.read_text(encoding="utf-8").splitlines()))
-    assert rows_after2[0]["notes"] == "ai-tools"
-    assert rows_after2[1]["notes"] == "ai-tools"
-    assert rows_after2[2]["notes"] == ""
+    notes_after2 = _read_ledger_notes(ledger_path)
+    assert notes_after2[0] == "ai-tools"
+    assert notes_after2[1] == "ai-tools"
+    assert notes_after2[2] == ""
 
 
 def it_should_update_notes_by_regex_pattern(tmp_path: Path):
@@ -556,10 +564,10 @@ def it_should_update_notes_by_regex_pattern(tmp_path: Path):
         write=False,
     )
     assert rc == 0
-    rows_after = list(csv.DictReader(ledger_path.read_text(encoding="utf-8").splitlines()))
-    assert rows_after[0]["notes"] == ""
-    assert rows_after[1]["notes"] == ""
-    assert rows_after[2]["notes"] == ""
+    notes_after = _read_ledger_notes(ledger_path)
+    assert notes_after[0] == ""
+    assert notes_after[1] == ""
+    assert notes_after[2] == ""
 
     # Write with pattern; should match first two rows only
     rc2 = run(
@@ -575,10 +583,10 @@ def it_should_update_notes_by_regex_pattern(tmp_path: Path):
         assume_yes=True,
     )
     assert rc2 == 0
-    rows_after2 = list(csv.DictReader(ledger_path.read_text(encoding="utf-8").splitlines()))
-    assert rows_after2[0]["notes"] == "hydro-bill"
-    assert rows_after2[1]["notes"] == "hydro-bill"
-    assert rows_after2[2]["notes"] == ""
+    notes_after2 = _read_ledger_notes(ledger_path)
+    assert notes_after2[0] == "hydro-bill"
+    assert notes_after2[1] == "hydro-bill"
+    assert notes_after2[2] == ""
 
 
 def it_should_error_on_invalid_regex_pattern(tmp_path: Path):

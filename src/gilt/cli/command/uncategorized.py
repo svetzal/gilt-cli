@@ -4,12 +4,12 @@ from __future__ import annotations
 Display uncategorized transactions.
 """
 
-from datetime import datetime
 from typing import Optional
 
 from rich.table import Table
 
 from .util import console
+from gilt.model.account import Transaction
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
@@ -59,29 +59,29 @@ def run(
         if row.get("category"):
             continue
 
+        # Convert to Transaction object for filtered rows
+        txn = Transaction.from_projection_row(row)
+
         # Filter by account if specified
-        if account and row["account_id"] != account:
+        if account and txn.account_id != account:
             continue
 
         # Filter by year if specified
-        if year is not None:
-            txn_date = datetime.fromisoformat(row["transaction_date"]).date()
-            if txn_date.year != year:
-                continue
+        if year is not None and txn.date.year != year:
+            continue
 
         # Filter by min_amount if specified
-        if min_amount is not None:
-            if abs(float(row["amount"])) < min_amount:
-                continue
+        if min_amount is not None and abs(txn.amount) < min_amount:
+            continue
 
-        uncategorized.append(row)
+        uncategorized.append(txn)
 
     if not uncategorized:
         console.print("[green]All transactions are categorized![/]")
         return 0
 
     # Sort by description (for grouping), then date
-    uncategorized.sort(key=lambda x: (x["canonical_description"] or "", x["transaction_date"]))
+    uncategorized.sort(key=lambda x: (x.description or "", str(x.date)))
 
     # Apply limit if specified
     if limit:
@@ -104,15 +104,14 @@ def run(
     table.add_column("Amount", style="yellow", justify="right")
     table.add_column("Notes", style="dim")
 
-    for row in displayed:
-        txn_date = datetime.fromisoformat(row["transaction_date"]).date()
+    for txn in displayed:
         table.add_row(
-            row["account_id"],
-            row["transaction_id"][:8],
-            str(txn_date),
-            (row["canonical_description"] or "")[:50],
-            f"${float(row['amount']):,.2f}",
-            (row.get("notes") or "")[:30],
+            txn.account_id,
+            txn.transaction_id[:8],
+            str(txn.date),
+            (txn.description or "")[:50],
+            f"${txn.amount:,.2f}",
+            (txn.notes or "")[:30],
         )
 
     console.print(table)

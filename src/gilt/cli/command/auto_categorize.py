@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import List, Optional
 
 from rich.table import Table
 from rich.prompt import Prompt
 
 from .util import console
+from gilt.model.account import Transaction
 from gilt.workspace import Workspace
 from gilt.model.category_io import load_categories_config, parse_category_path
 from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
@@ -115,16 +115,19 @@ def run(
 
     console.print(f"Found {len(uncategorized_rows)} uncategorized transaction(s)")
 
+    # Convert to Transaction objects
+    uncategorized_txns = [Transaction.from_projection_row(row) for row in uncategorized_rows]
+
     # Prepare transaction data for prediction
     transaction_data = []
-    for row in uncategorized_rows:
+    for txn in uncategorized_txns:
         transaction_data.append(
             {
-                "transaction_id": row["transaction_id"],
-                "description": row["canonical_description"],
-                "amount": float(row["amount"]),
-                "account": row["account_id"],
-                "date": row["transaction_date"],  # ISO string format from projections
+                "transaction_id": txn.transaction_id,
+                "description": txn.description,
+                "amount": txn.amount,
+                "account": txn.account_id,
+                "date": str(txn.date),  # ISO string format
             }
         )
 
@@ -133,13 +136,11 @@ def run(
     predictions = classifier.predict(transaction_data, confidence_threshold=confidence)
 
     # Filter to confident predictions - keep account_id and transaction_id for CSV write
-    confident_predictions: List[tuple[str, str, dict, str, float]] = []
-    for row, (category, conf) in zip(uncategorized_rows, predictions):
+    confident_predictions: List[tuple[str, str, Transaction, str, float]] = []
+    for txn, (category, conf) in zip(uncategorized_txns, predictions):
         if category:
-            # Store: (account_id, transaction_id, row_dict, category, confidence)
-            confident_predictions.append(
-                (row["account_id"], row["transaction_id"], row, category, conf)
-            )
+            # Store: (account_id, transaction_id, Transaction, category, confidence)
+            confident_predictions.append((txn.account_id, txn.transaction_id, txn, category, conf))
 
     if not confident_predictions:
         console.print(
@@ -235,15 +236,12 @@ def _display_predictions(predictions: List[tuple[str, str, dict, str, float]]) -
     table.add_column("→ Category", style="green")
     table.add_column("Confidence", style="blue", justify="right")
 
-    for account_id, _, row, category, conf in predictions:
-        # Parse date from ISO string
-        date_str = datetime.fromisoformat(row["transaction_date"]).strftime("%Y-%m-%d")
-
+    for account_id, _, txn, category, conf in predictions:
         table.add_row(
             account_id,
-            date_str,
-            row["canonical_description"][:50],
-            f"${float(row['amount']):,.2f}",
+            str(txn.date),
+            txn.description[:50],
+            f"${txn.amount:,.2f}",
             category,
             f"{conf:.1%}",
         )
@@ -253,13 +251,13 @@ def _display_predictions(predictions: List[tuple[str, str, dict, str, float]]) -
 
 
 def _interactive_review(
-    predictions: List[tuple[str, str, dict, str, float]],
+    predictions: List[tuple[str, str, Transaction, str, float]],
     category_config,
-) -> List[tuple[str, str, dict, str, float]]:
+) -> List[tuple[str, str, Transaction, str, float]]:
     """Interactive review mode - approve, reject, or modify predictions.
 
     Args:
-        predictions: List of (account_id, transaction_id, row_dict, category, confidence)
+        predictions: List of (account_id, transaction_id, Transaction, category, confidence)
         category_config: Category configuration
 
     Returns:
@@ -268,18 +266,15 @@ def _interactive_review(
     console.print("\n[bold]Interactive Review Mode[/bold]")
     console.print("[dim]For each prediction: (a)pprove, (r)eject, (m)odify, (q)uit[/dim]\n")
 
-    approved: List[tuple[str, str, dict, str, float]] = []
+    approved: List[tuple[str, str, Transaction, str, float]] = []
 
-    for i, (account_id, txn_id, row, category, conf) in enumerate(predictions, 1):
-        # Parse date from ISO string
-        date = datetime.fromisoformat(row["transaction_date"]).date()
-
+    for i, (account_id, txn_id, txn, category, conf) in enumerate(predictions, 1):
         # Display transaction
         console.print(f"\n[bold cyan]Transaction {i}/{len(predictions)}[/bold cyan]")
         console.print(f"  Account:     {account_id}")
-        console.print(f"  Date:        {date}")
-        console.print(f"  Description: {row['canonical_description']}")
-        console.print(f"  Amount:      ${float(row['amount']):,.2f}")
+        console.print(f"  Date:        {txn.date}")
+        console.print(f"  Description: {txn.description}")
+        console.print(f"  Amount:      ${txn.amount:,.2f}")
         console.print(
             f"  Suggested:   [green]{category}[/green] ([blue]{conf:.1%}[/blue] confident)"
         )
@@ -294,7 +289,7 @@ def _interactive_review(
 
             if choice == "a":
                 # Approve
-                approved.append((account_id, txn_id, row, category, conf))
+                approved.append((account_id, txn_id, txn, category, conf))
                 console.print("[green]✓ Approved[/green]")
                 break
 
@@ -333,7 +328,7 @@ def _interactive_review(
                         console.print(f"[red]Invalid subcategory: {subcat_name}[/red]")
                         continue
 
-                approved.append((account_id, txn_id, row, new_category, conf))
+                approved.append((account_id, txn_id, txn, new_category, conf))
                 console.print(f"[green]✓ Modified to {new_category}[/green]")
                 break
 

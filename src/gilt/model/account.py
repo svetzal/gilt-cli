@@ -14,9 +14,10 @@ Privacy
 - Keep usage local. Do not log raw descriptions externally.
 """
 
-from datetime import date
+from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 from enum import Enum
+import json
 
 from pydantic import BaseModel, Field, computed_field, model_validator
 
@@ -110,6 +111,43 @@ class Transaction(BaseModel):
 
         return hashlib.sha256(self.description.encode("utf-8")).hexdigest()[:8]
 
+    @classmethod
+    def from_projection_row(cls, row: dict) -> "Transaction":
+        """Construct a Transaction from a projection database row dict.
+
+        Projection rows use different field names than the Transaction model:
+        - 'transaction_date' → date (ISO string → date object)
+        - 'canonical_description' → description
+        - 'amount' → amount (string → float)
+
+        Args:
+            row: dict with projection column names (transaction_date,
+                 canonical_description, etc.)
+
+        Returns:
+            Transaction object with proper type conversions applied.
+        """
+        metadata = row.get("metadata")
+        if isinstance(metadata, str) and metadata:
+            metadata = json.loads(metadata)
+        elif not isinstance(metadata, dict):
+            metadata = {}
+
+        return cls(
+            transaction_id=row["transaction_id"],
+            date=datetime.fromisoformat(row["transaction_date"]).date(),
+            description=row["canonical_description"],
+            amount=float(row["amount"]),
+            currency=row["currency"],
+            account_id=row["account_id"],
+            counterparty=row.get("counterparty"),
+            category=row.get("category"),
+            subcategory=row.get("subcategory"),
+            notes=row.get("notes"),
+            source_file=row.get("source_file"),
+            metadata=metadata,
+        )
+
 
 class SplitLine(BaseModel):
     """Represents a single split allocation of a transaction amount.
@@ -168,6 +206,20 @@ class TransactionGroup(BaseModel):
                     f"({self.primary.amount:.2f}) within tolerance {self.tolerance:.2f}"
                 )
         return self
+
+    @classmethod
+    def from_projection_row(cls, row: dict) -> "TransactionGroup":
+        """Construct a TransactionGroup from a projection database row dict.
+
+        Args:
+            row: dict with projection column names.
+
+        Returns:
+            TransactionGroup with group_id matching transaction_id and primary
+            transaction converted from the row.
+        """
+        txn = Transaction.from_projection_row(row)
+        return cls(group_id=row["transaction_id"], primary=txn)
 
 
 # Optional (future-facing) linking proposal — not wired

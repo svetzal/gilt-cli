@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import json
-from datetime import date, datetime
+from datetime import date
 from typing import Optional
 
 from rich.table import Table
 from rich.text import Text
 
+from gilt.model.account import Transaction
 from gilt.storage.projection import ProjectionBuilder
 from gilt.ingest import load_accounts_config
 from gilt.workspace import Workspace
@@ -71,27 +71,14 @@ def run(
         if row["account_id"] != account:
             continue
 
-        # Parse transaction_date (stored as ISO string)
-        txn_date = datetime.fromisoformat(row["transaction_date"]).date()
-        if txn_date.year != the_year:
+        # Convert to Transaction object
+        txn = Transaction.from_projection_row(row)
+        if txn.date.year != the_year:
             continue
 
-        # Build a transaction-like dict for display
-        primaries.append(
-            {
-                "date": txn_date,
-                "transaction_id": row["transaction_id"],
-                "description": row["canonical_description"],
-                "amount": float(row["amount"]),
-                "currency": row["currency"],
-                "category": row.get("category"),
-                "subcategory": row.get("subcategory"),
-                "notes": row.get("notes"),
-                "metadata": json.loads(row["metadata"]) if row.get("metadata") else {},
-            }
-        )
+        primaries.append(txn)
 
-    primaries.sort(key=lambda t: (t["date"], t["transaction_id"]))
+    primaries.sort(key=lambda t: (t.date, t.transaction_id))
 
     if limit is not None:
         primaries = primaries[:limit]
@@ -115,7 +102,7 @@ def run(
     debits_amount = 0.0
 
     for t in primaries:
-        amt = t["amount"]
+        amt = t.amount
         total_amount += amt
         if amt > 0:
             credits_amount += amt
@@ -126,15 +113,15 @@ def run(
         note_parts = []
 
         # Add category if present
-        if t.get("category"):
-            cat_display = t["category"]
-            if t.get("subcategory"):
-                cat_display += f":{t['subcategory']}"
+        if t.category:
+            cat_display = t.category
+            if t.subcategory:
+                cat_display += f":{t.subcategory}"
             note_parts.append(f"[yellow]{cat_display}[/yellow]")
 
         # Add transfer info if present
         try:
-            transfer = t.get("metadata", {}).get("transfer")
+            transfer = t.metadata.get("transfer")
             if isinstance(transfer, dict):
                 role = transfer.get("role")
                 cp_id = transfer.get("counterparty_account_id")
@@ -152,17 +139,17 @@ def run(
             pass
 
         # Add user notes if present
-        if t.get("notes"):
-            note_parts.append(t["notes"])
+        if t.notes:
+            note_parts.append(t.notes)
 
         display_notes = " | ".join(note_parts) if note_parts else ""
 
         table.add_row(
-            t["date"].strftime("%Y-%m-%d"),
-            t["description"] or "",
+            t.date.strftime("%Y-%m-%d"),
+            t.description or "",
             fmt_amount(amt),
-            t["currency"] or "",
-            t["transaction_id"][:8],
+            t.currency or "",
+            t.transaction_id[:8],
             display_notes,
         )
 

@@ -11,7 +11,7 @@ from .util import console
 from gilt.workspace import Workspace
 from gilt.model.category_io import load_categories_config, parse_category_path
 from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
-from gilt.model.account import TransactionGroup, Transaction
+from gilt.model.account import TransactionGroup
 from gilt.services.transaction_operations_service import (
     TransactionOperationsService,
     SearchCriteria,
@@ -171,20 +171,8 @@ def run(
         if account_id not in groups_by_account:
             groups_by_account[account_id] = []
 
-        # Convert row dict to Transaction object
-        txn = Transaction(
-            transaction_id=row["transaction_id"],
-            date=datetime.fromisoformat(row["transaction_date"]).date(),
-            description=row["canonical_description"],
-            amount=float(row["amount"]),
-            currency=row["currency"],
-            account_id=row["account_id"],
-            counterparty=row.get("counterparty"),
-            category=row.get("category"),
-            subcategory=row.get("subcategory"),
-            notes=row.get("notes"),
-        )
-        group = TransactionGroup(group_id=row["transaction_id"], primary=txn)
+        # Convert row dict to TransactionGroup object
+        group = TransactionGroup.from_projection_row(row)
         groups_by_account[account_id].append(group)
 
     # Process groups using service for finding matches
