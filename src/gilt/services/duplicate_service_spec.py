@@ -1,11 +1,11 @@
 from unittest.mock import Mock
-import pytest
 from gilt.services.duplicate_service import DuplicateService
 from gilt.model.duplicate import TransactionPair, DuplicateAssessment, DuplicateMatch
 from gilt.model.events import DuplicateConfirmed, DuplicateRejected
 from gilt.transfer.duplicate_detector import DuplicateDetector
 from gilt.storage.event_store import EventStore
 from datetime import date
+
 
 class DescribeDuplicateService:
     def it_should_scan_for_duplicates(self):
@@ -22,9 +22,7 @@ class DescribeDuplicateService:
 
         # Assert
         assert result == expected_matches
-        mock_detector.scan_for_duplicates.assert_called_once_with(
-            "some/path", 1, 0.001
-        )
+        mock_detector.scan_for_duplicates.assert_called_once_with("some/path", 1, 0.001)
 
     def it_should_resolve_duplicate_as_confirmed(self):
         # Arrange
@@ -33,8 +31,16 @@ class DescribeDuplicateService:
         service = DuplicateService(mock_detector, mock_event_store)
 
         pair = TransactionPair(
-            txn1_id="t1", txn1_date=date(2025, 1, 1), txn1_description="desc1", txn1_amount=10.0, txn1_account="acc1",
-            txn2_id="t2", txn2_date=date(2025, 1, 1), txn2_description="desc2", txn2_amount=10.0, txn2_account="acc1"
+            txn1_id="t1",
+            txn1_date=date(2025, 1, 1),
+            txn1_description="desc1",
+            txn1_amount=10.0,
+            txn1_account="acc1",
+            txn2_id="t2",
+            txn2_date=date(2025, 1, 1),
+            txn2_description="desc2",
+            txn2_amount=10.0,
+            txn2_account="acc1",
         )
         assessment = DuplicateAssessment(is_duplicate=True, confidence=0.9, reasoning="Same")
         match = DuplicateMatch(pair=pair, assessment=assessment)
@@ -57,8 +63,16 @@ class DescribeDuplicateService:
         service = DuplicateService(mock_detector, mock_event_store)
 
         pair = TransactionPair(
-            txn1_id="t1", txn1_date=date(2025, 1, 1), txn1_description="desc1", txn1_amount=10.0, txn1_account="acc1",
-            txn2_id="t2", txn2_date=date(2025, 1, 1), txn2_description="desc2", txn2_amount=10.0, txn2_account="acc1"
+            txn1_id="t1",
+            txn1_date=date(2025, 1, 1),
+            txn1_description="desc1",
+            txn1_amount=10.0,
+            txn1_account="acc1",
+            txn2_id="t2",
+            txn2_date=date(2025, 1, 1),
+            txn2_description="desc2",
+            txn2_amount=10.0,
+            txn2_account="acc1",
         )
         assessment = DuplicateAssessment(is_duplicate=True, confidence=0.9, reasoning="Same")
         match = DuplicateMatch(pair=pair, assessment=assessment)

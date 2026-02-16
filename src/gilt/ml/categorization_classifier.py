@@ -51,7 +51,7 @@ class CategorizationClassifier:
             max_depth=10,
             min_samples_split=5,
             random_state=random_state,
-            class_weight='balanced',  # Handle imbalanced categories
+            class_weight="balanced",  # Handle imbalanced categories
         )
 
         self.category_names: List[str] = []
@@ -168,13 +168,15 @@ class CategorizationClassifier:
         Returns:
             Tuple of (category, confidence). Category is None if below threshold.
         """
-        transaction_data = [{
-            "description": description,
-            "amount": amount,
-            "account": account,
-            "date": "2025-01-01",  # Not used in features currently
-            "transaction_id": "temp",
-        }]
+        transaction_data = [
+            {
+                "description": description,
+                "amount": amount,
+                "account": account,
+                "date": "2025-01-01",  # Not used in features currently
+                "transaction_id": "temp",
+            }
+        ]
 
         results = self.predict(transaction_data, confidence_threshold)
         return results[0] if results else (None, 0.0)
@@ -201,10 +203,7 @@ class CategorizationClassifier:
         # Sort by importance
         indices = np.argsort(importances)[::-1][:top_n]
 
-        top_features = [
-            (feature_names[i], float(importances[i]))
-            for i in indices
-        ]
+        top_features = [(feature_names[i], float(importances[i])) for i in indices]
 
         return top_features
 

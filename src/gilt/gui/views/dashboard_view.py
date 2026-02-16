@@ -41,7 +41,7 @@ class SummaryCard(QGroupBox):
         self.value_label = QLabel("—")
         self.value_label.setFont(QFont("Arial", 24, QFont.Weight.Bold))
         self.value_label.setAlignment(Qt.AlignCenter)
-        
+
         # Default color
         self.value_label.setStyleSheet(f"color: {Theme.color('text_primary').name()};")
         layout.addWidget(self.value_label)
@@ -122,11 +122,15 @@ class DashboardView(QWidget):
         actions_layout.addWidget(view_budget_btn)
 
         view_transactions_btn = QPushButton("View Transactions")
-        view_transactions_btn.clicked.connect(lambda: self.navigate_to.emit(0))  # Transactions view index
+        view_transactions_btn.clicked.connect(
+            lambda: self.navigate_to.emit(0)
+        )  # Transactions view index
         actions_layout.addWidget(view_transactions_btn)
 
         view_categories_btn = QPushButton("Manage Categories")
-        view_categories_btn.clicked.connect(lambda: self.navigate_to.emit(1))  # Categories view index
+        view_categories_btn.clicked.connect(
+            lambda: self.navigate_to.emit(1)
+        )  # Categories view index
         actions_layout.addWidget(view_categories_btn)
 
         actions_layout.addStretch()
@@ -178,14 +182,10 @@ class DashboardView(QWidget):
                 )
                 self.budget_card.set_value_color(Theme.color("negative_fg").name())
             elif pct_used > 90:
-                self.budget_card.set_subtitle(
-                    f"${budget_summary.total_remaining:,.2f} remaining"
-                )
+                self.budget_card.set_subtitle(f"${budget_summary.total_remaining:,.2f} remaining")
                 self.budget_card.set_value_color(Theme.color("warning_fg").name())
             else:
-                self.budget_card.set_subtitle(
-                    f"${budget_summary.total_remaining:,.2f} remaining"
-                )
+                self.budget_card.set_subtitle(f"${budget_summary.total_remaining:,.2f} remaining")
                 self.budget_card.set_value_color(Theme.color("positive_fg").name())
         else:
             self.budget_card.set_value("—")

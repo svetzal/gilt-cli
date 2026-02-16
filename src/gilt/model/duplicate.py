@@ -45,17 +45,13 @@ class DuplicateAssessment(BaseModel):
     - reasoning: brief explanation of the decision
     """
 
-    is_duplicate: bool = Field(
-        description="Whether these two transactions appear to be duplicates"
-    )
+    is_duplicate: bool = Field(description="Whether these two transactions appear to be duplicates")
     confidence: float = Field(
         ge=0.0,
         le=1.0,
         description="Confidence level from 0.0 (not confident) to 1.0 (very confident)",
     )
-    reasoning: str = Field(
-        description="Brief explanation of why these are or aren't duplicates"
-    )
+    reasoning: str = Field(description="Brief explanation of why these are or aren't duplicates")
 
     @field_validator("confidence", mode="before")
     @classmethod

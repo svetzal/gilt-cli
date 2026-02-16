@@ -13,9 +13,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QComboBox,
-    QLineEdit,
 )
-from PySide6.QtCore import Qt
 
 from gilt.gui.dialogs.preview_dialog import PreviewDialog
 from gilt.gui.services.category_service import CategoryService
@@ -110,12 +108,10 @@ class CategorizeDialog(PreviewDialog):
         self.category_combo.set_categories(
             categories,
             suggestions=suggestions if suggestions else None,
-            placeholder="-- Select Category --"
+            placeholder="-- Select Category --",
         )
 
-        self.category_combo.currentIndexChanged.connect(
-            self._on_category_changed
-        )
+        self.category_combo.currentIndexChanged.connect(self._on_category_changed)
         cat_layout.addWidget(self.category_combo)
         cat_layout.addStretch()
 
@@ -128,9 +124,7 @@ class CategorizeDialog(PreviewDialog):
         self.subcategory_combo = QComboBox()
         self.subcategory_combo.addItem("-- None --", None)
         self.subcategory_combo.setEnabled(False)
-        self.subcategory_combo.currentIndexChanged.connect(
-            self._populate_preview
-        )
+        self.subcategory_combo.currentIndexChanged.connect(self._populate_preview)
         subcat_layout.addWidget(self.subcategory_combo)
         subcat_layout.addStretch()
 
@@ -213,8 +207,7 @@ class CategorizeDialog(PreviewDialog):
 
         # Add warnings if re-categorizing
         recategorizing = any(
-            t.primary.category and t.primary.category.strip()
-            for t in self.transactions
+            t.primary.category and t.primary.category.strip() for t in self.transactions
         )
         if recategorizing:
             self.add_warning(

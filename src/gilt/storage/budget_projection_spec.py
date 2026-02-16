@@ -3,6 +3,7 @@ Tests for budget projection builder and event sourcing.
 
 Validates budget event replay, historical queries, and time-travel capabilities.
 """
+
 from __future__ import annotations
 
 import tempfile
@@ -51,9 +52,10 @@ class DescribeBudgetProjectionBuilder:
 
     def it_should_create_schema_on_initialization(self, temp_db):
         """Test that database schema is created on init."""
-        builder = BudgetProjectionBuilder(temp_db)
+        BudgetProjectionBuilder(temp_db)
 
         import sqlite3
+
         conn = sqlite3.connect(temp_db)
         cursor = conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='budget_projections'"
@@ -190,10 +192,10 @@ class DescribeBudgetProjectionBuilder:
         # Assert
         history = builder.get_budget_history(budget_id)
         assert len(history) == 2
-        assert history[0]['event_type'] == 'BudgetCreated'
-        assert history[0]['amount'] == 500.00
-        assert history[1]['event_type'] == 'BudgetUpdated'
-        assert history[1]['amount'] == 550.00
+        assert history[0]["event_type"] == "BudgetCreated"
+        assert history[0]["amount"] == 500.00
+        assert history[1]["event_type"] == "BudgetUpdated"
+        assert history[1]["amount"] == 550.00
 
     def it_should_get_active_budgets(self, builder, event_store):
         """Test retrieving only active (non-deleted) budgets."""
@@ -393,9 +395,9 @@ class DescribeBudgetProjectionBuilder:
 
         history = builder.get_budget_history(budget_id)
         assert len(history) == 3
-        assert history[0]['amount'] == 100.00
-        assert history[1]['amount'] == 110.00
-        assert history[2]['amount'] == 120.00
+        assert history[0]["amount"] == 100.00
+        assert history[1]["amount"] == 110.00
+        assert history[2]["amount"] == 120.00
 
     def it_should_be_idempotent_on_duplicate_events(self, builder, event_store):
         """Test that replaying same events produces same result."""
@@ -494,8 +496,8 @@ class DescribeBudgetProjectionBuilder:
         # History should still be available
         history = builder.get_budget_history(budget_id)
         assert len(history) == 2
-        assert history[0]['event_type'] == 'BudgetCreated'
-        assert history[1]['event_type'] == 'BudgetDeleted'
+        assert history[0]["event_type"] == "BudgetCreated"
+        assert history[1]["event_type"] == "BudgetDeleted"
 
 
 class DescribeBudgetProjection:
@@ -522,12 +524,12 @@ class DescribeBudgetProjection:
         result = projection.to_dict()
 
         # Assert
-        assert result['budget_id'] == "test-123"
-        assert result['category'] == "Transportation"
-        assert result['subcategory'] == "Public Transit"
-        assert result['amount'] == "200.00"
-        assert result['period_type'] == "monthly"
-        assert result['start_date'] == "2025-01-01"
-        assert result['currency'] == "CAD"
-        assert result['is_deleted'] is False
-        assert result['last_event_id'] == "event-456"
+        assert result["budget_id"] == "test-123"
+        assert result["category"] == "Transportation"
+        assert result["subcategory"] == "Public Transit"
+        assert result["amount"] == "200.00"
+        assert result["period_type"] == "monthly"
+        assert result["start_date"] == "2025-01-01"
+        assert result["currency"] == "CAD"
+        assert result["is_deleted"] is False
+        assert result["last_event_id"] == "event-456"

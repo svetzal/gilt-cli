@@ -13,6 +13,7 @@ Options:
     --events-db PATH  Path to events database (default: data/events.db)
     --projections-db PATH  Path to projections database (default: data/projections.db)
 """
+
 from pathlib import Path
 from typing import Optional
 
@@ -101,7 +102,7 @@ def run(
         # Show transaction breakdown by account
         accounts = {}
         for txn in transactions:
-            account_id = txn['account_id']
+            account_id = txn["account_id"]
             accounts[account_id] = accounts.get(account_id, 0) + 1
 
         if accounts:
@@ -117,9 +118,9 @@ def run(
 
         # Show description evolution examples
         evolved_count = sum(
-            1 for txn in transactions
-            if txn.get('description_history')
-            and len(eval(txn['description_history'])) > 1
+            1
+            for txn in transactions
+            if txn.get("description_history") and len(eval(txn["description_history"])) > 1
         )
 
         if evolved_count > 0:

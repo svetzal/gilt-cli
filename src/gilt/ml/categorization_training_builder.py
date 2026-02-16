@@ -29,7 +29,7 @@ class CategorizationTrainingBuilder:
         """
         self.event_store = event_store
         self.vectorizer = TfidfVectorizer(
-            analyzer='word',
+            analyzer="word",
             lowercase=True,
             ngram_range=(1, 2),  # Unigrams and bigrams
             max_features=1000,
@@ -37,10 +37,7 @@ class CategorizationTrainingBuilder:
         )
         self._is_fitted = False
 
-    def load_from_events(
-        self,
-        source_filter: str = "user"
-    ) -> Tuple[List[dict], List[str]]:
+    def load_from_events(self, source_filter: str = "user") -> Tuple[List[dict], List[str]]:
         """Load training examples from TransactionCategorized events.
 
         Args:
@@ -101,10 +98,7 @@ class CategorizationTrainingBuilder:
 
         return transaction_data, category_labels
 
-    def build_features(
-        self,
-        transaction_data: List[dict]
-    ) -> np.ndarray:
+    def build_features(self, transaction_data: List[dict]) -> np.ndarray:
         """Build feature vectors from transaction data.
 
         Features include:
@@ -169,10 +163,10 @@ class CategorizationTrainingBuilder:
 
         # Filter out categories with too few samples
         from collections import Counter
+
         category_counts = Counter(category_labels)
         valid_categories = {
-            cat for cat, count in category_counts.items()
-            if count >= min_samples_per_category
+            cat for cat, count in category_counts.items() if count >= min_samples_per_category
         }
 
         # Filter data

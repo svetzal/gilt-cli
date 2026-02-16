@@ -88,7 +88,7 @@ class DuplicateDetector:
 
             # Train classifier
             classifier = DuplicateClassifier()
-            metrics = classifier.train(pairs, labels)
+            classifier.train(pairs, labels)
 
             return classifier
 
@@ -154,21 +154,21 @@ class DuplicateDetector:
         for row in rows:
             # Build metadata with source_file info
             metadata = {}
-            if row.get('source_file'):
-                metadata['source_file'] = row['source_file']
+            if row.get("source_file"):
+                metadata["source_file"] = row["source_file"]
 
             txn = Transaction(
-                transaction_id=row['transaction_id'],
-                date=datetime.fromisoformat(row['transaction_date']).date(),
-                description=row['canonical_description'],
-                amount=float(row['amount']),
-                currency=row['currency'],
-                account_id=row['account_id'],
-                counterparty=row.get('counterparty'),
-                category=row.get('category'),
-                subcategory=row.get('subcategory'),
-                notes=row.get('notes'),
-                source_file=row.get('source_file'),
+                transaction_id=row["transaction_id"],
+                date=datetime.fromisoformat(row["transaction_date"]).date(),
+                description=row["canonical_description"],
+                amount=float(row["amount"]),
+                currency=row["currency"],
+                account_id=row["account_id"],
+                counterparty=row.get("counterparty"),
+                category=row.get("category"),
+                subcategory=row.get("subcategory"),
+                notes=row.get("notes"),
+                source_file=row.get("source_file"),
                 metadata=metadata,
             )
             transactions.append(txn)

@@ -11,9 +11,7 @@ Usage:
 """
 
 import argparse
-import json
 import sqlite3
-from typing import cast
 
 from gilt.model.events import DuplicateSuggested
 from gilt.storage.event_store import EventStore
@@ -32,12 +30,14 @@ def migrate_events(dry_run: bool = True):
     projection_builder = ProjectionBuilder(workspace.projections_path)
 
     # Get all DuplicateSuggested events
-    suggestions = event_store.get_events_by_type('DuplicateSuggested')
+    suggestions = event_store.get_events_by_type("DuplicateSuggested")
 
     print(f"Found {len(suggestions)} DuplicateSuggested events")
 
     # Check how many already have pair data
-    with_pair = sum(1 for s in suggestions if isinstance(s, DuplicateSuggested) and 'pair' in s.assessment)
+    with_pair = sum(
+        1 for s in suggestions if isinstance(s, DuplicateSuggested) and "pair" in s.assessment
+    )
     without_pair = len(suggestions) - with_pair
 
     print(f"  - {with_pair} already have 'pair' field")
@@ -50,7 +50,7 @@ def migrate_events(dry_run: bool = True):
     # Load all transactions from projection for lookup
     print("\nLoading transactions from projection database...")
     transactions = projection_builder.get_all_transactions(include_duplicates=True)
-    txn_by_id = {txn['transaction_id']: txn for txn in transactions}
+    txn_by_id = {txn["transaction_id"]: txn for txn in transactions}
     print(f"Loaded {len(txn_by_id)} transactions")
 
     # Open direct SQLite connection for updates
@@ -66,7 +66,7 @@ def migrate_events(dry_run: bool = True):
             continue
 
         # Skip if already has pair data
-        if 'pair' in event.assessment:
+        if "pair" in event.assessment:
             continue
 
         # Look up both transactions
@@ -83,22 +83,22 @@ def migrate_events(dry_run: bool = True):
 
         # Build pair data
         pair_data = {
-            'txn1_id': txn1_id,
-            'txn1_date': txn1['transaction_date'],
-            'txn1_description': txn1['canonical_description'],
-            'txn1_amount': float(txn1['amount']),
-            'txn1_account': txn1['account_id'],
-            'txn1_source_file': txn1.get('source_file'),
-            'txn2_id': txn2_id,
-            'txn2_date': txn2['transaction_date'],
-            'txn2_description': txn2['canonical_description'],
-            'txn2_amount': float(txn2['amount']),
-            'txn2_account': txn2['account_id'],
-            'txn2_source_file': txn2.get('source_file'),
+            "txn1_id": txn1_id,
+            "txn1_date": txn1["transaction_date"],
+            "txn1_description": txn1["canonical_description"],
+            "txn1_amount": float(txn1["amount"]),
+            "txn1_account": txn1["account_id"],
+            "txn1_source_file": txn1.get("source_file"),
+            "txn2_id": txn2_id,
+            "txn2_date": txn2["transaction_date"],
+            "txn2_description": txn2["canonical_description"],
+            "txn2_amount": float(txn2["amount"]),
+            "txn2_account": txn2["account_id"],
+            "txn2_source_file": txn2.get("source_file"),
         }
 
         # Update assessment to include pair
-        event.assessment['pair'] = pair_data
+        event.assessment["pair"] = pair_data
 
         if not dry_run:
             # Serialize updated event to JSON
@@ -106,8 +106,7 @@ def migrate_events(dry_run: bool = True):
 
             # Update event in database
             cursor.execute(
-                "UPDATE events SET event_data = ? WHERE event_id = ?",
-                (event_data, event.event_id)
+                "UPDATE events SET event_data = ? WHERE event_id = ?", (event_data, event.event_id)
             )
 
         migrated_count += 1
@@ -136,9 +135,7 @@ def main():
         description="Migrate DuplicateSuggested events to include TransactionPair data"
     )
     parser.add_argument(
-        '--write',
-        action='store_true',
-        help='Apply migration (default is dry-run preview)'
+        "--write", action="store_true", help="Apply migration (default is dry-run preview)"
     )
 
     args = parser.parse_args()
@@ -146,5 +143,5 @@ def main():
     migrate_events(dry_run=not args.write)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

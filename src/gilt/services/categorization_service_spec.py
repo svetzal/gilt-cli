@@ -10,6 +10,7 @@ Tests cover:
 - Event emission for training data
 - Edge cases (empty lists, invalid categories)
 """
+
 from __future__ import annotations
 
 from datetime import date
@@ -142,9 +143,7 @@ class DescribeValidation:
         assert result.is_valid
         assert len(result.errors) == 0
 
-    def it_should_reject_nonexistent_category(
-        self, sample_category_config: CategoryConfig
-    ):
+    def it_should_reject_nonexistent_category(self, sample_category_config: CategoryConfig):
         # Arrange
         service = CategorizationService(sample_category_config)
 
@@ -156,9 +155,7 @@ class DescribeValidation:
         assert len(result.errors) == 1
         assert "Category 'InvalidCategory' not found" in result.errors[0]
 
-    def it_should_reject_nonexistent_subcategory(
-        self, sample_category_config: CategoryConfig
-    ):
+    def it_should_reject_nonexistent_subcategory(self, sample_category_config: CategoryConfig):
         # Arrange
         service = CategorizationService(sample_category_config)
 
@@ -168,10 +165,7 @@ class DescribeValidation:
         # Assert
         assert not result.is_valid
         assert len(result.errors) == 1
-        assert (
-            "Subcategory 'InvalidSubcat' not found in category 'Housing'"
-            in result.errors[0]
-        )
+        assert "Subcategory 'InvalidSubcat' not found in category 'Housing'" in result.errors[0]
 
     def it_should_reject_subcategory_when_category_has_none(
         self, sample_category_config: CategoryConfig
@@ -216,9 +210,7 @@ class DescribeFindMatchingTransactions:
         assert len(matches) == 1
         assert matches[0].primary.description == "Rent payment"
 
-    def it_should_find_by_description_prefix(
-        self, sample_transactions: list[TransactionGroup]
-    ):
+    def it_should_find_by_description_prefix(self, sample_transactions: list[TransactionGroup]):
         # Arrange
         service = CategorizationService(CategoryConfig())
         criteria = SearchCriteria(desc_prefix="SPOTIFY")
@@ -242,9 +234,7 @@ class DescribeFindMatchingTransactions:
         # Assert
         assert len(matches) == 2  # "Rent payment" and "Example Utility Payment"
 
-    def it_should_find_by_description_and_amount(
-        self, sample_transactions: list[TransactionGroup]
-    ):
+    def it_should_find_by_description_and_amount(self, sample_transactions: list[TransactionGroup]):
         # Arrange
         service = CategorizationService(CategoryConfig())
         criteria = SearchCriteria(desc_prefix="SPOTIFY", amount=-10.99)
@@ -270,9 +260,7 @@ class DescribeFindMatchingTransactions:
         # Assert
         assert len(matches) == 0
 
-    def it_should_handle_invalid_regex_pattern(
-        self, sample_transactions: list[TransactionGroup]
-    ):
+    def it_should_handle_invalid_regex_pattern(self, sample_transactions: list[TransactionGroup]):
         # Arrange
         service = CategorizationService(CategoryConfig())
         criteria = SearchCriteria(pattern="[invalid")
@@ -317,9 +305,7 @@ class DescribePlanCategorization:
         criteria = SearchCriteria(description="Rent payment")
 
         # Act
-        plan = service.plan_categorization(
-            criteria, sample_transactions, "InvalidCat", None
-        )
+        plan = service.plan_categorization(criteria, sample_transactions, "InvalidCat", None)
 
         # Assert
         assert not plan.is_valid
@@ -502,9 +488,7 @@ class DescribeEdgeCases:
         assert not result.is_valid
         assert "not found" in result.errors[0]
 
-    def it_should_handle_whitespace_in_category_names(
-        self, sample_category_config: CategoryConfig
-    ):
+    def it_should_handle_whitespace_in_category_names(self, sample_category_config: CategoryConfig):
         # Arrange
         service = CategorizationService(sample_category_config)
 
@@ -551,14 +535,11 @@ class DescribeCategorizationEventEmission:
     ):
         # Arrange
         mock_event_store = Mock(spec=EventStore)
-        service = CategorizationService(
-            sample_category_config,
-            event_store=mock_event_store
-        )
+        service = CategorizationService(sample_category_config, event_store=mock_event_store)
         txn = sample_transactions[0]
 
         # Act
-        result = service.apply_categorization([txn], "Housing", "Rent")
+        service.apply_categorization([txn], "Housing", "Rent")
 
         # Assert
         assert mock_event_store.append_event.call_count == 1
@@ -589,17 +570,14 @@ class DescribeCategorizationEventEmission:
     ):
         # Arrange
         mock_event_store = Mock(spec=EventStore)
-        service = CategorizationService(
-            sample_category_config,
-            event_store=mock_event_store
-        )
+        service = CategorizationService(sample_category_config, event_store=mock_event_store)
         # Pre-categorized transaction
         txn = sample_transactions[0]
         txn.primary.category = "Transportation"
         txn.primary.subcategory = "Transit"
 
         # Act - Re-categorize
-        result = service.apply_categorization([txn], "Housing", "Rent")
+        service.apply_categorization([txn], "Housing", "Rent")
 
         # Assert
         event = mock_event_store.append_event.call_args[0][0]
@@ -613,17 +591,10 @@ class DescribeCategorizationEventEmission:
     ):
         # Arrange
         mock_event_store = Mock(spec=EventStore)
-        service = CategorizationService(
-            sample_category_config,
-            event_store=mock_event_store
-        )
+        service = CategorizationService(sample_category_config, event_store=mock_event_store)
 
         # Act - Categorize 3 transactions
-        result = service.apply_categorization(
-            sample_transactions[:3],
-            "Housing",
-            "Utilities"
-        )
+        service.apply_categorization(sample_transactions[:3], "Housing", "Utilities")
 
         # Assert - Should emit 3 events
         assert mock_event_store.append_event.call_count == 3
@@ -641,14 +612,11 @@ class DescribeCategorizationEventEmission:
             store_path = Path(tmpdir) / "events.db"
             event_store = EventStore(str(store_path))
 
-            service = CategorizationService(
-                sample_category_config,
-                event_store=event_store
-            )
+            service = CategorizationService(sample_category_config, event_store=event_store)
             txn = sample_transactions[0]
 
             # Act
-            result = service.apply_categorization([txn], "Housing", "Rent")
+            service.apply_categorization([txn], "Housing", "Rent")
 
             # Assert - Events should be persisted
             events = event_store.get_events_by_type("TransactionCategorized")

@@ -5,6 +5,7 @@ This service wraps the CategorizationClassifier and handles the lifecycle of
 categorization events. It provides predictions for UI suggestions and records
 user choices to train the model.
 """
+
 from __future__ import annotations
 
 from typing import Optional, Tuple
@@ -17,9 +18,7 @@ from gilt.storage.event_store import EventStore
 class SmartCategoryService:
     """Service for ML-assisted transaction categorization."""
 
-    def __init__(
-        self, classifier: CategorizationClassifier, event_store: EventStore
-    ):
+    def __init__(self, classifier: CategorizationClassifier, event_store: EventStore):
         """Initialize service with classifier and event store.
 
         Args:

@@ -4,6 +4,7 @@ Tests for transaction projection builder.
 These tests verify that projections can be correctly built from events
 and that the rebuild process is idempotent and accurate.
 """
+
 from decimal import Decimal
 from pathlib import Path
 import tempfile
@@ -84,6 +85,7 @@ class DescribeProjectionBuilder:
 
         # Verify description history
         import json
+
         history = json.loads(txn["description_history"])
         assert history == ["Test Transaction"]
 
@@ -161,6 +163,7 @@ class DescribeProjectionBuilder:
 
         # Verify description history includes both
         import json
+
         history = json.loads(txn["description_history"])
         assert len(history) == 2
         assert "TRANSIT FARE/REF1234ABCD Exampleville" in history
@@ -368,6 +371,7 @@ class DescribeProjectionBuilder:
         assert txn["canonical_description"] == "TRANSIT Exampleville ON"
 
         import json
+
         history = json.loads(txn["description_history"])
         assert len(history) == 3
         assert "PRESTO" in history
@@ -499,9 +503,7 @@ class DescribeProjectionBuilder:
         assert txn1["last_event_id"] == event3.event_id
         assert txn2["last_event_id"] == event3.event_id
 
-    def it_should_track_current_sequence_number(
-        self, event_store, projection_builder
-    ):
+    def it_should_track_current_sequence_number(self, event_store, projection_builder):
         """Test that get_current_sequence returns the last processed event sequence."""
         # Initially should be 0
         assert projection_builder.get_current_sequence() == 0

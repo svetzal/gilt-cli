@@ -11,7 +11,7 @@ Pure transfer matching logic (no CLI, no printing).
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import pandas as pd
 
@@ -59,6 +59,7 @@ class Txn:
     @property
     def desc_hash8(self) -> str:
         import hashlib
+
         return hashlib.sha256(self.description.encode("utf-8")).hexdigest()[:8]
 
     def has_desc_token(self, tokens: Sequence[str]) -> bool:
@@ -142,7 +143,9 @@ def _date_proximity(a: datetime, b: datetime, window_days: int) -> float:
     return max(0.0, 1.0 - (d / max(1.0, float(window_days))))
 
 
-def _find_nearby_fees(debit: Txn, all_txns: Sequence[Txn], fee_max: float, day_window: int) -> List[Txn]:
+def _find_nearby_fees(
+    debit: Txn, all_txns: Sequence[Txn], fee_max: float, day_window: int
+) -> List[Txn]:
     fees: List[Txn] = []
     start = debit.date - timedelta(days=day_window)
     end = debit.date + timedelta(days=day_window)
@@ -155,18 +158,25 @@ def _find_nearby_fees(debit: Txn, all_txns: Sequence[Txn], fee_max: float, day_w
             continue
         if abs(t.amount) <= fee_max and t.has_desc_token(FEE_KEYWORDS):
             fees.append(t)
-    uniq: Dict[str, Txn] = {f.transaction_id: f for f in fees if f.transaction_id != debit.transaction_id}
+    uniq: Dict[str, Txn] = {
+        f.transaction_id: f for f in fees if f.transaction_id != debit.transaction_id
+    }
     return list(uniq.values())
 
 
 def score_pair(debit: Txn, credit: Txn, epsilon: float, window_days: int) -> float:
     amt_score = _amount_closeness(debit.amount, credit.amount, epsilon)
     date_score = _date_proximity(debit.date, credit.date, window_days)
-    cue_score = 1.0 if (debit.has_desc_token(DESCRIPTION_TOKENS) or credit.has_desc_token(DESCRIPTION_TOKENS)) else 0.0
+    cue_score = (
+        1.0
+        if (debit.has_desc_token(DESCRIPTION_TOKENS) or credit.has_desc_token(DESCRIPTION_TOKENS))
+        else 0.0
+    )
     return 0.6 * amt_score + 0.3 * date_score + 0.1 * cue_score
 
 
 # ---- Matching helpers (extracted to reduce cognitive complexity) ----
+
 
 def _is_bank2_biz_loc_pair(a: str, b: str) -> bool:
     s = {a, b}
@@ -288,7 +298,7 @@ def compute_matches(
         return []
 
     debits = [t for t in txns if t.is_debit()]
-    credits = [t for t in txns if t.is_credit()]  # kept for parity; not directly used
+    _credits = [t for t in txns if t.is_credit()]  # kept for parity; not directly used
 
     # Group transactions by currency for efficient candidate retrieval
     txns_by_ccy: Dict[str, List[Txn]] = {}

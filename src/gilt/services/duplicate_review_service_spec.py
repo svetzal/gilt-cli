@@ -8,6 +8,7 @@ CRITICAL: These tests catch bugs that weren't caught before, specifically:
 - Correct DuplicateAssessment field usage (is_duplicate, confidence, reasoning)
 - NOT the non-existent fields (same_date, same_amount, same_account, description_similarity)
 """
+
 from __future__ import annotations
 
 from datetime import date
@@ -61,8 +62,7 @@ class DescribeDuplicateReviewService:
             is_duplicate=True,
             confidence=0.95,
             reasoning=(
-                "Same amount, same date, similar description "
-                "pattern for Spotify subscription"
+                "Same amount, same date, similar description pattern for Spotify subscription"
             ),
         )
 
@@ -337,19 +337,31 @@ class DescribeSummaryBuilding(DescribeDuplicateReviewService):
         matches = [
             DuplicateMatch(
                 pair=TransactionPair(
-                    txn1_id="a1", txn1_date=date(2025, 11, 1),
-                    txn1_description="DESC1", txn1_amount=-10.0, txn1_account="ACC1",
-                    txn2_id="a2", txn2_date=date(2025, 11, 1),
-                    txn2_description="DESC2", txn2_amount=-10.0, txn2_account="ACC1",
+                    txn1_id="a1",
+                    txn1_date=date(2025, 11, 1),
+                    txn1_description="DESC1",
+                    txn1_amount=-10.0,
+                    txn1_account="ACC1",
+                    txn2_id="a2",
+                    txn2_date=date(2025, 11, 1),
+                    txn2_description="DESC2",
+                    txn2_amount=-10.0,
+                    txn2_account="ACC1",
                 ),
                 assessment=DuplicateAssessment(is_duplicate=True, confidence=0.9, reasoning="test"),
             ),
             DuplicateMatch(
                 pair=TransactionPair(
-                    txn1_id="b1", txn1_date=date(2025, 11, 2),
-                    txn1_description="DESC3", txn1_amount=-20.0, txn1_account="ACC1",
-                    txn2_id="b2", txn2_date=date(2025, 11, 2),
-                    txn2_description="DESC4", txn2_amount=-20.0, txn2_account="ACC1",
+                    txn1_id="b1",
+                    txn1_date=date(2025, 11, 2),
+                    txn1_description="DESC3",
+                    txn1_amount=-20.0,
+                    txn1_account="ACC1",
+                    txn2_id="b2",
+                    txn2_date=date(2025, 11, 2),
+                    txn2_description="DESC4",
+                    txn2_amount=-20.0,
+                    txn2_account="ACC1",
                 ),
                 assessment=DuplicateAssessment(
                     is_duplicate=False, confidence=0.3, reasoning="test"

@@ -12,6 +12,7 @@ All business logic for:
 
 No I/O, no UI dependencies - pure transformation and validation logic.
 """
+
 from __future__ import annotations
 
 import csv
@@ -61,9 +62,7 @@ class EventMigrationService:
     All file paths and data structures passed as parameters.
     """
 
-    def generate_transaction_events(
-        self, csv_path: Path
-    ) -> Tuple[List[Event], List[str]]:
+    def generate_transaction_events(self, csv_path: Path) -> Tuple[List[Event], List[str]]:
         """Generate transaction events from a CSV ledger file.
 
         Parses CSV and creates:
@@ -91,9 +90,7 @@ class EventMigrationService:
 
                         transaction_id = row.get("transaction_id", "").strip()
                         if not transaction_id:
-                            errors.append(
-                                f"{csv_path.name}:{row_num} - Missing transaction_id"
-                            )
+                            errors.append(f"{csv_path.name}:{row_num} - Missing transaction_id")
                             continue
 
                         # Generate TransactionImported event
@@ -220,9 +217,7 @@ class EventMigrationService:
         original_tx_count = self._count_original_transactions(original_data_dir)
 
         # Count projection transactions
-        projection_txs = tx_projection_builder.get_all_transactions(
-            include_duplicates=False
-        )
+        projection_txs = tx_projection_builder.get_all_transactions(include_duplicates=False)
         projection_tx_count = len(projection_txs)
 
         # Validate transaction count
@@ -256,9 +251,7 @@ class EventMigrationService:
         errors.extend(sample_errors)
 
         # Overall validation passes if all checks pass
-        is_valid = (
-            transaction_count_match and budget_count_match and sample_transactions_match
-        )
+        is_valid = transaction_count_match and budget_count_match and sample_transactions_match
 
         return ValidationResult(
             is_valid=is_valid,
@@ -268,9 +261,7 @@ class EventMigrationService:
             sample_transactions_match=sample_transactions_match,
         )
 
-    def _infer_import_timestamp(
-        self, source_file: str, transaction_date: str
-    ) -> datetime:
+    def _infer_import_timestamp(self, source_file: str, transaction_date: str) -> datetime:
         """Infer import timestamp from source filename and transaction date.
 
         Source files are named like: 2025-08-21-mybank-chequing.csv
@@ -322,10 +313,7 @@ class EventMigrationService:
                 with open(ledger_path, "r", encoding="utf-8") as f:
                     reader = csv.DictReader(f)
                     for row in reader:
-                        if (
-                            row.get("row_type") == "primary"
-                            and row.get("transaction_id")
-                        ):
+                        if row.get("row_type") == "primary" and row.get("transaction_id"):
                             count += 1
             except Exception:
                 # Silently skip files we can't read
@@ -366,19 +354,14 @@ class EventMigrationService:
                         if validated >= sample_size:
                             break
 
-                        if (
-                            row.get("row_type") != "primary"
-                            or not row.get("transaction_id")
-                        ):
+                        if row.get("row_type") != "primary" or not row.get("transaction_id"):
                             continue
 
                         transaction_id = row["transaction_id"]
                         projection = tx_builder.get_transaction(transaction_id)
 
                         if not projection:
-                            errors.append(
-                                f"Transaction {transaction_id} not found in projection"
-                            )
+                            errors.append(f"Transaction {transaction_id} not found in projection")
                             continue
 
                         # Validate key fields match

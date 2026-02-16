@@ -8,9 +8,9 @@ Privacy:
 - All processing happens on local files only.
 - No network I/O.
 """
+
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Optional
 
 from rich.console import Console
@@ -139,7 +139,7 @@ def run(
         return 1
 
     if duplicate_txn.get("is_duplicate", 0) == 1:
-        txid_short = duplicate_txn['transaction_id'][:8]
+        txid_short = duplicate_txn["transaction_id"][:8]
         console.print(
             f"[yellow]Warning:[/yellow] Duplicate transaction {txid_short} "
             "is already marked as a duplicate"
@@ -148,9 +148,7 @@ def run(
 
     # Validate they could be duplicates (same account, similar amount)
     if primary_txn["account_id"] != duplicate_txn["account_id"]:
-        console.print(
-            "[yellow]Warning:[/yellow] Transactions are from different accounts:"
-        )
+        console.print("[yellow]Warning:[/yellow] Transactions are from different accounts:")
         console.print(f"  Primary: {primary_txn['account_id']}")
         console.print(f"  Duplicate: {duplicate_txn['account_id']}")
         if not write:
@@ -229,8 +227,8 @@ def run(
 
     if not write:
         console.print("[yellow]Dry-run mode:[/yellow]")
-        dup_id = duplicate_txn['transaction_id'][:8]
-        pri_id = primary_txn['transaction_id'][:8]
+        dup_id = duplicate_txn["transaction_id"][:8]
+        pri_id = primary_txn["transaction_id"][:8]
         console.print(f"  Would mark {dup_id} as duplicate of {pri_id}")
         console.print(f"  Would use description: {canonical_description}")
         console.print()
@@ -256,7 +254,7 @@ def run(
     console.print()
     console.print("[green]✓ Duplicate marked successfully[/green]")
     console.print(f"  Primary: {primary_txn['transaction_id'][:8]}")
-    dup_id = duplicate_txn['transaction_id'][:8]
+    dup_id = duplicate_txn["transaction_id"][:8]
     console.print(f"  Duplicate: {dup_id} [dim](hidden from budgets)[/dim]")
     console.print(f"  Description: {canonical_description}")
     console.print(f"  Events processed: {events_processed}")

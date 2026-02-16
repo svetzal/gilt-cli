@@ -13,9 +13,8 @@ from PySide6.QtWidgets import (
     QWidget,
     QSplitter,
     QFrame,
-    QScrollArea,
 )
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt
 
 from gilt.gui.services.import_service import ImportService, ImportFileMapping
 from gilt.model.duplicate import DuplicateMatch
@@ -35,8 +34,7 @@ class DuplicateReviewPage(QWizardPage):
 
         self.setTitle("Review Potential Duplicates")
         self.setSubTitle(
-            "The system detected transactions that might be duplicates. "
-            "Please review them below."
+            "The system detected transactions that might be duplicates. Please review them below."
         )
 
         self._init_ui()
@@ -105,7 +103,7 @@ class DuplicateReviewPage(QWizardPage):
 
         self.btn_confirm = QPushButton("Skip Import (It's a Duplicate)")
         self.btn_confirm.clicked.connect(self._on_confirm_duplicate)
-        
+
         # Use theme colors
         neg_color = Theme.color("negative_fg").name()
         self.btn_confirm.setStyleSheet(
@@ -117,7 +115,7 @@ class DuplicateReviewPage(QWizardPage):
 
         self.btn_reject = QPushButton("Import Anyway (Not a Duplicate)")
         self.btn_reject.clicked.connect(self._on_reject_duplicate)
-        
+
         # Use theme colors
         pos_color = Theme.color("positive_fg").name()
         self.btn_reject.setStyleSheet(
@@ -147,7 +145,7 @@ class DuplicateReviewPage(QWizardPage):
         if wizard:
             # PAGE_ACCOUNT_MAPPING is 1
             mapping_page = wizard.page(1)
-            if hasattr(mapping_page, 'get_mappings'):
+            if hasattr(mapping_page, "get_mappings"):
                 self.mappings = mapping_page.get_mappings()  # type: ignore
 
         # Scan for duplicates
@@ -183,7 +181,7 @@ class DuplicateReviewPage(QWizardPage):
             if i in self.resolved_indices:
                 status = " [Resolved]"
 
-            item = QListWidgetItem(f"Match {i+1} ({match.confidence_pct:.0f}%){status}")
+            item = QListWidgetItem(f"Match {i + 1} ({match.confidence_pct:.0f}%){status}")
             item.setData(Qt.ItemDataRole.UserRole, i)
             self.match_list.addItem(item)
 

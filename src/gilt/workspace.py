@@ -10,6 +10,7 @@ Resolution priority:
 2. FINANCE_DATA environment variable
 3. Current working directory
 """
+
 from __future__ import annotations
 
 import os

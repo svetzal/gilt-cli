@@ -32,7 +32,7 @@ class DescribeDiagnoseCategoriesCommand:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
+
             config = CategoryConfig(
                 categories=[
                     Category(name="Housing"),
@@ -40,7 +40,7 @@ class DescribeDiagnoseCategoriesCommand:
                 ]
             )
             save_categories_config(config_path, config)
-            
+
             ledger_path = data_dir / "TEST.csv"
             groups = [
                 TransactionGroup(
@@ -69,7 +69,7 @@ class DescribeDiagnoseCategoriesCommand:
                 ),
             ]
             _write_ledger(ledger_path, groups)
-            
+
             rc = run(workspace=workspace)
             assert rc == 0  # No issues found
 
@@ -81,14 +81,14 @@ class DescribeDiagnoseCategoriesCommand:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
+
             config = CategoryConfig(
                 categories=[
                     Category(name="Housing"),
                 ]
             )
             save_categories_config(config_path, config)
-            
+
             ledger_path = data_dir / "TEST.csv"
             groups = [
                 TransactionGroup(
@@ -117,7 +117,7 @@ class DescribeDiagnoseCategoriesCommand:
                 ),
             ]
             _write_ledger(ledger_path, groups)
-            
+
             rc = run(workspace=workspace)
             assert rc == 1  # Issues found
 
@@ -129,7 +129,7 @@ class DescribeDiagnoseCategoriesCommand:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
+
             config = CategoryConfig(
                 categories=[
                     Category(
@@ -141,7 +141,7 @@ class DescribeDiagnoseCategoriesCommand:
                 ]
             )
             save_categories_config(config_path, config)
-            
+
             ledger_path = data_dir / "TEST.csv"
             groups = [
                 TransactionGroup(
@@ -172,7 +172,7 @@ class DescribeDiagnoseCategoriesCommand:
                 ),
             ]
             _write_ledger(ledger_path, groups)
-            
+
             rc = run(workspace=workspace)
             assert rc == 1  # Issues found
 
@@ -184,7 +184,7 @@ class DescribeDiagnoseCategoriesCommand:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
+
             config = CategoryConfig(
                 categories=[
                     Category(
@@ -196,7 +196,7 @@ class DescribeDiagnoseCategoriesCommand:
                 ]
             )
             save_categories_config(config_path, config)
-            
+
             ledger_path = data_dir / "TEST.csv"
             groups = [
                 TransactionGroup(
@@ -214,7 +214,7 @@ class DescribeDiagnoseCategoriesCommand:
                 ),
             ]
             _write_ledger(ledger_path, groups)
-            
+
             # Category without subcategory is always valid if category exists
             rc = run(workspace=workspace)
             assert rc == 0  # No issues (category alone is valid)
@@ -227,9 +227,9 @@ class DescribeDiagnoseCategoriesCommand:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
+
             save_categories_config(config_path, CategoryConfig(categories=[]))
-            
+
             ledger_path = data_dir / "TEST.csv"
             groups = [
                 TransactionGroup(
@@ -246,7 +246,7 @@ class DescribeDiagnoseCategoriesCommand:
                 ),
             ]
             _write_ledger(ledger_path, groups)
-            
+
             rc = run(workspace=workspace)
             assert rc == 0  # Returns 0 because nothing to compare against
 
@@ -258,12 +258,10 @@ class DescribeDiagnoseCategoriesCommand:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
-            config = CategoryConfig(
-                categories=[Category(name="Housing")]
-            )
+
+            config = CategoryConfig(categories=[Category(name="Housing")])
             save_categories_config(config_path, config)
-            
+
             ledger_path = data_dir / "TEST.csv"
             groups = [
                 TransactionGroup(
@@ -280,7 +278,7 @@ class DescribeDiagnoseCategoriesCommand:
                 ),
             ]
             _write_ledger(ledger_path, groups)
-            
+
             rc = run(workspace=workspace)
             assert rc == 0  # No categorized transactions to check
 
@@ -319,12 +317,10 @@ class DescribeDiagnoseCategoriesCommand:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
-            config = CategoryConfig(
-                categories=[Category(name="Housing")]
-            )
+
+            config = CategoryConfig(categories=[Category(name="Housing")])
             save_categories_config(config_path, config)
-            
+
             rc = run(workspace=workspace)
             assert rc == 0  # No transactions to check
 
@@ -336,12 +332,10 @@ class DescribeDiagnoseCategoriesCommand:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
-            config = CategoryConfig(
-                categories=[Category(name="Housing")]
-            )
+
+            config = CategoryConfig(categories=[Category(name="Housing")])
             save_categories_config(config_path, config)
-            
+
             ledger_path = data_dir / "TEST.csv"
             groups = [
                 TransactionGroup(
@@ -382,7 +376,7 @@ class DescribeDiagnoseCategoriesCommand:
                 ),
             ]
             _write_ledger(ledger_path, groups)
-            
+
             rc = run(workspace=workspace)
             assert rc == 1  # Issues found (should show count=3)
 
@@ -394,12 +388,10 @@ class DescribeDiagnoseCategoriesCommand:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
-            config = CategoryConfig(
-                categories=[Category(name="Housing")]
-            )
+
+            config = CategoryConfig(categories=[Category(name="Housing")])
             save_categories_config(config_path, config)
-            
+
             ledger_path = data_dir / "TEST.csv"
             groups = [
                 TransactionGroup(
@@ -440,6 +432,6 @@ class DescribeDiagnoseCategoriesCommand:
                 ),
             ]
             _write_ledger(ledger_path, groups)
-            
+
             rc = run(workspace=workspace)
             assert rc == 1  # Issues found (3 orphaned categories)

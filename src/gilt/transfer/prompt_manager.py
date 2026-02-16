@@ -13,7 +13,6 @@ Privacy:
 """
 
 from pathlib import Path
-from typing import Optional
 import json
 from datetime import datetime
 
@@ -126,7 +125,9 @@ class PromptManager:
 
             # Add general guidance if we found patterns
             if location_patterns:
-                patterns.append("- Even with same amount and date, different locations usually mean different transactions")
+                patterns.append(
+                    "- Even with same amount and date, different locations usually mean different transactions"
+                )
             patterns.append("")
 
         # Add insights about confirmed duplicates
@@ -210,14 +211,10 @@ class PromptManager:
             }
 
         tp = sum(
-            1
-            for f in self.feedback_history
-            if f["llm_said_duplicate"] and f["user_confirmed"]
+            1 for f in self.feedback_history if f["llm_said_duplicate"] and f["user_confirmed"]
         )
         fp = sum(
-            1
-            for f in self.feedback_history
-            if f["llm_said_duplicate"] and not f["user_confirmed"]
+            1 for f in self.feedback_history if f["llm_said_duplicate"] and not f["user_confirmed"]
         )
         tn = sum(
             1
@@ -225,9 +222,7 @@ class PromptManager:
             if not f["llm_said_duplicate"] and not f["user_confirmed"]
         )
         fn = sum(
-            1
-            for f in self.feedback_history
-            if not f["llm_said_duplicate"] and f["user_confirmed"]
+            1 for f in self.feedback_history if not f["llm_said_duplicate"] and f["user_confirmed"]
         )
 
         total = len(self.feedback_history)

@@ -25,6 +25,7 @@ from pydantic import BaseModel, Field, computed_field, model_validator
 # Accounts (mirrors config file)
 # ------------------------------
 
+
 class ImportHints(BaseModel):
     """Hints for CSV ingestion; mirrors the shape in config/accounts.yml.
 
@@ -58,12 +59,16 @@ class Account(BaseModel):
     description: Optional[str] = None
     source_patterns: Optional[List[str]] = None
     import_hints: Optional[ImportHints] = None
-    nature: AccountNature = Field(default=AccountNature.asset, description="Account nature for sign semantics: asset or liability (credit)")
+    nature: AccountNature = Field(
+        default=AccountNature.asset,
+        description="Account nature for sign semantics: asset or liability (credit)",
+    )
 
 
 # -----------------------------------------
 # Ledger transactions and grouping proposals
 # -----------------------------------------
+
 
 class Transaction(BaseModel):
     """Standardized per-ledger transaction (one row in data/accounts/{ACCOUNT}.csv).
@@ -83,7 +88,9 @@ class Transaction(BaseModel):
     subcategory: Optional[str] = None
     notes: Optional[str] = None
     source_file: Optional[str] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Freeform, local-only metadata")
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict, description="Freeform, local-only metadata"
+    )
 
     @computed_field  # type: ignore[misc]
     @property
@@ -137,7 +144,9 @@ class TransactionGroup(BaseModel):
     group_id: str
     primary: Transaction
     splits: List[SplitLine] = Field(default_factory=list)
-    tolerance: float = Field(default=0.01, ge=0.0, description="Allowed difference between sum(splits) and amount")
+    tolerance: float = Field(
+        default=0.01, ge=0.0, description="Allowed difference between sum(splits) and amount"
+    )
 
     @computed_field  # type: ignore[misc]
     @property

@@ -71,6 +71,7 @@ def _to_str(v) -> str:
 
 # ---- Parsing helpers to keep load_ledger_csv simple ----
 
+
 def _parse_metadata_field(s: str) -> dict:
     s = (s or "").strip()
     if not s:
@@ -81,7 +82,24 @@ def _parse_metadata_field(s: str) -> dict:
         return {}
 
 
-def _normalize_row(r: dict, default_currency: Optional[str], legacy_mode: bool) -> Tuple[str, str, str, str, str, str, str, str, Optional[str], Optional[str], Optional[str], Optional[str], Optional[str], dict]:
+def _normalize_row(
+    r: dict, default_currency: Optional[str], legacy_mode: bool
+) -> Tuple[
+    str,
+    str,
+    str,
+    str,
+    str,
+    str,
+    str,
+    str,
+    Optional[str],
+    Optional[str],
+    Optional[str],
+    Optional[str],
+    Optional[str],
+    dict,
+]:
     """Extract and normalize common fields from a CSV row.
     Returns a tuple:
     (row_type, group_id, tid, date_str, description, amount_str, currency, account_id,
@@ -119,7 +137,22 @@ def _normalize_row(r: dict, default_currency: Optional[str], legacy_mode: bool) 
     )
 
 
-def _build_primary_transaction(*, group_id: str, tid: str, date_str: str, description: str, amount_str: str, currency: str, account_id: str, counterparty: Optional[str], category: Optional[str], subcategory: Optional[str], notes: Optional[str], source_file: Optional[str], metadata: dict) -> Transaction:
+def _build_primary_transaction(
+    *,
+    group_id: str,
+    tid: str,
+    date_str: str,
+    description: str,
+    amount_str: str,
+    currency: str,
+    account_id: str,
+    counterparty: Optional[str],
+    category: Optional[str],
+    subcategory: Optional[str],
+    notes: Optional[str],
+    source_file: Optional[str],
+    metadata: dict,
+) -> Transaction:
     try:
         amount_val = float(amount_str) if amount_str else 0.0
         return Transaction(
@@ -211,7 +244,7 @@ def dump_ledger_csv(groups: Iterable[TransactionGroup]) -> str:
                     "notes": "",
                     "source_file": t.source_file or "",
                     "metadata_json": "",
-                    "line_id": s.line_id or f"{group_id}-L{i+1}",
+                    "line_id": s.line_id or f"{group_id}-L{i + 1}",
                     "target_account_id": s.target_account_id or "",
                     "split_category": s.category or "",
                     "split_subcategory": s.subcategory or "",
@@ -301,7 +334,9 @@ def load_ledger_csv(text: str, *, default_currency: Optional[str] = None) -> Lis
         result.append(tg)
 
     # Deterministic order: by date, then account_id, then abs(amount), then group_id
-    result.sort(key=lambda g: (g.primary.date, g.primary.account_id, abs(g.primary.amount), g.group_id))
+    result.sort(
+        key=lambda g: (g.primary.date, g.primary.account_id, abs(g.primary.amount), g.group_id)
+    )
     return result
 
 

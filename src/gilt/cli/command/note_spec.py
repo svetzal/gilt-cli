@@ -79,7 +79,14 @@ def it_should_update_note_with_write_and_be_dry_run_by_default(tmp_path: Path):
     assert rows[0]["notes"] == "old"
 
     # Now write changes
-    rc2 = run(account=acc, txid=tid1[:8], note_text="new-note", workspace=workspace, write=True, assume_yes=True)
+    rc2 = run(
+        account=acc,
+        txid=tid1[:8],
+        note_text="new-note",
+        workspace=workspace,
+        write=True,
+        assume_yes=True,
+    )
     assert rc2 == 0
     rows2 = list(csv.DictReader(ledger_path.read_text(encoding="utf-8").splitlines()))
     assert rows2[0]["notes"] == "new-note"
@@ -257,7 +264,9 @@ def it_should_return_error_when_no_batch_matches(tmp_path: Path):
     assert rc == 1
 
 
-def it_should_match_batch_on_description_with_whitespace_and_amount_by_absolute_when_needed(tmp_path: Path):
+def it_should_match_batch_on_description_with_whitespace_and_amount_by_absolute_when_needed(
+    tmp_path: Path,
+):
     acc = "WSIGN"
     data_dir = tmp_path / "data" / "accounts"
     data_dir.mkdir(parents=True)
@@ -309,7 +318,6 @@ def it_should_match_batch_on_description_with_whitespace_and_amount_by_absolute_
     assert rc2 == 0
     rows = list(csv.DictReader(ledger_path.read_text(encoding="utf-8").splitlines()))
     assert rows[0]["notes"] == "locker"
-
 
 
 def it_should_update_notes_in_batch_by_description_only(tmp_path: Path):

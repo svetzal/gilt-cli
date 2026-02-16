@@ -15,6 +15,7 @@ NO IMPORTS FROM:
 
 All dependencies are injected. All functions return data structures.
 """
+
 from __future__ import annotations
 
 import re
@@ -120,11 +121,7 @@ class TransactionOperationsService:
             return MatchResult(type="not_found", matches=[])
 
         # Find all matches
-        matches = [
-            g
-            for g in groups
-            if g.primary.transaction_id.lower().startswith(normalized)
-        ]
+        matches = [g for g in groups if g.primary.transaction_id.lower().startswith(normalized)]
 
         if len(matches) == 0:
             return MatchResult(type="not_found", matches=[])
@@ -182,9 +179,7 @@ class TransactionOperationsService:
             if criteria.description is not None:
                 desc_matches = desc == criteria.description.strip()
             elif criteria.desc_prefix is not None:
-                desc_matches = desc.lower().startswith(
-                    criteria.desc_prefix.strip().lower()
-                )
+                desc_matches = desc.lower().startswith(criteria.desc_prefix.strip().lower())
             elif compiled_pattern is not None:
                 desc_matches = bool(compiled_pattern.search(desc))
             else:
@@ -211,9 +206,7 @@ class TransactionOperationsService:
                 if criteria.description is not None:
                     desc_matches = desc == criteria.description.strip()
                 elif criteria.desc_prefix is not None:
-                    desc_matches = desc.lower().startswith(
-                        criteria.desc_prefix.strip().lower()
-                    )
+                    desc_matches = desc.lower().startswith(criteria.desc_prefix.strip().lower())
                 elif compiled_pattern is not None:
                     desc_matches = bool(compiled_pattern.search(desc))
                 else:

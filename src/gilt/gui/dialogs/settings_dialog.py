@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
     QTabWidget,
     QWidget,
 )
-from PySide6.QtCore import Qt, QSettings
+from PySide6.QtCore import QSettings
 
 
 class SettingsDialog(QDialog):
@@ -50,9 +50,7 @@ class SettingsDialog(QDialog):
         layout.addWidget(tabs)
 
         # Dialog buttons
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
-        )
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
@@ -70,8 +68,7 @@ class SettingsDialog(QDialog):
 
         # Info label
         info = QLabel(
-            "Default currency is used when importing transactions "
-            "without currency information."
+            "Default currency is used when importing transactions without currency information."
         )
         info.setWordWrap(True)
         info.setStyleSheet("color: palette(placeholder-text); font-size: 10pt;")
@@ -138,26 +135,20 @@ class SettingsDialog(QDialog):
     def _browse_data_dir(self):
         """Browse for data directory."""
         current = self.data_dir_edit.text() or str(Path.cwd() / "data/accounts")
-        directory = QFileDialog.getExistingDirectory(
-            self, "Select Data Directory", current
-        )
+        directory = QFileDialog.getExistingDirectory(self, "Select Data Directory", current)
         if directory:
             self.data_dir_edit.setText(directory)
 
     def _browse_ingest_dir(self):
         """Browse for ingest directory."""
         current = self.ingest_dir_edit.text() or str(Path.cwd() / "ingest")
-        directory = QFileDialog.getExistingDirectory(
-            self, "Select Ingest Directory", current
-        )
+        directory = QFileDialog.getExistingDirectory(self, "Select Ingest Directory", current)
         if directory:
             self.ingest_dir_edit.setText(directory)
 
     def _browse_accounts_config(self):
         """Browse for accounts config file."""
-        current = self.accounts_config_edit.text() or str(
-            Path.cwd() / "config/accounts.yml"
-        )
+        current = self.accounts_config_edit.text() or str(Path.cwd() / "config/accounts.yml")
         file_path, _ = QFileDialog.getOpenFileName(
             self,
             "Select Accounts Config",
@@ -169,9 +160,7 @@ class SettingsDialog(QDialog):
 
     def _browse_categories_config(self):
         """Browse for categories config file."""
-        current = self.categories_config_edit.text() or str(
-            Path.cwd() / "config/categories.yml"
-        )
+        current = self.categories_config_edit.text() or str(Path.cwd() / "config/categories.yml")
         file_path, _ = QFileDialog.getOpenFileName(
             self,
             "Select Categories Config",
@@ -184,42 +173,28 @@ class SettingsDialog(QDialog):
     def _load_settings(self):
         """Load settings from QSettings."""
         # General
-        self.currency_edit.setText(
-            self.settings.value("general/default_currency", "CAD")
-        )
+        self.currency_edit.setText(self.settings.value("general/default_currency", "CAD"))
 
         # Paths
-        self.data_dir_edit.setText(
-            self.settings.value("paths/data_dir", "data/accounts")
-        )
-        self.ingest_dir_edit.setText(
-            self.settings.value("paths/ingest_dir", "ingest")
-        )
+        self.data_dir_edit.setText(self.settings.value("paths/data_dir", "data/accounts"))
+        self.ingest_dir_edit.setText(self.settings.value("paths/ingest_dir", "ingest"))
         self.accounts_config_edit.setText(
             self.settings.value("paths/accounts_config", "config/accounts.yml")
         )
         self.categories_config_edit.setText(
-            self.settings.value(
-                "paths/categories_config", "config/categories.yml"
-            )
+            self.settings.value("paths/categories_config", "config/categories.yml")
         )
 
     def accept(self):
         """Save settings and close dialog."""
         # General
-        self.settings.setValue(
-            "general/default_currency", self.currency_edit.text() or "CAD"
-        )
+        self.settings.setValue("general/default_currency", self.currency_edit.text() or "CAD")
 
         # Paths
         self.settings.setValue("paths/data_dir", self.data_dir_edit.text())
         self.settings.setValue("paths/ingest_dir", self.ingest_dir_edit.text())
-        self.settings.setValue(
-            "paths/accounts_config", self.accounts_config_edit.text()
-        )
-        self.settings.setValue(
-            "paths/categories_config", self.categories_config_edit.text()
-        )
+        self.settings.setValue("paths/accounts_config", self.accounts_config_edit.text())
+        self.settings.setValue("paths/categories_config", self.categories_config_edit.text())
 
         super().accept()
 
@@ -239,17 +214,13 @@ class SettingsDialog(QDialog):
     def get_accounts_config() -> Path:
         """Get the configured accounts config path."""
         settings = QSettings()
-        return Path(
-            settings.value("paths/accounts_config", "config/accounts.yml")
-        )
+        return Path(settings.value("paths/accounts_config", "config/accounts.yml"))
 
     @staticmethod
     def get_categories_config() -> Path:
         """Get the configured categories config path."""
         settings = QSettings()
-        return Path(
-            settings.value("paths/categories_config", "config/categories.yml")
-        )
+        return Path(settings.value("paths/categories_config", "config/categories.yml"))
 
     @staticmethod
     def get_default_currency() -> str:

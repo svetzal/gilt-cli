@@ -15,9 +15,13 @@ from PySide6.QtWidgets import (
     QCheckBox,
 )
 from PySide6.QtCore import Qt, Signal, QThread
-from PySide6.QtGui import QColor, QBrush
+from PySide6.QtGui import QBrush
 
-from gilt.gui.services.import_service import ImportService, ImportFileMapping, CategorizationReviewItem
+from gilt.gui.services.import_service import (
+    ImportService,
+    ImportFileMapping,
+    CategorizationReviewItem,
+)
 from gilt.gui.services.category_service import CategoryService
 from gilt.gui.dialogs.settings_dialog import SettingsDialog
 from gilt.gui.widgets.smart_category_combo import SmartCategoryComboBox
@@ -32,10 +36,7 @@ class CategorizationScanWorker(QThread):
     error = Signal(str)
 
     def __init__(
-        self,
-        service: ImportService,
-        mappings: List[ImportFileMapping],
-        exclude_ids: Set[str]
+        self, service: ImportService, mappings: List[ImportFileMapping], exclude_ids: Set[str]
     ):
         super().__init__()
         self.service = service
@@ -56,7 +57,7 @@ class CategorizationScanWorker(QThread):
                 items = self.service.scan_file_for_categorization(
                     mapping.file_info.path,
                     mapping.selected_account_id,
-                    exclude_ids=list(self.exclude_ids)
+                    exclude_ids=list(self.exclude_ids),
                 )
                 all_items.extend(items)
 
@@ -86,8 +87,7 @@ class CategorizationReviewPage(QWizardPage):
 
         self.setTitle("Review Categorization")
         self.setSubTitle(
-            "Review and confirm category suggestions. "
-            "Low confidence suggestions are highlighted."
+            "Review and confirm category suggestions. Low confidence suggestions are highlighted."
         )
 
         self._init_ui()
@@ -103,9 +103,17 @@ class CategorizationReviewPage(QWizardPage):
         # Table
         self.table = QTableWidget()
         self.table.setColumnCount(7)
-        self.table.setHorizontalHeaderLabels([
-            "Date", "Account", "Description", "Amount", "Suggested Category", "Confidence", "Confirm"
-        ])
+        self.table.setHorizontalHeaderLabels(
+            [
+                "Date",
+                "Account",
+                "Description",
+                "Amount",
+                "Suggested Category",
+                "Confidence",
+                "Confirm",
+            ]
+        )
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setStretchLastSection(True)
         layout.addWidget(self.table)
@@ -139,7 +147,7 @@ class CategorizationReviewPage(QWizardPage):
             if mapping_page:
                 self.mappings = mapping_page.get_mappings()
 
-            dup_page = wizard.page(3) # PAGE_DUPLICATE_REVIEW
+            dup_page = wizard.page(3)  # PAGE_DUPLICATE_REVIEW
             if dup_page:
                 self.exclude_ids = dup_page.get_excluded_ids()
 
@@ -151,9 +159,7 @@ class CategorizationReviewPage(QWizardPage):
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
 
-        self.worker = CategorizationScanWorker(
-            self.service, self.mappings, self.exclude_ids
-        )
+        self.worker = CategorizationScanWorker(self.service, self.mappings, self.exclude_ids)
         self.worker.progress.connect(self.progress_bar.setValue)
         self.worker.finished.connect(self._on_scan_finished)
         self.worker.error.connect(self._on_scan_error)
@@ -213,7 +219,7 @@ class CategorizationReviewPage(QWizardPage):
             current_val = item.assigned_category
             if item.assigned_category and item.assigned_subcategory:
                 current_val = f"{item.assigned_category}: {item.assigned_subcategory}"
-            
+
             if current_val:
                 idx = combo.findData(current_val, Qt.ItemDataRole.UserRole)
                 if idx >= 0:
@@ -252,7 +258,7 @@ class CategorizationReviewPage(QWizardPage):
                 fg_color = Theme.color("success_fg")
 
             for col in range(7):
-                if col not in [4, 6]: # Skip widget columns
+                if col not in [4, 6]:  # Skip widget columns
                     it = self.table.item(row, col)
                     if it:
                         it.setBackground(QBrush(bg_color))
@@ -267,7 +273,7 @@ class CategorizationReviewPage(QWizardPage):
             return
 
         category_str = combo.currentData()
-        
+
         if category_str and ":" in category_str:
             parts = category_str.split(":", 1)
             self.items[row].assigned_category = parts[0].strip()

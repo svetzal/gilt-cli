@@ -20,6 +20,7 @@ from gilt.model.ledger_io import load_ledger_csv
 @dataclass
 class BudgetItem:
     """A budget item with actual spending comparison."""
+
     category_name: str
     subcategory_name: Optional[str]
     description: Optional[str]
@@ -34,6 +35,7 @@ class BudgetItem:
 @dataclass
 class BudgetSummary:
     """Summary of budget vs actual."""
+
     total_budgeted: float
     total_actual: float
     total_remaining: float
@@ -95,9 +97,7 @@ class BudgetService:
                 continue
 
             # Calculate budget for period
-            budget_amount = self._calculate_budget_for_period(
-                cat, year, month
-            )
+            budget_amount = self._calculate_budget_for_period(cat, year, month)
 
             # Aggregate actual spending for this category
             cat_actual = 0.0
@@ -161,9 +161,7 @@ class BudgetService:
 
         # Calculate totals
         total_remaining = total_budgeted - total_actual
-        percent_used = (
-            (total_actual / total_budgeted * 100) if total_budgeted > 0 else 0.0
-        )
+        percent_used = (total_actual / total_budgeted * 100) if total_budgeted > 0 else 0.0
 
         return BudgetSummary(
             total_budgeted=total_budgeted,

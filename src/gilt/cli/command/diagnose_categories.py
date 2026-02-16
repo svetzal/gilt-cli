@@ -113,9 +113,7 @@ def run(
             orphaned[(cat, subcat)] = count
 
     if not orphaned:
-        console.print(
-            "[green]✓ All categories in transactions are defined in config.[/]"
-        )
+        console.print("[green]✓ All categories in transactions are defined in config.[/]")
         return 0
 
     # Display orphaned categories
@@ -152,7 +150,8 @@ def run(
         # (simple check: same first 3 chars)
         if len(cat) >= 3:
             similar = [
-                c for c, s in defined_categories
+                c
+                for c, s in defined_categories
                 if c != cat and c.lower().startswith(cat[:3].lower())
             ]
             if similar:
@@ -169,9 +168,9 @@ def run(
 
     # Summary
     console.print(
-        f"\n[yellow]Action required:[/] Review these categories and either:\n"
-        f"  1. Add them to categories.yml: gilt category --add \"Category\" --write\n"
-        f"  2. Fix typos using: gilt recategorize --from \"OldName\" --to \"NewName\" --write\n"
+        "\n[yellow]Action required:[/] Review these categories and either:\n"
+        '  1. Add them to categories.yml: gilt category --add "Category" --write\n'
+        '  2. Fix typos using: gilt recategorize --from "OldName" --to "NewName" --write\n'
     )
 
     return 1  # Exit code 1 indicates issues found

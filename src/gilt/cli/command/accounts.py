@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict
 
 from rich.table import Table
 
@@ -57,7 +57,9 @@ def run(*, workspace: Workspace) -> int:
     mapping = _collect_accounts(workspace.accounts_config, workspace.ledger_data_dir)
 
     if not mapping:
-        console.print("[yellow]No accounts found.[/] Add entries to config/accounts.yml or ingest ledgers under data/accounts/.")
+        console.print(
+            "[yellow]No accounts found.[/] Add entries to config/accounts.yml or ingest ledgers under data/accounts/."
+        )
         return 0
 
     table = Table(title="Available Accounts", show_lines=False)

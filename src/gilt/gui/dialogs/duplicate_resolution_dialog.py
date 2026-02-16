@@ -9,20 +9,16 @@ Shows two transactions side-by-side and asks user to confirm if they are duplica
 from PySide6.QtWidgets import (
     QDialog,
     QVBoxLayout,
-    QHBoxLayout,
     QLabel,
     QTableWidget,
     QTableWidgetItem,
     QRadioButton,
     QButtonGroup,
-    QPushButton,
     QDialogButtonBox,
     QHeaderView,
     QGroupBox,
     QAbstractItemView,
 )
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor
 
 from gilt.model.duplicate import DuplicateMatch
 from gilt.gui.theme import Theme
@@ -66,7 +62,9 @@ class DuplicateResolutionDialog(QDialog):
 
         info_label = QLabel(conf_text)
         info_label.setWordWrap(True)
-        info_label.setStyleSheet(f"background-color: {Theme.color('header_bg').name()}; padding: 10px; border-radius: 4px;")
+        info_label.setStyleSheet(
+            f"background-color: {Theme.color('header_bg').name()}; padding: 10px; border-radius: 4px;"
+        )
         layout.addWidget(info_label)
 
         # Comparison Table
@@ -103,8 +101,10 @@ class DuplicateResolutionDialog(QDialog):
             if val1 != val2:
                 item1 = self.table.item(row, 1)
                 item2 = self.table.item(row, 2)
-                if item1: item1.setForeground(Theme.color("negative_fg"))
-                if item2: item2.setForeground(Theme.color("negative_fg"))
+                if item1:
+                    item1.setForeground(Theme.color("negative_fg"))
+                if item2:
+                    item2.setForeground(Theme.color("negative_fg"))
 
         layout.addWidget(self.table)
 

@@ -75,10 +75,10 @@ def run(*, workspace: Workspace) -> int:
 
     # Create directories
     for directory in [
-        workspace.ledger_data_dir,   # data/accounts/
-        workspace.ingest_dir,        # ingest/
-        workspace.reports_dir,       # reports/
-        root / "config",             # config/
+        workspace.ledger_data_dir,  # data/accounts/
+        workspace.ingest_dir,  # ingest/
+        workspace.reports_dir,  # reports/
+        root / "config",  # config/
     ]:
         if directory.exists():
             skipped.append(str(directory.relative_to(root)) + "/")

@@ -5,7 +5,6 @@ Budget reporting: compare actual spending vs budgeted amounts.
 """
 
 from datetime import date
-from pathlib import Path
 from typing import Optional
 
 from rich.table import Table
@@ -121,10 +120,7 @@ def _display_budget_report(
 
     if summary.over_budget_count > 0:
         plural = "y" if summary.over_budget_count == 1 else "ies"
-        console.print(
-            f"\n[yellow]⚠ {summary.over_budget_count} "
-            f"categor{plural} over budget[/]"
-        )
+        console.print(f"\n[yellow]⚠ {summary.over_budget_count} categor{plural} over budget[/]")
 
 
 def _add_budget_row_from_item(table: Table, item: BudgetItem) -> None:

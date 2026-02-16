@@ -1,8 +1,7 @@
 """
 Tests for event store.
 """
-import json
-from datetime import datetime
+
 from decimal import Decimal
 from pathlib import Path
 import tempfile
@@ -51,7 +50,7 @@ class DescribeEventStore:
             raw_description="Test transaction",
             amount=Decimal("-10.00"),
             currency="CAD",
-            raw_data={}
+            raw_data={},
         )
         event_store.append_event(event)
 
@@ -69,7 +68,7 @@ class DescribeEventStore:
             raw_description="Transaction 1",
             amount=Decimal("-10.00"),
             currency="CAD",
-            raw_data={}
+            raw_data={},
         )
         event2 = TransactionImported(
             transaction_date="2025-10-16",
@@ -79,7 +78,7 @@ class DescribeEventStore:
             raw_description="Transaction 2",
             amount=Decimal("-20.00"),
             currency="CAD",
-            raw_data={}
+            raw_data={},
         )
 
         event_store.append_event(event1)
@@ -100,12 +99,10 @@ class DescribeEventStore:
             raw_description="Transaction 1",
             amount=Decimal("-10.00"),
             currency="CAD",
-            raw_data={}
+            raw_data={},
         )
         event2 = TransactionCategorized(
-            transaction_id="txn1",
-            category="Test Category",
-            source="user"
+            transaction_id="txn1", category="Test Category", source="user"
         )
         event3 = TransactionImported(
             transaction_date="2025-10-16",
@@ -115,7 +112,7 @@ class DescribeEventStore:
             raw_description="Transaction 2",
             amount=Decimal("-20.00"),
             currency="CAD",
-            raw_data={}
+            raw_data={},
         )
 
         event_store.append_event(event1)
@@ -137,12 +134,10 @@ class DescribeEventStore:
             raw_description="Transaction 1",
             amount=Decimal("-10.00"),
             currency="CAD",
-            raw_data={}
+            raw_data={},
         )
         event2 = TransactionCategorized(
-            transaction_id="txn1",
-            category="Test Category",
-            source="user"
+            transaction_id="txn1", category="Test Category", source="user"
         )
         event3 = TransactionImported(
             transaction_date="2025-10-16",
@@ -152,7 +147,7 @@ class DescribeEventStore:
             raw_description="Transaction 2",
             amount=Decimal("-20.00"),
             currency="CAD",
-            raw_data={}
+            raw_data={},
         )
 
         event_store.append_event(event1)
@@ -170,14 +165,14 @@ class DescribeEventStore:
         events = []
         for i in range(5):
             event = TransactionImported(
-                transaction_date=f"2025-10-{15+i:02d}",
+                transaction_date=f"2025-10-{15 + i:02d}",
                 transaction_id=f"txn{i}",
                 source_file="test.csv",
                 source_account="TEST",
                 raw_description=f"Transaction {i}",
-                amount=Decimal(f"-{10+i}.00"),
+                amount=Decimal(f"-{10 + i}.00"),
                 currency="CAD",
-                raw_data={}
+                raw_data={},
             )
             events.append(event)
             event_store.append_event(event)
@@ -197,7 +192,7 @@ class DescribeEventStore:
             raw_description="Original",
             amount=Decimal("-10.00"),
             currency="CAD",
-            raw_data={"original": "data"}
+            raw_data={"original": "data"},
         )
         event_store.append_event(event)
 
@@ -216,7 +211,7 @@ class DescribeEventStore:
             raw_description="Transaction 1",
             amount=Decimal("-10.00"),
             currency="CAD",
-            raw_data={}
+            raw_data={},
         )
         event2 = DuplicateSuggested(
             transaction_id_1="txn1",
@@ -225,7 +220,7 @@ class DescribeEventStore:
             reasoning="Similar transactions",
             model="test-model",
             prompt_version="v1",
-            assessment={"is_duplicate": True}
+            assessment={"is_duplicate": True},
         )
 
         event_store.append_event(event1)
@@ -246,14 +241,14 @@ class DescribeEventStore:
         """Should retrieve events after a specific sequence number."""
         for i in range(5):
             event = TransactionImported(
-                transaction_date=f"2025-10-{15+i:02d}",
+                transaction_date=f"2025-10-{15 + i:02d}",
                 transaction_id=f"txn{i}",
                 source_file="test.csv",
                 source_account="TEST",
                 raw_description=f"Transaction {i}",
-                amount=Decimal(f"-{10+i}.00"),
+                amount=Decimal(f"-{10 + i}.00"),
                 currency="CAD",
-                raw_data={}
+                raw_data={},
             )
             event_store.append_event(event)
 

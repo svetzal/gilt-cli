@@ -7,8 +7,6 @@ into training examples.
 
 from __future__ import annotations
 
-from datetime import date
-from pathlib import Path
 from typing import List, Tuple
 
 from gilt.model.duplicate import TransactionPair
@@ -79,18 +77,18 @@ class TrainingDataBuilder:
         try:
             # Get the original suggestion
             suggestion = suggestions_by_id.get(event.suggestion_event_id)
-            if not suggestion or 'assessment' not in suggestion.__dict__:
+            if not suggestion or "assessment" not in suggestion.__dict__:
                 return None
 
             # Extract pair data from assessment
             assessment = suggestion.assessment
-            if 'pair' not in assessment:
+            if "pair" not in assessment:
                 return None
 
-            pair_data = assessment['pair']
+            pair_data = assessment["pair"]
             return TransactionPair(**pair_data)
 
-        except (ValueError, AttributeError, TypeError, KeyError) as e:
+        except (ValueError, AttributeError, TypeError, KeyError):
             # Log error but continue processing
             return None
 
@@ -111,18 +109,18 @@ class TrainingDataBuilder:
         try:
             # Get the original suggestion
             suggestion = suggestions_by_id.get(event.suggestion_event_id)
-            if not suggestion or 'assessment' not in suggestion.__dict__:
+            if not suggestion or "assessment" not in suggestion.__dict__:
                 return None
 
             # Extract pair data from assessment
             assessment = suggestion.assessment
-            if 'pair' not in assessment:
+            if "pair" not in assessment:
                 return None
 
-            pair_data = assessment['pair']
+            pair_data = assessment["pair"]
             return TransactionPair(**pair_data)
 
-        except (ValueError, AttributeError, TypeError, KeyError) as e:
+        except (ValueError, AttributeError, TypeError, KeyError):
             # Log error but continue processing
             return None
 
@@ -138,11 +136,11 @@ class TrainingDataBuilder:
         n_negative = len(labels) - n_positive
 
         return {
-            'total_examples': len(pairs),
-            'positive_examples': n_positive,
-            'negative_examples': n_negative,
-            'class_balance': n_positive / len(labels) if len(labels) > 0 else 0.0,
-            'sufficient_for_training': len(pairs) >= 10,
+            "total_examples": len(pairs),
+            "positive_examples": n_positive,
+            "negative_examples": n_negative,
+            "class_balance": n_positive / len(labels) if len(labels) > 0 else 0.0,
+            "sufficient_for_training": len(pairs) >= 10,
         }
 
 

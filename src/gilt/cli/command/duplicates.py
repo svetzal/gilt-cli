@@ -30,11 +30,11 @@ Privacy:
 
 # Set log level BEFORE importing mojentic modules to suppress verbose logging
 import logging
+
 logging.basicConfig(level=logging.WARNING)
 logging.getLogger("mojentic").setLevel(logging.WARNING)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
-from pathlib import Path
 
 from rich.console import Console
 from rich.table import Table
@@ -111,8 +111,7 @@ def run(
             console.print("  gilt migrate-to-events --write")
             console.print()
             console.print(
-                "[dim]This will create the event store and projections "
-                "from your CSV files.[/dim]"
+                "[dim]This will create the event store and projections from your CSV files.[/dim]"
             )
         else:
             console.print(f"[red]Error:[/red] No data found in {data_dir}")
@@ -132,10 +131,7 @@ def run(
     if not projection_status.exists:
         console.print("[yellow]Projections not found, rebuilding from events...[/]")
         events_processed = projection_builder.rebuild_from_scratch(event_store)
-        console.print(
-            f"[green]✓[/green] Rebuilt projections "
-            f"({events_processed} events processed)"
-        )
+        console.print(f"[green]✓[/green] Rebuilt projections ({events_processed} events processed)")
         console.print()
     elif projection_status.is_outdated:
         console.print(
@@ -173,8 +169,7 @@ def run(
     console.print(f"[dim]Amount tolerance:[/dim] {amount_tolerance}")
     if interactive:
         console.print(
-            "[yellow]Interactive mode:[/yellow] enabled "
-            "(will emit events for your decisions)"
+            "[yellow]Interactive mode:[/yellow] enabled (will emit events for your decisions)"
         )
     console.print()
 
@@ -197,7 +192,9 @@ def run(
         return 0
 
     # Analyze candidates with ML or LLM (with progress bar)
-    console.print(f"[yellow]Analyzing {len(candidates)} candidates with {detection_method}...[/yellow]")
+    console.print(
+        f"[yellow]Analyzing {len(candidates)} candidates with {detection_method}...[/yellow]"
+    )
 
     matches = []
     with Progress(
@@ -213,6 +210,7 @@ def run(
         for pair in candidates:
             assessment = detector.assess_duplicate(pair)
             from gilt.model.duplicate import DuplicateMatch
+
             match = DuplicateMatch(pair=pair, assessment=assessment)
             matches.append(match)
             progress.update(task, advance=1)
@@ -226,9 +224,7 @@ def run(
     filtered_matches = [m for m in matches if m.assessment.confidence >= min_confidence]
 
     if not filtered_matches:
-        console.print(
-            f"[green]No duplicates found with confidence >= {min_confidence:.0%}[/green]"
-        )
+        console.print(f"[green]No duplicates found with confidence >= {min_confidence:.0%}[/green]")
         return 0
 
     # Display results
@@ -252,8 +248,9 @@ def run(
         txn1 = projection_builder.get_transaction(pair.txn1_id)
         txn2 = projection_builder.get_transaction(pair.txn2_id)
 
-        if (txn1 and txn1.get('is_duplicate', 0) == 1) or \
-           (txn2 and txn2.get('is_duplicate', 0) == 1):
+        if (txn1 and txn1.get("is_duplicate", 0) == 1) or (
+            txn2 and txn2.get("is_duplicate", 0) == 1
+        ):
             skipped_count += 1
             continue  # Skip this pair, already processed
 
@@ -284,7 +281,7 @@ def run(
         table.add_row("Description", pair.txn2_description, pair.txn1_description)
 
         # Show source file info if available
-        if hasattr(pair, 'txn1_source_file') and hasattr(pair, 'txn2_source_file'):
+        if hasattr(pair, "txn1_source_file") and hasattr(pair, "txn2_source_file"):
             src1 = pair.txn1_source_file or "[dim]unknown[/dim]"
             src2 = pair.txn2_source_file or "[dim]unknown[/dim]"
             table.add_row("Source File", src2, src1)
@@ -297,17 +294,12 @@ def run(
         if interactive:
             try:
                 # Calculate smart default via service
-                smart_default = review_service.calculate_smart_default(
-                    detector.learned_patterns
-                )
+                smart_default = review_service.calculate_smart_default(detector.learned_patterns)
 
                 console.print("[yellow]Are these duplicates?[/yellow]")
                 hint1 = smart_default.hint if smart_default.default_choice == "1" else ""
                 hint2 = smart_default.hint if smart_default.default_choice == "2" else ""
-                console.print(
-                    f"  1) Yes, use latest description "
-                    f"(bank's current format){hint1}"
-                )
+                console.print(f"  1) Yes, use latest description (bank's current format){hint1}")
                 console.print(f"  2) Yes, use original description{hint2}")
                 console.print("  N) No, these are separate transactions")
                 console.print()
@@ -343,6 +335,7 @@ def run(
                 # Display confirmation
                 if action == "confirmed":
                     from gilt.model.events import DuplicateConfirmed
+
                     assert isinstance(event, DuplicateConfirmed)
                     console.print(
                         f"[green]✓ Duplicate confirmed "
@@ -356,7 +349,7 @@ def run(
                 # stops (Ctrl+C), already-processed duplicates are reflected in projections
                 events_processed = projection_builder.rebuild_incremental(event_store)
                 if events_processed > 0:
-                    console.print(f"[dim]✓ Projection updated[/dim]")
+                    console.print("[dim]✓ Projection updated[/dim]")
 
                 console.print()
 
@@ -407,9 +400,7 @@ def run(
         console.print(f"  Reviewed: {summary.feedback_count}")
         console.print(f"  Confirmed as duplicates: {summary.user_confirmed}")
         console.print(f"  Rejected as not duplicates: {summary.user_rejected}")
-        console.print(
-            f"  Events emitted: {summary.user_confirmed + summary.user_rejected}"
-        )
+        console.print(f"  Events emitted: {summary.user_confirmed + summary.user_rejected}")
 
         # Show overall stats from prompt manager
         if detector.prompt_manager:

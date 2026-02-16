@@ -220,6 +220,14 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+gui = [
+    { name = "pyside6" },
+]
+ml = [
+    { name = "lightgbm" },
+]
+
+[package.dev-dependencies]
 dev = [
     { name = "griffe-fieldz" },
     { name = "mkdocs" },
@@ -228,33 +236,31 @@ dev = [
     { name = "pytest" },
     { name = "ruff" },
 ]
-gui = [
-    { name = "pyside6" },
-]
-ml = [
-    { name = "lightgbm" },
-]
 
 [package.metadata]
 requires-dist = [
-    { name = "griffe-fieldz", marker = "extra == 'dev'" },
     { name = "lightgbm", marker = "extra == 'ml'", specifier = ">=4.0,<5" },
-    { name = "mkdocs", marker = "extra == 'dev'" },
-    { name = "mkdocs-material", marker = "extra == 'dev'" },
     { name = "mojentic" },
     { name = "numpy", specifier = ">=1.24,<3" },
     { name = "pandas" },
     { name = "pydantic", specifier = ">=2,<3" },
-    { name = "pymdown-extensions", marker = "extra == 'dev'" },
     { name = "pyside6", marker = "extra == 'gui'", specifier = ">=6.5" },
-    { name = "pytest", marker = "extra == 'dev'" },
     { name = "pyyaml" },
     { name = "rich", specifier = ">=13,<14" },
-    { name = "ruff", marker = "extra == 'dev'" },
     { name = "scikit-learn", specifier = ">=1.3,<2" },
     { name = "typer", specifier = ">=0.12,<1" },
 ]
-provides-extras = ["dev", "gui", "ml"]
+provides-extras = ["gui", "ml"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "griffe-fieldz" },
+    { name = "mkdocs" },
+    { name = "mkdocs-material" },
+    { name = "pymdown-extensions" },
+    { name = "pytest" },
+    { name = "ruff" },
+]
 
 [[package]]
 name = "griffe"

@@ -214,6 +214,7 @@ class DescribeCategorizeSingleMode:
             workspace = Workspace(root=Path(tmpdir))
 
             from gilt.model.category import Subcategory
+
             config = CategoryConfig(
                 categories=[
                     Category(
@@ -672,7 +673,9 @@ class DescribeCategorizePatternMode:
 
             workspace = Workspace(root=Path(tmpdir))
 
-            config = CategoryConfig(categories=[Category(name="Housing", subcategories=[Subcategory(name="Utilities")])])
+            config = CategoryConfig(
+                categories=[Category(name="Housing", subcategories=[Subcategory(name="Utilities")])]
+            )
             save_categories_config(config_path, config)
 
             ledger_path = data_dir / "TEST.csv"

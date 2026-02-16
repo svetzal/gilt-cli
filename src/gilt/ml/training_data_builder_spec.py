@@ -1,6 +1,6 @@
 """Tests for training data builder that extracts pairs from events."""
 
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 from tempfile import TemporaryDirectory
 

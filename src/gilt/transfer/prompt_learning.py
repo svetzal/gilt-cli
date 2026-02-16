@@ -15,8 +15,7 @@ Privacy:
 """
 
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional
 
 from gilt.storage.event_store import EventStore
 from gilt.model.events import (
@@ -180,9 +179,9 @@ class PromptLearningService:
         if latest_pct > 60:
             description = f"User prefers latest description format {latest_pct:.0f}% of the time ({latest_count}/{total} cases)"
         elif latest_pct < 40:
-            description = f"User prefers original description format {100-latest_pct:.0f}% of the time ({original_count}/{total} cases)"
+            description = f"User prefers original description format {100 - latest_pct:.0f}% of the time ({original_count}/{total} cases)"
         else:
-            description = f"User has no strong preference (latest: {latest_pct:.0f}%, original: {100-latest_pct:.0f}%)"
+            description = f"User has no strong preference (latest: {latest_pct:.0f}%, original: {100 - latest_pct:.0f}%)"
 
         return LearnedPattern(
             pattern_type="description_preference",
@@ -299,7 +298,7 @@ class PromptLearningService:
             if not suggestion.assessment.get("is_duplicate", False):
                 continue  # Only interested in cases where LLM said duplicate but was wrong
 
-            reasoning = suggestion.reasoning.lower()
+            _reasoning = suggestion.reasoning.lower()
             rationale = (rej.user_rationale or "").lower()
 
             if "location" in rationale or "city" in rationale or "different" in rationale:

@@ -155,10 +155,7 @@ def _handle_add(
         for error in result.errors:
             console.print(f"[red]Error:[/] {error}")
         if "does not exist" in " ".join(result.errors):
-            console.print(
-                f"Create parent category first: "
-                f"gilt category --add '{cat_name}' --write"
-            )
+            console.print(f"Create parent category first: gilt category --add '{cat_name}' --write")
         return 1
 
     # Success - display what will be added
@@ -227,12 +224,12 @@ def _handle_remove(
 
         # Write mode: ask for confirmation if interactive
         import sys
+
         if sys.stdin.isatty():
             for warning in plan.warnings:
                 console.print(f"[yellow]Warning:[/] {warning}")
             confirm = typer.confirm(
-                "Remove anyway? This will NOT remove the category "
-                "from existing transactions"
+                "Remove anyway? This will NOT remove the category from existing transactions"
             )
             if not confirm:
                 console.print("Cancelled")

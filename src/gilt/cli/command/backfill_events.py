@@ -13,6 +13,7 @@ Used for Phase 7 migration to event-sourced architecture.
 This is the imperative shell - handles I/O, display, and user interaction.
 All business logic is in EventMigrationService.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -58,7 +59,9 @@ def run(
     categories_config = workspace.categories_config
     effective_event_store_path = event_store_path or workspace.event_store_path
     effective_projections_db_path = projections_db_path or workspace.projections_path
-    effective_budget_projections_db_path = budget_projections_db_path or workspace.budget_projections_path
+    effective_budget_projections_db_path = (
+        budget_projections_db_path or workspace.budget_projections_path
+    )
 
     console.print("[bold cyan]Event Sourcing Migration - Manual Backfill[/]")
     console.print("[yellow]ℹ Most users should use 'gilt migrate-to-events --write'[/]")
@@ -104,11 +107,7 @@ def run(
     if stats.errors > 0:
         console.print(f"[red]Errors: {stats.errors}[/]")
 
-    total_events = (
-        stats.transaction_imported +
-        stats.transaction_categorized +
-        stats.budget_created
-    )
+    total_events = stats.transaction_imported + stats.transaction_categorized + stats.budget_created
     console.print(f"\n[bold]Total events: {total_events}[/]")
 
     if dry_run:
@@ -222,6 +221,7 @@ def _backfill_budgets(
     for event in events:
         # Find category for display (event is BudgetCreated with category attribute)
         from gilt.model.events import BudgetCreated
+
         if isinstance(event, BudgetCreated):
             category = config.find_category(event.category)
             if category and category.budget:
@@ -262,6 +262,7 @@ def _validate_projections(
     # Rebuild projections
     console.print("  Rebuilding transaction projections from events...")
     from gilt.storage.projection import ProjectionBuilder
+
     tx_builder = ProjectionBuilder(projections_db_path)
     tx_count = tx_builder.rebuild_from_scratch(event_store)
     console.print(f"  Processed {tx_count} transaction events")
@@ -280,9 +281,7 @@ def _validate_projections(
 
     # Use service to validate
     console.print("\n  Running validation checks...")
-    result = service.validate_migration(
-        event_store, data_dir, config, tx_builder, budget_builder
-    )
+    result = service.validate_migration(event_store, data_dir, config, tx_builder, budget_builder)
 
     # Display results
     if result.transaction_count_match:

@@ -64,7 +64,7 @@ class ImportWorker(QThread):
         mappings: List[ImportFileMapping],
         write: bool,
         exclude_ids: Optional[List[str]] = None,
-        categorization_map: Optional[Dict[str, str]] = None
+        categorization_map: Optional[Dict[str, str]] = None,
     ):
         super().__init__()
         self.service = service
@@ -89,7 +89,9 @@ class ImportWorker(QThread):
                 file_progress_end = int(((i + 1) / len(self.mappings)) * 100)
 
                 def progress_callback(pct):
-                    overall = file_progress_start + int((pct / 100) * (file_progress_end - file_progress_start))
+                    overall = file_progress_start + int(
+                        (pct / 100) * (file_progress_end - file_progress_start)
+                    )
                     self.progress.emit(overall)
 
                 result = self.service.import_file(
@@ -98,7 +100,7 @@ class ImportWorker(QThread):
                     write=self.write,
                     progress_callback=progress_callback,
                     exclude_ids=self.exclude_ids,
-                    categorization_map=self.categorization_map
+                    categorization_map=self.categorization_map,
                 )
 
                 total_imported += result.imported_count
@@ -107,23 +109,27 @@ class ImportWorker(QThread):
 
                 if not result.success:
                     # Early exit on error
-                    self.finished.emit(ImportResult(
-                        success=False,
-                        imported_count=total_imported,
-                        duplicate_count=total_duplicates,
-                        error_count=1,
-                        messages=all_messages,
-                    ))
+                    self.finished.emit(
+                        ImportResult(
+                            success=False,
+                            imported_count=total_imported,
+                            duplicate_count=total_duplicates,
+                            error_count=1,
+                            messages=all_messages,
+                        )
+                    )
                     return
 
             self.progress.emit(100)
-            self.finished.emit(ImportResult(
-                success=True,
-                imported_count=total_imported,
-                duplicate_count=total_duplicates,
-                error_count=0,
-                messages=all_messages,
-            ))
+            self.finished.emit(
+                ImportResult(
+                    success=True,
+                    imported_count=total_imported,
+                    duplicate_count=total_duplicates,
+                    error_count=0,
+                    messages=all_messages,
+                )
+            )
 
         except Exception as e:
             self.error.emit(str(e))
@@ -137,7 +143,9 @@ class FileSelectionPage(QWizardPage):
         self.service = service
 
         self.setTitle("Select CSV Files")
-        self.setSubTitle("Choose one or more bank CSV files to import. You can drag and drop files or use the file browser.")
+        self.setSubTitle(
+            "Choose one or more bank CSV files to import. You can drag and drop files or use the file browser."
+        )
 
         self.selected_files: List[Path] = []
 
@@ -243,7 +251,7 @@ class FileSelectionPage(QWizardPage):
         if count == 0:
             self.info_label.setText("<i>No files selected</i>")
         elif count == 1:
-            self.info_label.setText(f"<i>1 file selected</i>")
+            self.info_label.setText("<i>1 file selected</i>")
         else:
             self.info_label.setText(f"<i>{count} files selected</i>")
 
@@ -277,9 +285,7 @@ class AccountMappingPage(QWizardPage):
         # Mapping table
         self.table = QTableWidget()
         self.table.setColumnCount(4)
-        self.table.setHorizontalHeaderLabels([
-            "File", "Detected Account", "Import To", "Status"
-        ])
+        self.table.setHorizontalHeaderLabels(["File", "Detected Account", "Import To", "Status"])
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -341,7 +347,9 @@ class AccountMappingPage(QWizardPage):
             self.table.setItem(row, 0, QTableWidgetItem(mapping.file_info.name))
 
             # Detected account
-            detected = mapping.detected_account.account_id if mapping.detected_account else "Unknown"
+            detected = (
+                mapping.detected_account.account_id if mapping.detected_account else "Unknown"
+            )
             self.table.setItem(row, 1, QTableWidgetItem(detected))
 
             # Account selector
@@ -507,8 +515,7 @@ class OptionsPage(QWizardPage):
 
         # Info about dry-run
         dry_run_info = QLabel(
-            "If unchecked, the import will run in simulation mode. "
-            "No files will be modified."
+            "If unchecked, the import will run in simulation mode. No files will be modified."
         )
         dry_run_info.setWordWrap(True)
         dry_run_info.setStyleSheet("color: palette(placeholder-text); padding-left: 20px;")
@@ -628,7 +635,7 @@ class ExecutePage(QWizardPage):
         mappings: List[ImportFileMapping],
         write: bool,
         exclude_ids: set[str] = None,
-        categorization_map: Dict[str, str] = None
+        categorization_map: Dict[str, str] = None,
     ):
         """Start the import operation in a background thread."""
         exclude_list = list(exclude_ids) if exclude_ids else None
@@ -668,8 +675,7 @@ class ExecutePage(QWizardPage):
             )
         else:
             self.summary_label.setText(
-                f"✗ <span style='color: red;'>Import failed</span><br>"
-                f"Errors: {result.error_count}"
+                f"✗ <span style='color: red;'>Import failed</span><br>Errors: {result.error_count}"
             )
 
         self.completeChanged.emit()
@@ -680,9 +686,7 @@ class ExecutePage(QWizardPage):
         self.import_successful = False
 
         self._log(f"ERROR: {error}")
-        self.summary_label.setText(
-            f"✗ <span style='color: red;'>Import failed: {error}</span>"
-        )
+        self.summary_label.setText(f"✗ <span style='color: red;'>Import failed: {error}</span>")
 
         self.completeChanged.emit()
 
@@ -729,7 +733,7 @@ class ImportWizard(QWizard):
                     self,
                     "Import Failed",
                     "The import operation failed. Do you want to close the wizard?",
-                    QMessageBox.Yes | QMessageBox.No
+                    QMessageBox.Yes | QMessageBox.No,
                 )
                 if reply == QMessageBox.Yes:
                     super().accept()

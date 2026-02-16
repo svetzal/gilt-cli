@@ -3,9 +3,10 @@ from typing import List, Tuple, Optional
 
 from PySide6.QtWidgets import QComboBox, QCompleter
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QStandardItemModel, QStandardItem, QColor, QBrush
+from PySide6.QtGui import QStandardItemModel, QStandardItem, QBrush
 
 from gilt.gui.theme import Theme
+
 
 class SmartCategoryComboBox(QComboBox):
     """
@@ -40,7 +41,7 @@ class SmartCategoryComboBox(QComboBox):
         self,
         all_categories: List[str],
         suggestions: Optional[List[Tuple[str, Optional[float]]]] = None,
-        placeholder: Optional[str] = None
+        placeholder: Optional[str] = None,
     ):
         """
         Populate the combo box.
@@ -77,7 +78,7 @@ class SmartCategoryComboBox(QComboBox):
 
                 item = QStandardItem(text)
                 item.setData(cat, Qt.ItemDataRole.UserRole)
-                item.setData(cat, Qt.ItemDataRole.EditRole) # Text for line edit
+                item.setData(cat, Qt.ItemDataRole.EditRole)  # Text for line edit
 
                 # Style
                 font = item.font()

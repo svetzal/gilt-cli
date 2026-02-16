@@ -60,6 +60,7 @@ class DescribeInitCommand:
             run(workspace=workspace)
 
             from gilt.model.category_io import load_categories_config
+
             config = load_categories_config(workspace.categories_config)
             assert config.categories == []
 
@@ -69,5 +70,6 @@ class DescribeInitCommand:
             run(workspace=workspace)
 
             import yaml
+
             data = yaml.safe_load(workspace.accounts_config.read_text(encoding="utf-8"))
             assert data["accounts"] == []

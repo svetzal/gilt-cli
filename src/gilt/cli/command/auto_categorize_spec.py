@@ -24,7 +24,9 @@ def _build_projections(event_store: EventStore, projections_path: Path):
     builder.rebuild_from_scratch(event_store)
 
 
-def _add_uncategorized_transaction(store: EventStore, txn_id: str, description: str, amount: str, account: str = "TEST"):
+def _add_uncategorized_transaction(
+    store: EventStore, txn_id: str, description: str, amount: str, account: str = "TEST"
+):
     """Add an uncategorized transaction to the event store."""
     txn = TransactionImported(
         transaction_id=txn_id,
@@ -103,10 +105,12 @@ class DescribeAutoCategorize:
             workspace = Workspace(root=Path(tmpdir))
 
             # Create category config
-            config = CategoryConfig(categories=[
-                Category(name="Entertainment"),
-                Category(name="Groceries"),
-            ])
+            config = CategoryConfig(
+                categories=[
+                    Category(name="Entertainment"),
+                    Category(name="Groceries"),
+                ]
+            )
             save_categories_config(config_path, config)
 
             # Run without projections database
@@ -138,10 +142,12 @@ class DescribeAutoCategorize:
             _build_projections(store, workspace.projections_path)
 
             # Create category config
-            config = CategoryConfig(categories=[
-                Category(name="Entertainment"),
-                Category(name="Groceries"),
-            ])
+            config = CategoryConfig(
+                categories=[
+                    Category(name="Entertainment"),
+                    Category(name="Groceries"),
+                ]
+            )
             save_categories_config(config_path, config)
 
             # Create ledger with uncategorized transaction
@@ -187,10 +193,12 @@ class DescribeAutoCategorize:
             _build_projections(store, workspace.projections_path)
 
             # Create category config
-            config = CategoryConfig(categories=[
-                Category(name="Entertainment"),
-                Category(name="Groceries"),
-            ])
+            config = CategoryConfig(
+                categories=[
+                    Category(name="Entertainment"),
+                    Category(name="Groceries"),
+                ]
+            )
             save_categories_config(config_path, config)
 
             # Create ledger with already categorized transaction
@@ -241,10 +249,12 @@ class DescribeAutoCategorize:
             _build_projections(store, workspace.projections_path)
 
             # Create category config
-            config = CategoryConfig(categories=[
-                Category(name="Entertainment"),
-                Category(name="Groceries"),
-            ])
+            config = CategoryConfig(
+                categories=[
+                    Category(name="Entertainment"),
+                    Category(name="Groceries"),
+                ]
+            )
             save_categories_config(config_path, config)
 
             # Create ledger with uncategorized transaction
@@ -296,10 +306,12 @@ class DescribeAutoCategorize:
             _build_projections(store, workspace.projections_path)
 
             # Create category config
-            config = CategoryConfig(categories=[
-                Category(name="Entertainment"),
-                Category(name="Groceries"),
-            ])
+            config = CategoryConfig(
+                categories=[
+                    Category(name="Entertainment"),
+                    Category(name="Groceries"),
+                ]
+            )
             save_categories_config(config_path, config)
 
             # Create ledger with ambiguous transaction
@@ -351,10 +363,12 @@ class DescribeAutoCategorize:
             _build_projections(store, workspace.projections_path)
 
             # Create category config
-            config = CategoryConfig(categories=[
-                Category(name="Entertainment"),
-                Category(name="Groceries"),
-            ])
+            config = CategoryConfig(
+                categories=[
+                    Category(name="Entertainment"),
+                    Category(name="Groceries"),
+                ]
+            )
             save_categories_config(config_path, config)
 
             # Create ledger with multiple uncategorized transactions

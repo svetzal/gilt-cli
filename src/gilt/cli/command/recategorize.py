@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from pathlib import Path
 from typing import List, Optional
 
 import typer
@@ -119,6 +118,7 @@ def run(
 
     # Confirm
     import sys
+
     if sys.stdin.isatty():
         if not typer.confirm(f"Rename category in {total_matched} transaction(s)?"):
             console.print("Cancelled")

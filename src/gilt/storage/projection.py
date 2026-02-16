@@ -13,6 +13,7 @@ Key Features:
 
 Privacy: All processing is local-only. No network I/O.
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -151,10 +152,7 @@ class ProjectionBuilder:
             conn.close()
 
     def _apply_events(
-        self,
-        conn: sqlite3.Connection,
-        events: List[Event],
-        start_sequence: int
+        self, conn: sqlite3.Connection, events: List[Event], start_sequence: int
     ) -> int:
         """Apply a list of events to projections.
 
@@ -191,22 +189,20 @@ class ProjectionBuilder:
                 INSERT OR REPLACE INTO projection_metadata (key, value)
                 VALUES ('last_sequence', ?)
                 """,
-                (str(last_event_seq),)
+                (str(last_event_seq),),
             )
 
         conn.commit()
         return processed
 
     def _apply_transaction_imported(
-        self,
-        conn: sqlite3.Connection,
-        event: TransactionImported
+        self, conn: sqlite3.Connection, event: TransactionImported
     ) -> None:
         """Apply TransactionImported event to projection."""
         # Check if transaction already exists (idempotent)
         cursor = conn.execute(
             "SELECT transaction_id FROM transaction_projections WHERE transaction_id = ?",
-            (event.transaction_id,)
+            (event.transaction_id,),
         )
         if cursor.fetchone():
             return  # Already imported
@@ -232,13 +228,11 @@ class ProjectionBuilder:
                 event.source_account,
                 event.source_file,
                 event.event_id,
-            )
+            ),
         )
 
     def _apply_description_observed(
-        self,
-        conn: sqlite3.Connection,
-        event: TransactionDescriptionObserved
+        self, conn: sqlite3.Connection, event: TransactionDescriptionObserved
     ) -> None:
         """Apply TransactionDescriptionObserved event to projection.
 
@@ -254,7 +248,7 @@ class ProjectionBuilder:
             FROM transaction_projections
             WHERE transaction_id = ?
             """,
-            (event.original_transaction_id,)
+            (event.original_transaction_id,),
         )
         row = cursor.fetchone()
 
@@ -283,14 +277,14 @@ class ProjectionBuilder:
                 json.dumps(history),
                 event.event_id,
                 event.original_transaction_id,
-            )
+            ),
         )
 
         # If new transaction_id exists as separate projection, mark it as duplicate
         # This handles the case where it was imported before we detected the change
         cursor = conn.execute(
             "SELECT transaction_id FROM transaction_projections WHERE transaction_id = ?",
-            (event.new_transaction_id,)
+            (event.new_transaction_id,),
         )
         if cursor.fetchone():
             conn.execute(
@@ -305,13 +299,11 @@ class ProjectionBuilder:
                     event.original_transaction_id,
                     event.event_id,
                     event.new_transaction_id,
-                )
+                ),
             )
 
     def _apply_transaction_categorized(
-        self,
-        conn: sqlite3.Connection,
-        event: TransactionCategorized
+        self, conn: sqlite3.Connection, event: TransactionCategorized
     ) -> None:
         """Apply TransactionCategorized event to projection."""
         conn.execute(
@@ -327,13 +319,11 @@ class ProjectionBuilder:
                 event.subcategory,
                 event.event_id,
                 event.transaction_id,
-            )
+            ),
         )
 
     def _apply_duplicate_confirmed(
-        self,
-        conn: sqlite3.Connection,
-        event: DuplicateConfirmed
+        self, conn: sqlite3.Connection, event: DuplicateConfirmed
     ) -> None:
         """Apply DuplicateConfirmed event to projection.
 
@@ -353,7 +343,7 @@ class ProjectionBuilder:
                 event.canonical_description,
                 event.event_id,
                 event.primary_transaction_id,
-            )
+            ),
         )
 
         # Mark duplicate transaction
@@ -369,14 +359,10 @@ class ProjectionBuilder:
                 event.primary_transaction_id,
                 event.event_id,
                 event.duplicate_transaction_id,
-            )
+            ),
         )
 
-    def _apply_duplicate_rejected(
-        self,
-        conn: sqlite3.Connection,
-        event: DuplicateRejected
-    ) -> None:
+    def _apply_duplicate_rejected(self, conn: sqlite3.Connection, event: DuplicateRejected) -> None:
         """Apply DuplicateRejected event to projection.
 
         Records the rejection for potential ML training but doesn't change
@@ -393,7 +379,7 @@ class ProjectionBuilder:
                 event.event_id,
                 event.transaction_id_1,
                 event.transaction_id_2,
-            )
+            ),
         )
 
     def get_transaction(self, transaction_id: str) -> Optional[Dict]:
@@ -409,18 +395,14 @@ class ProjectionBuilder:
         conn.row_factory = sqlite3.Row
         try:
             cursor = conn.execute(
-                "SELECT * FROM transaction_projections WHERE transaction_id = ?",
-                (transaction_id,)
+                "SELECT * FROM transaction_projections WHERE transaction_id = ?", (transaction_id,)
             )
             row = cursor.fetchone()
             return dict(row) if row else None
         finally:
             conn.close()
 
-    def get_all_transactions(
-        self,
-        include_duplicates: bool = False
-    ) -> List[Dict]:
+    def get_all_transactions(self, include_duplicates: bool = False) -> List[Dict]:
         """Retrieve all transaction projections.
 
         Args:

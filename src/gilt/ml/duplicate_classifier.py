@@ -42,9 +42,7 @@ class DuplicateClassifier:
                        untrained classifier.
         """
         if lgb is None:
-            raise ImportError(
-                "LightGBM not installed. Install with: pip install -e '.[ml]'"
-            )
+            raise ImportError("LightGBM not installed. Install with: pip install -e '.[ml]'")
 
         self.feature_extractor = DuplicateFeatureExtractor()
         self.model: Optional[lgb.LGBMClassifier] = None
@@ -75,9 +73,7 @@ class DuplicateClassifier:
             )
 
         if len(pairs) < 10:
-            raise ValueError(
-                f"Need at least 10 training examples, got {len(pairs)}"
-            )
+            raise ValueError(f"Need at least 10 training examples, got {len(pairs)}")
 
         # Fit vectorizer on all descriptions
         self.feature_extractor.fit(pairs)
@@ -101,7 +97,7 @@ class DuplicateClassifier:
 
         # Train LightGBM
         self.model = lgb.LGBMClassifier(
-            objective='binary',
+            objective="binary",
             n_estimators=100,
             max_depth=5,
             learning_rate=0.05,
@@ -144,12 +140,12 @@ class DuplicateClassifier:
         )
 
         return {
-            'train_accuracy': float(train_acc),
-            'val_accuracy': float(val_acc),
-            'precision': float(precision),
-            'recall': float(recall),
-            'n_train': len(train_indices),
-            'n_val': len(val_indices),
+            "train_accuracy": float(train_acc),
+            "val_accuracy": float(val_acc),
+            "precision": float(precision),
+            "recall": float(recall),
+            "n_train": len(train_indices),
+            "n_val": len(val_indices),
         }
 
     def predict(self, pair: TransactionPair) -> DuplicateAssessment:
@@ -197,7 +193,7 @@ class DuplicateClassifier:
         feature_names = self.feature_extractor.get_feature_names()
 
         # Get top contributing features
-        if self.model and hasattr(self.model, 'feature_importances_'):
+        if self.model and hasattr(self.model, "feature_importances_"):
             importances = self.model.feature_importances_
             # Sort by importance
             sorted_indices = np.argsort(importances)[::-1][:3]  # Top 3
@@ -209,15 +205,13 @@ class DuplicateClassifier:
                 importance = importances[idx]
 
                 if importance > 0.1:  # Only mention significant features
-                    if name == 'cosine_similarity':
-                        reasons.append(
-                            f"description similarity: {value:.2f}"
-                        )
-                    elif name == 'amount_exact_match':
+                    if name == "cosine_similarity":
+                        reasons.append(f"description similarity: {value:.2f}")
+                    elif name == "amount_exact_match":
                         reasons.append("exact amount match" if value == 1 else "different amounts")
-                    elif name == 'date_difference_days':
+                    elif name == "date_difference_days":
                         reasons.append(f"{int(value)} day(s) apart")
-                    elif name == 'same_account':
+                    elif name == "same_account":
                         reasons.append("same account" if value == 1 else "different accounts")
 
             if reasons:
@@ -242,10 +236,7 @@ class DuplicateClassifier:
         # Sort by importance (descending)
         sorted_indices = np.argsort(importances)[::-1]
 
-        return {
-            feature_names[idx]: float(importances[idx])
-            for idx in sorted_indices
-        }
+        return {feature_names[idx]: float(importances[idx]) for idx in sorted_indices}
 
     def save(self, path: Path) -> None:
         """Save trained model to disk.
@@ -258,11 +249,14 @@ class DuplicateClassifier:
 
         path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(path, 'wb') as f:
-            pickle.dump({
-                'model': self.model,
-                'feature_extractor': self.feature_extractor,
-            }, f)
+        with open(path, "wb") as f:
+            pickle.dump(
+                {
+                    "model": self.model,
+                    "feature_extractor": self.feature_extractor,
+                },
+                f,
+            )
 
     def load(self, path: Path) -> None:
         """Load trained model from disk.
@@ -273,11 +267,11 @@ class DuplicateClassifier:
         if not path.exists():
             raise FileNotFoundError(f"Model file not found: {path}")
 
-        with open(path, 'rb') as f:
+        with open(path, "rb") as f:
             data = pickle.load(f)
 
-        self.model = data['model']
-        self.feature_extractor = data['feature_extractor']
+        self.model = data["model"]
+        self.feature_extractor = data["feature_extractor"]
         self._is_trained = True
 
 

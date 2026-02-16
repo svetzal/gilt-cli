@@ -16,7 +16,6 @@ Privacy:
 - No external network calls
 """
 
-from pathlib import Path
 
 from rich.console import Console
 from rich.table import Table
@@ -56,8 +55,7 @@ def run(
     if not event_store_status.exists:
         console.print(f"[red]Error:[/red] Event store not found: {es_service.event_store_path}")
         console.print(
-            "[yellow]Hint:[/yellow] Run 'gilt ingest --write' "
-            "first to create event store"
+            "[yellow]Hint:[/yellow] Run 'gilt ingest --write' first to create event store"
         )
         return 1
 

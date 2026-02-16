@@ -7,8 +7,7 @@ Provides filter controls and transaction table for comprehensive transaction man
 """
 
 from pathlib import Path
-from datetime import date, datetime
-import csv
+from datetime import date
 
 from PySide6.QtWidgets import (
     QWidget,
@@ -24,7 +23,7 @@ from PySide6.QtWidgets import (
     QStatusBar,
     QMessageBox,
 )
-from PySide6.QtCore import Qt, QDate, Signal, QThread
+from PySide6.QtCore import QDate, Signal, QThread
 
 from gilt.gui.widgets.transaction_table import TransactionTableWidget
 from gilt.gui.services.transaction_service import TransactionService
@@ -48,7 +47,7 @@ class IntelligenceWorker(QThread):
         self,
         transactions: list[TransactionGroup],
         duplicate_service: DuplicateService,
-        smart_category_service: SmartCategoryService
+        smart_category_service: SmartCategoryService,
     ):
         super().__init__()
         self.transactions = transactions
@@ -105,7 +104,7 @@ class TransactionsView(QWidget):
         data_dir: Path,
         duplicate_service: DuplicateService = None,
         smart_category_service: SmartCategoryService = None,
-        parent=None
+        parent=None,
     ):
         super().__init__(parent)
 
@@ -119,6 +118,7 @@ class TransactionsView(QWidget):
         # Initialize CategoryService
         from gilt.gui.services.category_service import CategoryService
         from gilt.gui.dialogs.settings_dialog import SettingsDialog
+
         categories_config = SettingsDialog.get_categories_config()
         self.category_service = CategoryService(categories_config)
 
@@ -294,9 +294,7 @@ class TransactionsView(QWidget):
         self._old_workers = [w for w in self._old_workers if w.isRunning()]
 
         self.worker = IntelligenceWorker(
-            self._all_transactions,
-            self.duplicate_service,
-            self.smart_category_service
+            self._all_transactions, self.duplicate_service, self.smart_category_service
         )
         self.worker.finished.connect(self._on_intelligence_scan_finished)
         self.worker.start()
@@ -349,9 +347,7 @@ class TransactionsView(QWidget):
             account_filter = [self.account_combo.currentData()]
 
         start_qdate = self.start_date_edit.date()
-        start_date = date(
-            start_qdate.year(), start_qdate.month(), start_qdate.day()
-        )
+        start_date = date(start_qdate.year(), start_qdate.month(), start_qdate.day())
 
         end_qdate = self.end_date_edit.date()
         end_date = date(end_qdate.year(), end_qdate.month(), end_qdate.day())
@@ -437,12 +433,7 @@ class TransactionsView(QWidget):
                     suggestion = (parts[0], None)
 
         # Show categorize dialog
-        dialog = CategorizeDialog(
-            selected,
-            categories_config,
-            self,
-            suggested_category=suggestion
-        )
+        dialog = CategorizeDialog(selected, categories_config, self, suggested_category=suggestion)
         if dialog.exec():
             # Get selected category
             category, subcategory = dialog.get_selected_category()
@@ -505,9 +496,7 @@ class TransactionsView(QWidget):
             )
 
         except Exception as e:
-            QMessageBox.critical(
-                self, "Error", f"Failed to categorize transactions:\n{str(e)}"
-            )
+            QMessageBox.critical(self, "Error", f"Failed to categorize transactions:\n{str(e)}")
 
     def _on_note_requested(self):
         """Handle note edit request from context menu."""
@@ -565,14 +554,10 @@ class TransactionsView(QWidget):
             self.reload_transactions()
 
             # Show success message
-            QMessageBox.information(
-                self, "Success", "Note updated successfully"
-            )
+            QMessageBox.information(self, "Success", "Note updated successfully")
 
         except Exception as e:
-            QMessageBox.critical(
-                self, "Error", f"Failed to update note:\n{str(e)}"
-            )
+            QMessageBox.critical(self, "Error", f"Failed to update note:\n{str(e)}")
 
     def _on_resolve_duplicate_requested(self):
         """Handle duplicate resolution request."""
@@ -594,20 +579,28 @@ class TransactionsView(QWidget):
 
             try:
                 # Record decision
-                self.duplicate_service.resolve_duplicate(
-                    match, is_duplicate, keep_id
-                )
+                self.duplicate_service.resolve_duplicate(match, is_duplicate, keep_id)
 
                 if is_duplicate:
                     # Determine which one to delete
-                    delete_id = match.pair.txn2_id if keep_id == match.pair.txn1_id else match.pair.txn1_id
-                    delete_account = match.pair.txn2_account if keep_id == match.pair.txn1_id else match.pair.txn1_account
+                    delete_id = (
+                        match.pair.txn2_id if keep_id == match.pair.txn1_id else match.pair.txn1_id
+                    )
+                    delete_account = (
+                        match.pair.txn2_account
+                        if keep_id == match.pair.txn1_id
+                        else match.pair.txn1_account
+                    )
 
                     # Delete from ledger
                     if self.service.delete_transaction(delete_id, delete_account):
                         QMessageBox.information(self, "Success", "Duplicate resolved and removed.")
                     else:
-                        QMessageBox.warning(self, "Warning", "Duplicate resolved but failed to remove transaction file.")
+                        QMessageBox.warning(
+                            self,
+                            "Warning",
+                            "Duplicate resolved but failed to remove transaction file.",
+                        )
                 else:
                     QMessageBox.information(self, "Success", "Marked as not a duplicate.")
 
@@ -643,9 +636,7 @@ class TransactionsView(QWidget):
         )
 
         assessment = DuplicateAssessment(
-            is_duplicate=True,
-            confidence=1.0,
-            reasoning="Manually identified by user"
+            is_duplicate=True, confidence=1.0, reasoning="Manually identified by user"
         )
 
         match = DuplicateMatch(pair=pair, assessment=assessment)
@@ -665,14 +656,22 @@ class TransactionsView(QWidget):
                 )
 
                 # Determine which one to delete
-                delete_id = match.pair.txn2_id if keep_id == match.pair.txn1_id else match.pair.txn1_id
-                delete_account = match.pair.txn2_account if keep_id == match.pair.txn1_id else match.pair.txn1_account
+                delete_id = (
+                    match.pair.txn2_id if keep_id == match.pair.txn1_id else match.pair.txn1_id
+                )
+                delete_account = (
+                    match.pair.txn2_account
+                    if keep_id == match.pair.txn1_id
+                    else match.pair.txn1_account
+                )
 
                 # Delete from ledger
                 if self.service.delete_transaction(delete_id, delete_account):
                     QMessageBox.information(self, "Success", "Transactions merged.")
                 else:
-                    QMessageBox.warning(self, "Warning", "Merged but failed to remove duplicate transaction file.")
+                    QMessageBox.warning(
+                        self, "Warning", "Merged but failed to remove duplicate transaction file."
+                    )
 
                 # Reload to refresh view
                 self.reload_transactions()

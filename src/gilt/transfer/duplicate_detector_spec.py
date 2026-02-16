@@ -123,7 +123,7 @@ class DescribeDuplicateDetectorAdaptivePrompts:
             for version in ["v1", "v2", "v3", "v4"]:
                 event = PromptUpdated(
                     prompt_version=version,
-                    previous_version=None if version == "v1" else f"v{int(version[1])-1}",
+                    previous_version=None if version == "v1" else f"v{int(version[1]) - 1}",
                     learned_patterns=[f"Pattern from {version}"],
                     accuracy_metrics={"accuracy": 0.8 + int(version[1]) * 0.02},
                 )

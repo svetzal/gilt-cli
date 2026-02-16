@@ -41,9 +41,7 @@ def _aggregate_spending(
 
     # Load all transactions from projections (excludes duplicates)
     projection_builder = ProjectionBuilder(projections_path)
-    all_transactions = projection_builder.get_all_transactions(
-        include_duplicates=False
-    )
+    all_transactions = projection_builder.get_all_transactions(include_duplicates=False)
 
     for row in all_transactions:
         # Skip if no category
@@ -86,9 +84,7 @@ def _collect_transactions(
 
     # Load all transactions from projections (excludes duplicates)
     projection_builder = ProjectionBuilder(projections_path)
-    all_transactions = projection_builder.get_all_transactions(
-        include_duplicates=False
-    )
+    all_transactions = projection_builder.get_all_transactions(include_duplicates=False)
 
     for row in all_transactions:
         # Skip if no category
@@ -211,7 +207,9 @@ def _generate_markdown_report(
     # Totals (no extra separator row; multiple header separators are invalid in Markdown tables)
     total_remaining = total_budgeted - total_actual
     total_pct = (total_actual / total_budgeted) * 100 if total_budgeted > 0 else 0
-    lines.append(f"| **TOTAL** | **${total_budgeted:,.2f}** | **${total_actual:,.2f}** | **${total_remaining:,.2f}** | **{total_pct:.1f}%** |")
+    lines.append(
+        f"| **TOTAL** | **${total_budgeted:,.2f}** | **${total_actual:,.2f}** | **${total_remaining:,.2f}** | **{total_pct:.1f}%** |"
+    )
     lines.append("")
 
     # Detailed breakdown by category
@@ -255,7 +253,13 @@ def _generate_markdown_report(
         if budget_amount:
             remaining = budget_amount - cat_actual
             pct_used = (cat_actual / budget_amount) * 100 if budget_amount > 0 else 0
-            status = "⚠️ OVER BUDGET" if remaining < 0 else "✓ On Track" if pct_used < 90 else "⚠️ Near Limit"
+            status = (
+                "⚠️ OVER BUDGET"
+                if remaining < 0
+                else "✓ On Track"
+                if pct_used < 90
+                else "⚠️ Near Limit"
+            )
 
             lines.append(f"- **Budget:** ${budget_amount:,.2f}")
             lines.append(f"- **Actual:** ${cat_actual:,.2f}")
@@ -269,9 +273,11 @@ def _generate_markdown_report(
         if month is not None:
             txns = transactions_by_category.get(cat.name, [])
             if txns:
+
                 def _esc(s: str) -> str:
                     # Escape pipe characters for markdown tables
                     return s.replace("|", "\\|")
+
                 lines.append("")
                 lines.append("| Date | Description | Subcategory | Amount | Account |")
                 lines.append("|------|-------------|-------------|--------|---------|")
@@ -287,7 +293,9 @@ def _generate_markdown_report(
                     subcat_actual = subcat_actuals.get(subcat.name, 0.0)
                     if subcat_actual > 0:
                         pct_of_cat = (subcat_actual / cat_actual * 100) if cat_actual > 0 else 0
-                        lines.append(f"- {subcat.name}: ${subcat_actual:,.2f} ({pct_of_cat:.1f}% of category)")
+                        lines.append(
+                            f"- {subcat.name}: ${subcat_actual:,.2f} ({pct_of_cat:.1f}% of category)"
+                        )
 
         lines.append("")
 
@@ -300,7 +308,9 @@ def _generate_markdown_report(
     lines.append(f"- **Overall % Used:** {total_pct:.1f}%")
 
     if over_budget_count > 0:
-        lines.append(f"\n⚠️ **{over_budget_count} categor{'y' if over_budget_count == 1 else 'ies'} over budget**")
+        lines.append(
+            f"\n⚠️ **{over_budget_count} categor{'y' if over_budget_count == 1 else 'ies'} over budget**"
+        )
 
     return "\n".join(lines)
 
@@ -396,7 +406,9 @@ def run(
 
     # Check pandoc availability
     if not _check_pandoc():
-        console.print("[yellow]Warning:[/] pandoc not found. Install pandoc to generate .docx files.")
+        console.print(
+            "[yellow]Warning:[/] pandoc not found. Install pandoc to generate .docx files."
+        )
         console.print("  macOS: brew install pandoc")
         console.print("  Linux: apt-get install pandoc or yum install pandoc")
         console.print("  Windows: https://pandoc.org/installing.html")
@@ -450,7 +462,9 @@ def run(
         if has_pandoc:
             console.print(f"Would write Word doc to: [cyan]{docx_path}[/]")
         console.print("\n[dim]--- Preview (first 500 chars) ---[/]")
-        console.print(markdown_content[:500] + "..." if len(markdown_content) > 500 else markdown_content)
+        console.print(
+            markdown_content[:500] + "..." if len(markdown_content) > 500 else markdown_content
+        )
         console.print("[dim]--- End preview ---[/]")
         return 0
 

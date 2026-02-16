@@ -32,10 +32,10 @@ class DescribeCategoryAdd:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
+
             # Start with empty config
             save_categories_config(config_path, CategoryConfig(categories=[]))
-            
+
             # Dry-run should not modify
             rc = run(
                 add="Housing",
@@ -46,7 +46,7 @@ class DescribeCategoryAdd:
             assert rc == 0
             config = load_categories_config(config_path)
             assert len(config.categories) == 0
-            
+
             # Write should add category
             rc = run(
                 add="Housing",
@@ -68,13 +68,11 @@ class DescribeCategoryAdd:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
+
             # Create parent category
-            config = CategoryConfig(
-                categories=[Category(name="Housing")]
-            )
+            config = CategoryConfig(categories=[Category(name="Housing")])
             save_categories_config(config_path, config)
-            
+
             # Add subcategory
             rc = run(
                 add="Housing:Utilities",
@@ -83,7 +81,7 @@ class DescribeCategoryAdd:
                 write=True,
             )
             assert rc == 0
-            
+
             config = load_categories_config(config_path)
             assert len(config.categories) == 1
             assert len(config.categories[0].subcategories) == 1
@@ -97,9 +95,9 @@ class DescribeCategoryAdd:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
+
             save_categories_config(config_path, CategoryConfig(categories=[]))
-            
+
             rc = run(
                 add="Housing:Utilities",
                 workspace=workspace,
@@ -115,19 +113,17 @@ class DescribeCategoryAdd:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
-            config = CategoryConfig(
-                categories=[Category(name="Housing")]
-            )
+
+            config = CategoryConfig(categories=[Category(name="Housing")])
             save_categories_config(config_path, config)
-            
+
             rc = run(
                 add="Housing",
                 workspace=workspace,
                 write=True,
             )
             assert rc == 0
-            
+
             # Should still have only one category
             config = load_categories_config(config_path)
             assert len(config.categories) == 1
@@ -144,7 +140,7 @@ class DescribeCategoryRemove:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
+
             config = CategoryConfig(
                 categories=[
                     Category(name="Housing"),
@@ -152,7 +148,7 @@ class DescribeCategoryRemove:
                 ]
             )
             save_categories_config(config_path, config)
-            
+
             # Dry-run should not modify
             rc = run(
                 remove="Housing",
@@ -162,7 +158,7 @@ class DescribeCategoryRemove:
             assert rc == 0
             config = load_categories_config(config_path)
             assert len(config.categories) == 2
-            
+
             # Write with force should remove
             rc = run(
                 remove="Housing",
@@ -183,7 +179,7 @@ class DescribeCategoryRemove:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
+
             config = CategoryConfig(
                 categories=[
                     Category(
@@ -196,7 +192,7 @@ class DescribeCategoryRemove:
                 ]
             )
             save_categories_config(config_path, config)
-            
+
             rc = run(
                 remove="Housing:Utilities",
                 force=True,
@@ -204,7 +200,7 @@ class DescribeCategoryRemove:
                 write=True,
             )
             assert rc == 0
-            
+
             config = load_categories_config(config_path)
             assert len(config.categories[0].subcategories) == 1
             assert config.categories[0].subcategories[0].name == "Rent"
@@ -217,12 +213,10 @@ class DescribeCategoryRemove:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
-            config = CategoryConfig(
-                categories=[Category(name="Housing")]
-            )
+
+            config = CategoryConfig(categories=[Category(name="Housing")])
             save_categories_config(config_path, config)
-            
+
             # Create ledger with categorized transaction
             ledger_path = data_dir / "TEST.csv"
             groups = [
@@ -240,7 +234,7 @@ class DescribeCategoryRemove:
                 ),
             ]
             _write_ledger(ledger_path, groups)
-            
+
             # Without force should fail in dry-run
             rc = run(
                 remove="Housing",
@@ -248,7 +242,7 @@ class DescribeCategoryRemove:
                 write=False,
             )
             assert rc == 1
-            
+
             # With force should succeed
             rc = run(
                 remove="Housing",
@@ -270,12 +264,10 @@ class DescribeCategorySetBudget:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
-            config = CategoryConfig(
-                categories=[Category(name="Dining Out")]
-            )
+
+            config = CategoryConfig(categories=[Category(name="Dining Out")])
             save_categories_config(config_path, config)
-            
+
             # Dry-run should not modify
             rc = run(
                 set_budget="Dining Out",
@@ -287,7 +279,7 @@ class DescribeCategorySetBudget:
             assert rc == 0
             config = load_categories_config(config_path)
             assert config.categories[0].budget is None
-            
+
             # Write should set budget
             rc = run(
                 set_budget="Dining Out",
@@ -297,7 +289,7 @@ class DescribeCategorySetBudget:
                 write=True,
             )
             assert rc == 0
-            
+
             config = load_categories_config(config_path)
             assert config.categories[0].budget is not None
             assert config.categories[0].budget.amount == 400.0
@@ -311,7 +303,7 @@ class DescribeCategorySetBudget:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
+
             config = CategoryConfig(
                 categories=[
                     Category(
@@ -321,7 +313,7 @@ class DescribeCategorySetBudget:
                 ]
             )
             save_categories_config(config_path, config)
-            
+
             rc = run(
                 set_budget="Dining Out",
                 amount=500.0,
@@ -330,7 +322,7 @@ class DescribeCategorySetBudget:
                 write=True,
             )
             assert rc == 0
-            
+
             config = load_categories_config(config_path)
             assert config.categories[0].budget.amount == 500.0
             assert config.categories[0].budget.period == BudgetPeriod.yearly
@@ -343,9 +335,9 @@ class DescribeCategorySetBudget:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
+
             save_categories_config(config_path, CategoryConfig(categories=[]))
-            
+
             rc = run(
                 set_budget="NonExistent",
                 amount=100.0,
@@ -362,7 +354,7 @@ class DescribeCategorySetBudget:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
+
             config = CategoryConfig(
                 categories=[
                     Category(
@@ -372,7 +364,7 @@ class DescribeCategorySetBudget:
                 ]
             )
             save_categories_config(config_path, config)
-            
+
             rc = run(
                 set_budget="Housing:Utilities",
                 amount=100.0,
@@ -389,12 +381,10 @@ class DescribeCategorySetBudget:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
-            config = CategoryConfig(
-                categories=[Category(name="Housing")]
-            )
+
+            config = CategoryConfig(categories=[Category(name="Housing")])
             save_categories_config(config_path, config)
-            
+
             rc = run(
                 set_budget="Housing",
                 amount=None,
@@ -411,12 +401,10 @@ class DescribeCategorySetBudget:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
-            config = CategoryConfig(
-                categories=[Category(name="Housing")]
-            )
+
+            config = CategoryConfig(categories=[Category(name="Housing")])
             save_categories_config(config_path, config)
-            
+
             rc = run(
                 set_budget="Housing",
                 amount=-100.0,
@@ -433,18 +421,17 @@ class DescribeCategoryValidation:
         with TemporaryDirectory() as tmpdir:
             config_dir = Path(tmpdir) / "config"
             config_dir.mkdir()
-            config_path = config_dir / "categories.yml"
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
+
             # No action
             rc = run(
                 workspace=workspace,
                 write=False,
             )
             assert rc == 1
-            
+
             # Multiple actions
             rc = run(
                 add="Housing",

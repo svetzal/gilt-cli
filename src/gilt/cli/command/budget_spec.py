@@ -86,9 +86,7 @@ class DescribeBudgetCommand:
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
 
-            config = CategoryConfig(
-                categories=[Category(name="Housing")]
-            )
+            config = CategoryConfig(categories=[Category(name="Housing")])
             save_categories_config(config_path, config)
 
             ledger_path = data_dir / "TEST.csv"
@@ -132,7 +130,7 @@ class DescribeBudgetCommand:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
+
             config = CategoryConfig(
                 categories=[
                     Category(
@@ -142,7 +140,7 @@ class DescribeBudgetCommand:
                 ]
             )
             save_categories_config(config_path, config)
-            
+
             ledger_path = data_dir / "TEST.csv"
             groups = [
                 TransactionGroup(
@@ -171,7 +169,7 @@ class DescribeBudgetCommand:
                 ),
             ]
             _write_ledger(ledger_path, groups)
-            
+
             # Should only include January transaction
             rc = run(year=2025, month=1, workspace=workspace)
             assert rc == 0
@@ -184,7 +182,7 @@ class DescribeBudgetCommand:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
+
             config = CategoryConfig(
                 categories=[
                     Category(name="Housing"),
@@ -192,7 +190,7 @@ class DescribeBudgetCommand:
                 ]
             )
             save_categories_config(config_path, config)
-            
+
             ledger_path = data_dir / "TEST.csv"
             groups = [
                 TransactionGroup(
@@ -221,7 +219,7 @@ class DescribeBudgetCommand:
                 ),
             ]
             _write_ledger(ledger_path, groups)
-            
+
             # Should only show Housing
             rc = run(year=2025, category="Housing", workspace=workspace)
             assert rc == 0
@@ -234,12 +232,10 @@ class DescribeBudgetCommand:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
-            config = CategoryConfig(
-                categories=[Category(name="Housing")]
-            )
+
+            config = CategoryConfig(categories=[Category(name="Housing")])
             save_categories_config(config_path, config)
-            
+
             rc = run(month=1, workspace=workspace)
             assert rc == 1
 
@@ -251,12 +247,10 @@ class DescribeBudgetCommand:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
-            config = CategoryConfig(
-                categories=[Category(name="Housing")]
-            )
+
+            config = CategoryConfig(categories=[Category(name="Housing")])
             save_categories_config(config_path, config)
-            
+
             rc = run(year=2025, month=13, workspace=workspace)
             assert rc == 1
 
@@ -272,7 +266,7 @@ class DescribeBudgetProration:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
+
             config = CategoryConfig(
                 categories=[
                     Category(
@@ -282,7 +276,7 @@ class DescribeBudgetProration:
                 ]
             )
             save_categories_config(config_path, config)
-            
+
             ledger_path = data_dir / "TEST.csv"
             groups = [
                 TransactionGroup(
@@ -299,7 +293,7 @@ class DescribeBudgetProration:
                 ),
             ]
             _write_ledger(ledger_path, groups)
-            
+
             # Monthly report should use 400.0 budget directly
             rc = run(year=2025, month=1, workspace=workspace)
             assert rc == 0
@@ -312,7 +306,7 @@ class DescribeBudgetProration:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
+
             config = CategoryConfig(
                 categories=[
                     Category(
@@ -322,7 +316,7 @@ class DescribeBudgetProration:
                 ]
             )
             save_categories_config(config_path, config)
-            
+
             ledger_path = data_dir / "TEST.csv"
             groups = [
                 TransactionGroup(
@@ -339,7 +333,7 @@ class DescribeBudgetProration:
                 ),
             ]
             _write_ledger(ledger_path, groups)
-            
+
             # Monthly report should prorate: 4800 / 12 = 400
             rc = run(year=2025, month=1, workspace=workspace)
             assert rc == 0
@@ -352,7 +346,7 @@ class DescribeBudgetProration:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
+
             config = CategoryConfig(
                 categories=[
                     Category(
@@ -362,7 +356,7 @@ class DescribeBudgetProration:
                 ]
             )
             save_categories_config(config_path, config)
-            
+
             ledger_path = data_dir / "TEST.csv"
             groups = [
                 TransactionGroup(
@@ -379,7 +373,7 @@ class DescribeBudgetProration:
                 ),
             ]
             _write_ledger(ledger_path, groups)
-            
+
             # Yearly report should use 4800.0 budget directly
             rc = run(year=2025, workspace=workspace)
             assert rc == 0
@@ -392,7 +386,7 @@ class DescribeBudgetProration:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
+
             config = CategoryConfig(
                 categories=[
                     Category(
@@ -402,7 +396,7 @@ class DescribeBudgetProration:
                 ]
             )
             save_categories_config(config_path, config)
-            
+
             ledger_path = data_dir / "TEST.csv"
             groups = [
                 TransactionGroup(
@@ -419,7 +413,7 @@ class DescribeBudgetProration:
                 ),
             ]
             _write_ledger(ledger_path, groups)
-            
+
             # Yearly report should multiply: 400 * 12 = 4800
             rc = run(year=2025, workspace=workspace)
             assert rc == 0
@@ -436,7 +430,7 @@ class DescribeBudgetWithSubcategories:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
+
             config = CategoryConfig(
                 categories=[
                     Category(
@@ -450,7 +444,7 @@ class DescribeBudgetWithSubcategories:
                 ]
             )
             save_categories_config(config_path, config)
-            
+
             ledger_path = data_dir / "TEST.csv"
             groups = [
                 TransactionGroup(
@@ -481,7 +475,7 @@ class DescribeBudgetWithSubcategories:
                 ),
             ]
             _write_ledger(ledger_path, groups)
-            
+
             # Should show parent with total 2300.0 against budget 2500.0
             rc = run(year=2025, workspace=workspace)
             assert rc == 0
@@ -494,14 +488,14 @@ class DescribeBudgetWithSubcategories:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
+
             config = CategoryConfig(
                 categories=[
                     Category(name="Misc"),  # No budget
                 ]
             )
             save_categories_config(config_path, config)
-            
+
             ledger_path = data_dir / "TEST.csv"
             groups = [
                 TransactionGroup(
@@ -518,7 +512,7 @@ class DescribeBudgetWithSubcategories:
                 ),
             ]
             _write_ledger(ledger_path, groups)
-            
+
             rc = run(year=2025, workspace=workspace)
             assert rc == 0
 
@@ -530,7 +524,7 @@ class DescribeBudgetWithSubcategories:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
+
             config = CategoryConfig(
                 categories=[
                     Category(
@@ -540,10 +534,10 @@ class DescribeBudgetWithSubcategories:
                 ]
             )
             save_categories_config(config_path, config)
-            
+
             ledger_path = data_dir / "TEST.csv"
             groups = []  # No transactions
             _write_ledger(ledger_path, groups)
-            
+
             rc = run(year=2025, workspace=workspace)
             assert rc == 0

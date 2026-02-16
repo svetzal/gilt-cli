@@ -5,6 +5,7 @@ This service wraps the DuplicateDetector and handles the lifecycle of duplicate
 resolution events. It ensures that user decisions are captured as events to
 improve future detection.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -17,6 +18,7 @@ from gilt.transfer.duplicate_detector import DuplicateDetector
 
 
 from gilt.model.account import Transaction
+
 
 class DuplicateService:
     """Service for detecting and resolving duplicate transactions."""
@@ -48,9 +50,7 @@ class DuplicateService:
             List of detected duplicate matches
         """
         # Get raw matches from detector
-        matches = self.detector.scan_transactions(
-            transactions, max_days_apart, amount_tolerance
-        )
+        matches = self.detector.scan_transactions(transactions, max_days_apart, amount_tolerance)
 
         # Filter out already resolved pairs
         resolved_pairs = self._get_resolved_pairs()
@@ -99,9 +99,7 @@ class DuplicateService:
         Returns:
             List of detected duplicate matches
         """
-        return self.detector.scan_for_duplicates(
-            data_dir, max_days_apart, amount_tolerance
-        )
+        return self.detector.scan_for_duplicates(data_dir, max_days_apart, amount_tolerance)
 
     def resolve_duplicate(
         self,

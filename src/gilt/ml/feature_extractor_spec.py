@@ -149,29 +149,37 @@ class DescribeFeatureExtractor:
         names = extractor.get_feature_names()
 
         assert len(names) == 8
-        assert 'cosine_similarity' in names
-        assert 'levenshtein_ratio' in names
-        assert 'token_overlap' in names
-        assert 'amount_exact_match' in names
+        assert "cosine_similarity" in names
+        assert "levenshtein_ratio" in names
+        assert "token_overlap" in names
+        assert "amount_exact_match" in names
 
     def it_should_fit_vectorizer_on_training_data(self):
         """Vectorizer should be fittable on multiple pairs."""
         pairs = [
             TransactionPair(
-                txn1_id="1", txn1_date=date(2025, 1, 1),
+                txn1_id="1",
+                txn1_date=date(2025, 1, 1),
                 txn1_description="SPOTIFY PAYMENT",
-                txn1_amount=-10.99, txn1_account="MYBANK_CHQ",
-                txn2_id="2", txn2_date=date(2025, 1, 1),
+                txn1_amount=-10.99,
+                txn1_account="MYBANK_CHQ",
+                txn2_id="2",
+                txn2_date=date(2025, 1, 1),
                 txn2_description="SPOTIFY PYMT",
-                txn2_amount=-10.99, txn2_account="MYBANK_CHQ",
+                txn2_amount=-10.99,
+                txn2_account="MYBANK_CHQ",
             ),
             TransactionPair(
-                txn1_id="3", txn1_date=date(2025, 1, 2),
+                txn1_id="3",
+                txn1_date=date(2025, 1, 2),
                 txn1_description="GROCERY STORE",
-                txn1_amount=-45.67, txn1_account="MYBANK_CHQ",
-                txn2_id="4", txn2_date=date(2025, 1, 2),
+                txn1_amount=-45.67,
+                txn1_account="MYBANK_CHQ",
+                txn2_id="4",
+                txn2_date=date(2025, 1, 2),
                 txn2_description="GROCERY SHOP",
-                txn2_amount=-45.67, txn2_account="MYBANK_CHQ",
+                txn2_amount=-45.67,
+                txn2_account="MYBANK_CHQ",
             ),
         ]
 

@@ -4,6 +4,7 @@ Tests for TransactionOperationsService.
 These tests verify the functional core logic for transaction operations,
 ensuring that all business logic is testable without CLI/GUI dependencies.
 """
+
 from __future__ import annotations
 
 from datetime import date
@@ -229,9 +230,7 @@ class DescribeFindByCriteria(DescribeTransactionOperationsService):
         assert preview.total_count == 2
         assert preview.used_sign_insensitive is True
 
-    def it_should_not_use_sign_insensitive_if_signed_matches_exist(
-        self, service, sample_groups
-    ):
+    def it_should_not_use_sign_insensitive_if_signed_matches_exist(self, service, sample_groups):
         """Should prefer signed matches over absolute value."""
         criteria = SearchCriteria(desc_prefix="SPOTIFY", amount=-10.99)
 
@@ -292,9 +291,7 @@ class DescribeAddNote(DescribeTransactionOperationsService):
 
     def it_should_replace_note(self, service, group_with_note):
         """Should replace existing note."""
-        updated = service.add_note(
-            group_with_note, "New note", mode=NoteMode.REPLACE
-        )
+        updated = service.add_note(group_with_note, "New note", mode=NoteMode.REPLACE)
 
         assert updated.primary.notes == "New note"
         # Original group should be unchanged (immutability)
@@ -302,41 +299,31 @@ class DescribeAddNote(DescribeTransactionOperationsService):
 
     def it_should_replace_when_no_existing_note(self, service, group_without_note):
         """Should set note when none exists (replace mode)."""
-        updated = service.add_note(
-            group_without_note, "New note", mode=NoteMode.REPLACE
-        )
+        updated = service.add_note(group_without_note, "New note", mode=NoteMode.REPLACE)
 
         assert updated.primary.notes == "New note"
 
     def it_should_append_note(self, service, group_with_note):
         """Should append to existing note."""
-        updated = service.add_note(
-            group_with_note, "Additional", mode=NoteMode.APPEND
-        )
+        updated = service.add_note(group_with_note, "Additional", mode=NoteMode.APPEND)
 
         assert updated.primary.notes == "Existing note Additional"
 
     def it_should_append_when_no_existing_note(self, service, group_without_note):
         """Should set note when none exists (append mode)."""
-        updated = service.add_note(
-            group_without_note, "New note", mode=NoteMode.APPEND
-        )
+        updated = service.add_note(group_without_note, "New note", mode=NoteMode.APPEND)
 
         assert updated.primary.notes == "New note"
 
     def it_should_prepend_note(self, service, group_with_note):
         """Should prepend to existing note."""
-        updated = service.add_note(
-            group_with_note, "Prefix", mode=NoteMode.PREPEND
-        )
+        updated = service.add_note(group_with_note, "Prefix", mode=NoteMode.PREPEND)
 
         assert updated.primary.notes == "Prefix Existing note"
 
     def it_should_prepend_when_no_existing_note(self, service, group_without_note):
         """Should set note when none exists (prepend mode)."""
-        updated = service.add_note(
-            group_without_note, "New note", mode=NoteMode.PREPEND
-        )
+        updated = service.add_note(group_without_note, "New note", mode=NoteMode.PREPEND)
 
         assert updated.primary.notes == "New note"
 
@@ -408,9 +395,7 @@ class DescribePreviewBatchUpdate(DescribeTransactionOperationsService):
 
     def it_should_preview_batch_updates(self, service, groups_for_batch):
         """Should preview updates for all groups."""
-        previews = service.preview_batch_update(
-            groups_for_batch, "New note", mode=NoteMode.REPLACE
-        )
+        previews = service.preview_batch_update(groups_for_batch, "New note", mode=NoteMode.REPLACE)
 
         assert len(previews) == 3
         for original, updated in previews:
@@ -418,9 +403,7 @@ class DescribePreviewBatchUpdate(DescribeTransactionOperationsService):
 
     def it_should_return_original_and_updated_pairs(self, service, groups_for_batch):
         """Should return (original, updated) tuples."""
-        previews = service.preview_batch_update(
-            groups_for_batch, "New note", mode=NoteMode.REPLACE
-        )
+        previews = service.preview_batch_update(groups_for_batch, "New note", mode=NoteMode.REPLACE)
 
         for original, updated in previews:
             assert original in groups_for_batch
@@ -430,9 +413,7 @@ class DescribePreviewBatchUpdate(DescribeTransactionOperationsService):
 
     def it_should_apply_append_mode_in_batch(self, service, groups_for_batch):
         """Should apply append mode to all groups."""
-        previews = service.preview_batch_update(
-            groups_for_batch, "Suffix", mode=NoteMode.APPEND
-        )
+        previews = service.preview_batch_update(groups_for_batch, "Suffix", mode=NoteMode.APPEND)
 
         # First two have existing notes
         assert previews[0][1].primary.notes == "Old note 1 Suffix"
@@ -442,9 +423,7 @@ class DescribePreviewBatchUpdate(DescribeTransactionOperationsService):
 
     def it_should_apply_prepend_mode_in_batch(self, service, groups_for_batch):
         """Should apply prepend mode to all groups."""
-        previews = service.preview_batch_update(
-            groups_for_batch, "Prefix", mode=NoteMode.PREPEND
-        )
+        previews = service.preview_batch_update(groups_for_batch, "Prefix", mode=NoteMode.PREPEND)
 
         assert previews[0][1].primary.notes == "Prefix Old note 1"
         assert previews[1][1].primary.notes == "Prefix Old note 2"

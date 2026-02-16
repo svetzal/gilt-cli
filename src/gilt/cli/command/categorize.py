@@ -116,8 +116,7 @@ def run(
     batch_prefix_mode = desc_prefix is not None
     batch_pattern_mode = pattern is not None
 
-    modes_selected = sum([single_mode, batch_exact_mode,
-                          batch_prefix_mode, batch_pattern_mode])
+    modes_selected = sum([single_mode, batch_exact_mode, batch_prefix_mode, batch_pattern_mode])
     if modes_selected != 1:
         console.print(
             "[red]Error:[/] Specify exactly one of --txid, "
@@ -232,9 +231,7 @@ def run(
 
     # Single mode: check for ambiguity
     if single_mode and total_matched > 1:
-        console.print(
-            f"[yellow]Ambiguous --txid '{txid}':[/] matches {total_matched} transactions"
-        )
+        console.print(f"[yellow]Ambiguous --txid '{txid}':[/] matches {total_matched} transactions")
         console.print("Refine with more characters or specify --account")
         return 1
 
@@ -243,8 +240,7 @@ def run(
 
     # Check for re-categorization
     recategorized_count = sum(
-        1 for _, g in all_matches
-        if g.primary.category is not None and g.primary.category != ""
+        1 for _, g in all_matches if g.primary.category is not None and g.primary.category != ""
     )
 
     if recategorized_count > 0:
@@ -262,6 +258,7 @@ def run(
             )
         else:
             import sys
+
             # Only prompt if in an interactive terminal
             if sys.stdin.isatty():
                 if not typer.confirm(f"Categorize {total_matched} transaction(s)?"):
@@ -370,7 +367,6 @@ def _display_matches(
         )
 
     console.print(table)
-
 
     if len(matches) > 50:
         console.print(f"[dim]... and {len(matches) - 50} more[/]")

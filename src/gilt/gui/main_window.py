@@ -6,7 +6,6 @@ Main Window - Primary application window with navigation
 Provides navigation sidebar and content area for different views.
 """
 
-from pathlib import Path
 
 from PySide6.QtWidgets import (
     QMainWindow,
@@ -17,12 +16,9 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QStackedWidget,
     QLabel,
-    QStatusBar,
-    QMenuBar,
-    QMenu,
 )
 from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QAction, QIcon
+from PySide6.QtGui import QAction
 
 from gilt.gui.views.dashboard_view import DashboardView
 from gilt.gui.views.transactions_view import TransactionsView
@@ -70,18 +66,23 @@ class MainWindow(QMainWindow):
         self.event_store = EventStore(str(self.workspace.event_store_path))
 
         # Duplicate Detection
-        self.duplicate_detector = DuplicateDetector(event_store_path=self.workspace.event_store_path)
+        self.duplicate_detector = DuplicateDetector(
+            event_store_path=self.workspace.event_store_path
+        )
         self.duplicate_service = DuplicateService(self.duplicate_detector, self.event_store)
 
         # Smart Categorization
         self.categorization_classifier = CategorizationClassifier(self.event_store)
-        self.smart_category_service = SmartCategoryService(self.categorization_classifier, self.event_store)
+        self.smart_category_service = SmartCategoryService(
+            self.categorization_classifier, self.event_store
+        )
 
     def showEvent(self, event):
         """Handle window show event to apply initial theme."""
         super().showEvent(event)
         # Apply theme based on current app property (set by app.py)
         from PySide6.QtWidgets import QApplication
+
         app = QApplication.instance()
         if app:
             theme = app.property("current_theme") or "light"
@@ -151,24 +152,24 @@ class MainWindow(QMainWindow):
         self.nav_widget.setStyleSheet(
             f"""
             QWidget {{
-                background-color: {style['bg']};
+                background-color: {style["bg"]};
             }}
             QListWidget {{
-                background-color: {style['item_bg']};
-                color: {style['text']};
+                background-color: {style["item_bg"]};
+                color: {style["text"]};
                 border: none;
                 font-size: 14pt;
                 outline: none;
             }}
             QListWidget::item {{
                 padding: 15px;
-                border-bottom: 1px solid {style['border']};
+                border-bottom: 1px solid {style["border"]};
             }}
             QListWidget::item:selected {{
-                background-color: {style['selected']};
+                background-color: {style["selected"]};
             }}
             QListWidget::item:hover {{
-                background-color: {style['hover']};
+                background-color: {style["hover"]};
             }}
         """
         )
@@ -176,8 +177,8 @@ class MainWindow(QMainWindow):
         self.nav_title.setStyleSheet(
             f"""
             QLabel {{
-                background-color: {style['title_bg']};
-                color: {style['text']};
+                background-color: {style["title_bg"]};
+                color: {style["text"]};
                 font-size: 18pt;
                 font-weight: bold;
                 padding: 20px;
@@ -212,7 +213,7 @@ class MainWindow(QMainWindow):
             self.data_dir,
             duplicate_service=self.duplicate_service,
             smart_category_service=self.smart_category_service,
-            parent=self
+            parent=self,
         )
         self.content_stack.addWidget(self.transactions_view)
 
@@ -318,10 +319,7 @@ class MainWindow(QMainWindow):
         es_service = EventSourcingService(workspace=self.workspace)
         event_store = es_service.get_event_store()
 
-        detector = DuplicateDetector(
-            event_store_path=self.workspace.event_store_path,
-            use_ml=True
-        )
+        detector = DuplicateDetector(event_store_path=self.workspace.event_store_path, use_ml=True)
         duplicate_service = DuplicateService(detector, event_store)
 
         # Initialize smart category service
@@ -334,7 +332,7 @@ class MainWindow(QMainWindow):
             accounts_config,
             duplicate_service=duplicate_service,
             event_sourcing_service=es_service,
-            smart_category_service=smart_category_service
+            smart_category_service=smart_category_service,
         )
 
         # Show wizard

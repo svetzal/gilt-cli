@@ -13,18 +13,16 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
     QHeaderView,
     QMessageBox,
     QInputDialog,
-    QComboBox,
     QApplication,
 )
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QColor, QPalette
+from PySide6.QtCore import Signal
+from PySide6.QtGui import QPalette
 
 from gilt.gui.services.category_service import CategoryService
 from gilt.model.category import BudgetPeriod
@@ -86,13 +84,15 @@ class CategoriesView(QWidget):
         # Categories table
         self.table = QTableWidget()
         self.table.setColumnCount(5)
-        self.table.setHorizontalHeaderLabels([
-            "Category",
-            "Subcategory",
-            "Description",
-            "Budget",
-            "Period",
-        ])
+        self.table.setHorizontalHeaderLabels(
+            [
+                "Category",
+                "Subcategory",
+                "Description",
+                "Budget",
+                "Period",
+            ]
+        )
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QTableWidget.SingleSelection)
@@ -134,9 +134,7 @@ class CategoriesView(QWidget):
 
             # Add subcategory rows
             for subcat in cat.subcategories:
-                self._add_category_row(
-                    cat.name, subcat.name, subcat.description, None
-                )
+                self._add_category_row(cat.name, subcat.name, subcat.description, None)
 
     def _add_category_row(self, category, subcategory, description, budget):
         """
@@ -198,18 +196,14 @@ class CategoriesView(QWidget):
 
     def _on_add_category(self):
         """Handle add category button click."""
-        name, ok = QInputDialog.getText(
-            self, "Add Category", "Category name:"
-        )
+        name, ok = QInputDialog.getText(self, "Add Category", "Category name:")
         if not ok or not name.strip():
             return
 
         name = name.strip()
 
         # Get optional description
-        description, ok = QInputDialog.getText(
-            self, "Add Category", "Description (optional):"
-        )
+        description, ok = QInputDialog.getText(self, "Add Category", "Description (optional):")
         if not ok:
             return
 
@@ -221,9 +215,7 @@ class CategoriesView(QWidget):
             self._load_categories()
             self.categories_modified.emit()
 
-            QMessageBox.information(
-                self, "Success", f"Category '{name}' added successfully"
-            )
+            QMessageBox.information(self, "Success", f"Category '{name}' added successfully")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to add category:\n{str(e)}")
 
@@ -235,7 +227,6 @@ class CategoriesView(QWidget):
 
         # Get category name from selected row
         category_item = self.table.item(selected_row, 0)
-        subcategory_item = self.table.item(selected_row, 1)
 
         category_name = category_item.text()
         if not category_name:
@@ -248,9 +239,7 @@ class CategoriesView(QWidget):
                     break
 
         if not category_name:
-            QMessageBox.warning(
-                self, "Warning", "Could not determine parent category"
-            )
+            QMessageBox.warning(self, "Warning", "Could not determine parent category")
             return
 
         # Get subcategory name
@@ -263,9 +252,7 @@ class CategoriesView(QWidget):
         name = name.strip()
 
         # Get optional description
-        description, ok = QInputDialog.getText(
-            self, "Add Subcategory", "Description (optional):"
-        )
+        description, ok = QInputDialog.getText(self, "Add Subcategory", "Description (optional):")
         if not ok:
             return
 
@@ -283,9 +270,7 @@ class CategoriesView(QWidget):
                 f"Subcategory '{name}' added to '{category_name}' successfully",
             )
         except Exception as e:
-            QMessageBox.critical(
-                self, "Error", f"Failed to add subcategory:\n{str(e)}"
-            )
+            QMessageBox.critical(self, "Error", f"Failed to add subcategory:\n{str(e)}")
 
     def _on_set_budget(self):
         """Handle set budget button click."""
@@ -398,9 +383,7 @@ class CategoriesView(QWidget):
         else:
             msg = f"Remove category '{category_name}' and all its subcategories?"
 
-        reply = QMessageBox.question(
-            self, "Confirm Removal", msg, QMessageBox.Yes | QMessageBox.No
-        )
+        reply = QMessageBox.question(self, "Confirm Removal", msg, QMessageBox.Yes | QMessageBox.No)
 
         if reply != QMessageBox.Yes:
             return

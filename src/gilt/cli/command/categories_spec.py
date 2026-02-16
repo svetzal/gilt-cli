@@ -32,10 +32,10 @@ class DescribeCategoriesCommand:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
+
             # Empty config
             save_categories_config(config_path, CategoryConfig(categories=[]))
-            
+
             rc = run(workspace=workspace)
             assert rc == 0
 
@@ -47,7 +47,7 @@ class DescribeCategoriesCommand:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
+
             # Create config with categories
             config = CategoryConfig(
                 categories=[
@@ -56,7 +56,7 @@ class DescribeCategoriesCommand:
                 ]
             )
             save_categories_config(config_path, config)
-            
+
             rc = run(workspace=workspace)
             assert rc == 0
 
@@ -68,7 +68,7 @@ class DescribeCategoriesCommand:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
+
             # Create config with categories
             config = CategoryConfig(
                 categories=[
@@ -81,7 +81,7 @@ class DescribeCategoriesCommand:
                 ]
             )
             save_categories_config(config_path, config)
-            
+
             # Create ledger with categorized transactions
             ledger_path = data_dir / "TEST.csv"
             groups = [
@@ -111,7 +111,7 @@ class DescribeCategoriesCommand:
                 ),
             ]
             _write_ledger(ledger_path, groups)
-            
+
             rc = run(workspace=workspace)
             assert rc == 0
 
@@ -123,7 +123,7 @@ class DescribeCategoriesCommand:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
-            
+
             # Create config with categories and subcategories
             config = CategoryConfig(
                 categories=[
@@ -137,7 +137,7 @@ class DescribeCategoriesCommand:
                 ]
             )
             save_categories_config(config_path, config)
-            
+
             # Create ledger with subcategorized transactions
             ledger_path = data_dir / "TEST.csv"
             groups = [
@@ -169,7 +169,7 @@ class DescribeCategoriesCommand:
                 ),
             ]
             _write_ledger(ledger_path, groups)
-            
+
             rc = run(workspace=workspace)
             assert rc == 0
 
@@ -191,9 +191,7 @@ class DescribeCategoriesCommand:
             workspace = Workspace(root=Path(tmpdir))
             # Note: data/accounts directory doesn't exist
 
-            config = CategoryConfig(
-                categories=[Category(name="Housing")]
-            )
+            config = CategoryConfig(categories=[Category(name="Housing")])
             save_categories_config(config_path, config)
 
             rc = run(workspace=workspace)

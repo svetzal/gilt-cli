@@ -12,6 +12,7 @@ __all__ = ["DuplicateFeatureExtractor", "TrainingDataBuilder"]
 # Optionally export classifier if lightgbm is installed
 try:
     from gilt.ml.duplicate_classifier import DuplicateClassifier  # noqa: F401
+
     __all__.append("DuplicateClassifier")
 except ImportError:
     pass  # LightGBM not installed, classifier not available

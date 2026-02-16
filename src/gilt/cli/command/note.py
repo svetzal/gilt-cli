@@ -14,6 +14,7 @@ from gilt.workspace import Workspace
 
 # --- Small helpers to reduce cognitive complexity while preserving behavior ---
 
+
 def _validate_prefix(txid: str) -> tuple[bool, str]:
     p = (txid or "").strip().lower()
     if len(p) < 8:
@@ -37,7 +38,9 @@ def _highlight_prefix(desc: str, prefix: str, style: str = "bold yellow") -> str
     return d
 
 
-def _load_header_and_rows(text: str, ledger_path: Path) -> tuple[list[str], list[dict]] | tuple[None, None]:
+def _load_header_and_rows(
+    text: str, ledger_path: Path
+) -> tuple[list[str], list[dict]] | tuple[None, None]:
     reader = csv.DictReader(text.splitlines())
     header = list(reader.fieldnames or [])
     if not header:
@@ -50,7 +53,11 @@ def _load_header_and_rows(text: str, ledger_path: Path) -> tuple[list[str], list
 
 
 def _find_matches(rows: list[dict], prefix: str) -> list[int]:
-    return [i for i, r in enumerate(rows) if (r.get("transaction_id", "").strip().lower().startswith(prefix))]
+    return [
+        i
+        for i, r in enumerate(rows)
+        if (r.get("transaction_id", "").strip().lower().startswith(prefix))
+    ]
 
 
 def _report_ambiguity(prefix: str, matches: list[int], rows: list[dict]) -> None:
@@ -100,16 +107,16 @@ def _display_matches(
 
     for i in match_indexes[:50]:  # Limit display to 50
         r = rows[i]
-        raw_desc = (r.get('description') or '').strip()
+        raw_desc = (r.get("description") or "").strip()
         desc_display = _highlight_prefix(raw_desc, desc_prefix) if desc_prefix else raw_desc
 
         table.add_row(
             account,
-            (r.get('transaction_id') or '')[:8],
-            r.get('date') or '',
+            (r.get("transaction_id") or "")[:8],
+            r.get("date") or "",
             desc_display[:40],
-            r.get('amount') or '',
-            (r.get('notes') or '')[:30] if r.get('notes') else "—",
+            r.get("amount") or "",
+            (r.get("notes") or "")[:30] if r.get("notes") else "—",
             note_text[:30],
         )
 
@@ -144,13 +151,22 @@ def run(
 
     # Validate mode selection
     single_mode = bool((txid or "").strip())
-    batch_exact_mode = (description is not None)
-    batch_prefix_mode = (desc_prefix is not None)
-    batch_pattern_mode = (pattern is not None)
+    batch_exact_mode = description is not None
+    batch_prefix_mode = desc_prefix is not None
+    batch_pattern_mode = pattern is not None
 
-    modes_selected = sum([1 if single_mode else 0, 1 if batch_exact_mode else 0, 1 if batch_prefix_mode else 0, 1 if batch_pattern_mode else 0])
+    modes_selected = sum(
+        [
+            1 if single_mode else 0,
+            1 if batch_exact_mode else 0,
+            1 if batch_prefix_mode else 0,
+            1 if batch_pattern_mode else 0,
+        ]
+    )
     if modes_selected != 1:
-        console.print("[red]Specify exactly one of --txid, --description, --desc-prefix, or --pattern.[/]")
+        console.print(
+            "[red]Specify exactly one of --txid, --description, --desc-prefix, or --pattern.[/]"
+        )
         return 2
 
     try:
@@ -200,6 +216,7 @@ def run(
         # Confirm in single mode unless --yes provided
         if not assume_yes:
             import sys
+
             if sys.stdin.isatty():
                 tx_preview = f"{(target.get('date') or '')} id={(target.get('transaction_id') or '')[:8]} amt={(target.get('amount') or '')}"
                 # Show description (no highlighting needed in single mode)
@@ -279,7 +296,9 @@ def run(
                 console.print(
                     f"[red]No transactions found[/] in [bold]{account}[/] with description exactly '{desc_norm}' and amount {amount}."
                 )
-                console.print("Hint: amounts are signed in the ledger (debits negative, credits positive). Try negating --amount if this was a debit.")
+                console.print(
+                    "Hint: amounts are signed in the ledger (debits negative, credits positive). Try negating --amount if this was a debit."
+                )
             return 1
 
         if used_sign_insensitive:
@@ -336,7 +355,9 @@ def run(
                 console.print(
                     f"[red]No transactions found[/] in [bold]{account}[/] with description prefix '{desc_prefix}' and amount {amount}."
                 )
-                console.print("Hint: amounts are signed in the ledger (debits negative, credits positive). Try negating --amount if this was a debit.")
+                console.print(
+                    "Hint: amounts are signed in the ledger (debits negative, credits positive). Try negating --amount if this was a debit."
+                )
             return 1
 
         if used_sign_insensitive:
@@ -400,7 +421,9 @@ def run(
                 console.print(
                     f"[red]No transactions found[/] in [bold]{account}[/] with description matching pattern '{pattern}' and amount {amount}."
                 )
-                console.print("Hint: amounts are signed in the ledger (debits negative, credits positive). Try negating --amount if this was a debit.")
+                console.print(
+                    "Hint: amounts are signed in the ledger (debits negative, credits positive). Try negating --amount if this was a debit."
+                )
             return 1
 
         if used_sign_insensitive:
@@ -420,7 +443,9 @@ def run(
             )
 
     # Show matched transactions in table
-    _display_matches(account, rows, match_indexes, note_text, desc_prefix if batch_prefix_mode else None)
+    _display_matches(
+        account, rows, match_indexes, note_text, desc_prefix if batch_prefix_mode else None
+    )
 
     # Batch mode: require confirmation if multiple matches
     if len(match_indexes) > 1 and not assume_yes:
@@ -431,6 +456,7 @@ def run(
             )
         else:
             import sys
+
             # Only prompt if in an interactive terminal
             if sys.stdin.isatty():
                 if not typer.confirm(f"Set note on {len(match_indexes)} transaction(s)?"):
@@ -447,5 +473,7 @@ def run(
         rows[i]["notes"] = note_text
 
     _write_rows(ledger_path, header, rows)
-    console.print(f"[green]Saved notes to ledger successfully.[/] Applied to {len(match_indexes)} transaction(s).")
+    console.print(
+        f"[green]Saved notes to ledger successfully.[/] Applied to {len(match_indexes)} transaction(s)."
+    )
     return 0

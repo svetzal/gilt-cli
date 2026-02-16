@@ -63,8 +63,10 @@ Values exactly as written to output columns. CLI commands accept 8-char prefixes
 
 This project uses **uv** as its package manager, build tool, and task runner. Prefer `uv run` over activating the virtualenv directly.
 
-- Python 3.13, repo-local virtualenv managed by uv (`uv.lock` is committed)
-- Install deps: `uv sync` (dev deps included by default), `uv sync --extra gui` for GUI
+- Python >=3.13, repo-local virtualenv managed by uv (`uv.lock` is committed)
+- Dev deps (pytest, ruff, mkdocs) are in `[dependency-groups]` — installed automatically by `uv sync`
+- Optional extras (gui, ml) are in `[project.optional-dependencies]` — part of published package metadata
+- Install deps: `uv sync` (dev deps included by default), `uv sync --extra gui` for GUI, `uv sync --extra ml` for ML
 - Run anything in the venv: `uv run <command>` (e.g. `uv run gilt --help`)
 - Lint: `uv run ruff check .` (rules E,F; line-length 100; excludes data/, ingest/, reports/)
 - Tests: `uv run pytest` (discovers `*_spec.py` under `src/`)

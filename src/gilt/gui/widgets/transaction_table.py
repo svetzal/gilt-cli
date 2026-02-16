@@ -8,7 +8,6 @@ Custom table widget with sorting, selection, and formatting capabilities.
 
 from PySide6.QtWidgets import QTableView, QHeaderView, QMenu
 from PySide6.QtCore import Qt, Signal, QPoint
-from PySide6.QtGui import QAction
 
 from gilt.gui.models.transaction_model import TransactionTableModel
 from gilt.gui.models.transaction_proxy_model import TransactionSortFilterProxyModel
@@ -89,9 +88,7 @@ class TransactionTableWidget(QTableView):
         self._model.update_transactions(transactions)
 
         # Reset sorting to default (date descending)
-        self.sortByColumn(
-            TransactionTableModel.COL_DATE, Qt.SortOrder.DescendingOrder
-        )
+        self.sortByColumn(TransactionTableModel.COL_DATE, Qt.SortOrder.DescendingOrder)
 
     def get_selected_transactions(self) -> list[TransactionGroup]:
         """
@@ -164,9 +161,7 @@ class TransactionTableWidget(QTableView):
             copy_action = menu.addAction("Copy Transaction ID")
             # Capture ID string to avoid keeping object reference
             txn_id = selected[0].primary.transaction_id
-            copy_action.triggered.connect(
-                lambda: self._copy_transaction_id_str(txn_id)
-            )
+            copy_action.triggered.connect(lambda: self._copy_transaction_id_str(txn_id))
 
         # Show menu
         # Map position from widget coordinates to global

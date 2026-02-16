@@ -14,6 +14,7 @@ NO IMPORTS FROM:
 Dependencies are injected. Functions return data structures or raise exceptions
 that the caller can handle appropriately (e.g., display with Rich in CLI).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

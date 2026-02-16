@@ -9,6 +9,7 @@ Tests cover:
 - Error handling (invalid files, malformed data)
 - Edge cases (empty files, missing fields)
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -430,13 +431,33 @@ def456,2025-01-16,Test 2,-50.00,CAD,MC,Groceries,primary
         mock_event_store = Mock()
         mock_tx_builder = Mock()
         mock_tx_builder.get_all_transactions.return_value = [
-            {"transaction_id": "abc123", "transaction_date": "2025-01-15", "amount": "-100.00", "category": "Housing"},
-            {"transaction_id": "def456", "transaction_date": "2025-01-16", "amount": "-50.00", "category": "Groceries"},
+            {
+                "transaction_id": "abc123",
+                "transaction_date": "2025-01-15",
+                "amount": "-100.00",
+                "category": "Housing",
+            },
+            {
+                "transaction_id": "def456",
+                "transaction_date": "2025-01-16",
+                "amount": "-50.00",
+                "category": "Groceries",
+            },
         ]
         mock_tx_builder.get_transaction.side_effect = lambda tid: (
-            {"transaction_id": "abc123", "transaction_date": "2025-01-15", "amount": "-100.00", "category": "Housing"}
+            {
+                "transaction_id": "abc123",
+                "transaction_date": "2025-01-15",
+                "amount": "-100.00",
+                "category": "Housing",
+            }
             if tid == "abc123"
-            else {"transaction_id": "def456", "transaction_date": "2025-01-16", "amount": "-50.00", "category": "Groceries"}
+            else {
+                "transaction_id": "def456",
+                "transaction_date": "2025-01-16",
+                "amount": "-50.00",
+                "category": "Groceries",
+            }
         )
 
         mock_budget_builder = Mock()
@@ -619,9 +640,7 @@ class DescribeInferImportTimestamp:
         service = EventMigrationService()
 
         # Act
-        timestamp = service._infer_import_timestamp(
-            "2025-08-21-mybank-chequing.csv", "2025-08-15"
-        )
+        timestamp = service._infer_import_timestamp("2025-08-21-mybank-chequing.csv", "2025-08-15")
 
         # Assert
         assert timestamp.year == 2025

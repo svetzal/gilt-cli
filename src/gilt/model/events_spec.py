@@ -1,6 +1,7 @@
 """
 Tests for event sourcing models.
 """
+
 from datetime import datetime
 from decimal import Decimal
 import json
@@ -63,7 +64,7 @@ class DescribeTransactionImported:
             raw_description="TRANSIT FARE/REF1234ABCD Exampleville",
             amount=Decimal("-10.31"),
             currency="CAD",
-            raw_data={"date": "10/15/2025", "description": "PRESTO FARE", "amount": "-10.31"}
+            raw_data={"date": "10/15/2025", "description": "PRESTO FARE", "amount": "-10.31"},
         )
         assert event.event_type == "TransactionImported"
         assert event.transaction_id == "abc123"
@@ -86,7 +87,7 @@ class DescribeTransactionImported:
             raw_description="Test transaction",
             amount=Decimal("-10.00"),
             currency="CAD",
-            raw_data={}
+            raw_data={},
         )
         json_str = event.model_dump_json()
         restored = TransactionImported.model_validate_json(json_str)
@@ -107,7 +108,7 @@ class DescribeTransactionDescriptionObserved:
             new_description="TRANSIT FARE Exampleville ON",
             source_file="2025-11-17-mybank-chequing.csv",
             source_account="MYBANK_CHQ",
-            amount=Decimal("-10.31")
+            amount=Decimal("-10.31"),
         )
         assert event.event_type == "TransactionDescriptionObserved"
         assert event.original_transaction_id == "hash-1"
@@ -131,8 +132,8 @@ class DescribeDuplicateSuggested:
                 "same_date": True,
                 "same_amount": True,
                 "same_account": True,
-                "description_similarity": 0.95
-            }
+                "description_similarity": 0.95,
+            },
         )
         assert event.event_type == "DuplicateSuggested"
         assert event.confidence == 0.92
@@ -148,7 +149,7 @@ class DescribeDuplicateSuggested:
                 reasoning="test",
                 model="test",
                 prompt_version="v1",
-                assessment={}
+                assessment={},
             )
 
 
@@ -163,7 +164,7 @@ class DescribeDuplicateConfirmed:
             duplicate_transaction_id="hash-2",
             canonical_description="TRANSIT FARE Exampleville ON",
             user_rationale="Prefer format with province",
-            llm_was_correct=True
+            llm_was_correct=True,
         )
         assert event.event_type == "DuplicateConfirmed"
         assert event.llm_was_correct is True
@@ -180,7 +181,7 @@ class DescribeDuplicateRejected:
             transaction_id_1="hash-1",
             transaction_id_2="hash-2",
             user_rationale="Different cities",
-            llm_was_correct=False
+            llm_was_correct=False,
         )
         assert event.event_type == "DuplicateRejected"
         assert event.llm_was_correct is False
@@ -198,7 +199,7 @@ class DescribeTransactionCategorized:
             source="user",
             confidence=0.95,
             previous_category="Uncategorized",
-            rationale="PRESTO is transit"
+            rationale="PRESTO is transit",
         )
         assert event.event_type == "TransactionCategorized"
         assert event.category == "Transportation"
@@ -207,11 +208,7 @@ class DescribeTransactionCategorized:
     def it_should_validate_source_enum(self):
         """Source must be valid enum value."""
         with pytest.raises(ValidationError):
-            TransactionCategorized(
-                transaction_id="h1",
-                category="Test",
-                source="invalid_source"
-            )
+            TransactionCategorized(transaction_id="h1", category="Test", source="invalid_source")
 
 
 class DescribeCategorizationRuleCreated:
@@ -225,7 +222,7 @@ class DescribeCategorizationRuleCreated:
             pattern="PRESTO FARE/.*",
             category="Transportation",
             subcategory="Public Transit",
-            enabled=True
+            enabled=True,
         )
         assert event.event_type == "CategorizationRuleCreated"
         assert event.pattern == "PRESTO FARE/.*"
@@ -244,7 +241,7 @@ class DescribeBudgetCreated:
             period_type="monthly",
             start_date="2025-11-01",
             amount=Decimal("200.00"),
-            currency="CAD"
+            currency="CAD",
         )
         assert event.event_type == "BudgetCreated"
         assert event.amount == Decimal("200.00")
@@ -261,15 +258,15 @@ class DescribePromptUpdated:
             previous_version="v2",
             learned_patterns=[
                 "Transit transactions with different cities are separate trips",
-                "Adding 'ON' suffix is common bank formatting"
+                "Adding 'ON' suffix is common bank formatting",
             ],
             accuracy_metrics={
                 "true_positives": 42,
                 "false_positives": 3,
                 "true_negatives": 15,
                 "false_negatives": 2,
-                "accuracy": 0.92
-            }
+                "accuracy": 0.92,
+            },
         )
         assert event.event_type == "PromptUpdated"
         assert event.prompt_version == "v3"

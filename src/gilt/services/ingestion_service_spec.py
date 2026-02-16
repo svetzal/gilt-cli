@@ -4,6 +4,7 @@ Tests for ingestion service.
 Tests file discovery, account matching, and ingestion planning logic
 without UI dependencies.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -93,9 +94,7 @@ class DescribeDiscoverInputs(DescribeIngestionService):
         assert "2025-01-01-mybank-cc.csv" in file_names
         assert "unknown-bank.csv" not in file_names
 
-    def it_should_discover_all_csv_when_no_patterns_configured(
-        self, ingest_dir_with_files: Path
-    ):
+    def it_should_discover_all_csv_when_no_patterns_configured(self, ingest_dir_with_files: Path):
         """Should discover all CSV files when no patterns are configured."""
         service = IngestionService(accounts=[])
         inputs = service.discover_inputs(ingest_dir_with_files)
@@ -122,9 +121,7 @@ class DescribeDiscoverInputs(DescribeIngestionService):
         inputs = service.discover_inputs(empty_dir)
         assert inputs == []
 
-    def it_should_return_sorted_results(
-        self, service: IngestionService, tmp_path: Path
-    ):
+    def it_should_return_sorted_results(self, service: IngestionService, tmp_path: Path):
         """Should return files in sorted order."""
         ingest_dir = tmp_path / "ingest"
         ingest_dir.mkdir()
@@ -139,9 +136,7 @@ class DescribeDiscoverInputs(DescribeIngestionService):
 
         assert names == sorted(names)
 
-    def it_should_handle_multiple_patterns_per_account(
-        self, tmp_path: Path
-    ):
+    def it_should_handle_multiple_patterns_per_account(self, tmp_path: Path):
         """Should discover files matching any pattern for an account."""
         ingest_dir = tmp_path / "ingest"
         ingest_dir.mkdir()
@@ -160,9 +155,7 @@ class DescribeDiscoverInputs(DescribeIngestionService):
         inputs = service.discover_inputs(ingest_dir)
         assert len(inputs) == 2
 
-    def it_should_deduplicate_files_matching_multiple_patterns(
-        self, tmp_path: Path
-    ):
+    def it_should_deduplicate_files_matching_multiple_patterns(self, tmp_path: Path):
         """Should only include each file once if it matches multiple patterns."""
         ingest_dir = tmp_path / "ingest"
         ingest_dir.mkdir()
@@ -192,9 +185,7 @@ class DescribeMatchFileToAccount(DescribeIngestionService):
         account_id = service.match_file_to_account(file_path)
         assert account_id == "MYBANK_CHQ"
 
-    def it_should_match_file_case_insensitively(
-        self, service: IngestionService, tmp_path: Path
-    ):
+    def it_should_match_file_case_insensitively(self, service: IngestionService, tmp_path: Path):
         """Should match file patterns case-insensitively."""
         file_path = tmp_path / "2025-01-01-MYBANK-CHEQUING.csv"
         account_id = service.match_file_to_account(file_path)
@@ -211,26 +202,20 @@ class DescribeMatchFileToAccount(DescribeIngestionService):
         creditcard_file = tmp_path / "mybank-creditcard.csv"
         assert service.match_file_to_account(creditcard_file) == "MYBANK_CC"
 
-    def it_should_return_none_when_no_config_patterns_match(
-        self, tmp_path: Path
-    ):
+    def it_should_return_none_when_no_config_patterns_match(self, tmp_path: Path):
         """Should return None when no configured patterns match."""
         service = IngestionService(accounts=[])
 
         file_path = tmp_path / "some-bank-chequing.csv"
         assert service.match_file_to_account(file_path) is None
 
-    def it_should_return_none_when_no_match_found(
-        self, service: IngestionService, tmp_path: Path
-    ):
+    def it_should_return_none_when_no_match_found(self, service: IngestionService, tmp_path: Path):
         """Should return None when file can't be matched to any account."""
         file_path = tmp_path / "unknown-bank.csv"
         account_id = service.match_file_to_account(file_path)
         assert account_id is None
 
-    def it_should_match_first_pattern_when_multiple_accounts_match(
-        self, tmp_path: Path
-    ):
+    def it_should_match_first_pattern_when_multiple_accounts_match(self, tmp_path: Path):
         """Should return first matching account when multiple accounts could match."""
         # Create two accounts with overlapping patterns
         accounts = [
@@ -269,9 +254,7 @@ class DescribePlanIngestion(DescribeIngestionService):
         (ingest_dir / "unknown-bank.csv").write_text("test")
         (ingest_dir / "another-unknown.csv").write_text("test")
 
-        accounts = [
-            Account(account_id="MYBANK_CHQ", source_patterns=["*mybank*chequing*.csv"])
-        ]
+        accounts = [Account(account_id="MYBANK_CHQ", source_patterns=["*mybank*chequing*.csv"])]
         service = IngestionService(accounts=accounts)
 
         plan = service.plan_ingestion(ingest_dir)
@@ -294,9 +277,7 @@ class DescribePlanIngestion(DescribeIngestionService):
         assert file_mapping["2025-01-01-bank2-line.csv"] == "BANK2_LOC"
         assert file_mapping["2025-01-01-mybank-cc.csv"] == "MYBANK_CC"
 
-    def it_should_handle_empty_directory(
-        self, service: IngestionService, tmp_path: Path
-    ):
+    def it_should_handle_empty_directory(self, service: IngestionService, tmp_path: Path):
         """Should handle empty directory gracefully."""
         empty_dir = tmp_path / "empty"
         empty_dir.mkdir()
@@ -323,9 +304,7 @@ class DescribePlanIngestion(DescribeIngestionService):
         assert len(plan.unmatched) == 2
         assert all(acct_id is None for _, acct_id in plan.files)
 
-    def it_should_preserve_file_order(
-        self, service: IngestionService, tmp_path: Path
-    ):
+    def it_should_preserve_file_order(self, service: IngestionService, tmp_path: Path):
         """Should preserve sorted order of files in plan."""
         ingest_dir = tmp_path / "ingest"
         ingest_dir.mkdir()

@@ -15,6 +15,7 @@ NO IMPORTS FROM:
 All dependencies are injected. All functions return data structures.
 The actual file normalization (I/O) remains in the imperative shell.
 """
+
 from __future__ import annotations
 
 import fnmatch
@@ -100,11 +101,13 @@ class IngestionService:
         """
         fname = file_path.name
 
-        # 1) Config-driven matching (match by filename pattern)
+        # 1) Config-driven matching (match by filename pattern, case-insensitive)
+        fname_lower = fname.lower()
         for acct in self._accounts:
             for pattern in acct.source_patterns or []:
-                if fnmatch.fnmatch(fname, pattern) or fnmatch.fnmatch(
-                    str(file_path), pattern
+                pattern_lower = pattern.lower()
+                if fnmatch.fnmatch(fname_lower, pattern_lower) or fnmatch.fnmatch(
+                    str(file_path).lower(), pattern_lower
                 ):
                     return acct.account_id
 

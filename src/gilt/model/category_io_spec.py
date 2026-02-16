@@ -7,10 +7,13 @@ Tests for category I/O functions.
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-import pytest
 
 from gilt.model.category import Budget, BudgetPeriod, Category, CategoryConfig, Subcategory
-from gilt.model.category_io import load_categories_config, parse_category_path, save_categories_config
+from gilt.model.category_io import (
+    load_categories_config,
+    parse_category_path,
+    save_categories_config,
+)
 
 
 class DescribeLoadCategoriesConfig:

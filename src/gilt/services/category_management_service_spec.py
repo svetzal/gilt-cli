@@ -9,6 +9,7 @@ Tests cover:
 - Budget setting with validation
 - Edge cases (empty lists, missing categories, invalid inputs)
 """
+
 from __future__ import annotations
 
 from datetime import date
@@ -124,9 +125,7 @@ def sample_transactions() -> list[TransactionGroup]:
 class DescribeCountUsage:
     """Tests for count_usage() method."""
 
-    def it_should_count_category_usage(
-        self, sample_category_config, sample_transactions
-    ):
+    def it_should_count_category_usage(self, sample_category_config, sample_transactions):
         """Should count transactions using a category."""
         # Arrange
         service = CategoryManagementService(sample_category_config)
@@ -142,9 +141,7 @@ class DescribeCountUsage:
         assert "txn00001" in usage.transaction_ids
         assert "txn00002" in usage.transaction_ids
 
-    def it_should_count_subcategory_usage(
-        self, sample_category_config, sample_transactions
-    ):
+    def it_should_count_subcategory_usage(self, sample_category_config, sample_transactions):
         """Should count transactions using a specific subcategory."""
         # Arrange
         service = CategoryManagementService(sample_category_config)
@@ -328,9 +325,7 @@ class DescribePlanRemoval:
         assert len(plan.warnings) == 1
         assert "used in 1 transaction" in plan.warnings[0]
 
-    def it_should_handle_nonexistent_category(
-        self, sample_category_config, sample_transactions
-    ):
+    def it_should_handle_nonexistent_category(self, sample_category_config, sample_transactions):
         """Should handle removal plan for nonexistent category."""
         # Arrange
         service = CategoryManagementService(sample_category_config)
@@ -344,9 +339,7 @@ class DescribePlanRemoval:
         assert len(plan.warnings) == 1
         assert "not found" in plan.warnings[0]
 
-    def it_should_handle_nonexistent_subcategory(
-        self, sample_category_config, sample_transactions
-    ):
+    def it_should_handle_nonexistent_subcategory(self, sample_category_config, sample_transactions):
         """Should handle removal plan for nonexistent subcategory."""
         # Arrange
         service = CategoryManagementService(sample_category_config)

@@ -22,8 +22,7 @@ Idempotent: if the same counterpart is already recorded, it will not duplicate.
 """
 
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-from dataclasses import asdict
+from typing import Dict, List, Tuple
 
 from gilt.model.ledger_io import load_ledger_csv, dump_ledger_csv
 from gilt.model.account import TransactionGroup
@@ -32,7 +31,9 @@ from gilt.model.account import TransactionGroup
 from gilt.transfer.matching import compute_matches, Match
 
 
-def _build_indexes(processed_dir: Path) -> Tuple[Dict[str, List[TransactionGroup]], Dict[str, Tuple[str, TransactionGroup]]]:
+def _build_indexes(
+    processed_dir: Path,
+) -> Tuple[Dict[str, List[TransactionGroup]], Dict[str, Tuple[str, TransactionGroup]]]:
     """Load all ledgers and build indexes.
 
     Returns:
@@ -65,8 +66,9 @@ def _ensure_transfer_metadata(group: TransactionGroup, payload: dict) -> bool:
     existing = meta.get("transfer")
     # If existing matches the same counterparty txn id, consider idempotent
     if isinstance(existing, dict):
-        if existing.get("counterparty_transaction_id") == payload.get("counterparty_transaction_id") and \
-           existing.get("role") == payload.get("role"):
+        if existing.get("counterparty_transaction_id") == payload.get(
+            "counterparty_transaction_id"
+        ) and existing.get("role") == payload.get("role"):
             # Update score/method if changed (non-destructive)
             changed = False
             for k in ("score", "method", "fee_txn_ids"):

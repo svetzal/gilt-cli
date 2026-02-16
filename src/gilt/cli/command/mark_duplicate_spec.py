@@ -1,10 +1,9 @@
 """Tests for mark_duplicate CLI command."""
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+
+from unittest.mock import patch
 import pytest
 
 from gilt.cli.command import mark_duplicate
-from gilt.model.events import DuplicateConfirmed
 from gilt.storage.projection import ProjectionBuilder
 from gilt.storage.event_store import EventStore
 from gilt.workspace import Workspace
@@ -95,9 +94,7 @@ class DescribeMarkDuplicate:
         events = event_store.get_events_by_type("DuplicateConfirmed")
         assert len(events) == 0
 
-    def it_should_emit_duplicate_confirmed_event_with_write(
-        self, mock_projections, tmp_path
-    ):
+    def it_should_emit_duplicate_confirmed_event_with_write(self, mock_projections, tmp_path):
         """Test that --write emits DuplicateConfirmed event."""
         proj_path, event_store = mock_projections
         workspace = Workspace(root=tmp_path)
@@ -193,9 +190,7 @@ class DescribeMarkDuplicate:
 
         assert result == 1
 
-    def it_should_error_when_primary_already_marked_duplicate(
-        self, mock_projections, tmp_path
-    ):
+    def it_should_error_when_primary_already_marked_duplicate(self, mock_projections, tmp_path):
         """Test error when primary is already a duplicate."""
         proj_path, event_store = mock_projections
         workspace = Workspace(root=tmp_path)

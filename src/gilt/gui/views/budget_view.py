@@ -20,11 +20,10 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QComboBox,
     QSpinBox,
-    QGroupBox,
     QApplication,
 )
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QColor, QFont, QPalette
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QPalette
 
 from gilt.services.budget_service import BudgetService
 from gilt.gui.theme import Theme
@@ -58,14 +57,16 @@ class BudgetView(QWidget):
         # Budget table
         self.table = QTableWidget()
         self.table.setColumnCount(6)
-        self.table.setHorizontalHeaderLabels([
-            "Category",
-            "Subcategory",
-            "Budget",
-            "Actual",
-            "Remaining",
-            "% Used",
-        ])
+        self.table.setHorizontalHeaderLabels(
+            [
+                "Category",
+                "Subcategory",
+                "Budget",
+                "Actual",
+                "Remaining",
+                "% Used",
+            ]
+        )
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -122,8 +123,18 @@ class BudgetView(QWidget):
         self.month_combo = QComboBox()
         self.month_combo.addItem("All Months", None)
         months = [
-            "January", "February", "March", "April", "May", "June",
-            "July", "August", "September", "October", "November", "December"
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December",
         ]
         for i, month_name in enumerate(months, 1):
             self.month_combo.addItem(month_name, i)
@@ -159,7 +170,7 @@ class BudgetView(QWidget):
 
         # Get palette for theme-aware colors
         app = QApplication.instance()
-        palette = app.palette() if app else QPalette()
+        _palette = app.palette() if app else QPalette()
 
         # Populate table
         for item in summary.items:

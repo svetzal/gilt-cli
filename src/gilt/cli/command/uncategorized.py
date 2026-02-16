@@ -4,8 +4,7 @@ from __future__ import annotations
 Display uncategorized transactions.
 """
 
-from datetime import date, datetime
-from pathlib import Path
+from datetime import datetime
 from typing import Optional
 
 from rich.table import Table
@@ -44,17 +43,13 @@ def run(
 
     # Check projections exist
     if not projections_path.exists():
-        console.print(
-            f"[red]Error:[/red] Projections database not found: {projections_path}"
-        )
+        console.print(f"[red]Error:[/red] Projections database not found: {projections_path}")
         console.print("[yellow]Run 'gilt rebuild-projections' first.[/yellow]")
         return 1
 
     # Load all transactions from projections (excludes duplicates)
     projection_builder = ProjectionBuilder(projections_path)
-    all_transactions = projection_builder.get_all_transactions(
-        include_duplicates=False
-    )
+    all_transactions = projection_builder.get_all_transactions(include_duplicates=False)
 
     # Filter for uncategorized transactions
     uncategorized = []
@@ -86,9 +81,7 @@ def run(
         return 0
 
     # Sort by description (for grouping), then date
-    uncategorized.sort(
-        key=lambda x: (x["canonical_description"] or "", x["transaction_date"])
-    )
+    uncategorized.sort(key=lambda x: (x["canonical_description"] or "", x["transaction_date"]))
 
     # Apply limit if specified
     if limit:
@@ -125,17 +118,11 @@ def run(
     console.print(table)
 
     # Summary
-    console.print(
-        f"\n[bold]Total uncategorized:[/] {len(uncategorized)} transaction(s)"
-    )
+    console.print(f"\n[bold]Total uncategorized:[/] {len(uncategorized)} transaction(s)")
     if remaining > 0:
-        console.print(
-            f"[dim]Showing first {limit}, {remaining} more not displayed[/]"
-        )
+        console.print(f"[dim]Showing first {limit}, {remaining} more not displayed[/]")
 
     # Helpful hint
-    console.print(
-        "\n[dim]Tip: Use 'gilt categorize' to assign categories[/]"
-    )
+    console.print("\n[dim]Tip: Use 'gilt categorize' to assign categories[/]")
 
     return 0

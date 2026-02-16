@@ -16,6 +16,7 @@ This replaces the manual multi-step process of:
 - gilt rebuild-projections --from-scratch
 - Checking for errors at each step
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -58,7 +59,9 @@ def run(
     categories_config = workspace.categories_config
     effective_event_store_path = event_store_path or workspace.event_store_path
     effective_projections_db_path = projections_db_path or workspace.projections_path
-    effective_budget_projections_db_path = budget_projections_db_path or workspace.budget_projections_path
+    effective_budget_projections_db_path = (
+        budget_projections_db_path or workspace.budget_projections_path
+    )
 
     console.print("[bold cyan]Migrating to Event Sourcing Architecture[/]")
     console.print()
@@ -81,7 +84,7 @@ def run(
         console.print("[dim]Will skip budget migration.[/dim]")
         has_categories = False
     else:
-        console.print(f"[green]✓[/green] Categories config exists")
+        console.print("[green]✓[/green] Categories config exists")
         has_categories = True
 
     # Check if event store already exists
@@ -98,7 +101,9 @@ def run(
         event_count = event_store.get_latest_sequence_number()
 
         if event_count > 0 and not force:
-            console.print(f"[yellow]Warning:[/yellow] Event store already exists with {event_count} events")
+            console.print(
+                f"[yellow]Warning:[/yellow] Event store already exists with {event_count} events"
+            )
             console.print(f"[dim]{effective_event_store_path}[/dim]")
             console.print()
             console.print("Options:")
@@ -107,7 +112,9 @@ def run(
             console.print("  3. Use 'gilt rebuild-projections' to rebuild from existing events")
             return 1
         elif event_count > 0 and force:
-            console.print(f"[yellow]![/yellow] Overwriting existing event store ({event_count} events) due to --force")
+            console.print(
+                f"[yellow]![/yellow] Overwriting existing event store ({event_count} events) due to --force"
+            )
             effective_event_store_path.unlink()
             if effective_projections_db_path.exists():
                 effective_projections_db_path.unlink()
@@ -179,7 +186,9 @@ def run(
     try:
         tx_builder = es_service.get_projection_builder()
         tx_count = tx_builder.rebuild_from_scratch(event_store)
-        console.print(f"[green]✓[/green] Built transaction projections ({tx_count} events processed)")
+        console.print(
+            f"[green]✓[/green] Built transaction projections ({tx_count} events processed)"
+        )
     except Exception as e:
         console.print(f"[red]Error building transaction projections: {e}[/]")
         return 1
@@ -188,7 +197,9 @@ def run(
         try:
             budget_builder = BudgetProjectionBuilder(effective_budget_projections_db_path)
             budget_count = budget_builder.rebuild_from_scratch(event_store)
-            console.print(f"[green]✓[/green] Built budget projections ({budget_count} events processed)")
+            console.print(
+                f"[green]✓[/green] Built budget projections ({budget_count} events processed)"
+            )
         except Exception as e:
             console.print(f"[red]Error building budget projections: {e}[/]")
             return 1
@@ -208,6 +219,7 @@ def run(
         else:
             # Skip validation without categories - just check transaction counts
             from gilt.services.event_migration_service import ValidationResult
+
             result = ValidationResult(
                 is_valid=True,
                 errors=[],

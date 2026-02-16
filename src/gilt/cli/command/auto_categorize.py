@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from pathlib import Path
 from typing import List, Optional
 
 from rich.table import Table
@@ -69,14 +68,9 @@ def run(
         metrics = classifier.train()
     except ValueError as e:
         console.print(f"[red]Error:[/red] {e}")
-        console.print(
-            f"\nNeed at least {min_samples} categorized transactions per category."
-        )
+        console.print(f"\nNeed at least {min_samples} categorized transactions per category.")
         console.print("Categorize more transactions first using:")
-        console.print(
-            "  [cyan]gilt categorize --desc-prefix PATTERN "
-            "--category CAT --write[/cyan]"
-        )
+        console.print("  [cyan]gilt categorize --desc-prefix PATTERN --category CAT --write[/cyan]")
         return 1
 
     # Display training metrics
@@ -105,9 +99,9 @@ def run(
 
     # Filter to uncategorized, optionally by account
     uncategorized_rows = [
-        row for row in all_transactions
-        if row.get("category") is None
-        and (account is None or row.get("account_id") == account)
+        row
+        for row in all_transactions
+        if row.get("category") is None and (account is None or row.get("account_id") == account)
     ]
 
     if not uncategorized_rows:
@@ -124,13 +118,15 @@ def run(
     # Prepare transaction data for prediction
     transaction_data = []
     for row in uncategorized_rows:
-        transaction_data.append({
-            "transaction_id": row["transaction_id"],
-            "description": row["canonical_description"],
-            "amount": float(row["amount"]),
-            "account": row["account_id"],
-            "date": row["transaction_date"],  # ISO string format from projections
-        })
+        transaction_data.append(
+            {
+                "transaction_id": row["transaction_id"],
+                "description": row["canonical_description"],
+                "amount": float(row["amount"]),
+                "account": row["account_id"],
+                "date": row["transaction_date"],  # ISO string format from projections
+            }
+        )
 
     # Get predictions
     console.print(f"\n[dim]Predicting categories (threshold: {confidence:.1%})...[/dim]")
@@ -141,13 +137,9 @@ def run(
     for row, (category, conf) in zip(uncategorized_rows, predictions):
         if category:
             # Store: (account_id, transaction_id, row_dict, category, confidence)
-            confident_predictions.append((
-                row["account_id"],
-                row["transaction_id"],
-                row,
-                category,
-                conf
-            ))
+            confident_predictions.append(
+                (row["account_id"], row["transaction_id"], row, category, conf)
+            )
 
     if not confident_predictions:
         console.print(
@@ -173,9 +165,7 @@ def run(
 
     # Confirm before writing
     if not write:
-        console.print(
-            f"\n[dim]Dry-run: {len(approved)} transaction(s) would be categorized[/dim]"
-        )
+        console.print(f"\n[dim]Dry-run: {len(approved)} transaction(s) would be categorized[/dim]")
         console.print("[dim]Use --write to persist changes[/dim]")
         return 0
 
@@ -216,9 +206,7 @@ def run(
         for i, g in enumerate(groups):
             if g.primary.transaction_id in updates:
                 cat_name, subcat_name = updates[g.primary.transaction_id]
-                result = categorization_service.apply_categorization(
-                    [g], cat_name, subcat_name
-                )
+                result = categorization_service.apply_categorization([g], cat_name, subcat_name)
                 groups[i] = result.updated_transactions[0]
 
         # Write back
@@ -233,9 +221,7 @@ def run(
     return 0
 
 
-def _display_predictions(
-    predictions: List[tuple[str, str, dict, str, float]]
-) -> None:
+def _display_predictions(predictions: List[tuple[str, str, dict, str, float]]) -> None:
     """Display predictions in a table.
 
     Args:
@@ -295,8 +281,7 @@ def _interactive_review(
         console.print(f"  Description: {row['canonical_description']}")
         console.print(f"  Amount:      ${float(row['amount']):,.2f}")
         console.print(
-            f"  Suggested:   [green]{category}[/green] "
-            f"([blue]{conf:.1%}[/blue] confident)"
+            f"  Suggested:   [green]{category}[/green] ([blue]{conf:.1%}[/blue] confident)"
         )
 
         # Get user decision
@@ -334,10 +319,7 @@ def _interactive_review(
 
                 # Validate
                 cat_name, subcat_name = parse_category_path(new_category)
-                cat_obj = next(
-                    (c for c in category_config.categories if c.name == cat_name),
-                    None
-                )
+                cat_obj = next((c for c in category_config.categories if c.name == cat_name), None)
 
                 if not cat_obj:
                     console.print(f"[red]Invalid category: {cat_name}[/red]")
@@ -345,8 +327,7 @@ def _interactive_review(
 
                 if subcat_name:
                     subcat_obj = next(
-                        (s for s in (cat_obj.subcategories or []) if s.name == subcat_name),
-                        None
+                        (s for s in (cat_obj.subcategories or []) if s.name == subcat_name), None
                     )
                     if not subcat_obj:
                         console.print(f"[red]Invalid subcategory: {subcat_name}[/red]")

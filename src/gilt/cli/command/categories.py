@@ -143,7 +143,9 @@ def run(
 
     # Show summary
     total_defined = len(category_config.categories)
-    total_used = len([key for key in usage.keys() if key[0] in [c.name for c in category_config.categories]])
+    total_used = len(
+        [key for key in usage.keys() if key[0] in [c.name for c in category_config.categories]]
+    )
     console.print(f"\nTotal categories: {total_defined} | Used in transactions: {total_used}")
 
     return 0

@@ -11,7 +11,6 @@ import sys
 from pathlib import Path
 
 from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import QSettings, Qt
 from PySide6.QtGui import QPalette
 
 from gilt.gui.main_window import MainWindow
@@ -35,14 +34,10 @@ def is_dark_mode(app: QApplication) -> bool:
     # Dark mode: window is darker than text
     # Light mode: window is lighter than text
     window_luminance = (
-        0.299 * window_color.red()
-        + 0.587 * window_color.green()
-        + 0.114 * window_color.blue()
+        0.299 * window_color.red() + 0.587 * window_color.green() + 0.114 * window_color.blue()
     )
     text_luminance = (
-        0.299 * text_color.red()
-        + 0.587 * text_color.green()
-        + 0.114 * text_color.blue()
+        0.299 * text_color.red() + 0.587 * text_color.green() + 0.114 * text_color.blue()
     )
 
     return window_luminance < text_luminance

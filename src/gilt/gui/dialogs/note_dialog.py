@@ -15,7 +15,6 @@ from PySide6.QtWidgets import (
     QPushButton,
     QDialogButtonBox,
 )
-from PySide6.QtCore import Qt
 
 
 class NoteDialog(QDialog):
@@ -54,9 +53,7 @@ class NoteDialog(QDialog):
             info_label = QLabel(f"<b>Transaction:</b> {transaction_desc}")
             info_label.setWordWrap(True)
             info_label.setStyleSheet(
-                "padding: 8px; "
-                "background-color: palette(alternate-base); "
-                "border-radius: 4px;"
+                "padding: 8px; background-color: palette(alternate-base); border-radius: 4px;"
             )
             layout.addWidget(info_label)
 
@@ -86,9 +83,7 @@ class NoteDialog(QDialog):
         button_layout.addStretch()
 
         # Dialog buttons
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
-        )
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         button_layout.addWidget(buttons)

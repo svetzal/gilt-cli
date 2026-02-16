@@ -28,9 +28,7 @@ class TransactionService:
         self.data_dir = Path(data_dir)
         self._cache: dict[str, list[TransactionGroup]] = {}
 
-    def load_all_transactions(
-        self, default_currency: str = "CAD"
-    ) -> list[TransactionGroup]:
+    def load_all_transactions(self, default_currency: str = "CAD") -> list[TransactionGroup]:
         """
         Load transactions from all ledger files in data directory.
 
@@ -132,9 +130,7 @@ class TransactionService:
 
         # Account filter
         if account_filter:
-            filtered = [
-                g for g in filtered if g.primary.account_id in account_filter
-            ]
+            filtered = [g for g in filtered if g.primary.account_id in account_filter]
 
         # Date range filter
         if start_date:
@@ -144,33 +140,26 @@ class TransactionService:
 
         # Amount range filter
         if min_amount is not None:
-            filtered = [
-                g for g in filtered if abs(g.primary.amount) >= min_amount
-            ]
+            filtered = [g for g in filtered if abs(g.primary.amount) >= min_amount]
         if max_amount is not None:
-            filtered = [
-                g for g in filtered if abs(g.primary.amount) <= max_amount
-            ]
+            filtered = [g for g in filtered if abs(g.primary.amount) <= max_amount]
 
         # Category filter
         if category_filter:
-            filtered = [
-                g for g in filtered
-                if g.primary.category in category_filter
-            ]
+            filtered = [g for g in filtered if g.primary.category in category_filter]
 
         # Uncategorized filter
         if uncategorized_only:
             filtered = [
-                g for g in filtered
-                if not g.primary.category or g.primary.category.strip() == ""
+                g for g in filtered if not g.primary.category or g.primary.category.strip() == ""
             ]
 
         # Search text filter
         if search_text:
             search_lower = search_text.lower()
             filtered = [
-                g for g in filtered
+                g
+                for g in filtered
                 if (
                     search_lower in (g.primary.description or "").lower()
                     or search_lower in (g.primary.counterparty or "").lower()
@@ -183,9 +172,7 @@ class TransactionService:
         """Clear the transaction cache."""
         self._cache.clear()
 
-    def get_unique_categories(
-        self, transactions: list[TransactionGroup]
-    ) -> list[str]:
+    def get_unique_categories(self, transactions: list[TransactionGroup]) -> list[str]:
         """
         Extract unique categories from transactions.
 
@@ -224,10 +211,7 @@ class TransactionService:
             groups = load_ledger_csv(text)
 
             # Filter out the transaction
-            new_groups = [
-                g for g in groups
-                if g.primary.transaction_id != transaction_id
-            ]
+            new_groups = [g for g in groups if g.primary.transaction_id != transaction_id]
 
             if len(new_groups) == len(groups):
                 return False  # Transaction not found

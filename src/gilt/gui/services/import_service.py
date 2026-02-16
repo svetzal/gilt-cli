@@ -3,6 +3,7 @@ Import Service - Business logic for CSV file import
 
 Provides account detection, preview, duplicate checking, and import execution.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -12,7 +13,7 @@ from datetime import date, datetime
 
 import pandas as pd
 
-from gilt.model.account import Account, TransactionGroup, Transaction
+from gilt.model.account import Account, Transaction
 from gilt.model.ledger_io import load_ledger_csv
 from gilt.model.duplicate import DuplicateMatch, TransactionPair
 from gilt.services.duplicate_service import DuplicateService
@@ -31,6 +32,7 @@ from gilt.ingest import (
 @dataclass
 class FileInfo:
     """Information about a selected file."""
+
     path: Path
     name: str
     size: int  # bytes
@@ -40,6 +42,7 @@ class FileInfo:
 @dataclass
 class ImportFileMapping:
     """Mapping of a file to an account."""
+
     file_info: FileInfo
     detected_account: Optional[Account]
     selected_account_id: Optional[str]  # User can override
@@ -50,6 +53,7 @@ class ImportFileMapping:
 @dataclass
 class ImportResult:
     """Result of an import operation."""
+
     success: bool
     imported_count: int
     duplicate_count: int
@@ -61,12 +65,12 @@ class ImportResult:
 @dataclass
 class CategorizationReviewItem:
     """Item for categorization review."""
+
     transaction: Transaction
     predicted_category: Optional[str]
     confidence: float
     assigned_category: Optional[str] = None
     assigned_subcategory: Optional[str] = None
-
 
 
 class ImportService:
@@ -162,11 +166,7 @@ class ImportService:
         try:
             # Read first few rows
             df = pd.read_csv(
-                file_path,
-                encoding="utf-8-sig",
-                dtype=str,
-                keep_default_na=False,
-                nrows=max_rows
+                file_path, encoding="utf-8-sig", dtype=str, keep_default_na=False, nrows=max_rows
             )
 
             # Convert to list of dicts
@@ -176,9 +176,7 @@ class ImportService:
         except Exception as e:
             return [], str(e)
 
-    def create_file_mapping(
-        self, file_path: Path, max_preview_rows: int = 5
-    ) -> ImportFileMapping:
+    def create_file_mapping(self, file_path: Path, max_preview_rows: int = 5) -> ImportFileMapping:
         """
         Create a mapping for a file with account detection and preview.
 
@@ -222,9 +220,7 @@ class ImportService:
         except Exception:
             return 0
 
-    def count_duplicates(
-        self, file_path: Path, account_id: str
-    ) -> Tuple[int, int, Optional[str]]:
+    def count_duplicates(self, file_path: Path, account_id: str) -> Tuple[int, int, Optional[str]]:
         """
         Count how many transactions in the file are duplicates vs. new.
 
@@ -246,7 +242,7 @@ class ImportService:
             existing_ids = set()
             if ledger_path.exists():
                 existing_df = pd.read_csv(ledger_path)
-                existing_ids = set(existing_df["transaction_id"].astype(str))
+                existing_ids = set(existing_df["transaction_id"].astype(str))  # noqa: F841
 
             # For now, return rough estimate
             # In a full implementation, we'd compute transaction IDs for preview
@@ -258,9 +254,7 @@ class ImportService:
         except Exception as e:
             return 0, 0, str(e)
 
-    def scan_file_for_duplicates(
-        self, file_path: Path, account_id: str
-    ) -> List[DuplicateMatch]:
+    def scan_file_for_duplicates(self, file_path: Path, account_id: str) -> List[DuplicateMatch]:
         """
         Scan a file for potential duplicates against existing transactions.
 
@@ -289,8 +283,10 @@ class ImportService:
                     amount=float(row["amount"]),
                     currency=str(row["currency"]),
                     account_id=str(row["account_id"]),
-                    counterparty=str(row["counterparty"]) if pd.notna(row["counterparty"]) else None,
-                    category=None, # Categories not assigned yet
+                    counterparty=str(row["counterparty"])
+                    if pd.notna(row["counterparty"])
+                    else None,
+                    category=None,  # Categories not assigned yet
                     subcategory=None,
                     notes=None,
                     source_file=str(row["source_file"]),
@@ -303,7 +299,9 @@ class ImportService:
 
             # 2. Load existing transactions
             # We use the detector's load_all_transactions which gets everything from projections
-            existing_transactions = self.duplicate_service.detector.load_all_transactions(self.data_dir)
+            existing_transactions = self.duplicate_service.detector.load_all_transactions(
+                self.data_dir
+            )
 
             # 3. Combine (existing + new)
             # Note: We don't filter existing by account because duplicates might be cross-account transfers
@@ -347,10 +345,7 @@ class ImportService:
             return []
 
     def scan_file_for_categorization(
-        self,
-        file_path: Path,
-        account_id: str,
-        exclude_ids: Optional[List[str]] = None
+        self, file_path: Path, account_id: str, exclude_ids: Optional[List[str]] = None
     ) -> List[CategorizationReviewItem]:
         """
         Scan a file for transactions that need categorization.
@@ -388,7 +383,9 @@ class ImportService:
                     amount=float(row["amount"]),
                     currency=str(row["currency"]),
                     account_id=str(row["account_id"]),
-                    counterparty=str(row["counterparty"]) if pd.notna(row["counterparty"]) else None,
+                    counterparty=str(row["counterparty"])
+                    if pd.notna(row["counterparty"])
+                    else None,
                     category=None,
                     subcategory=None,
                     notes=None,
@@ -398,17 +395,17 @@ class ImportService:
 
                 # Predict category
                 predicted_cat, confidence = self.smart_category_service.predict_category(
-                    description=txn.description,
-                    amount=txn.amount,
-                    account=txn.account_id
+                    description=txn.description, amount=txn.amount, account=txn.account_id
                 )
 
-                items.append(CategorizationReviewItem(
-                    transaction=txn,
-                    predicted_category=predicted_cat,
-                    confidence=confidence,
-                    assigned_category=predicted_cat if confidence >= 0.8 else None
-                ))
+                items.append(
+                    CategorizationReviewItem(
+                        transaction=txn,
+                        predicted_category=predicted_cat,
+                        confidence=confidence,
+                        assigned_category=predicted_cat if confidence >= 0.8 else None,
+                    )
+                )
 
             return items
 
@@ -465,7 +462,7 @@ class ImportService:
                     self.data_dir,
                     event_store=event_store,
                     exclude_ids=exclude_ids,
-                    categorization_map=categorization_map
+                    categorization_map=categorization_map,
                 )
                 messages.append(f"Normalized {file_path.name} to {ledger_path}")
 
@@ -514,9 +511,7 @@ class ImportService:
                 messages=[str(e)],
             )
 
-    def plan_imports(
-        self, file_paths: List[Path]
-    ) -> List[Tuple[Path, Optional[str]]]:
+    def plan_imports(self, file_paths: List[Path]) -> List[Tuple[Path, Optional[str]]]:
         """
         Plan which files would be imported to which accounts (dry-run).
 

@@ -15,6 +15,7 @@ NO IMPORTS FROM:
 
 All dependencies are injected. All functions return data structures.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -101,9 +102,7 @@ class CategorizationService:
                         If provided, emits TransactionCategorized events for ML training.
         """
         self._category_config = category_config
-        self._transaction_service = (
-            transaction_service or TransactionOperationsService()
-        )
+        self._transaction_service = transaction_service or TransactionOperationsService()
         self._event_store = event_store
 
     def validate_category(
@@ -136,9 +135,7 @@ class CategorizationService:
             if not cat.has_subcategory(subcategory):
                 return ValidationResult(
                     is_valid=False,
-                    errors=[
-                        f"Subcategory '{subcategory}' not found in category '{category}'"
-                    ],
+                    errors=[f"Subcategory '{subcategory}' not found in category '{category}'"],
                 )
 
         return ValidationResult(is_valid=True, errors=[])

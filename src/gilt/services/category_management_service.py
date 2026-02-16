@@ -15,6 +15,7 @@ NO IMPORTS FROM:
 
 All dependencies are injected. All functions return data structures.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -179,9 +180,7 @@ class CategoryManagementService:
             # Check if can remove
             warnings = []
             if usage.transaction_count > 0:
-                warnings.append(
-                    f"Subcategory is used in {usage.transaction_count} transaction(s)"
-                )
+                warnings.append(f"Subcategory is used in {usage.transaction_count} transaction(s)")
 
             can_remove = force or usage.transaction_count == 0
 
@@ -199,9 +198,7 @@ class CategoryManagementService:
         # Check if can remove
         warnings = []
         if usage.transaction_count > 0:
-            warnings.append(
-                f"Category is used in {usage.transaction_count} transaction(s)"
-            )
+            warnings.append(f"Category is used in {usage.transaction_count} transaction(s)")
         if has_subcategories:
             warnings.append(f"Category has {len(cat.subcategories)} subcategory(ies)")
 
@@ -367,9 +364,7 @@ class CategoryManagementService:
         if subcategory:
             # Remove subcategory
             original_count = len(cat.subcategories)
-            cat.subcategories = [
-                s for s in cat.subcategories if s.name != subcategory
-            ]
+            cat.subcategories = [s for s in cat.subcategories if s.name != subcategory]
             return len(cat.subcategories) < original_count
         else:
             # Remove entire category

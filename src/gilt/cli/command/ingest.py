@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List, Dict, Iterable, Tuple, Optional
 
+from gilt.storage.event_store import EventStore
+
 from .util import console
 from gilt.workspace import Workspace
 from gilt.ingest import load_accounts_config, normalize_file

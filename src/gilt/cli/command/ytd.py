@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 from datetime import date, datetime
-from pathlib import Path
 from typing import Optional
 
 from rich.table import Table
@@ -35,9 +34,7 @@ def run(
 
     # Check projections exist
     if not projections_path.exists():
-        console.print(
-            f"[red]Error:[/red] Projections database not found: {projections_path}"
-        )
+        console.print(f"[red]Error:[/red] Projections database not found: {projections_path}")
         console.print("[yellow]Run 'gilt rebuild-projections' first.[/yellow]")
         return 1
 
@@ -80,17 +77,19 @@ def run(
             continue
 
         # Build a transaction-like dict for display
-        primaries.append({
-            "date": txn_date,
-            "transaction_id": row["transaction_id"],
-            "description": row["canonical_description"],
-            "amount": float(row["amount"]),
-            "currency": row["currency"],
-            "category": row.get("category"),
-            "subcategory": row.get("subcategory"),
-            "notes": row.get("notes"),
-            "metadata": json.loads(row["metadata"]) if row.get("metadata") else {},
-        })
+        primaries.append(
+            {
+                "date": txn_date,
+                "transaction_id": row["transaction_id"],
+                "description": row["canonical_description"],
+                "amount": float(row["amount"]),
+                "currency": row["currency"],
+                "category": row.get("category"),
+                "subcategory": row.get("subcategory"),
+                "notes": row.get("notes"),
+                "metadata": json.loads(row["metadata"]) if row.get("metadata") else {},
+            }
+        )
 
     primaries.sort(key=lambda t: (t["date"], t["transaction_id"]))
 
@@ -98,9 +97,7 @@ def run(
         primaries = primaries[:limit]
 
     if not primaries:
-        console.print(
-            f"[yellow]No transactions for account[/] [bold]{account}[/] in {the_year}."
-        )
+        console.print(f"[yellow]No transactions for account[/] [bold]{account}[/] in {the_year}.")
         return 0
 
     # Title with nature indicator

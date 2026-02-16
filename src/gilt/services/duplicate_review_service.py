@@ -15,6 +15,7 @@ NO IMPORTS FROM:
 
 All dependencies are injected. All functions return data structures.
 """
+
 from __future__ import annotations
 
 import re
@@ -203,7 +204,7 @@ class DuplicateReviewService:
             if "User prefers latest" in pattern:
                 default_choice = "1"
                 # Extract percentage if present
-                match = re.search(r'(\d+)%', pattern)
+                match = re.search(r"(\d+)%", pattern)
                 if match:
                     pct = match.group(1)
                     hint = f" [dim](learned: {pct}% prefer latest)[/dim]"
@@ -213,7 +214,7 @@ class DuplicateReviewService:
             elif "User prefers original" in pattern:
                 default_choice = "2"
                 # Extract percentage if present
-                match = re.search(r'(\d+)%', pattern)
+                match = re.search(r"(\d+)%", pattern)
                 if match:
                     pct = match.group(1)
                     hint = f" [dim](learned: {pct}% prefer original)[/dim]"
@@ -239,18 +240,12 @@ class DuplicateReviewService:
             ReviewSummary with statistics
         """
         # Count LLM predictions
-        llm_predicted_duplicates = sum(
-            1 for m in matches if m.assessment.is_duplicate
-        )
+        llm_predicted_duplicates = sum(1 for m in matches if m.assessment.is_duplicate)
         llm_predicted_not_duplicates = len(matches) - llm_predicted_duplicates
 
         # Count user feedback
-        user_confirmed = sum(
-            1 for _, _, action in feedback if action == "confirmed"
-        )
-        user_rejected = sum(
-            1 for _, _, action in feedback if action == "rejected"
-        )
+        user_confirmed = sum(1 for _, _, action in feedback if action == "confirmed")
+        user_rejected = sum(1 for _, _, action in feedback if action == "rejected")
 
         return ReviewSummary(
             total_matches=len(matches),

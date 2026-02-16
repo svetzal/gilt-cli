@@ -66,7 +66,7 @@ def it_should_mark_both_sides_and_persist_metadata(tmp_path: Path):
     for p, role, counter_txn in [
         (acc1, "debit", c_id),
         (acc2, "credit", d_id),
-        ]:
+    ]:
         text = p.read_text(encoding="utf-8")
         groups = load_ledger_csv(text, default_currency="CAD")
         assert len(groups) == 1

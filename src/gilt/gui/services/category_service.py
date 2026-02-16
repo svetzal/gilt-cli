@@ -11,7 +11,11 @@ from pathlib import Path
 from typing import Optional
 
 from gilt.model.category import Category, CategoryConfig, Subcategory, Budget, BudgetPeriod
-from gilt.model.category_io import load_categories_config, save_categories_config, parse_category_path
+from gilt.model.category_io import (
+    load_categories_config,
+    save_categories_config,
+    parse_category_path,
+)
 
 
 class CategoryService:
@@ -249,9 +253,7 @@ class CategoryService:
 
         return False
 
-    def validate_category_path(
-        self, category: str, subcategory: Optional[str] = None
-    ) -> bool:
+    def validate_category_path(self, category: str, subcategory: Optional[str] = None) -> bool:
         """
         Validate that a category (and optional subcategory) exists.
 
@@ -277,9 +279,7 @@ class CategoryService:
         """
         return parse_category_path(category_str)
 
-    def get_usage_stats(
-        self, category_name: str, transactions
-    ) -> dict:
+    def get_usage_stats(self, category_name: str, transactions) -> dict:
         """
         Get usage statistics for a category.
 

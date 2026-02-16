@@ -4,7 +4,6 @@ from __future__ import annotations
 Tests for report command.
 """
 
-from datetime import date
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -115,7 +114,7 @@ class DescribeReportCommand:
                             currency="CAD",
                             account_id="TEST",
                             category="Housing",
-                        )
+                        ),
                     ),
                 ],
             )
@@ -173,7 +172,7 @@ class DescribeReportCommand:
                             currency="CAD",
                             account_id="TEST",
                             category="Groceries",
-                        )
+                        ),
                     ),
                 ],
             )
@@ -388,7 +387,7 @@ class DescribeAggregateSpending:
                             currency="CAD",
                             account_id="TEST",
                             category="Shopping",
-                        )
+                        ),
                     ),
                     TransactionGroup(
                         group_id="2",
@@ -400,7 +399,7 @@ class DescribeAggregateSpending:
                             currency="CAD",
                             account_id="TEST",
                             category="Shopping",
-                        )
+                        ),
                     ),
                 ],
             )
@@ -437,7 +436,7 @@ class DescribeAggregateSpending:
                             currency="CAD",
                             account_id="TEST",
                             category="Test",
-                        )
+                        ),
                     ),
                     TransactionGroup(
                         group_id="2",
@@ -449,7 +448,7 @@ class DescribeAggregateSpending:
                             currency="CAD",
                             account_id="TEST",
                             category="Test",
-                        )
+                        ),
                     ),
                 ],
             )

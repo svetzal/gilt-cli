@@ -8,12 +8,13 @@ source of truth for system state.
 Privacy: Event store is local-only SQLite. Never transmit events over
 networks as they contain sensitive financial data.
 """
+
 from __future__ import annotations
 
 import json
 import sqlite3
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Type, TypeVar
+from typing import Dict, List, Type, TypeVar
 
 from gilt.model.events import (
     Event,
@@ -31,7 +32,7 @@ from gilt.model.events import (
 )
 
 # Type variable for generic event types
-TEvent = TypeVar('TEvent', bound=Event)
+TEvent = TypeVar("TEvent", bound=Event)
 
 # Map event types to classes for deserialization
 EVENT_TYPE_MAP: Dict[str, Type[Event]] = {
@@ -144,25 +145,31 @@ class EventStore:
             metadata_json = json.dumps(event.metadata) if event.metadata else None
 
             # Insert into events table
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO events (
                     event_id, event_type, event_timestamp,
                     aggregate_type, aggregate_id, event_data, metadata
                 ) VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (
-                event.event_id,
-                event.event_type,
-                event.event_timestamp.isoformat(),
-                event.aggregate_type,
-                event.aggregate_id,
-                event_data,
-                metadata_json
-            ))
+            """,
+                (
+                    event.event_id,
+                    event.event_type,
+                    event.event_timestamp.isoformat(),
+                    event.aggregate_type,
+                    event.aggregate_id,
+                    event_data,
+                    metadata_json,
+                ),
+            )
 
             # Track sequence
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO event_sequence (event_id) VALUES (?)
-            """, (event.event_id,))
+            """,
+                (event.event_id,),
+            )
 
             conn.commit()
         finally:
@@ -206,13 +213,16 @@ class EventStore:
         conn = sqlite3.connect(self.db_path)
         try:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT e.event_data
                 FROM events e
                 JOIN event_sequence es ON e.event_id = es.event_id
                 WHERE e.aggregate_type = ? AND e.aggregate_id = ?
                 ORDER BY es.sequence_number
-            """, (aggregate_type, aggregate_id))
+            """,
+                (aggregate_type, aggregate_id),
+            )
 
             events = []
             for (event_data,) in cursor.fetchall():
@@ -235,13 +245,16 @@ class EventStore:
         conn = sqlite3.connect(self.db_path)
         try:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT e.event_data
                 FROM events e
                 JOIN event_sequence es ON e.event_id = es.event_id
                 WHERE e.event_type = ?
                 ORDER BY es.sequence_number
-            """, (event_type,))
+            """,
+                (event_type,),
+            )
 
             events = []
             for (event_data,) in cursor.fetchall():
@@ -266,13 +279,16 @@ class EventStore:
         conn = sqlite3.connect(self.db_path)
         try:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT e.event_data
                 FROM events e
                 JOIN event_sequence es ON e.event_id = es.event_id
                 WHERE es.sequence_number > ?
                 ORDER BY es.sequence_number
-            """, (sequence_number,))
+            """,
+                (sequence_number,),
+            )
 
             events = []
             for (event_data,) in cursor.fetchall():

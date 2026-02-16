@@ -19,7 +19,6 @@ from PySide6.QtWidgets import (
     QHeaderView,
 )
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor
 
 from gilt.gui.theme import Theme
 
@@ -87,9 +86,7 @@ class PreviewDialog(QDialog):
         layout.addLayout(self.warning_container)
 
         # Confirmation checkbox
-        self.confirm_check = QCheckBox(
-            "I understand these changes will be permanent"
-        )
+        self.confirm_check = QCheckBox("I understand these changes will be permanent")
         layout.addWidget(self.confirm_check)
 
         # Buttons
@@ -97,9 +94,7 @@ class PreviewDialog(QDialog):
         button_layout.addStretch()
 
         # Dialog buttons
-        self.buttons = QDialogButtonBox(
-            QDialogButtonBox.Cancel
-        )
+        self.buttons = QDialogButtonBox(QDialogButtonBox.Cancel)
 
         # Apply button (initially disabled)
         self.apply_btn = QPushButton("Apply Changes")
@@ -129,9 +124,7 @@ class PreviewDialog(QDialog):
             highlight_columns: Optional list of column indices to highlight
         """
         if len(values) != len(self.column_headers):
-            raise ValueError(
-                f"Expected {len(self.column_headers)} values, got {len(values)}"
-            )
+            raise ValueError(f"Expected {len(self.column_headers)} values, got {len(values)}")
 
         row = self.table.rowCount()
         self.table.insertRow(row)

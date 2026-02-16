@@ -16,7 +16,7 @@ from gilt.model.duplicate import TransactionPair
 
 class DuplicateFeatureExtractor:
     """Extracts features from transaction pairs for duplicate detection.
-    
+
     Features extracted:
     1. TF-IDF cosine similarity (captures semantic description similarity)
     2. Levenshtein ratio (character-level similarity)
@@ -30,22 +30,22 @@ class DuplicateFeatureExtractor:
 
     def __init__(self):
         """Initialize feature extractor with TF-IDF vectorizer.
-        
+
         Uses character n-grams (2-4) to capture bank description variations
         like "PAYMENT SPOTIFY" vs "PYMT SPOTIFY INC".
         """
         self.vectorizer = TfidfVectorizer(
-            analyzer='char_wb',  # Character n-grams with word boundaries
+            analyzer="char_wb",  # Character n-grams with word boundaries
             ngram_range=(2, 4),  # Bigrams, trigrams, 4-grams
             lowercase=True,
-            max_features=500,    # Limit vocabulary for speed
-            min_df=1,           # Include even rare patterns
+            max_features=500,  # Limit vocabulary for speed
+            min_df=1,  # Include even rare patterns
         )
         self._is_fitted = False
 
     def fit(self, pairs: List[TransactionPair]) -> None:
         """Fit TF-IDF vectorizer on training data.
-        
+
         Args:
             pairs: List of transaction pairs to learn vocabulary from
         """
@@ -53,16 +53,16 @@ class DuplicateFeatureExtractor:
         for pair in pairs:
             all_descriptions.append(pair.txn1_description)
             all_descriptions.append(pair.txn2_description)
-        
+
         self.vectorizer.fit(all_descriptions)
         self._is_fitted = True
 
     def extract_features(self, pair: TransactionPair) -> np.ndarray:
         """Extract feature vector from a transaction pair.
-        
+
         Args:
             pair: Transaction pair to extract features from
-            
+
         Returns:
             Feature vector as numpy array (8 features)
         """
@@ -79,10 +79,7 @@ class DuplicateFeatureExtractor:
 
         # 2. Levenshtein ratio (character-level similarity)
         # Use simple implementation to avoid external dependency initially
-        lev_ratio = self._levenshtein_ratio(
-            pair.txn1_description, 
-            pair.txn2_description
-        )
+        lev_ratio = self._levenshtein_ratio(pair.txn1_description, pair.txn2_description)
 
         # 3. Token overlap ratio
         tokens1 = set(pair.txn1_description.lower().split())
@@ -104,46 +101,45 @@ class DuplicateFeatureExtractor:
         length_diff = abs(len1 - len2) / max(len1, len2, 1)
 
         # 8. Common prefix length ratio
-        prefix_ratio = self._common_prefix_ratio(
-            pair.txn1_description, 
-            pair.txn2_description
-        )
+        prefix_ratio = self._common_prefix_ratio(pair.txn1_description, pair.txn2_description)
 
-        return np.array([
-            cosine_sim,      # [0-1] Higher = more similar
-            lev_ratio,       # [0-1] Higher = more similar
-            token_overlap,   # [0-1] Higher = more similar
-            amount_match,    # {0, 1} 1 = exact match
-            date_diff,       # [0-∞] Lower = more similar
-            same_account,    # {0, 1} 1 = same account
-            length_diff,     # [0-1] Lower = more similar
-            prefix_ratio,    # [0-1] Higher = more similar
-        ])
+        return np.array(
+            [
+                cosine_sim,  # [0-1] Higher = more similar
+                lev_ratio,  # [0-1] Higher = more similar
+                token_overlap,  # [0-1] Higher = more similar
+                amount_match,  # {0, 1} 1 = exact match
+                date_diff,  # [0-∞] Lower = more similar
+                same_account,  # {0, 1} 1 = same account
+                length_diff,  # [0-1] Lower = more similar
+                prefix_ratio,  # [0-1] Higher = more similar
+            ]
+        )
 
     def get_feature_names(self) -> List[str]:
         """Return human-readable feature names."""
         return [
-            'cosine_similarity',
-            'levenshtein_ratio',
-            'token_overlap',
-            'amount_exact_match',
-            'date_difference_days',
-            'same_account',
-            'length_difference',
-            'common_prefix_ratio',
+            "cosine_similarity",
+            "levenshtein_ratio",
+            "token_overlap",
+            "amount_exact_match",
+            "date_difference_days",
+            "same_account",
+            "length_difference",
+            "common_prefix_ratio",
         ]
 
     @staticmethod
     def _levenshtein_ratio(s1: str, s2: str) -> float:
         """Calculate Levenshtein ratio (0-1, higher is more similar).
-        
+
         Simple implementation without external dependencies.
         Uses dynamic programming to compute edit distance.
-        
+
         Args:
             s1: First string
             s2: Second string
-            
+
         Returns:
             Similarity ratio from 0.0 (completely different) to 1.0 (identical)
         """
@@ -155,7 +151,7 @@ class DuplicateFeatureExtractor:
         # Compute Levenshtein distance using DP
         rows = len(s1) + 1
         cols = len(s2) + 1
-        
+
         # Use two rows for space efficiency
         prev_row = list(range(cols))
         curr_row = [0] * cols
@@ -167,7 +163,7 @@ class DuplicateFeatureExtractor:
                     curr_row[j] = prev_row[j - 1]  # No operation needed
                 else:
                     curr_row[j] = 1 + min(
-                        prev_row[j],      # Deletion
+                        prev_row[j],  # Deletion
                         curr_row[j - 1],  # Insertion
                         prev_row[j - 1],  # Substitution
                     )
@@ -175,18 +171,18 @@ class DuplicateFeatureExtractor:
 
         distance = prev_row[-1]
         max_len = max(len(s1), len(s2))
-        
+
         # Convert distance to similarity ratio
         return 1.0 - (distance / max_len)
 
     @staticmethod
     def _common_prefix_ratio(s1: str, s2: str) -> float:
         """Calculate ratio of common prefix length to average length.
-        
+
         Args:
             s1: First string
             s2: Second string
-            
+
         Returns:
             Ratio from 0.0 (no common prefix) to 1.0 (identical strings)
         """
@@ -196,7 +192,7 @@ class DuplicateFeatureExtractor:
         # Find common prefix length (case-insensitive)
         s1_lower = s1.lower()
         s2_lower = s2.lower()
-        
+
         prefix_len = 0
         for c1, c2 in zip(s1_lower, s2_lower):
             if c1 == c2:

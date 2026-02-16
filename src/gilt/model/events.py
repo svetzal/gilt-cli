@@ -13,6 +13,7 @@ All events inherit from the base Event class and include:
 Privacy: Events contain sensitive financial data and should never be
 transmitted over networks. All processing is local-only.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -37,12 +38,12 @@ class Event(BaseModel):
     aggregate_id: Optional[str] = None
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
-    @field_serializer('event_timestamp')
+    @field_serializer("event_timestamp")
     def serialize_timestamp(self, value: datetime) -> str:
         """Serialize datetime to ISO format string."""
         return value.isoformat()
 
-    @field_validator('event_timestamp', mode='before')
+    @field_validator("event_timestamp", mode="before")
     @classmethod
     def parse_timestamp(cls, value: Any) -> datetime:
         """Parse timestamp from string or datetime."""
@@ -74,16 +75,16 @@ class TransactionImported(Event):
 
     def __init__(self, **data):
         """Initialize and set aggregate_id to transaction_id."""
-        if 'aggregate_id' not in data and 'transaction_id' in data:
-            data['aggregate_id'] = data['transaction_id']
+        if "aggregate_id" not in data and "transaction_id" in data:
+            data["aggregate_id"] = data["transaction_id"]
         super().__init__(**data)
 
-    @field_serializer('amount')
+    @field_serializer("amount")
     def serialize_amount(self, value: Decimal) -> str:
         """Serialize Decimal to string to preserve precision."""
         return str(value)
 
-    @field_validator('amount', mode='before')
+    @field_validator("amount", mode="before")
     @classmethod
     def parse_amount(cls, value: Any) -> Decimal:
         """Parse amount from string or number."""
@@ -115,15 +116,15 @@ class TransactionDescriptionObserved(Event):
 
     def __init__(self, **data):
         """Initialize and set aggregate_id to original_transaction_id."""
-        if 'aggregate_id' not in data and 'original_transaction_id' in data:
-            data['aggregate_id'] = data['original_transaction_id']
+        if "aggregate_id" not in data and "original_transaction_id" in data:
+            data["aggregate_id"] = data["original_transaction_id"]
         super().__init__(**data)
 
-    @field_serializer('amount')
+    @field_serializer("amount")
     def serialize_amount(self, value: Decimal) -> str:
         return str(value)
 
-    @field_validator('amount', mode='before')
+    @field_validator("amount", mode="before")
     @classmethod
     def parse_amount(cls, value: Any) -> Decimal:
         if isinstance(value, str):
@@ -161,10 +162,10 @@ class DuplicateSuggested(Event):
 
     def __init__(self, **data):
         """Initialize and set aggregate_id to combination of transaction IDs."""
-        if 'aggregate_id' not in data and 'transaction_id_1' in data and 'transaction_id_2' in data:
-            t1 = data['transaction_id_1']
-            t2 = data['transaction_id_2']
-            data['aggregate_id'] = f"{min(t1, t2)}:{max(t1, t2)}"
+        if "aggregate_id" not in data and "transaction_id_1" in data and "transaction_id_2" in data:
+            t1 = data["transaction_id_1"]
+            t2 = data["transaction_id_2"]
+            data["aggregate_id"] = f"{min(t1, t2)}:{max(t1, t2)}"
         super().__init__(**data)
 
 
@@ -188,10 +189,14 @@ class DuplicateConfirmed(Event):
 
     def __init__(self, **data):
         """Initialize and set aggregate_id to combination of transaction IDs."""
-        if 'aggregate_id' not in data and 'primary_transaction_id' in data and 'duplicate_transaction_id' in data:
-            t1 = data['primary_transaction_id']
-            t2 = data['duplicate_transaction_id']
-            data['aggregate_id'] = f"{min(t1, t2)}:{max(t1, t2)}"
+        if (
+            "aggregate_id" not in data
+            and "primary_transaction_id" in data
+            and "duplicate_transaction_id" in data
+        ):
+            t1 = data["primary_transaction_id"]
+            t2 = data["duplicate_transaction_id"]
+            data["aggregate_id"] = f"{min(t1, t2)}:{max(t1, t2)}"
         super().__init__(**data)
 
 
@@ -214,10 +219,10 @@ class DuplicateRejected(Event):
 
     def __init__(self, **data):
         """Initialize and set aggregate_id to combination of transaction IDs."""
-        if 'aggregate_id' not in data and 'transaction_id_1' in data and 'transaction_id_2' in data:
-            t1 = data['transaction_id_1']
-            t2 = data['transaction_id_2']
-            data['aggregate_id'] = f"{min(t1, t2)}:{max(t1, t2)}"
+        if "aggregate_id" not in data and "transaction_id_1" in data and "transaction_id_2" in data:
+            t1 = data["transaction_id_1"]
+            t2 = data["transaction_id_2"]
+            data["aggregate_id"] = f"{min(t1, t2)}:{max(t1, t2)}"
         super().__init__(**data)
 
 
@@ -243,8 +248,8 @@ class TransactionCategorized(Event):
 
     def __init__(self, **data):
         """Initialize and set aggregate_id to transaction_id."""
-        if 'aggregate_id' not in data and 'transaction_id' in data:
-            data['aggregate_id'] = data['transaction_id']
+        if "aggregate_id" not in data and "transaction_id" in data:
+            data["aggregate_id"] = data["transaction_id"]
         super().__init__(**data)
 
 
@@ -268,8 +273,8 @@ class CategorizationRuleCreated(Event):
 
     def __init__(self, **data):
         """Initialize and set aggregate_id to rule_id."""
-        if 'aggregate_id' not in data and 'rule_id' in data:
-            data['aggregate_id'] = data['rule_id']
+        if "aggregate_id" not in data and "rule_id" in data:
+            data["aggregate_id"] = data["rule_id"]
         super().__init__(**data)
 
 
@@ -294,15 +299,15 @@ class BudgetCreated(Event):
 
     def __init__(self, **data):
         """Initialize and set aggregate_id to budget_id."""
-        if 'aggregate_id' not in data and 'budget_id' in data:
-            data['aggregate_id'] = data['budget_id']
+        if "aggregate_id" not in data and "budget_id" in data:
+            data["aggregate_id"] = data["budget_id"]
         super().__init__(**data)
 
-    @field_serializer('amount')
+    @field_serializer("amount")
     def serialize_amount(self, value: Decimal) -> str:
         return str(value)
 
-    @field_validator('amount', mode='before')
+    @field_validator("amount", mode="before")
     @classmethod
     def parse_amount(cls, value: Any) -> Decimal:
         if isinstance(value, str):
@@ -335,15 +340,15 @@ class BudgetUpdated(Event):
 
     def __init__(self, **data):
         """Initialize and set aggregate_id to budget_id."""
-        if 'aggregate_id' not in data and 'budget_id' in data:
-            data['aggregate_id'] = data['budget_id']
+        if "aggregate_id" not in data and "budget_id" in data:
+            data["aggregate_id"] = data["budget_id"]
         super().__init__(**data)
 
-    @field_serializer('new_amount', 'previous_amount')
+    @field_serializer("new_amount", "previous_amount")
     def serialize_amount(self, value: Optional[Decimal]) -> Optional[str]:
         return str(value) if value is not None else None
 
-    @field_validator('new_amount', 'previous_amount', mode='before')
+    @field_validator("new_amount", "previous_amount", mode="before")
     @classmethod
     def parse_amount(cls, value: Any) -> Optional[Decimal]:
         if value is None:
@@ -375,15 +380,15 @@ class BudgetDeleted(Event):
 
     def __init__(self, **data):
         """Initialize and set aggregate_id to budget_id."""
-        if 'aggregate_id' not in data and 'budget_id' in data:
-            data['aggregate_id'] = data['budget_id']
+        if "aggregate_id" not in data and "budget_id" in data:
+            data["aggregate_id"] = data["budget_id"]
         super().__init__(**data)
 
-    @field_serializer('final_amount')
+    @field_serializer("final_amount")
     def serialize_amount(self, value: Decimal) -> str:
         return str(value)
 
-    @field_validator('final_amount', mode='before')
+    @field_validator("final_amount", mode="before")
     @classmethod
     def parse_amount(cls, value: Any) -> Decimal:
         if isinstance(value, str):
@@ -409,8 +414,8 @@ class PromptUpdated(Event):
 
     def __init__(self, **data):
         """Initialize and set aggregate_id to prompt_version."""
-        if 'aggregate_id' not in data and 'prompt_version' in data:
-            data['aggregate_id'] = data['prompt_version']
+        if "aggregate_id" not in data and "prompt_version" in data:
+            data["aggregate_id"] = data["prompt_version"]
         super().__init__(**data)
 
 

@@ -4,6 +4,7 @@ from gilt.ml.categorization_classifier import CategorizationClassifier
 from gilt.storage.event_store import EventStore
 from gilt.model.events import TransactionCategorized
 
+
 class DescribeSmartCategoryService:
     def it_should_predict_category(self):
         # Arrange
@@ -11,6 +12,7 @@ class DescribeSmartCategoryService:
         mock_event_store = Mock(spec=EventStore)
         service = SmartCategoryService(mock_classifier, mock_event_store)
 
+        mock_classifier.is_trained = True
         mock_classifier.predict_single.return_value = ("Food", 0.95)
 
         # Act
@@ -23,7 +25,7 @@ class DescribeSmartCategoryService:
             description="Burger King",
             amount=10.0,
             account="acc1",
-            confidence_threshold=0.0  # Should return even low confidence for UI to decide
+            confidence_threshold=0.0,  # Should return even low confidence for UI to decide
         )
 
     def it_should_record_categorization(self):
@@ -34,10 +36,7 @@ class DescribeSmartCategoryService:
 
         # Act
         service.record_categorization(
-            transaction_id="t1",
-            category="Food",
-            source="user",
-            confidence=1.0
+            transaction_id="t1", category="Food", source="user", confidence=1.0
         )
 
         # Assert

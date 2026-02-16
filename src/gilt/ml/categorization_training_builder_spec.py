@@ -208,9 +208,7 @@ class DescribeCategorizationTrainingBuilder:
 
         # Get training data
         builder = CategorizationTrainingBuilder(temp_event_store)
-        features, labels, category_names = builder.get_training_data(
-            min_samples_per_category=2
-        )
+        features, labels, category_names = builder.get_training_data(min_samples_per_category=2)
 
         assert features.shape[0] == 3  # All 3 transactions
         assert len(labels) == 3
@@ -263,9 +261,7 @@ class DescribeCategorizationTrainingBuilder:
 
         # Get training data with min_samples=2
         builder = CategorizationTrainingBuilder(temp_event_store)
-        features, labels, category_names = builder.get_training_data(
-            min_samples_per_category=2
-        )
+        features, labels, category_names = builder.get_training_data(min_samples_per_category=2)
 
         # Should only have Groceries (3 samples >= 2)
         assert len(category_names) == 1

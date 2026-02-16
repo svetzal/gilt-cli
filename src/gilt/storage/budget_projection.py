@@ -13,6 +13,7 @@ Key Features:
 
 Privacy: All processing is local-only. No network I/O.
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -66,17 +67,17 @@ class BudgetProjection:
     def to_dict(self) -> Dict:
         """Convert to dictionary for serialization."""
         return {
-            'budget_id': self.budget_id,
-            'category': self.category,
-            'subcategory': self.subcategory,
-            'amount': str(self.amount),
-            'period_type': self.period_type,
-            'start_date': self.start_date,
-            'currency': self.currency,
-            'is_deleted': self.is_deleted,
-            'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat(),
-            'last_event_id': self.last_event_id,
+            "budget_id": self.budget_id,
+            "category": self.category,
+            "subcategory": self.subcategory,
+            "amount": str(self.amount),
+            "period_type": self.period_type,
+            "start_date": self.start_date,
+            "currency": self.currency,
+            "is_deleted": self.is_deleted,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+            "last_event_id": self.last_event_id,
         }
 
 
@@ -227,11 +228,7 @@ class BudgetProjectionBuilder:
         finally:
             conn.close()
 
-    def _apply_events(
-        self,
-        conn: sqlite3.Connection,
-        events: List[Event]
-    ) -> int:
+    def _apply_events(self, conn: sqlite3.Connection, events: List[Event]) -> int:
         """Apply a list of budget events to projections.
 
         Args:
@@ -256,16 +253,11 @@ class BudgetProjectionBuilder:
         conn.commit()
         return processed
 
-    def _apply_budget_created(
-        self,
-        conn: sqlite3.Connection,
-        event: BudgetCreated
-    ) -> None:
+    def _apply_budget_created(self, conn: sqlite3.Connection, event: BudgetCreated) -> None:
         """Apply BudgetCreated event to projection."""
         # Check if budget already exists (idempotent)
         cursor = conn.execute(
-            "SELECT budget_id FROM budget_projections WHERE budget_id = ?",
-            (event.budget_id,)
+            "SELECT budget_id FROM budget_projections WHERE budget_id = ?", (event.budget_id,)
         )
         if cursor.fetchone():
             return  # Already exists
@@ -290,7 +282,7 @@ class BudgetProjectionBuilder:
                 event.event_timestamp.isoformat(),
                 event.event_timestamp.isoformat(),
                 event.event_id,
-            )
+            ),
         )
 
         # Add to history
@@ -312,14 +304,10 @@ class BudgetProjectionBuilder:
                 event.currency,
                 event.event_timestamp.isoformat(),
                 event.event_id,
-            )
+            ),
         )
 
-    def _apply_budget_updated(
-        self,
-        conn: sqlite3.Connection,
-        event: BudgetUpdated
-    ) -> None:
+    def _apply_budget_updated(self, conn: sqlite3.Connection, event: BudgetUpdated) -> None:
         """Apply BudgetUpdated event to projection."""
         # Get current budget state
         cursor = conn.execute(
@@ -328,7 +316,7 @@ class BudgetProjectionBuilder:
             FROM budget_projections
             WHERE budget_id = ?
             """,
-            (event.budget_id,)
+            (event.budget_id,),
         )
         row = cursor.fetchone()
 
@@ -361,7 +349,7 @@ class BudgetProjectionBuilder:
                 event.event_timestamp.isoformat(),
                 event.event_id,
                 event.budget_id,
-            )
+            ),
         )
 
         # Close previous history entry
@@ -374,7 +362,7 @@ class BudgetProjectionBuilder:
             (
                 event.event_timestamp.isoformat(),
                 event.budget_id,
-            )
+            ),
         )
 
         # Add new history entry
@@ -396,14 +384,10 @@ class BudgetProjectionBuilder:
                 event.currency,
                 event.event_timestamp.isoformat(),
                 event.event_id,
-            )
+            ),
         )
 
-    def _apply_budget_deleted(
-        self,
-        conn: sqlite3.Connection,
-        event: BudgetDeleted
-    ) -> None:
+    def _apply_budget_deleted(self, conn: sqlite3.Connection, event: BudgetDeleted) -> None:
         """Apply BudgetDeleted event to projection.
 
         Soft delete - marks budget as deleted but preserves data.
@@ -421,7 +405,7 @@ class BudgetProjectionBuilder:
                 event.event_timestamp.isoformat(),
                 event.event_id,
                 event.budget_id,
-            )
+            ),
         )
 
         # Close history entry
@@ -434,7 +418,7 @@ class BudgetProjectionBuilder:
             (
                 event.event_timestamp.isoformat(),
                 event.budget_id,
-            )
+            ),
         )
 
         # Add deletion to history
@@ -457,7 +441,7 @@ class BudgetProjectionBuilder:
                 event.currency,
                 event.event_timestamp.isoformat(),
                 event.event_id,
-            )
+            ),
         )
 
     def get_budget(self, budget_id: str) -> Optional[BudgetProjection]:
@@ -473,33 +457,30 @@ class BudgetProjectionBuilder:
         conn.row_factory = sqlite3.Row
         try:
             cursor = conn.execute(
-                "SELECT * FROM budget_projections WHERE budget_id = ?",
-                (budget_id,)
+                "SELECT * FROM budget_projections WHERE budget_id = ?", (budget_id,)
             )
             row = cursor.fetchone()
             if not row:
                 return None
 
             return BudgetProjection(
-                budget_id=row['budget_id'],
-                category=row['category'],
-                subcategory=row['subcategory'],
-                amount=Decimal(str(row['amount'])),
-                period_type=row['period_type'],
-                start_date=row['start_date'],
-                currency=row['currency'],
-                is_deleted=bool(row['is_deleted']),
-                created_at=datetime.fromisoformat(row['created_at']),
-                updated_at=datetime.fromisoformat(row['updated_at']),
-                last_event_id=row['last_event_id'],
+                budget_id=row["budget_id"],
+                category=row["category"],
+                subcategory=row["subcategory"],
+                amount=Decimal(str(row["amount"])),
+                period_type=row["period_type"],
+                start_date=row["start_date"],
+                currency=row["currency"],
+                is_deleted=bool(row["is_deleted"]),
+                created_at=datetime.fromisoformat(row["created_at"]),
+                updated_at=datetime.fromisoformat(row["updated_at"]),
+                last_event_id=row["last_event_id"],
             )
         finally:
             conn.close()
 
     def get_active_budgets(
-        self,
-        category: Optional[str] = None,
-        as_of_date: Optional[date] = None
+        self, category: Optional[str] = None, as_of_date: Optional[date] = None
     ) -> List[BudgetProjection]:
         """Retrieve all active (non-deleted) budgets.
 
@@ -523,7 +504,7 @@ class BudgetProjectionBuilder:
                     WHERE is_deleted = 0 AND category = ?
                     ORDER BY category, subcategory
                     """,
-                    (category,)
+                    (category,),
                 )
             else:
                 cursor = conn.execute(
@@ -536,28 +517,28 @@ class BudgetProjectionBuilder:
 
             results = []
             for row in cursor.fetchall():
-                results.append(BudgetProjection(
-                    budget_id=row['budget_id'],
-                    category=row['category'],
-                    subcategory=row['subcategory'],
-                    amount=Decimal(str(row['amount'])),
-                    period_type=row['period_type'],
-                    start_date=row['start_date'],
-                    currency=row['currency'],
-                    is_deleted=bool(row['is_deleted']),
-                    created_at=datetime.fromisoformat(row['created_at']),
-                    updated_at=datetime.fromisoformat(row['updated_at']),
-                    last_event_id=row['last_event_id'],
-                ))
+                results.append(
+                    BudgetProjection(
+                        budget_id=row["budget_id"],
+                        category=row["category"],
+                        subcategory=row["subcategory"],
+                        amount=Decimal(str(row["amount"])),
+                        period_type=row["period_type"],
+                        start_date=row["start_date"],
+                        currency=row["currency"],
+                        is_deleted=bool(row["is_deleted"]),
+                        created_at=datetime.fromisoformat(row["created_at"]),
+                        updated_at=datetime.fromisoformat(row["updated_at"]),
+                        last_event_id=row["last_event_id"],
+                    )
+                )
 
             return results
         finally:
             conn.close()
 
     def get_budgets_at_date(
-        self,
-        target_date: date,
-        category: Optional[str] = None
+        self, target_date: date, category: Optional[str] = None
     ) -> List[BudgetProjection]:
         """Time-travel query: get budget state as it was on a specific date.
 
@@ -603,19 +584,21 @@ class BudgetProjectionBuilder:
             results = []
             for row in cursor.fetchall():
                 # Construct BudgetProjection from historical data
-                results.append(BudgetProjection(
-                    budget_id=row['budget_id'],
-                    category=row['category'],
-                    subcategory=row['subcategory'],
-                    amount=Decimal(str(row['amount'])),
-                    period_type=row['period_type'],
-                    start_date=row['start_date'],
-                    currency=row['currency'],
-                    is_deleted=False,  # Wouldn't be in results if deleted at this time
-                    created_at=datetime.fromisoformat(row['event_timestamp']),
-                    updated_at=datetime.fromisoformat(row['event_timestamp']),
-                    last_event_id=row['event_id'],
-                ))
+                results.append(
+                    BudgetProjection(
+                        budget_id=row["budget_id"],
+                        category=row["category"],
+                        subcategory=row["subcategory"],
+                        amount=Decimal(str(row["amount"])),
+                        period_type=row["period_type"],
+                        start_date=row["start_date"],
+                        currency=row["currency"],
+                        is_deleted=False,  # Wouldn't be in results if deleted at this time
+                        created_at=datetime.fromisoformat(row["event_timestamp"]),
+                        updated_at=datetime.fromisoformat(row["event_timestamp"]),
+                        last_event_id=row["event_id"],
+                    )
+                )
 
             return results
         finally:
@@ -639,7 +622,7 @@ class BudgetProjectionBuilder:
                 WHERE budget_id = ?
                 ORDER BY event_timestamp
                 """,
-                (budget_id,)
+                (budget_id,),
             )
 
             return [dict(row) for row in cursor.fetchall()]

@@ -82,13 +82,21 @@ def categories(ctx: typer.Context):
 @app.command()
 def category(
     ctx: typer.Context,
-    add: Optional[str] = typer.Option(None, "--add", help="Add a new category (supports 'Category:Subcategory')"),
+    add: Optional[str] = typer.Option(
+        None, "--add", help="Add a new category (supports 'Category:Subcategory')"
+    ),
     remove: Optional[str] = typer.Option(None, "--remove", help="Remove a category"),
-    set_budget: Optional[str] = typer.Option(None, "--set-budget", help="Set budget for a category"),
-    description: Optional[str] = typer.Option(None, "--description", help="Description for new category"),
+    set_budget: Optional[str] = typer.Option(
+        None, "--set-budget", help="Set budget for a category"
+    ),
+    description: Optional[str] = typer.Option(
+        None, "--description", help="Description for new category"
+    ),
     amount: Optional[float] = typer.Option(None, "--amount", help="Budget amount"),
     period: str = typer.Option("monthly", "--period", help="Budget period (monthly or yearly)"),
-    force: bool = typer.Option(False, "--force", help="Skip confirmations when removing used categories"),
+    force: bool = typer.Option(
+        False, "--force", help="Skip confirmations when removing used categories"
+    ),
     write: bool = typer.Option(False, "--write", help=HELP_WRITE),
 ):
     """Manage categories: add, remove, or set budget.
@@ -121,10 +129,18 @@ def category(
 def ytd(
     ctx: typer.Context,
     account: str = typer.Option(..., "--account", "-a", help=HELP_ACCOUNT_DISPLAY),
-    year: Optional[int] = typer.Option(None, "--year", "-y", help="Year to filter (defaults to current year)"),
-    limit: Optional[int] = typer.Option(None, "--limit", "-n", min=1, help="Max number of rows to show (after sorting)"),
-    default_currency: Optional[str] = typer.Option(None, "--default-currency", help="Fallback currency if missing in legacy rows (e.g., CAD)"),
-    include_duplicates: bool = typer.Option(False, "--include-duplicates", help="Include transactions marked as duplicates"),
+    year: Optional[int] = typer.Option(
+        None, "--year", "-y", help="Year to filter (defaults to current year)"
+    ),
+    limit: Optional[int] = typer.Option(
+        None, "--limit", "-n", min=1, help="Max number of rows to show (after sorting)"
+    ),
+    default_currency: Optional[str] = typer.Option(
+        None, "--default-currency", help="Fallback currency if missing in legacy rows (e.g., CAD)"
+    ),
+    include_duplicates: bool = typer.Option(
+        False, "--include-duplicates", help="Include transactions marked as duplicates"
+    ),
 ):
     """Show year-to-date transactions for a single account as a Rich table.
 
@@ -152,15 +168,36 @@ def ytd(
 @app.command()
 def categorize(
     ctx: typer.Context,
-    account: Optional[str] = typer.Option(None, "--account", "-a", help="Account ID (omit to categorize across all accounts)"),
-    txid: Optional[str] = typer.Option(None, "--txid", "-t", help="Transaction ID prefix (single mode)"),
-    description: Optional[str] = typer.Option(None, "--description", "-d", help="Exact description to match (batch mode)"),
-    desc_prefix: Optional[str] = typer.Option(None, "--desc-prefix", "-p", help="Description prefix to match (batch mode, case-insensitive)"),
-    pattern: Optional[str] = typer.Option(None, "--pattern", help="Regex pattern to match description (batch mode, case-insensitive)"),
-    amount: Optional[float] = typer.Option(None, "--amount", "-m", help="Exact amount to match (batch mode)"),
-    category: str = typer.Option(..., "--category", "-c", help="Category name (supports 'Category:Subcategory' syntax)"),
-    subcategory: Optional[str] = typer.Option(None, "--subcategory", "-s", help="Subcategory name (alternative to colon syntax)"),
-    yes: bool = typer.Option(False, "--yes", "-y", help="Assume 'yes' for all confirmations in batch mode"),
+    account: Optional[str] = typer.Option(
+        None, "--account", "-a", help="Account ID (omit to categorize across all accounts)"
+    ),
+    txid: Optional[str] = typer.Option(
+        None, "--txid", "-t", help="Transaction ID prefix (single mode)"
+    ),
+    description: Optional[str] = typer.Option(
+        None, "--description", "-d", help="Exact description to match (batch mode)"
+    ),
+    desc_prefix: Optional[str] = typer.Option(
+        None,
+        "--desc-prefix",
+        "-p",
+        help="Description prefix to match (batch mode, case-insensitive)",
+    ),
+    pattern: Optional[str] = typer.Option(
+        None, "--pattern", help="Regex pattern to match description (batch mode, case-insensitive)"
+    ),
+    amount: Optional[float] = typer.Option(
+        None, "--amount", "-m", help="Exact amount to match (batch mode)"
+    ),
+    category: str = typer.Option(
+        ..., "--category", "-c", help="Category name (supports 'Category:Subcategory' syntax)"
+    ),
+    subcategory: Optional[str] = typer.Option(
+        None, "--subcategory", "-s", help="Subcategory name (alternative to colon syntax)"
+    ),
+    yes: bool = typer.Option(
+        False, "--yes", "-y", help="Assume 'yes' for all confirmations in batch mode"
+    ),
     write: bool = typer.Option(False, "--write", help=HELP_WRITE),
 ):
     """Categorize transactions (single or batch mode).
@@ -198,8 +235,12 @@ def categorize(
 @app.command()
 def recategorize(
     ctx: typer.Context,
-    from_cat: str = typer.Option(..., "--from", help="Original category name (supports 'Category:Subcategory')"),
-    to_cat: str = typer.Option(..., "--to", help="New category name (supports 'Category:Subcategory')"),
+    from_cat: str = typer.Option(
+        ..., "--from", help="Original category name (supports 'Category:Subcategory')"
+    ),
+    to_cat: str = typer.Option(
+        ..., "--to", help="New category name (supports 'Category:Subcategory')"
+    ),
     write: bool = typer.Option(False, "--write", help=HELP_WRITE),
 ):
     """Rename a category across all ledger files.
@@ -227,11 +268,21 @@ def recategorize(
 @app.command(name="auto-categorize")
 def auto_categorize(
     ctx: typer.Context,
-    account: Optional[str] = typer.Option(None, "--account", "-a", help="Account ID to filter (omit for all accounts)"),
-    confidence: float = typer.Option(0.7, "--confidence", "-c", min=0.0, max=1.0, help="Minimum confidence threshold (0.0-1.0)"),
-    min_samples: int = typer.Option(5, "--min-samples", min=1, help="Minimum samples per category for training"),
-    interactive: bool = typer.Option(False, "--interactive", "-i", help="Enable interactive review mode"),
-    limit: Optional[int] = typer.Option(None, "--limit", "-n", min=1, help="Max number of transactions to auto-categorize"),
+    account: Optional[str] = typer.Option(
+        None, "--account", "-a", help="Account ID to filter (omit for all accounts)"
+    ),
+    confidence: float = typer.Option(
+        0.7, "--confidence", "-c", min=0.0, max=1.0, help="Minimum confidence threshold (0.0-1.0)"
+    ),
+    min_samples: int = typer.Option(
+        5, "--min-samples", min=1, help="Minimum samples per category for training"
+    ),
+    interactive: bool = typer.Option(
+        False, "--interactive", "-i", help="Enable interactive review mode"
+    ),
+    limit: Optional[int] = typer.Option(
+        None, "--limit", "-n", min=1, help="Max number of transactions to auto-categorize"
+    ),
     write: bool = typer.Option(False, "--write", help=HELP_WRITE),
 ):
     """Auto-categorize transactions using ML classifier.
@@ -264,10 +315,16 @@ def auto_categorize(
 @app.command()
 def uncategorized(
     ctx: typer.Context,
-    account: Optional[str] = typer.Option(None, "--account", "-a", help="Account ID to filter (omit for all accounts)"),
+    account: Optional[str] = typer.Option(
+        None, "--account", "-a", help="Account ID to filter (omit for all accounts)"
+    ),
     year: Optional[int] = typer.Option(None, "--year", "-y", help="Year to filter"),
-    limit: Optional[int] = typer.Option(None, "--limit", "-n", min=1, help="Max number of transactions to show"),
-    min_amount: Optional[float] = typer.Option(None, "--min-amount", help="Minimum absolute amount to include"),
+    limit: Optional[int] = typer.Option(
+        None, "--limit", "-n", min=1, help="Max number of transactions to show"
+    ),
+    min_amount: Optional[float] = typer.Option(
+        None, "--min-amount", help="Minimum absolute amount to include"
+    ),
 ):
     """Display transactions without categories.
 
@@ -294,9 +351,15 @@ def uncategorized(
 @app.command()
 def budget(
     ctx: typer.Context,
-    year: Optional[int] = typer.Option(None, "--year", "-y", help="Year to report (default: current year)"),
-    month: Optional[int] = typer.Option(None, "--month", "-m", help="Month to report (1-12, requires --year)"),
-    category: Optional[str] = typer.Option(None, "--category", "-c", help="Filter to specific category"),
+    year: Optional[int] = typer.Option(
+        None, "--year", "-y", help="Year to report (default: current year)"
+    ),
+    month: Optional[int] = typer.Option(
+        None, "--month", "-m", help="Month to report (1-12, requires --year)"
+    ),
+    category: Optional[str] = typer.Option(
+        None, "--category", "-c", help="Filter to specific category"
+    ),
 ):
     """Display budget summary comparing actual spending vs budgeted amounts.
 
@@ -340,9 +403,18 @@ def diagnose_categories(ctx: typer.Context):
 @app.command()
 def report(
     ctx: typer.Context,
-    year: Optional[int] = typer.Option(None, "--year", "-y", help="Year to report (default: current year)"),
-    month: Optional[int] = typer.Option(None, "--month", "-m", help="Month to report (1-12, requires --year)"),
-    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Output path (without extension, default: reports/budget_report_YYYY[-MM])"),
+    year: Optional[int] = typer.Option(
+        None, "--year", "-y", help="Year to report (default: current year)"
+    ),
+    month: Optional[int] = typer.Option(
+        None, "--month", "-m", help="Month to report (1-12, requires --year)"
+    ),
+    output: Optional[Path] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output path (without extension, default: reports/budget_report_YYYY[-MM])",
+    ),
     write: bool = typer.Option(False, "--write", help=HELP_WRITE),
 ):
     """Generate budget report as markdown and Word document (.docx).
@@ -375,13 +447,28 @@ def report(
 def note(
     ctx: typer.Context,
     account: str = typer.Option(..., "--account", "-a", help=HELP_ACCOUNT_WITH_TX),
-    txid: Optional[str] = typer.Option(None, "--txid", "-t", help="Transaction ID prefix (TxnID8 as shown in tables)"),
-    description: Optional[str] = typer.Option(None, "--description", "-d", help="Exact description to match (batch mode)"),
-    desc_prefix: Optional[str] = typer.Option(None, "--desc-prefix", "-p", help="Description prefix to match (batch mode, case-insensitive)"),
-    pattern: Optional[str] = typer.Option(None, "--pattern", help="Regex pattern to match description (batch mode, case-insensitive)"),
-    amount: Optional[float] = typer.Option(None, "--amount", "-m", help="Exact amount to match (batch mode)"),
+    txid: Optional[str] = typer.Option(
+        None, "--txid", "-t", help="Transaction ID prefix (TxnID8 as shown in tables)"
+    ),
+    description: Optional[str] = typer.Option(
+        None, "--description", "-d", help="Exact description to match (batch mode)"
+    ),
+    desc_prefix: Optional[str] = typer.Option(
+        None,
+        "--desc-prefix",
+        "-p",
+        help="Description prefix to match (batch mode, case-insensitive)",
+    ),
+    pattern: Optional[str] = typer.Option(
+        None, "--pattern", help="Regex pattern to match description (batch mode, case-insensitive)"
+    ),
+    amount: Optional[float] = typer.Option(
+        None, "--amount", "-m", help="Exact amount to match (batch mode)"
+    ),
     note: str = typer.Option(..., "--note", "-n", help="Note text to set on the transaction(s)"),
-    yes: bool = typer.Option(False, "--yes", "-y", "-r", help="Assume 'yes' for all confirmations in batch mode"),
+    yes: bool = typer.Option(
+        False, "--yes", "-y", "-r", help="Assume 'yes' for all confirmations in batch mode"
+    ),
     write: bool = typer.Option(False, "--write", help=HELP_WRITE),
 ):
     """Attach or update notes on transactions in the account ledger.
@@ -430,8 +517,12 @@ def ingest(
 @app.command(name="mark-duplicate")
 def mark_duplicate(
     ctx: typer.Context,
-    primary_txid: str = typer.Option(..., "--primary", "-p", help="Transaction ID to keep (8+ char prefix)"),
-    duplicate_txid: str = typer.Option(..., "--duplicate", "-d", help="Transaction ID to mark as duplicate (8+ char prefix)"),
+    primary_txid: str = typer.Option(
+        ..., "--primary", "-p", help="Transaction ID to keep (8+ char prefix)"
+    ),
+    duplicate_txid: str = typer.Option(
+        ..., "--duplicate", "-d", help="Transaction ID to mark as duplicate (8+ char prefix)"
+    ),
     write: bool = typer.Option(False, "--write", help="Persist changes (default: dry-run)"),
 ):
     """Manually mark a specific pair of transactions as duplicates.
@@ -468,12 +559,24 @@ def mark_duplicate(
 @app.command()
 def duplicates(
     ctx: typer.Context,
-    model: str = typer.Option("qwen3:30b", "--model", help="Ollama model for LLM duplicate detection"),
-    max_days_apart: int = typer.Option(1, "--max-days", help="Maximum days between potential duplicates"),
-    amount_tolerance: float = typer.Option(0.001, "--amount-tolerance", help="Acceptable difference in amounts"),
-    min_confidence: float = typer.Option(0.0, "--min-confidence", help="Minimum confidence threshold to display (0.0-1.0)"),
-    interactive: bool = typer.Option(False, "--interactive", "-i", help="Enable interactive mode to confirm/deny each duplicate"),
-    use_llm: bool = typer.Option(False, "--llm", help="Use LLM instead of ML (slower, no training needed)"),
+    model: str = typer.Option(
+        "qwen3:30b", "--model", help="Ollama model for LLM duplicate detection"
+    ),
+    max_days_apart: int = typer.Option(
+        1, "--max-days", help="Maximum days between potential duplicates"
+    ),
+    amount_tolerance: float = typer.Option(
+        0.001, "--amount-tolerance", help="Acceptable difference in amounts"
+    ),
+    min_confidence: float = typer.Option(
+        0.0, "--min-confidence", help="Minimum confidence threshold to display (0.0-1.0)"
+    ),
+    interactive: bool = typer.Option(
+        False, "--interactive", "-i", help="Enable interactive mode to confirm/deny each duplicate"
+    ),
+    use_llm: bool = typer.Option(
+        False, "--llm", help="Use LLM instead of ML (slower, no training needed)"
+    ),
 ):
     """Scan ledgers for duplicate transactions using ML or LLM analysis.
 
@@ -506,8 +609,12 @@ def duplicates(
 @app.command(name="audit-ml")
 def audit_ml(
     ctx: typer.Context,
-    mode: str = typer.Option("summary", "--mode", "-m", help="Audit mode: summary, training, predictions, or features"),
-    filter_pattern: Optional[str] = typer.Option(None, "--filter", "-f", help="Regex pattern to filter descriptions"),
+    mode: str = typer.Option(
+        "summary", "--mode", "-m", help="Audit mode: summary, training, predictions, or features"
+    ),
+    filter_pattern: Optional[str] = typer.Option(
+        None, "--filter", "-f", help="Regex pattern to filter descriptions"
+    ),
     limit: int = typer.Option(20, "--limit", "-n", help="Maximum examples to show"),
 ):
     """Audit ML classifier training data and decisions.
@@ -539,7 +646,12 @@ def audit_ml(
 @app.command(name="prompt-stats")
 def prompt_stats(
     ctx: typer.Context,
-    generate_update: bool = typer.Option(False, "--generate-update", "-g", help="Generate a new PromptUpdated event based on learned patterns"),
+    generate_update: bool = typer.Option(
+        False,
+        "--generate-update",
+        "-g",
+        help="Generate a new PromptUpdated event based on learned patterns",
+    ),
 ):
     """Show prompt learning statistics and generate updates.
 
@@ -561,10 +673,18 @@ def prompt_stats(
 @app.command(name="rebuild-projections")
 def rebuild_projections(
     ctx: typer.Context,
-    from_scratch: bool = typer.Option(False, "--from-scratch", help="Delete existing projections and rebuild from all events"),
-    incremental: bool = typer.Option(False, "--incremental", help="Only apply new events since last rebuild (default behavior)"),
-    events_db: Optional[Path] = typer.Option(None, "--events-db", help="Path to events database (advanced override)"),
-    projections_db: Optional[Path] = typer.Option(None, "--projections-db", help="Path to projections database (advanced override)"),
+    from_scratch: bool = typer.Option(
+        False, "--from-scratch", help="Delete existing projections and rebuild from all events"
+    ),
+    incremental: bool = typer.Option(
+        False, "--incremental", help="Only apply new events since last rebuild (default behavior)"
+    ),
+    events_db: Optional[Path] = typer.Option(
+        None, "--events-db", help="Path to events database (advanced override)"
+    ),
+    projections_db: Optional[Path] = typer.Option(
+        None, "--projections-db", help="Path to projections database (advanced override)"
+    ),
 ):
     """Rebuild transaction projections from event store.
 
@@ -591,9 +711,19 @@ def rebuild_projections(
 @app.command(name="backfill-events")
 def backfill_events(
     ctx: typer.Context,
-    events_db: Optional[Path] = typer.Option(None, "--event-store", help="Path to event store database (advanced override)"),
-    projections_db: Optional[Path] = typer.Option(None, "--projections-db", help="Path to transaction projections database (advanced override)"),
-    budget_projections_db: Optional[Path] = typer.Option(None, "--budget-projections-db", help="Path to budget projections database (advanced override)"),
+    events_db: Optional[Path] = typer.Option(
+        None, "--event-store", help="Path to event store database (advanced override)"
+    ),
+    projections_db: Optional[Path] = typer.Option(
+        None,
+        "--projections-db",
+        help="Path to transaction projections database (advanced override)",
+    ),
+    budget_projections_db: Optional[Path] = typer.Option(
+        None,
+        "--budget-projections-db",
+        help="Path to budget projections database (advanced override)",
+    ),
     write: bool = typer.Option(False, "--write", help="Actually write events (default: dry-run)"),
 ):
     """Backfill events from existing data (advanced/debugging).
@@ -622,10 +752,22 @@ def backfill_events(
 @app.command(name="migrate-to-events")
 def migrate_to_events(
     ctx: typer.Context,
-    events_db: Optional[Path] = typer.Option(None, "--event-store", help="Path to event store database (advanced override)"),
-    projections_db: Optional[Path] = typer.Option(None, "--projections-db", help="Path to transaction projections database (advanced override)"),
-    budget_projections_db: Optional[Path] = typer.Option(None, "--budget-projections-db", help="Path to budget projections database (advanced override)"),
-    write: bool = typer.Option(False, "--write", help="Actually perform migration (default: dry-run)"),
+    events_db: Optional[Path] = typer.Option(
+        None, "--event-store", help="Path to event store database (advanced override)"
+    ),
+    projections_db: Optional[Path] = typer.Option(
+        None,
+        "--projections-db",
+        help="Path to transaction projections database (advanced override)",
+    ),
+    budget_projections_db: Optional[Path] = typer.Option(
+        None,
+        "--budget-projections-db",
+        help="Path to budget projections database (advanced override)",
+    ),
+    write: bool = typer.Option(
+        False, "--write", help="Actually perform migration (default: dry-run)"
+    ),
     force: bool = typer.Option(False, "--force", help="Overwrite existing event store"),
 ):
     """One-command migration to event sourcing (recommended for upgrades).
