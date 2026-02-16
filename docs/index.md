@@ -74,7 +74,7 @@ Gilt takes your privacy seriously:
 
 ## Community
 
-- **Repository**: [github.com/svetzal/gilt](https://github.com/svetzal/gilt)
+- **Repository**: [github.com/svetzal/gilt-cli](https://github.com/svetzal/gilt-cli)
 - **Issues**: Report bugs or request features on GitHub
 - **License**: Private, personal use tool
 

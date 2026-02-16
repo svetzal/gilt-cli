@@ -293,7 +293,7 @@ We welcome contributions! See the [Contributing Guide](development/contributing.
 
 ## Questions?
 
-- **Issues**: [GitHub Issues](https://github.com/svetzal/gilt/issues)
+- **Issues**: [GitHub Issues](https://github.com/svetzal/gilt-cli/issues)
 - **Discussions**: Start a discussion on GitHub
 - **Code**: Explore the source code for examples
 
@@ -308,5 +308,5 @@ New to Gilt development? Start here:
 Want to contribute? Check out:
 
 - [Contributing Guidelines](development/contributing.md)
-- [Open Issues](https://github.com/svetzal/gilt/issues)
+- [Open Issues](https://github.com/svetzal/gilt-cli/issues)
 - Implementation history for context

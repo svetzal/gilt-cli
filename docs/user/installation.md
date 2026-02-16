@@ -16,7 +16,7 @@ This guide covers installing Gilt on your system.
 Clone or download the Gilt repository:
 
 ```bash
-git clone https://github.com/svetzal/gilt.git
+git clone https://github.com/svetzal/gilt-cli.git
 cd gilt
 ```
 

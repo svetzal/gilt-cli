@@ -159,7 +159,7 @@ Common issues and solutions:
 
 ### Support
 
-- **GitHub Issues**: [Report bugs or request features](https://github.com/svetzal/gilt/issues)
+- **GitHub Issues**: [Report bugs or request features](https://github.com/svetzal/gilt-cli/issues)
 - **Documentation**: This site covers most use cases
 - **Code**: Explore the source for advanced usage
 

@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "gilt"
+name = "gilt-cli"
 version = "0.1.0"
 description = "Local-only, privacy-first personal finance CLI"
 requires-python = ">=3.13"
@@ -54,9 +54,9 @@ ml = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/svetzal/gilt"
-Repository = "https://github.com/svetzal/gilt"
-Issues = "https://github.com/svetzal/gilt/issues"
+Homepage = "https://github.com/svetzal/gilt-cli"
+Repository = "https://github.com/svetzal/gilt-cli"
+Issues = "https://github.com/svetzal/gilt-cli/issues"
 
 [project.scripts]
 gilt = "gilt.cli.app:app"

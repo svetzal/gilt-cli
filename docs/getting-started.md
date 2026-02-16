@@ -193,7 +193,7 @@ Now that you have data imported, you can:
 - **CLI Reference**: See the [CLI Guide](user/cli/index.md) for all commands
 - **GUI Guide**: See the [GUI Guide](user/gui/index.md) for visual interface help
 - **Troubleshooting**: Check the user guide for common issues
-- **Issues**: Report bugs on [GitHub](https://github.com/svetzal/gilt/issues)
+- **Issues**: Report bugs on [GitHub](https://github.com/svetzal/gilt-cli/issues)
 
 ## What's Next?
 
