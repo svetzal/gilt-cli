@@ -20,6 +20,12 @@ Apply these Simple Design Heuristics in priority order:
 
 **Functional core, imperative shell**: Pure business logic lives in services (`src/gilt/services/`) with no I/O or UI imports. Side effects (file I/O, console output, user prompts) are pushed to CLI commands and GUI views at the boundaries.
 
+**Gateway pattern**: All external interactions (filesystem, databases, Ollama) go through gateway classes that can be mocked in tests. Never mock library internals directly — if you need to mock a third-party library, wrap it in a gateway first.
+
+**Compose over inherit**: Favour composition and protocol-based polymorphism over inheritance. Use ABCs for contracts, not for code reuse. Prefer pure functions; contain side effects at boundaries.
+
+**Small, safe increments**: Make single-reason commits that could ship independently. Build the simplest thing that could work, then refactor. Avoid speculative work — only build what's needed now.
+
 When circumstances suggest breaking these principles, explicitly consult the user before proceeding.
 
 ## Quality Assurance Process
