@@ -1,0 +1,19 @@
+{
+  "gates": [
+    {
+      "name": "test",
+      "command": "uv run pytest",
+      "required": true
+    },
+    {
+      "name": "lint",
+      "command": "uv run ruff check .",
+      "required": true
+    },
+    {
+      "name": "build",
+      "command": "uv build",
+      "required": true
+    }
+  ]
+}
