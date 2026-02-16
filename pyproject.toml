@@ -1,0 +1,80 @@
+[project]
+name = "finance-local"
+version = "0.0.0"
+description = "Local-only finance utilities (privacy-first)"
+requires-python = ">=3.13"
+readme = "README.md"
+dependencies = [
+  "pandas",
+  "pyyaml",
+  "pydantic>=2,<3",
+  "mojentic",
+  "typer>=0.12,<1",
+  "rich>=13,<14",
+  "scikit-learn>=1.3,<2",
+  "numpy>=1.24,<3",
+]
+
+[project.optional-dependencies]
+# Development-only dependencies (install with: pip install -e ".[dev]")
+dev = [
+  "ruff",
+  "pytest",
+  "mkdocs",
+  "mkdocs-material",
+  "griffe-fieldz",
+  "pymdown-extensions",
+]
+
+# GUI dependencies (install with: pip install -e ".[gui]")
+gui = [
+  "PySide6>=6.5",
+]
+
+# ML dependencies for fast duplicate detection (install with: pip install -e ".[ml]")
+ml = [
+  "lightgbm>=4.0,<5",
+]
+
+[project.scripts]
+finance = "finance.cli.app:app"
+finance-gui = "finance.gui.app:main"
+
+[tool.ruff]
+# Target Python 3.13 syntax/features for linting and rules
+target-version = "py313"
+line-length = 100
+# Keep it minimal; you can enable more rulesets later
+select = ["E", "F"]
+ignore = []
+# Exclude generated/output data
+exclude = [
+  ".venv",
+  "venv",
+  "data",
+  "ingest",
+  "reports",
+]
+
+
+[tool.pyright]
+pythonVersion = "3.13"
+include = ["src"]
+exclude = [
+  "**/__pycache__",
+  "venv",
+  ".venv",
+  "data",
+  "ingest",
+  "reports",
+]
+# Basic type checking by default; can be set to "strict" later per file/folder
+typeCheckingMode = "basic"
+
+[tool.pytest.ini_options]
+# Discover specs alongside source files
+python_files = "*_spec.py"
+python_classes = "Describe*"
+python_functions = "it_should_*"
+testpaths = ["src"]
+addopts = "-q"
