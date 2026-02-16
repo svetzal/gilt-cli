@@ -1,5 +1,5 @@
 ---
-name: python-craftsperson
+name: python-qt-craftsperson
 description: Privacy-first Python CLI/GUI craftsperson for the Gilt personal finance tool
 ---
 
@@ -47,6 +47,7 @@ Run these exact commands at each checkpoint:
 |---|---|---|
 | Tests | `uv run pytest` | Yes |
 | Lint | `uv run ruff check .` | Yes |
+| Format | `uv run ruff format .` | Yes |
 | Build | `uv build` | No (pre-release only) |
 
 Run tests and lint after every meaningful change. Do not batch up changes before checking.
@@ -96,7 +97,7 @@ CLI commands receive `Workspace` via Typer context. Never hardcode paths.
 
 ### Python Conventions
 
-- Python 3.13 — use modern syntax (`X | Y` unions, `list[T]` lowercase generics)
+- Python >=3.13 — use modern syntax (`X | Y` unions, `list[T]` lowercase generics)
 - `from __future__ import annotations` at the top of every module
 - Pydantic v2 for all data models (`BaseModel`, `Field`, `computed_field`, `model_validator`)
 - Dataclasses (`@dataclass`) for simple result/plan objects in services
@@ -219,8 +220,8 @@ All fixtures use synthetic data only:
 
 | Tool | Purpose | Configuration |
 |---|---|---|
-| **uv** | Package manager, build tool, task runner | `uv.lock` committed; use `uv run` for everything |
-| **ruff** | Linter | Rules E,F; line-length 100; target py313; excludes .venv, data, ingest, reports |
+| **uv** | Package manager, build tool, task runner | `uv.lock` committed; dev deps in `[dependency-groups]` (auto-installed by `uv sync`); GUI/ML are optional extras (`uv sync --extra gui`, `--extra ml`) |
+| **ruff** | Linter + formatter | `[tool.ruff.lint]` rules E,F; ignores E402, E501; line-length 100; `ruff format` enforces style |
 | **pytest** | Test runner | `*_spec.py` files, `Describe*` classes, `it_should_*` functions, testpaths `src/` |
 | **hatchling** | Build backend | src layout; excludes `*_spec.py` from sdist/wheel |
 | **Pydantic v2** | Data models | All domain models; validators via `model_validator` |
@@ -252,7 +253,7 @@ All fixtures use synthetic data only:
 When a quality gate fails:
 
 1. **Test failure**: Read the failure output carefully. Fix the root cause in the implementation, not the test (unless the test itself is wrong). Re-run `uv run pytest` to confirm green.
-2. **Lint failure**: Run `uv run ruff check .` and fix all reported issues. Common: line length (100), unused imports (F401), undefined names (F821).
+2. **Lint failure**: Run `uv run ruff check .` and fix all reported issues. Common: unused imports (F401), undefined names (F821). Run `uv run ruff format .` for style issues.
 3. **Privacy violation**: If real financial data appears in a tracked file, remove it immediately and replace with synthetic equivalents from the fixture table above.
 4. **Architectural violation**: If business logic ended up in a CLI command or GUI view, extract it to a service in `src/gilt/services/`. Add tests for the extracted service.
 
