@@ -4,7 +4,7 @@ This guide explains how to upgrade from CSV-only data management to the new even
 
 ## For Existing Users
 
-If you have been using Finance with CSV files and want to upgrade to the event sourcing architecture (which enables duplicate detection, audit trails, and future features), you have two options:
+If you have been using Gilt with CSV files and want to upgrade to the event sourcing architecture (which enables duplicate detection, audit trails, and future features), you have two options:
 
 ### Option 1: One-Command Migration (Recommended)
 
@@ -12,10 +12,10 @@ The simplest way to migrate is using the new `migrate-to-events` command:
 
 ```bash
 # 1. Dry run to see what will happen
-finance migrate-to-events
+gilt migrate-to-events
 
 # 2. Actually perform the migration
-finance migrate-to-events --write
+gilt migrate-to-events --write
 ```
 
 This command will:
@@ -33,10 +33,10 @@ If you prefer to understand each step or need more control:
 
 ```bash
 # 1. Backfill events from existing CSVs
-finance backfill-events --write
+gilt backfill-events --write
 
 # 2. (Optional) Verify projections if needed
-finance rebuild-projections --from-scratch
+gilt rebuild-projections --from-scratch
 ```
 
 The `backfill-events` command automatically rebuilds projections and validates them.
@@ -58,27 +58,27 @@ Once migrated, you can use:
 ### Duplicate Detection
 ```bash
 # Scan for duplicate transactions
-finance duplicates
+gilt duplicates
 
 # Interactive mode with learning
-finance duplicates --interactive
+gilt duplicates --interactive
 ```
 
 ### Projection Rebuilding
 ```bash
 # Rebuild projections from events (incremental)
-finance rebuild-projections
+gilt rebuild-projections
 
 # Full rebuild from scratch
-finance rebuild-projections --from-scratch
+gilt rebuild-projections --from-scratch
 ```
 
 ### Continue Normal Workflows
 
 All existing commands continue to work:
-- `finance ingest --write` - Import new transactions
-- `finance categorize` - Categorize transactions
-- `finance budget` - View budget reports
+- `gilt ingest --write` - Import new transactions
+- `gilt categorize` - Categorize transactions
+- `gilt budget` - View budget reports
 - etc.
 
 The difference is that now all changes are recorded as events, giving you an audit trail and enabling event sourcing features.
@@ -90,7 +90,7 @@ The difference is that now all changes are recorded as events, giving you an aud
 If you see this error, you need to migrate your data:
 
 ```bash
-finance migrate-to-events --write
+gilt migrate-to-events --write
 ```
 
 ### "Projections not found" Error
@@ -98,7 +98,7 @@ finance migrate-to-events --write
 This shouldn't happen with the new auto-rebuild feature, but if you see it:
 
 ```bash
-finance rebuild-projections --from-scratch
+gilt rebuild-projections --from-scratch
 ```
 
 ### Migrating Again (Force)
@@ -107,7 +107,7 @@ If you need to re-migrate (e.g., after restoring old data):
 
 ```bash
 # This will overwrite the existing event store
-finance migrate-to-events --write --force
+gilt migrate-to-events --write --force
 ```
 
 ### Migration Failed or Incomplete
@@ -121,7 +121,7 @@ If migration fails partway through:
 
 2. Run migration again:
    ```bash
-   finance migrate-to-events --write
+   gilt migrate-to-events --write
    ```
 
 ## For New Users
@@ -130,7 +130,7 @@ If you're starting fresh, you don't need to worry about migration. Just:
 
 1. Export CSV files from your bank
 2. Place them in `ingest/` directory
-3. Run `finance ingest --write`
+3. Run `gilt ingest --write`
 
 This automatically creates the event store and projections for you.
 
@@ -173,5 +173,5 @@ If you encounter issues during migration:
 2. Review the [Architecture Documentation](../../developer/architecture/system-design.md)
 3. Run with `--help` for command-specific options:
    ```bash
-   finance migrate-to-events --help
+   gilt migrate-to-events --help
    ```

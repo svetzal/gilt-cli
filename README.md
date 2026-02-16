@@ -1,6 +1,6 @@
-# Finance
+# Gilt
 
-A **local-only, privacy-first** command-line tool for managing personal finance data from multiple bank accounts.
+A **local-only, privacy-first** command-line tool for managing personal gilt data from multiple bank accounts.
 
 ## Core Principles
 
@@ -46,7 +46,7 @@ A **local-only, privacy-first** command-line tool for managing personal finance 
 
 1. Clone or navigate to the repository:
 ```bash
-cd /path/to/finance
+cd /path/to/gilt
 ```
 
 2. Create and activate a virtual environment:
@@ -62,13 +62,13 @@ pip install -e .[dev]
 
 4. Verify installation:
 ```bash
-finance --help
+gilt --help
 ```
 
 ## Directory Structure
 
 ```
-finance/
+gilt/
 ├── config/
 │   └── accounts.yml          # Account configuration (optional but recommended)
 ├── ingest/                   # Raw bank CSV exports (immutable inputs)
@@ -133,13 +133,13 @@ Display all configured accounts and their descriptions.
 
 ```bash
 # List accounts from config
-finance accounts
+gilt accounts
 
 # Use custom config location
-finance accounts --config /path/to/accounts.yml
+gilt accounts --config /path/to/accounts.yml
 
 # Use custom data directory
-finance accounts --data-dir /path/to/ledgers
+gilt accounts --data-dir /path/to/ledgers
 ```
 
 **Options:**
@@ -159,13 +159,13 @@ Convert raw bank CSV exports into standardized per-account ledger files. This co
 
 ```bash
 # Dry-run (preview what would happen)
-finance ingest
+gilt ingest
 
 # Actually write the normalized ledgers
-finance ingest --write
+gilt ingest --write
 
 # Use custom paths
-finance ingest --config config/accounts.yml \
+gilt ingest --config config/accounts.yml \
                --ingest-dir ingest \
                --output-dir data/accounts \
                --write
@@ -180,8 +180,8 @@ finance ingest --config config/accounts.yml \
 **Workflow:**
 1. Export CSVs from your bank's website
 2. Place them in `ingest/` directory
-3. Run `finance ingest` to preview
-4. Run `finance ingest --write` to process and save
+3. Run `gilt ingest` to preview
+4. Run `gilt ingest --write` to process and save
 
 **Transfer Linking:**
 After ingestion, the tool automatically identifies transfers between your accounts (e.g., moving money from checking to credit card) and annotates both sides of the transfer with metadata.
@@ -194,16 +194,16 @@ Display transactions for a specific account in a rich formatted table.
 
 ```bash
 # Show current year's transactions for MYBANK_CHQ
-finance ytd --account MYBANK_CHQ
+gilt ytd --account MYBANK_CHQ
 
 # Show transactions for a specific year
-finance ytd --account MYBANK_CC --year 2024
+gilt ytd --account MYBANK_CC --year 2024
 
 # Limit to last 20 transactions
-finance ytd --account BANK2_BIZ --limit 20
+gilt ytd --account BANK2_BIZ --limit 20
 
 # Specify default currency for legacy rows
-finance ytd --account MYBANK_CHQ --default-currency CAD
+gilt ytd --account MYBANK_CHQ --default-currency CAD
 ```
 
 **Options:**
@@ -234,10 +234,10 @@ Use `--txid` to target one specific transaction by its ID prefix (as shown in `y
 
 ```bash
 # Dry-run: preview the change
-finance note --account MYBANK_CHQ --txid a1b2c3d4 --note "Reimbursable expense"
+gilt note --account MYBANK_CHQ --txid a1b2c3d4 --note "Reimbursable expense"
 
 # Write the note to disk
-finance note --account MYBANK_CHQ --txid a1b2c3d4 --note "Reimbursable expense" --write
+gilt note --account MYBANK_CHQ --txid a1b2c3d4 --note "Reimbursable expense" --write
 ```
 
 #### Batch Mode
@@ -246,32 +246,32 @@ Use `--description`, `--desc-prefix`, or `--pattern` with optional `--amount` to
 
 ```bash
 # Match exact description
-finance note --account MYBANK_CC \
+gilt note --account MYBANK_CC \
              --description "SPOTIFY" \
              --note "Music subscription" \
              --write
 
 # Match by description prefix (case-insensitive)
-finance note --account MYBANK_CHQ \
+gilt note --account MYBANK_CHQ \
              --desc-prefix "TRANSFER FROM" \
              --note "Inter-account transfer" \
              --write
 
 # Match by regex pattern (case-insensitive)
-finance note --account MYBANK_CHQ \
+gilt note --account MYBANK_CHQ \
              --pattern "Payment - WWW Payment - \d+ EXAMPLE UTILITY" \
              --note "Hydro bill" \
              --write
 
 # Match description and specific amount
-finance note --account BANK2_BIZ \
+gilt note --account BANK2_BIZ \
              --description "Monthly Fee" \
              --amount -12.95 \
              --note "Account maintenance" \
              --write
 
 # Batch mode with auto-confirm (skip prompts)
-finance note --account MYBANK_CC \
+gilt note --account MYBANK_CC \
              --desc-prefix "AMAZON" \
              --note "Online purchases" \
              --yes \
@@ -294,7 +294,7 @@ finance note --account MYBANK_CC \
 
 ## Budgeting & Categorization
 
-The finance tool includes powerful budgeting features for tracking and categorizing spending across all your accounts.
+The gilt tool includes powerful budgeting features for tracking and categorizing spending across all your accounts.
 
 ### `categories` - List Categories
 
@@ -302,10 +302,10 @@ Display all defined categories with usage statistics from your transactions.
 
 ```bash
 # List all categories with usage counts and totals
-finance categories
+gilt categories
 
 # Use custom config location
-finance categories --config /path/to/categories.yml
+gilt categories --config /path/to/categories.yml
 ```
 
 **Options:**
@@ -328,19 +328,19 @@ Add, remove, or set budgets for categories.
 
 ```bash
 # Add a new category
-finance category --add "Housing" --description "Housing and utilities" --write
+gilt category --add "Housing" --description "Housing and utilities" --write
 
 # Add a subcategory
-finance category --add "Housing:Utilities" --description "Electric, gas, water" --write
+gilt category --add "Housing:Utilities" --description "Electric, gas, water" --write
 
 # Set a budget
-finance category --set-budget "Dining Out" --amount 400 --period monthly --write
+gilt category --set-budget "Dining Out" --amount 400 --period monthly --write
 
 # Remove a category (requires confirmation if used)
-finance category --remove "Old Category" --write
+gilt category --remove "Old Category" --write
 
 # Force remove without confirmation
-finance category --remove "Housing:Utilities" --force --write
+gilt category --remove "Housing:Utilities" --force --write
 ```
 
 **Options:**
@@ -365,26 +365,26 @@ Assign categories to one or many transactions.
 
 ```bash
 # Categorize one transaction by ID
-finance categorize --account MYBANK_CHQ --txid a1b2c3d4 --category "Housing:Utilities" --write
+gilt categorize --account MYBANK_CHQ --txid a1b2c3d4 --category "Housing:Utilities" --write
 ```
 
 #### Batch Mode
 
 ```bash
 # Categorize all matching transactions by description prefix
-finance categorize --desc-prefix "SPOTIFY" --category "Entertainment:Music" --yes --write
+gilt categorize --desc-prefix "SPOTIFY" --category "Entertainment:Music" --yes --write
 
 # Categorize exact description match
-finance categorize --account MYBANK_CC --description "Monthly Fee" --category "Banking:Fees" --write
+gilt categorize --account MYBANK_CC --description "Monthly Fee" --category "Banking:Fees" --write
 
 # Categorize by regex pattern
-finance categorize --pattern "Payment.*EXAMPLE UTILITY" --category "Housing:Utilities" --yes --write
+gilt categorize --pattern "Payment.*EXAMPLE UTILITY" --category "Housing:Utilities" --yes --write
 
 # Categorize across all accounts
-finance categorize --desc-prefix "AMAZON" --category "Shopping:Online" --yes --write
+gilt categorize --desc-prefix "AMAZON" --category "Shopping:Online" --yes --write
 
 # With amount filter
-finance categorize --account MYBANK_CHQ --description "Service Fee" --amount -12.95 --category "Banking:Fees" --write
+gilt categorize --account MYBANK_CHQ --description "Service Fee" --amount -12.95 --category "Banking:Fees" --write
 ```
 
 **Options:**
@@ -414,19 +414,19 @@ Uses a machine learning classifier trained on your categorization history (from 
 
 ```bash
 # Dry-run to see what would be auto-categorized
-finance auto-categorize
+gilt auto-categorize
 
 # Interactive mode - review and approve each prediction
-finance auto-categorize --interactive
+gilt auto-categorize --interactive
 
 # Apply auto-categorizations with default confidence threshold
-finance auto-categorize --write
+gilt auto-categorize --write
 
 # Use stricter confidence threshold (0.0-1.0, default 0.6)
-finance auto-categorize --confidence 0.8 --write
+gilt auto-categorize --confidence 0.8 --write
 
 # Force retraining the model before predictions
-finance auto-categorize --retrain --write
+gilt auto-categorize --retrain --write
 ```
 
 **Options:**
@@ -460,13 +460,13 @@ Rename a category across all ledger files. Useful when renaming categories in `c
 
 ```bash
 # Rename a category
-finance recategorize --from "Business" --to "Work" --write
+gilt recategorize --from "Business" --to "Work" --write
 
 # Rename a category with subcategory
-finance recategorize --from "Business:Subscriptions" --to "Work:Subscriptions" --write
+gilt recategorize --from "Business:Subscriptions" --to "Work:Subscriptions" --write
 
 # Preview changes without writing (dry-run)
-finance recategorize --from "Old Category" --to "New Category"
+gilt recategorize --from "Old Category" --to "New Category"
 ```
 
 **Options:**
@@ -492,10 +492,10 @@ Diagnose category issues by finding categories used in transactions that aren't 
 
 ```bash
 # Check all ledgers for orphaned categories
-finance diagnose-categories
+gilt diagnose-categories
 
 # Use custom config location
-finance diagnose-categories --config /path/to/categories.yml
+gilt diagnose-categories --config /path/to/categories.yml
 ```
 
 **Options:**
@@ -521,16 +521,16 @@ After categorizing many transactions, this command helps you discover:
 **Example workflow:**
 ```bash
 # 1. Run diagnostic
-finance diagnose-categories
+gilt diagnose-categories
 
 # 2a. If legitimate category, add it to config
-finance category --add "NewCategory" --write
+gilt category --add "NewCategory" --write
 
 # 2b. If typo, fix all transactions
-finance recategorize --from "Transporation" --to "Transportation" --write
+gilt recategorize --from "Transporation" --to "Transportation" --write
 
 # 3. Re-run diagnostic to verify
-finance diagnose-categories
+gilt diagnose-categories
 ```
 
 ---
@@ -541,19 +541,19 @@ Display transactions that haven't been categorized yet.
 
 ```bash
 # Show all uncategorized transactions
-finance uncategorized
+gilt uncategorized
 
 # Filter by account
-finance uncategorized --account MYBANK_CHQ
+gilt uncategorized --account MYBANK_CHQ
 
 # Filter by year
-finance uncategorized --year 2025
+gilt uncategorized --year 2025
 
 # Show only large transactions
-finance uncategorized --min-amount 100
+gilt uncategorized --min-amount 100
 
 # Limit results
-finance uncategorized --limit 50
+gilt uncategorized --limit 50
 ```
 
 **Options:**
@@ -574,16 +574,16 @@ View budget vs actual spending by category.
 
 ```bash
 # Current year summary
-finance budget
+gilt budget
 
 # Specific year
-finance budget --year 2025
+gilt budget --year 2025
 
 # Specific month
-finance budget --year 2025 --month 10
+gilt budget --year 2025 --month 10
 
 # Single category detail
-finance budget --category "Dining Out" --year 2025
+gilt budget --category "Dining Out" --year 2025
 ```
 
 **Options:**
@@ -613,16 +613,16 @@ Generate historical events from existing CSV ledgers and YAML configuration, ena
 
 ```bash
 # Preview migration (dry-run)
-finance backfill-events
+gilt backfill-events
 
 # Execute migration with validation
-finance backfill-events --write
+gilt backfill-events --write
 
 # Skip validation (faster, use with caution)
-finance backfill-events --write --no-validate
+gilt backfill-events --write --no-validate
 
 # Custom paths
-finance backfill-events \
+gilt backfill-events \
   --data-dir custom/data \
   --categories-config custom/categories.yml \
   --event-store custom/events.db \
@@ -669,13 +669,13 @@ Rebuild the transaction projection database from the event store. Useful after e
 
 ```bash
 # Rebuild from scratch
-finance rebuild-projections --from-scratch
+gilt rebuild-projections --from-scratch
 
 # Incremental rebuild (only new events)
-finance rebuild-projections
+gilt rebuild-projections
 
 # Custom paths
-finance rebuild-projections \
+gilt rebuild-projections \
   --event-store custom/events.db \
   --projections-db custom/projections.db \
   --from-scratch
@@ -697,10 +697,10 @@ Display statistics about the duplicate detection learning system, including accu
 
 ```bash
 # Show learning statistics
-finance prompt-stats
+gilt prompt-stats
 
 # Use custom event store
-finance prompt-stats --event-store custom/events.db
+gilt prompt-stats --event-store custom/events.db
 ```
 
 **Options:**
@@ -796,7 +796,7 @@ pytest
 pytest -v
 
 # Run with coverage
-pytest --cov=finance --cov-report=term-missing
+pytest --cov=gilt --cov-report=term-missing
 ```
 
 Tests are discovered automatically from `*_spec.py` files under `src/`.
@@ -829,7 +829,7 @@ For detailed development conventions, architecture decisions, and contribution g
 
 ## Architecture Overview
 
-Finance uses an **event-sourced architecture** for transaction management:
+Gilt uses an **event-sourced architecture** for transaction management:
 
 ```
 CSV Exports → Events (Immutable) → Projections (Derived) → Views (Queries)
@@ -870,16 +870,16 @@ CSV Exports → Events (Immutable) → Projections (Derived) → Views (Queries)
 2. Configure categories in `config/categories.yml`
 3. Export CSVs from your banks
 4. Place CSVs in `ingest/` directory
-5. Run `finance ingest --write`
-6. Backfill events: `finance backfill-events --write`
-7. Verify with `finance accounts` and `finance ytd --account <ACCOUNT_ID>`
+5. Run `gilt ingest --write`
+6. Backfill events: `gilt backfill-events --write`
+7. Verify with `gilt accounts` and `gilt ytd --account <ACCOUNT_ID>`
 
 ### Regular Updates
 
 1. Download new transactions as CSV exports
 2. Place new CSVs in `ingest/` directory (can overwrite old ones or use new filenames)
-3. Run `finance ingest --write`
-4. Review recent transactions with `finance ytd --account <ACCOUNT_ID> --limit 50`
+3. Run `gilt ingest --write`
+4. Review recent transactions with `gilt ytd --account <ACCOUNT_ID> --limit 50`
 5. Categorize new transactions (see below)
 
 ### Categorizing Transactions
@@ -887,50 +887,50 @@ CSV Exports → Events (Immutable) → Projections (Derived) → Views (Queries)
 #### Find What Needs Categorizing
 ```bash
 # Show all uncategorized transactions
-finance uncategorized
+gilt uncategorized
 
 # Filter by account
-finance uncategorized --account MYBANK_CHQ
+gilt uncategorized --account MYBANK_CHQ
 
 # Show only large amounts
-finance uncategorized --min-amount 100
+gilt uncategorized --min-amount 100
 ```
 
 #### Categorize in Batch
 ```bash
 # Recurring subscriptions
-finance categorize --desc-prefix "SPOTIFY" --category "Entertainment:Music" --yes --write
-finance categorize --desc-prefix "NETFLIX" --category "Entertainment:Streaming" --yes --write
+gilt categorize --desc-prefix "SPOTIFY" --category "Entertainment:Music" --yes --write
+gilt categorize --desc-prefix "NETFLIX" --category "Entertainment:Streaming" --yes --write
 
 # Utilities
-finance categorize --pattern "Payment.*EXAMPLE UTILITY" --category "Housing:Utilities" --yes --write
+gilt categorize --pattern "Payment.*EXAMPLE UTILITY" --category "Housing:Utilities" --yes --write
 
 # Banking fees
-finance categorize --description "Monthly Fee" --category "Banking:Fees" --write
+gilt categorize --description "Monthly Fee" --category "Banking:Fees" --write
 
 # Transit
-finance categorize --desc-prefix "PRESTO" --category "Transportation:Transit" --yes --write
+gilt categorize --desc-prefix "PRESTO" --category "Transportation:Transit" --yes --write
 ```
 
 #### Auto-Categorize with ML (After Manual Training)
 ```bash
 # 1. First, manually categorize some transactions to build training data
-finance categorize --desc-prefix "SPOTIFY" --category "Entertainment:Music" --yes --write
-finance categorize --desc-prefix "NETFLIX" --category "Entertainment:Streaming" --yes --write
+gilt categorize --desc-prefix "SPOTIFY" --category "Entertainment:Music" --yes --write
+gilt categorize --desc-prefix "NETFLIX" --category "Entertainment:Streaming" --yes --write
 # ... continue for various patterns
 
 # 2. Preview what the ML classifier would auto-categorize
-finance auto-categorize
+gilt auto-categorize
 
 # 3. Review predictions interactively
-finance auto-categorize --interactive
+gilt auto-categorize --interactive
 # (Approve, reject, or modify each prediction)
 
 # 4. Apply approved auto-categorizations
-finance auto-categorize --write
+gilt auto-categorize --write
 
 # 5. Use stricter confidence threshold for higher precision
-finance auto-categorize --confidence 0.8 --write
+gilt auto-categorize --confidence 0.8 --write
 ```
 
 **Tip**: Combine manual batch categorization for clear patterns (subscriptions, utilities) with auto-categorization for transactions that need contextual understanding.
@@ -938,11 +938,11 @@ finance auto-categorize --confidence 0.8 --write
 #### Categorize Individual Transactions
 ```bash
 # 1. View transactions
-finance ytd --account MYBANK_CHQ --limit 50
+gilt ytd --account MYBANK_CHQ --limit 50
 
 # 2. Note transaction ID (first 8 chars)
 # 3. Categorize
-finance categorize --account MYBANK_CHQ --txid a1b2c3d4 --category "Housing:Rent" --write
+gilt categorize --account MYBANK_CHQ --txid a1b2c3d4 --category "Housing:Rent" --write
 ```
 
 ### Annotating Transactions
@@ -950,59 +950,59 @@ finance categorize --account MYBANK_CHQ --txid a1b2c3d4 --category "Housing:Rent
 #### Single Transaction Notes
 ```bash
 # View transactions
-finance ytd --account <ACCOUNT_ID>
+gilt ytd --account <ACCOUNT_ID>
 
 # Add note using transaction ID
-finance note --account <ACCOUNT_ID> --txid <TXID> --note "Your note" --write
+gilt note --account <ACCOUNT_ID> --txid <TXID> --note "Your note" --write
 ```
 
 #### Batch Annotation for Recurring Expenses
 ```bash
 # Add notes to all Spotify charges
-finance note --account MYBANK_CC --desc-prefix "SPOTIFY" --note "Music subscription" --yes --write
+gilt note --account MYBANK_CC --desc-prefix "SPOTIFY" --note "Music subscription" --yes --write
 
 # Mark all gym membership fees
-finance note --account MYBANK_CHQ --description "GoodLife Fitness" --note "Gym membership" --yes --write
+gilt note --account MYBANK_CHQ --description "GoodLife Fitness" --note "Gym membership" --yes --write
 
 # Annotate transfer payments
-finance note --account MYBANK_CHQ --desc-prefix "TRANSFER FROM" --note "Inter-account transfer" --yes --write
+gilt note --account MYBANK_CHQ --desc-prefix "TRANSFER FROM" --note "Inter-account transfer" --yes --write
 ```
 
 ### Monthly Budget Review
 
 1. **Import new transactions**
    ```bash
-   finance ingest --write
+   gilt ingest --write
    ```
 
 2. **Check categorization status**
    ```bash
    # How many need categorization?
-   finance uncategorized | head
+   gilt uncategorized | head
    ```
 
 3. **Categorize uncategorized spending**
    ```bash
    # Focus on larger amounts first
-   finance uncategorized --min-amount 50
+   gilt uncategorized --min-amount 50
 
    # Categorize patterns
-   finance categorize --desc-prefix "AMAZON" --category "Shopping:Online" --yes --write
+   gilt categorize --desc-prefix "AMAZON" --category "Shopping:Online" --yes --write
    ```
 
 4. **View budget status**
    ```bash
    # Current month
-   finance budget --year 2025 --month 11
+   gilt budget --year 2025 --month 11
 
    # Specific category detail
-   finance budget --category "Dining Out" --year 2025 --month 11
+   gilt budget --category "Dining Out" --year 2025 --month 11
    ```
 
 5. **Generate monthly report (optional)**
    ```bash
    # Create markdown report
-   finance budget --year 2025 --month 11 > reports/budget_2025_11.md
+   gilt budget --year 2025 --month 11 > reports/budget_2025_11.md
    ```
 
 6. **Review over-budget categories**
@@ -1012,27 +1012,27 @@ finance note --account MYBANK_CHQ --desc-prefix "TRANSFER FROM" --note "Inter-ac
 
 7. **Add notes to significant transactions**
    ```bash
-   finance note --account MYBANK_CHQ --txid <large-txid> --note "Reason for expense" --write
+   gilt note --account MYBANK_CHQ --txid <large-txid> --note "Reason for expense" --write
    ```
 
 ### Setting Up Budget Tracking
 
 1. **Review existing categories**
    ```bash
-   finance categories
+   gilt categories
    ```
 
 2. **Add custom categories if needed**
    ```bash
-   finance category --add "Custom Category" --description "Category description" --write
-   finance category --add "Custom:Subcategory" --description "Subcategory description" --write
+   gilt category --add "Custom Category" --description "Category description" --write
+   gilt category --add "Custom:Subcategory" --description "Subcategory description" --write
    ```
 
 3. **Set budgets for each category**
    ```bash
-   finance category --set-budget "Dining Out" --amount 400 --period monthly --write
-   finance category --set-budget "Groceries" --amount 600 --period monthly --write
-   finance category --set-budget "Entertainment" --amount 200 --period monthly --write
+   gilt category --set-budget "Dining Out" --amount 400 --period monthly --write
+   gilt category --set-budget "Groceries" --amount 600 --period monthly --write
+   gilt category --set-budget "Entertainment" --amount 200 --period monthly --write
    ```
 
 4. **Categorize existing transactions** (see Categorizing Transactions above)
@@ -1040,32 +1040,32 @@ finance note --account MYBANK_CHQ --desc-prefix "TRANSFER FROM" --note "Inter-ac
 5. **Monitor spending**
    ```bash
    # Current month
-   finance budget
+   gilt budget
 
    # Year-to-date
-   finance budget --year 2025
+   gilt budget --year 2025
    ```
 
 ### Duplicate Detection Workflow
 
-Finance provides two ways to handle duplicate transactions:
+Gilt provides two ways to handle duplicate transactions:
 
 #### 1. Automatic Scanning (find duplicates you don't know about)
 
-Use `finance duplicates` to scan all transactions for potential duplicates:
+Use `gilt duplicates` to scan all transactions for potential duplicates:
 
 ```bash
 # ML-based detection (fast, learns from feedback)
-finance duplicates
+gilt duplicates
 
 # Interactive mode - review each match
-finance duplicates --interactive
+gilt duplicates --interactive
 
 # High-confidence only
-finance duplicates -i --min-confidence 0.8
+gilt duplicates -i --min-confidence 0.8
 
 # Force LLM analysis (slower, no training needed)
-finance duplicates --llm --interactive
+gilt duplicates --llm --interactive
 ```
 
 **What it detects:**
@@ -1075,14 +1075,14 @@ finance duplicates --llm --interactive
 
 #### 2. Manual Marking (when you spot a specific duplicate)
 
-Use `finance mark-duplicate` when you discover a duplicate in reports or listings:
+Use `gilt mark-duplicate` when you discover a duplicate in reports or listings:
 
 ```bash
 # Preview marking a duplicate
-finance mark-duplicate --primary a1b2c3d4 --duplicate e5f6g7h8
+gilt mark-duplicate --primary a1b2c3d4 --duplicate e5f6g7h8
 
 # Confirm and persist (you'll choose which description to keep)
-finance mark-duplicate -p a1b2c3d4 -d e5f6g7h8 --write
+gilt mark-duplicate -p a1b2c3d4 -d e5f6g7h8 --write
 ```
 
 **When to use this:**
@@ -1092,12 +1092,12 @@ finance mark-duplicate -p a1b2c3d4 -d e5f6g7h8 --write
 
 **View transaction IDs:**
 ```bash
-finance ytd --account MYBANK_CHQ --limit 50
+gilt ytd --account MYBANK_CHQ --limit 50
 ```
 
 **View learning statistics:**
 ```bash
-finance prompt-stats
+gilt prompt-stats
 ```
 
 ### Category Management
@@ -1105,45 +1105,45 @@ finance prompt-stats
 #### Add New Categories
 ```bash
 # Category with budget
-finance category --add "Housing" --description "Housing expenses" --write
-finance category --set-budget "Housing" --amount 2500 --period monthly --write
+gilt category --add "Housing" --description "Housing expenses" --write
+gilt category --set-budget "Housing" --amount 2500 --period monthly --write
 
 # Add subcategories
-finance category --add "Housing:Utilities" --description "Electric, gas, water" --write
-finance category --add "Housing:Rent" --description "Monthly rent" --write
+gilt category --add "Housing:Utilities" --description "Electric, gas, water" --write
+gilt category --add "Housing:Rent" --description "Monthly rent" --write
 ```
 
 #### Rename Categories
 ```bash
 # Update category definition in config/categories.yml
 # Then update all existing transactions:
-finance recategorize --from "Old Category" --to "New Category" --write
-finance recategorize --from "Business:Subscriptions" --to "Work:Subscriptions" --write
+gilt recategorize --from "Old Category" --to "New Category" --write
+gilt recategorize --from "Business:Subscriptions" --to "Work:Subscriptions" --write
 ```
 
 #### Diagnose Category Issues
 ```bash
 # Find orphaned categories (used but not defined)
-finance diagnose-categories
+gilt diagnose-categories
 
 # Add missing categories or fix typos based on output
-finance category --add "MissingCategory" --write
+gilt category --add "MissingCategory" --write
 # or
-finance recategorize --from "Typo" --to "Correct" --write
+gilt recategorize --from "Typo" --to "Correct" --write
 ```
 
 #### Remove Unused Categories
 ```bash
 # Safe removal (prompts if used)
-finance category --remove "Old Category" --write
+gilt category --remove "Old Category" --write
 
 # Force removal (skip confirmation)
-finance category --remove "Unused Category" --force --write
+gilt category --remove "Unused Category" --force --write
 ```
 
 ## Troubleshooting
 
-### Command not found: `finance`
+### Command not found: `gilt`
 
 Make sure you've activated your virtual environment and installed the package:
 ```bash
@@ -1162,7 +1162,7 @@ source_patterns:
 
 ### Transfer links not detected
 
-The transfer linker uses specific parameters (date window, amount tolerance). If legitimate transfers aren't linked, you may need to review the parameters in `finance/cli/command/ingest.py` and adjust `epsilon_direct`, `epsilon_interac`, or `window_days`.
+The transfer linker uses specific parameters (date window, amount tolerance). If legitimate transfers aren't linked, you may need to review the parameters in `gilt/cli/command/ingest.py` and adjust `epsilon_direct`, `epsilon_interac`, or `window_days`.
 
 ### Encoding issues with CSV files
 

@@ -1,10 +1,10 @@
 # Data Model
 
-This document describes the data structures and schemas used in Finance.
+This document describes the data structures and schemas used in Gilt.
 
 ## Overview
 
-Finance uses three main data storage formats:
+Gilt uses three main data storage formats:
 
 - **CSV files**: Transaction ledgers (one per account)
 - **YAML files**: Configuration (accounts, categories)

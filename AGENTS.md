@@ -1,4 +1,4 @@
-# Finance — Agent Guidelines
+# Gilt — Agent Guidelines
 
 Local-only, privacy-first personal finance tool. All processing runs on the user's machine — no network I/O, no external APIs, no cloud services.
 
@@ -31,18 +31,19 @@ When circumstances suggest breaking these principles, explicitly consult the use
 | `config/accounts.yml` | Account definitions, source patterns, import hints | User-managed |
 | `config/categories.yml` | Category hierarchy with budgets | User-managed |
 | `reports/` | Generated artifacts (safe to regenerate) | Tool-generated |
+| `dist/` | Build artifacts (sdist, wheel) | Tool-generated, gitignored |
 | `data/private/` | Private/intermediate artifacts (not committed) | Local only |
 
 ## Ledger Schema
 
-Columns in order (source of truth: `finance.ingest.STANDARD_FIELDS`):
+Columns in order (source of truth: `gilt.ingest.STANDARD_FIELDS`):
 
 `transaction_id | date | description | amount | currency | account_id | counterparty | category | subcategory | notes | source_file | metadata`
 
 - `date`: YYYY-MM-DD
 - `amount`: signed float; debits negative, credits positive
 - `currency`: default CAD
-- All ledger I/O goes through `finance.model.ledger_io.{load_ledger_csv, dump_ledger_csv}`
+- All ledger I/O goes through `gilt.model.ledger_io.{load_ledger_csv, dump_ledger_csv}`
 
 ## Transaction ID (Do Not Change)
 
@@ -54,20 +55,22 @@ Values exactly as written to output columns. CLI commands accept 8-char prefixes
 
 ## Key Data Models
 
-- `finance.model.account.py` — `Transaction`, `TransactionGroup`, `Account` (Pydantic v2)
-- `finance.model.category.py` — `Category`, `Subcategory`, `CategoryConfig`
-- `finance.model.duplicate.py` — `TransactionPair`, `DuplicateAssessment`, `DuplicateMatch`
+- `gilt.model.account.py` — `Transaction`, `TransactionGroup`, `Account` (Pydantic v2)
+- `gilt.model.category.py` — `Category`, `Subcategory`, `CategoryConfig`
+- `gilt.model.duplicate.py` — `TransactionPair`, `DuplicateAssessment`, `DuplicateMatch`
 
 ## Environment & Tooling
 
-- Python 3.13, repo-local virtualenv
-- **Always** activate before any Python work: `source .venv/bin/activate`
-- Use `python` and `pip` from the venv (never system python, never `pip3`/`python3`)
-- Install: `pip install -e ".[dev]"` (add `.[gui]` for GUI deps)
-- CLI: `finance --help` or `python -m finance.cli.app --help`
-- GUI: `finance-gui`
-- Lint: `ruff check .` (rules E,F; line-length 100; excludes data/, ingest/, reports/)
-- Tests: `pytest` (discovers `*_spec.py` under `src/`)
+This project uses **uv** as its package manager, build tool, and task runner. Prefer `uv run` over activating the virtualenv directly.
+
+- Python 3.13, repo-local virtualenv managed by uv (`uv.lock` is committed)
+- Install deps: `uv sync` (dev deps included by default), `uv sync --extra gui` for GUI
+- Run anything in the venv: `uv run <command>` (e.g. `uv run gilt --help`)
+- Lint: `uv run ruff check .` (rules E,F; line-length 100; excludes data/, ingest/, reports/)
+- Tests: `uv run pytest` (discovers `*_spec.py` under `src/`)
+- Build: `uv build` (produces sdist + wheel in `dist/`)
+- Publish: `uv publish` (uploads to PyPI)
+- Never use system python, `pip3`, or `python3` directly
 
 ## CLI Commands
 
@@ -82,7 +85,7 @@ Batch operations: always show preview table and count before confirming.
 
 ## Transfer Linking
 
-Implemented in `finance.transfer.linker.link_transfers`, run post-ingest.
+Implemented in `gilt.transfer.linker.link_transfers`, run post-ingest.
 - Parameters: `window_days=3`, `epsilon_direct=0.01`, `epsilon_interac=1.75`, `fee_max_amount=3.00`, `fee_day_window=1`
 - Writes metadata to matched transactions under `primary.metadata.transfer` with: role, counterparty_account_id, counterparty_transaction_id, amount, method, score, fee_txn_ids
 - Idempotent: updates existing transfer blocks non-destructively
@@ -117,7 +120,7 @@ Use `pytest-mock` for isolation, `pytest-cov` for coverage.
 
 ## GUI Patterns
 
-GUI business logic lives in `src/finance/gui/services/`:
+GUI business logic lives in `src/gilt/gui/services/`:
 - `transaction_service.py`, `category_service.py`, `budget_service.py`, `import_service.py`
 
 Services are UI-agnostic and testable independently (functional core). Views/dialogs handle I/O (imperative shell). Dependencies are explicit through injection.
@@ -125,24 +128,55 @@ Services are UI-agnostic and testable independently (functional core). Views/dia
 ## Common Tasks
 
 ### Adding a CLI Command
-1. Create `src/finance/cli/command/<name>_spec.py` with failing test
-2. Create `src/finance/cli/command/<name>.py` with `run()` function
+1. Create `src/gilt/cli/command/<name>_spec.py` with failing test
+2. Create `src/gilt/cli/command/<name>.py` with `run()` function
 3. Implement simplest solution to pass test
-4. Register in `src/finance/cli/app.py` via Typer
+4. Register in `src/gilt/cli/app.py` via Typer
 5. Follow dry-run pattern (default `write=False`)
 6. Refactor, keep tests green
 
 ### Adding a GUI View
-1. Create view in `src/finance/gui/views/<name>.py` as QWidget/QMainWindow
+1. Create view in `src/gilt/gui/views/<name>.py` as QWidget/QMainWindow
 2. Use service layer (never direct file I/O in views)
 3. Connect signals/slots for async operations
 4. Add to navigation in `main_window.py`
 
 ### Modifying Ledger Schema
-1. Update `finance/model/account.py` — `Transaction` model
-2. Update `finance/model/ledger_io.py` — CSV parsing/writing
+1. Update `gilt/model/account.py` — `Transaction` model
+2. Update `gilt/model/ledger_io.py` — CSV parsing/writing
 3. Update all commands that read/write ledgers
 4. Plan migration path for existing data
+
+### Building & Publishing
+
+**Package**: `gilt` on PyPI. Build backend: **hatchling** (src layout). Test files (`*_spec.py`) are excluded from both sdist and wheel.
+
+```bash
+# Build sdist + wheel into dist/
+uv build
+
+# Publish to PyPI
+uv publish
+
+# Publish to TestPyPI first (for testing)
+uv publish --index-url https://test.pypi.org/simple/
+```
+
+**Version management**: Update `version` in `pyproject.toml` `[project]` section before each release. Follow semver — bump minor for features, patch for fixes.
+
+**End-user install** (via pipx or uv):
+```bash
+pipx install gilt
+# or
+uv tool install gilt
+```
+
+**Pre-release checklist**:
+1. All tests pass (`uv run pytest`)
+2. Lint clean (`uv run ruff check .`)
+3. Version bumped in `pyproject.toml`
+4. Clean build (`rm -rf dist && uv build`)
+5. No real financial data in any tracked file
 
 ## Privacy & Redaction
 

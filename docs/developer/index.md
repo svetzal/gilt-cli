@@ -1,10 +1,10 @@
 # Developer Guide
 
-Welcome to the Finance Developer Guide. This section helps you understand the architecture, contribute code, and extend Finance's capabilities.
+Welcome to the Gilt Developer Guide. This section helps you understand the architecture, contribute code, and extend Gilt's capabilities.
 
 ## Overview
 
-Finance is a privacy-first financial management tool built with Python, following these principles:
+Gilt is a privacy-first financial management tool built with Python, following these principles:
 
 - **Local-only**: No network I/O
 - **Privacy-first**: All data stays on the user's machine
@@ -15,7 +15,7 @@ Finance is a privacy-first financial management tool built with Python, followin
 
 ## Architecture
 
-Finance uses a layered architecture:
+Gilt uses a layered architecture:
 
 ```
 ┌─────────────────────────────────────┐
@@ -79,7 +79,7 @@ Finance uses a layered architecture:
 ### Code Organization
 
 ```
-src/finance/
+src/gilt/
 ├── cli/                  # Command-line interface
 │   ├── app.py           # Main CLI entry point
 │   └── command/         # Individual commands
@@ -259,7 +259,7 @@ def test_categorize_dialog(qtbot):
 
 ## Implementation History
 
-Finance has evolved through several phases:
+Gilt has evolved through several phases:
 
 - **[Phase 2](history/phase2-summary.md)**: Data Management (categories, notes, categorization)
 - **[Phase 3](history/phase3-summary.md)**: CSV Import Wizard
@@ -280,7 +280,7 @@ We welcome contributions! See the [Contributing Guide](development/contributing.
 
 ### Documentation
 
-- **User Guide**: Learn to use Finance
+- **User Guide**: Learn to use Gilt
 - **API Reference**: Module and function documentation
 - **Architecture Docs**: Deep dives into design
 
@@ -293,13 +293,13 @@ We welcome contributions! See the [Contributing Guide](development/contributing.
 
 ## Questions?
 
-- **Issues**: [GitHub Issues](https://github.com/svetzal/finance/issues)
+- **Issues**: [GitHub Issues](https://github.com/svetzal/gilt/issues)
 - **Discussions**: Start a discussion on GitHub
 - **Code**: Explore the source code for examples
 
 ## What's Next?
 
-New to Finance development? Start here:
+New to Gilt development? Start here:
 
 1. [Development Setup](development/setup.md)
 2. [System Architecture](architecture/system-design.md)
@@ -308,5 +308,5 @@ New to Finance development? Start here:
 Want to contribute? Check out:
 
 - [Contributing Guidelines](development/contributing.md)
-- [Open Issues](https://github.com/svetzal/finance/issues)
+- [Open Issues](https://github.com/svetzal/gilt/issues)
 - Implementation history for context

@@ -1,10 +1,10 @@
 # User Guide
 
-Welcome to the Finance User Guide. This section helps you use Finance effectively for managing your personal finances.
+Welcome to the Gilt User Guide. This section helps you use Gilt effectively for managing your personal finances.
 
-## What is Finance?
+## What is Gilt?
 
-Finance is a **local-only, privacy-first** financial management tool that helps you:
+Gilt is a **local-only, privacy-first** financial management tool that helps you:
 
 - Import and normalize transactions from multiple bank accounts
 - Categorize and annotate your spending
@@ -12,7 +12,7 @@ Finance is a **local-only, privacy-first** financial management tool that helps 
 - Generate reports and insights
 - All while keeping your data completely private on your own machine
 
-## Two Ways to Use Finance
+## Two Ways to Use Gilt
 
 ### Command Line Interface (CLI)
 
@@ -87,7 +87,7 @@ Budgets help you track spending:
 
 ### Initial Setup
 
-1. [Install Finance](installation.md)
+1. [Install Gilt](installation.md)
 2. Configure accounts and categories
 3. Import your first bank CSV files
 4. Verify data loaded correctly
@@ -116,7 +116,7 @@ Budgets help you track spending:
 
 ## Privacy & Safety
 
-Finance is designed with privacy as a core principle:
+Gilt is designed with privacy as a core principle:
 
 ### Privacy Features
 
@@ -159,15 +159,15 @@ Common issues and solutions:
 
 ### Support
 
-- **GitHub Issues**: [Report bugs or request features](https://github.com/svetzal/finance/issues)
+- **GitHub Issues**: [Report bugs or request features](https://github.com/svetzal/gilt/issues)
 - **Documentation**: This site covers most use cases
 - **Code**: Explore the source for advanced usage
 
 ## What's Next?
 
-New to Finance? Start here:
+New to Gilt? Start here:
 
-1. [Install Finance](installation.md)
+1. [Install Gilt](installation.md)
 2. [CLI Overview](cli/index.md) or [GUI Overview](gui/index.md)
 3. [Initial Setup Workflow](workflows/initial-setup.md)
 

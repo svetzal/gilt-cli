@@ -1,6 +1,6 @@
 # Installation
 
-This guide covers installing Finance on your system.
+This guide covers installing Gilt on your system.
 
 ## System Requirements
 
@@ -13,11 +13,11 @@ This guide covers installing Finance on your system.
 
 ### 1. Get the Code
 
-Clone or download the Finance repository:
+Clone or download the Gilt repository:
 
 ```bash
-git clone https://github.com/svetzal/finance.git
-cd finance
+git clone https://github.com/svetzal/gilt.git
+cd gilt
 ```
 
 Or download and extract a ZIP file of the repository.
@@ -36,9 +36,9 @@ source .venv/bin/activate  # macOS/Linux
 ```
 
 !!! tip "Virtual Environment Benefits"
-    Virtual environments isolate Finance's dependencies from your system Python, preventing conflicts and making it easy to clean up later.
+    Virtual environments isolate Gilt's dependencies from your system Python, preventing conflicts and making it easy to clean up later.
 
-### 3. Install Finance
+### 3. Install Gilt
 
 Choose your installation type:
 
@@ -62,7 +62,7 @@ This installs PySide6 and all GUI dependencies (~100 MB download).
 
 #### Development
 
-For contributing to Finance (includes testing tools):
+For contributing to Gilt (includes testing tools):
 
 ```bash
 pip install -e .[dev]
@@ -75,7 +75,7 @@ This includes pytest, ruff, and other development tools.
 Test CLI installation:
 
 ```bash
-finance --help
+gilt --help
 ```
 
 You should see a list of available commands.
@@ -83,17 +83,17 @@ You should see a list of available commands.
 Test GUI installation (if installed):
 
 ```bash
-finance-gui
+gilt-gui
 ```
 
-A window should open showing the Finance application.
+A window should open showing the Gilt application.
 
 ## Directory Setup
 
 Create the required directory structure:
 
 ```bash
-# From the finance directory
+# From the gilt directory
 mkdir -p config
 mkdir -p ingest
 mkdir -p data/accounts
@@ -103,7 +103,7 @@ mkdir -p reports
 Your structure should look like:
 
 ```
-finance/
+gilt/
 ├── config/           # Account and category configurations
 ├── ingest/          # Raw bank CSV files (input)
 ├── data/
@@ -160,7 +160,7 @@ You can also create categories later through CLI or GUI.
 
 ### macOS
 
-Finance works out of the box on macOS. If you encounter SSL certificate issues:
+Gilt works out of the box on macOS. If you encounter SSL certificate issues:
 
 ```bash
 # May be needed for older macOS versions
@@ -187,7 +187,7 @@ On Windows, you may need to:
 2. Enable long path support if you encounter path length errors
 3. Install Visual C++ Redistributable for some dependencies
 
-## Updating Finance
+## Updating Gilt
 
 To update to the latest version:
 
@@ -204,14 +204,14 @@ pip install -e .[gui]
 
 ## Troubleshooting
 
-### Command not found: `finance`
+### Command not found: `gilt`
 
-**Problem**: After installation, `finance` command isn't recognized.
+**Problem**: After installation, `gilt` command isn't recognized.
 
 **Solution**:
 1. Ensure virtual environment is activated: `source .venv/bin/activate`
 2. Reinstall: `pip install -e .`
-3. Check installation: `pip list | grep finance`
+3. Check installation: `pip list | grep gilt`
 
 ### ModuleNotFoundError: No module named 'PySide6'
 
@@ -251,14 +251,14 @@ sudo dnf install python3.13
 
 ## Uninstallation
 
-To remove Finance:
+To remove Gilt:
 
 ```bash
 # Deactivate virtual environment
 deactivate
 
 # Remove the entire directory
-rm -rf /path/to/finance
+rm -rf /path/to/gilt
 ```
 
 Your data files in `ingest/` and `data/` will be deleted too, so back them up first if needed.

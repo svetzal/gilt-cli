@@ -1,8 +1,8 @@
-site_name: Finance - Privacy-First Financial Management
+site_name: Gilt - Privacy-First Financial Management
 site_description: Local-only, privacy-first financial management tool with CLI and GUI
 site_author: Mojility
-repo_url: https://github.com/svetzal/finance
-repo_name: svetzal/finance
+repo_url: https://github.com/svetzal/gilt
+repo_name: svetzal/gilt
 
 theme:
   name: material

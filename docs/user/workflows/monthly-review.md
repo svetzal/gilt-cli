@@ -15,7 +15,7 @@ The monthly review workflow consists of:
 
 ## Prerequisites
 
-- ✅ Finance installed and configured
+- ✅ Gilt installed and configured
 - ✅ Initial setup completed ([Initial Setup Workflow](initial-setup.md))
 - ✅ Virtual environment activated
 
@@ -35,7 +35,7 @@ For each account:
    - `2025-11-16-credit-card.csv`
 
 !!! tip "Date Range Tip"
-    Slightly overlapping date ranges are fine — Finance's deterministic transaction IDs prevent duplicates.
+    Slightly overlapping date ranges are fine — Gilt's deterministic transaction IDs prevent duplicates.
 
 ### Place in Ingest Directory
 
@@ -49,10 +49,10 @@ mv ~/Downloads/*credit*.csv ingest/
 
 ```bash
 # Preview
-finance ingest
+gilt ingest
 
 # Execute
-finance ingest --write
+gilt ingest --write
 ```
 
 **Check the output:**
@@ -64,8 +64,8 @@ finance ingest --write
 
 ```bash
 # Quick check of latest imports
-finance ytd --account CHECKING --limit 30
-finance ytd --account CREDIT_CARD --limit 30
+gilt ytd --account CHECKING --limit 30
+gilt ytd --account CREDIT_CARD --limit 30
 ```
 
 Look for:
@@ -80,7 +80,7 @@ Look for:
 
 ```bash
 # How many need categorization?
-finance uncategorized --year 2025 --month 11
+gilt uncategorized --year 2025 --month 11
 ```
 
 If count is high (>50), prioritize by amount.
@@ -91,26 +91,26 @@ Start with recurring expenses you've already identified:
 
 ```bash
 # Subscriptions
-finance categorize --desc-prefix "SPOTIFY" --category "Entertainment:Streaming" --yes --write
-finance categorize --desc-prefix "NETFLIX" --category "Entertainment:Streaming" --yes --write
-finance categorize --desc-prefix "AMAZON PRIME" --category "Entertainment:Streaming" --yes --write
+gilt categorize --desc-prefix "SPOTIFY" --category "Entertainment:Streaming" --yes --write
+gilt categorize --desc-prefix "NETFLIX" --category "Entertainment:Streaming" --yes --write
+gilt categorize --desc-prefix "AMAZON PRIME" --category "Entertainment:Streaming" --yes --write
 
 # Utilities (use regex for complex patterns)
-finance categorize --pattern "Payment.*EXAMPLE UTILITY" --category "Housing:Utilities" --yes --write
-finance categorize --pattern "Payment.*OTHER UTILITY" --category "Housing:Utilities" --yes --write
+gilt categorize --pattern "Payment.*EXAMPLE UTILITY" --category "Housing:Utilities" --yes --write
+gilt categorize --pattern "Payment.*OTHER UTILITY" --category "Housing:Utilities" --yes --write
 
 # Transit
-finance categorize --desc-prefix "PRESTO" --category "Transportation:Transit" --yes --write
-finance categorize --desc-prefix "UBER" --category "Transportation:Rideshare" --yes --write
+gilt categorize --desc-prefix "PRESTO" --category "Transportation:Transit" --yes --write
+gilt categorize --desc-prefix "UBER" --category "Transportation:Rideshare" --yes --write
 
 # Groceries (common stores)
-finance categorize --desc-prefix "LOBLAWS" --category "Groceries" --yes --write
-finance categorize --desc-prefix "SOBEYS" --category "Groceries" --yes --write
-finance categorize --desc-prefix "METRO" --category "Groceries" --yes --write
+gilt categorize --desc-prefix "LOBLAWS" --category "Groceries" --yes --write
+gilt categorize --desc-prefix "SOBEYS" --category "Groceries" --yes --write
+gilt categorize --desc-prefix "METRO" --category "Groceries" --yes --write
 
 # Banking fees
-finance categorize --description "Monthly Fee" --category "Banking:Fees" --yes --write
-finance categorize --desc-prefix "NSF FEE" --category "Banking:Fees" --yes --write
+gilt categorize --description "Monthly Fee" --category "Banking:Fees" --yes --write
+gilt categorize --desc-prefix "NSF FEE" --category "Banking:Fees" --yes --write
 ```
 
 !!! tip "Build a Script"
@@ -122,17 +122,17 @@ Focus on significant transactions:
 
 ```bash
 # Show only large amounts
-finance uncategorized --min-amount 100 --year 2025 --month 11
+gilt uncategorized --min-amount 100 --year 2025 --month 11
 ```
 
 Categorize these individually:
 
 ```bash
 # 1. View the transaction details
-finance ytd --account CHECKING --limit 50
+gilt ytd --account CHECKING --limit 50
 
 # 2. Categorize by transaction ID
-finance categorize --account CHECKING --txid a1b2c3d4 --category "Healthcare:Dental" --write
+gilt categorize --account CHECKING --txid a1b2c3d4 --category "Healthcare:Dental" --write
 ```
 
 ### Handle Edge Cases
@@ -142,23 +142,23 @@ Some transactions need special attention:
 ```bash
 # Split transactions (can't be handled automatically yet)
 # Add note explaining it's split, categorize to dominant category
-finance note --account CHECKING --txid abc123 --note "Split: $200 groceries, $50 household" --write
-finance categorize --account CHECKING --txid abc123 --category "Groceries" --write
+gilt note --account CHECKING --txid abc123 --note "Split: $200 groceries, $50 household" --write
+gilt categorize --account CHECKING --txid abc123 --category "Groceries" --write
 
 # One-time expenses
-finance categorize --account CREDIT_CARD --txid def456 --category "Healthcare:Dental" --write
-finance note --account CREDIT_CARD --txid def456 --note "Root canal" --write
+gilt categorize --account CREDIT_CARD --txid def456 --category "Healthcare:Dental" --write
+gilt note --account CREDIT_CARD --txid def456 --note "Root canal" --write
 
 # Reimbursable expenses
-finance categorize --account CREDIT_CARD --txid ghi789 --category "Work:Reimbursable" --write
-finance note --account CREDIT_CARD --txid ghi789 --note "Client lunch - reimbursed Nov 20" --write
+gilt categorize --account CREDIT_CARD --txid ghi789 --category "Work:Reimbursable" --write
+gilt note --account CREDIT_CARD --txid ghi789 --note "Client lunch - reimbursed Nov 20" --write
 ```
 
 ### Verify Categorization Progress
 
 ```bash
 # Should be much smaller now
-finance uncategorized --year 2025 --month 11
+gilt uncategorized --year 2025 --month 11
 
 # If still too many, continue with patterns or prioritize by amount
 ```
@@ -169,7 +169,7 @@ finance uncategorized --year 2025 --month 11
 
 ```bash
 # Full budget view for current month
-finance budget --year 2025 --month 11
+gilt budget --year 2025 --month 11
 ```
 
 **Interpret the output:**
@@ -191,10 +191,10 @@ For any red categories:
 
 ```bash
 # See all transactions in that category
-finance ytd --account CREDIT_CARD --year 2025 | grep "Dining Out"
+gilt ytd --account CREDIT_CARD --year 2025 | grep "Dining Out"
 
 # Or generate a category-specific report
-finance budget --category "Dining Out" --year 2025 --month 11
+gilt budget --category "Dining Out" --year 2025 --month 11
 ```
 
 **Questions to ask:**
@@ -207,7 +207,7 @@ finance budget --category "Dining Out" --year 2025 --month 11
 
 ```bash
 # Full year view
-finance budget --year 2025
+gilt budget --year 2025
 ```
 
 Compare month-to-month:
@@ -219,8 +219,8 @@ Compare month-to-month:
 
 ```bash
 # Detailed view of one category
-finance budget --category "Housing" --year 2025 --month 11
-finance budget --category "Transportation" --year 2025 --month 11
+gilt budget --category "Housing" --year 2025 --month 11
+gilt budget --category "Transportation" --year 2025 --month 11
 ```
 
 ## Step 4: Analyze Patterns
@@ -231,7 +231,7 @@ Look for patterns in descriptions:
 
 ```bash
 # View transactions sorted by description
-finance ytd --account CREDIT_CARD --year 2025 --month 11 | sort -k3
+gilt ytd --account CREDIT_CARD --year 2025 --month 11 | sort -k3
 ```
 
 **Look for:**
@@ -243,7 +243,7 @@ finance ytd --account CREDIT_CARD --year 2025 --month 11 | sort -k3
 
 ```bash
 # Transactions over $500
-finance ytd --account CHECKING --year 2025 | awk '$4 > 500 || $4 < -500'
+gilt ytd --account CHECKING --year 2025 | awk '$4 > 500 || $4 < -500'
 ```
 
 **Questions:**
@@ -255,8 +255,8 @@ finance ytd --account CHECKING --year 2025 | awk '$4 > 500 || $4 < -500'
 
 ```bash
 # Compare categories month-over-month
-finance budget --year 2025 --month 10  # Previous month
-finance budget --year 2025 --month 11  # Current month
+gilt budget --year 2025 --month 10  # Previous month
+gilt budget --year 2025 --month 11  # Current month
 ```
 
 **Red flags:**
@@ -268,8 +268,8 @@ finance budget --year 2025 --month 11  # Current month
 
 ```bash
 # Check transfers were properly linked
-finance ytd --account CHECKING | grep -i transfer
-finance ytd --account CREDIT_CARD | grep -i "payment from"
+gilt ytd --account CHECKING | grep -i transfer
+gilt ytd --account CREDIT_CARD | grep -i "payment from"
 ```
 
 ## Step 5: Document Decisions
@@ -280,19 +280,19 @@ For large or unusual expenses:
 
 ```bash
 # Medical expenses
-finance note --account CREDIT_CARD --txid abc123 \
+gilt note --account CREDIT_CARD --txid abc123 \
   --note "Emergency room visit - covered by insurance" --write
 
 # Major purchases
-finance note --account CHECKING --txid def456 \
+gilt note --account CHECKING --txid def456 \
   --note "New laptop for work" --write
 
 # Gifts
-finance note --account CREDIT_CARD --txid ghi789 \
+gilt note --account CREDIT_CARD --txid ghi789 \
   --note "Birthday gift for spouse" --write
 
 # Irregular bills
-finance note --account CHECKING --txid jkl012 \
+gilt note --account CHECKING --txid jkl012 \
   --note "Annual car insurance payment" --write
 ```
 
@@ -302,11 +302,11 @@ If you made a non-obvious categorization choice:
 
 ```bash
 # Mixed-purpose expense
-finance note --account CREDIT_CARD --txid mno345 \
+gilt note --account CREDIT_CARD --txid mno345 \
   --note "Costco run: mostly groceries, some household items" --write
 
 # Work vs personal
-finance note --account CREDIT_CARD --txid pqr678 \
+gilt note --account CREDIT_CARD --txid pqr678 \
   --note "Lunch meeting with client - business expense" --write
 ```
 
@@ -318,11 +318,11 @@ If consistently over budget and it's justified:
 
 ```bash
 # Increase budget
-finance category --set-budget "Dining Out" --amount 500 --period monthly --write
+gilt category --set-budget "Dining Out" --amount 500 --period monthly --write
 
 # Or reallocate from under-utilized category
-finance category --set-budget "Entertainment" --amount 150 --period monthly --write
-finance category --set-budget "Dining Out" --amount 450 --period monthly --write
+gilt category --set-budget "Entertainment" --amount 150 --period monthly --write
+gilt category --set-budget "Dining Out" --amount 450 --period monthly --write
 ```
 
 ### Add New Categories
@@ -331,17 +331,17 @@ If you discover a spending pattern:
 
 ```bash
 # Add category
-finance category --add "Pets" --description "Pet care and supplies" --write
+gilt category --add "Pets" --description "Pet care and supplies" --write
 
 # Set budget
-finance category --set-budget "Pets" --amount 150 --period monthly --write
+gilt category --set-budget "Pets" --amount 150 --period monthly --write
 
 # Add subcategories if needed
-finance category --add "Pets:Food" --description "Pet food and treats" --write
-finance category --add "Pets:Vet" --description "Veterinary care" --write
+gilt category --add "Pets:Food" --description "Pet food and treats" --write
+gilt category --add "Pets:Vet" --description "Veterinary care" --write
 
 # Recategorize existing transactions
-finance recategorize --from "Uncategorized" --to "Pets" --write
+gilt recategorize --from "Uncategorized" --to "Pets" --write
 ```
 
 ### Rename or Consolidate Categories
@@ -350,7 +350,7 @@ If category structure isn't working:
 
 ```bash
 # Rename category
-finance recategorize --from "Subscriptions" --to "Entertainment:Streaming" --write
+gilt recategorize --from "Subscriptions" --to "Entertainment:Streaming" --write
 
 # Update config
 # Edit config/categories.yml to match new structure
@@ -360,10 +360,10 @@ finance recategorize --from "Subscriptions" --to "Entertainment:Streaming" --wri
 
 ```bash
 # Check for unused categories
-finance diagnose-categories
+gilt diagnose-categories
 
 # Remove if truly unused
-finance category --remove "Old Category" --write
+gilt category --remove "Old Category" --write
 ```
 
 ## Step 7: Generate Report (Optional)
@@ -375,7 +375,7 @@ finance category --remove "Old Category" --write
 mkdir -p reports
 
 # Generate markdown report
-finance budget --year 2025 --month 11 > reports/budget_2025_11.md
+gilt budget --year 2025 --month 11 > reports/budget_2025_11.md
 
 # Or with custom formatting
 {
@@ -383,11 +383,11 @@ finance budget --year 2025 --month 11 > reports/budget_2025_11.md
   echo
   echo "Generated: $(date)"
   echo
-  finance budget --year 2025 --month 11
+  gilt budget --year 2025 --month 11
   echo
   echo "## Uncategorized Transactions"
   echo
-  finance uncategorized --year 2025 --month 11 --limit 20
+  gilt uncategorized --year 2025 --month 11 --limit 20
 } > reports/budget_2025_11.md
 ```
 
@@ -408,12 +408,12 @@ git commit -m "Monthly budget report - November 2025"
 Print or save this checklist for your monthly reviews:
 
 - [ ] Export new CSVs from all bank accounts
-- [ ] Run `finance ingest --write`
+- [ ] Run `gilt ingest --write`
 - [ ] Verify transaction counts match bank statements
 - [ ] Categorize recurring subscriptions and utilities
 - [ ] Categorize large transactions (>$100)
 - [ ] Review and categorize remaining uncategorized
-- [ ] Run `finance budget` for current month
+- [ ] Run `gilt budget` for current month
 - [ ] Investigate any over-budget categories
 - [ ] Add notes to significant or unusual transactions
 - [ ] Adjust budgets if needed
@@ -433,14 +433,14 @@ Save common categorization commands in shell scripts:
 set -e
 
 echo "Categorizing subscriptions..."
-finance categorize --desc-prefix "SPOTIFY" --category "Entertainment:Streaming" --yes --write
-finance categorize --desc-prefix "NETFLIX" --category "Entertainment:Streaming" --yes --write
+gilt categorize --desc-prefix "SPOTIFY" --category "Entertainment:Streaming" --yes --write
+gilt categorize --desc-prefix "NETFLIX" --category "Entertainment:Streaming" --yes --write
 
 echo "Categorizing utilities..."
-finance categorize --pattern "Payment.*HYDRO" --category "Housing:Utilities" --yes --write
+gilt categorize --pattern "Payment.*HYDRO" --category "Housing:Utilities" --yes --write
 
 echo "Categorizing transit..."
-finance categorize --desc-prefix "PRESTO" --category "Transportation:Transit" --yes --write
+gilt categorize --desc-prefix "PRESTO" --category "Transportation:Transit" --yes --write
 
 echo "Done!"
 ```
@@ -456,11 +456,11 @@ bash scripts/categorize-monthly.sh
 Add to `~/.zshrc` or `~/.bashrc`:
 
 ```bash
-# Finance shortcuts
-alias fin='finance'
-alias fin-import='cd ~/finance && finance ingest --write'
-alias fin-uncategorized='finance uncategorized --year $(date +%Y) --month $(date +%m)'
-alias fin-budget='finance budget --year $(date +%Y) --month $(date +%m)'
+# Gilt shortcuts
+alias fin='gilt'
+alias fin-import='cd ~/gilt && gilt ingest --write'
+alias fin-uncategorized='gilt uncategorized --year $(date +%Y) --month $(date +%m)'
+alias fin-budget='gilt budget --year $(date +%Y) --month $(date +%m)'
 ```
 
 ### Set Calendar Reminders
@@ -477,7 +477,7 @@ alias fin-budget='finance budget --year $(date +%Y) --month $(date +%m)'
 
 **Solution**:
 1. Focus on recurring patterns first (batch categorize)
-2. Set minimum amount threshold: `finance uncategorized --min-amount 50`
+2. Set minimum amount threshold: `gilt uncategorized --min-amount 50`
 3. Leave small, one-time expenses uncategorized (they don't affect budget tracking much)
 4. Schedule extra time for first few months — it gets faster
 
@@ -497,7 +497,7 @@ alias fin-budget='finance budget --year $(date +%Y) --month $(date +%m)'
 
 **Solution**:
 1. Export CSVs for full 3-month range from bank
-2. Import all at once: `finance ingest --write`
+2. Import all at once: `gilt ingest --write`
 3. Batch categorize recurring patterns
 4. Focus on large amounts for individual categorization
 5. Don't stress about perfect categorization for old data
@@ -527,7 +527,7 @@ After a few months of monthly reviews, you should see:
 - **Advanced**: Set up [Budget Tracking workflow](budget-tracking.md) with custom categories
 - **Automate**: Create shell scripts for your common operations
 - **Analyze**: Use event store time-travel queries to analyze historical patterns
-- **Learn**: Check `finance prompt-stats` to see how duplicate detection is learning
+- **Learn**: Check `gilt prompt-stats` to see how duplicate detection is learning
 
 ## Related Workflows
 

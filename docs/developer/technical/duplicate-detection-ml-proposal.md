@@ -10,9 +10,9 @@ Summary
 - Training data: derived from event store `DuplicateConfirmed` / `DuplicateRejected` events.
 
 Key behaviours
-- `finance duplicates` (default): uses the ML classifier when available.
-- `finance duplicates --llm`: forces LLM-based analysis (slower).
-- `finance duplicates --interactive` / `-i`: interactive reviewer that emits
+- `gilt duplicates` (default): uses the ML classifier when available.
+- `gilt duplicates --llm`: forces LLM-based analysis (slower).
+- `gilt duplicates --interactive` / `-i`: interactive reviewer that emits
   `DuplicateConfirmed` and `DuplicateRejected` events (dry-run by default).
 
 Where training data comes from
@@ -30,28 +30,28 @@ Training lifecycle
 
 Files and commands you can use right now
 - Migration script (backfill historical events with pair data):
-  `src/finance/scripts/migrate_event_schema.py`
-  - Dry-run: `python src/finance/scripts/migrate_event_schema.py`
-  - Apply:   `python src/finance/scripts/migrate_event_schema.py --write`
+  `src/gilt/scripts/migrate_event_schema.py`
+  - Dry-run: `python src/gilt/scripts/migrate_event_schema.py`
+  - Apply:   `python src/gilt/scripts/migrate_event_schema.py --write`
 
 - Audit current training data and predictions:
-  `finance audit-ml` (summary)
-  `finance audit-ml --mode training --limit 50` (show examples)
-  `finance audit-ml --mode predictions --limit 20` (show ML decisions)
-  `finance audit-ml --mode features` (feature importance and metrics)
+  `gilt audit-ml` (summary)
+  `gilt audit-ml --mode training --limit 50` (show examples)
+  `gilt audit-ml --mode predictions --limit 20` (show ML decisions)
+  `gilt audit-ml --mode features` (feature importance and metrics)
 
 - Run duplicate detection (ML default):
-  `finance duplicates`
-  Force LLM: `finance duplicates --llm`
-  Interactive review: `finance duplicates --interactive`
+  `gilt duplicates`
+  Force LLM: `gilt duplicates --llm`
+  Interactive review: `gilt duplicates --interactive`
 
 Important implementation notes
-- Feature engineering and model code are in `src/finance/ml/`:
+- Feature engineering and model code are in `src/gilt/ml/`:
   - `feature_extractor.py` — engineered feature set + TF-IDF
   - `duplicate_classifier.py` — LightGBM wrapper with predict/train
   - `training_data_builder.py` — builds pairs & labels from events
-- The CLI integration is in `src/finance/cli/command/duplicates.py` and
-  the `audit-ml` helper is in `src/finance/cli/command/audit_ml.py`.
+- The CLI integration is in `src/gilt/cli/command/duplicates.py` and
+  the `audit-ml` helper is in `src/gilt/cli/command/audit_ml.py`.
 - The system intentionally uses ML as the default because it is orders of
   magnitude faster than the LLM while matching user-labelled behaviour.
 
@@ -63,13 +63,13 @@ When to use the LLM
 If you want to change behaviour
 - To re-train from scratch: run the migration (if needed), then restart the
   CLI; `DuplicateDetector` will train at init if enough examples exist.
-- To inspect or correct training labels, use `finance audit-ml --mode training`
+- To inspect or correct training labels, use `gilt audit-ml --mode training`
   to find and correct mis-labelled historical feedback (you can then re-run
   training by reinitializing the detector or running a command that triggers it).
 
 Contact / next steps
 - If you want, I can:
-  - Add a small command to re-train on demand (e.g. `finance ml retrain`).
+  - Add a small command to re-train on demand (e.g. `gilt ml retrain`).
   - Add an option to fall back to LLM automatically when ML confidence < X.
 
 This file intentionally contains only the concise, accurate description
@@ -160,7 +160,7 @@ Transaction Pair
 
 #### Phase 1: Feature Engineering (1-2 hours)
 
-Create `src/finance/ml/feature_extractor.py`:
+Create `src/gilt/ml/feature_extractor.py`:
 
 ```python
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -214,7 +214,7 @@ class DuplicateFeatureExtractor:
 
 #### Phase 2: Model Training (2-3 hours)
 
-Create `src/finance/ml/duplicate_classifier.py`:
+Create `src/gilt/ml/duplicate_classifier.py`:
 
 ```python
 import lightgbm as lgb
@@ -258,7 +258,7 @@ class DuplicateClassifier:
 
 #### Phase 3: Integration (1-2 hours)
 
-Update `src/finance/transfer/duplicate_detector.py`:
+Update `src/gilt/transfer/duplicate_detector.py`:
 
 ```python
 class DuplicateDetector:
@@ -295,7 +295,7 @@ Strategy to get initial training data:
    - Generate obvious non-duplicates from existing data
    - Different amounts, different days, different accounts
 
-Create `src/finance/ml/training_data_builder.py`:
+Create `src/gilt/ml/training_data_builder.py`:
 
 ```python
 class TrainingDataBuilder:
@@ -342,7 +342,7 @@ dependencies = [
 ### Migration Path
 
 1. **Keep LLM as fallback** for backward compatibility
-2. **Add `--use-ml` flag** to `finance duplicates` command
+2. **Add `--use-ml` flag** to `gilt duplicates` command
 3. **Auto-train on first run** if sufficient feedback events exist (>50)
 4. **Gradual rollout**: Test ML on subset, compare with LLM assessments
 5. **Make ML default** once validated (keep `--use-llm` flag for opt-in)
@@ -358,7 +358,7 @@ For a workspace with 1000 transactions (100 candidate pairs):
 
 ### Accuracy Validation
 
-Create `src/finance/ml/evaluate.py` to compare:
+Create `src/gilt/ml/evaluate.py` to compare:
 
 ```python
 def compare_llm_vs_ml(test_pairs: List[TransactionPair]):

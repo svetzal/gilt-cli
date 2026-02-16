@@ -1,13 +1,13 @@
 # Initial Setup Workflow
 
-This guide walks you through setting up Finance for the first time and importing your first batch of transactions.
+This guide walks you through setting up Gilt for the first time and importing your first batch of transactions.
 
 ## Prerequisites
 
 Before starting, ensure you have:
 
 - ✅ Python 3.13+ installed
-- ✅ Finance installed (see [Installation Guide](../installation.md))
+- ✅ Gilt installed (see [Installation Guide](../installation.md))
 - ✅ Access to your bank's online banking
 - ✅ Virtual environment activated
 
@@ -133,10 +133,10 @@ EOF
 
 ```bash
 # List configured accounts
-finance accounts
+gilt accounts
 
 # List configured categories
-finance categories
+gilt categories
 ```
 
 ## Step 2: Export Bank Data
@@ -157,7 +157,7 @@ finance categories
    - Bad: `transactions.csv` (too generic)
 
 !!! tip "Filename Conventions"
-    Use date prefixes (YYYY-MM-DD) in filenames. Finance uses this to infer import timestamps for the event log.
+    Use date prefixes (YYYY-MM-DD) in filenames. Gilt uses this to infer import timestamps for the event log.
 
 ### Create Ingest Directory
 
@@ -178,7 +178,7 @@ mv ~/Downloads/*visa*.csv ingest/
 Your structure should look like:
 
 ```
-finance/
+gilt/
 ├── config/
 │   ├── accounts.yml
 │   └── categories.yml
@@ -195,7 +195,7 @@ finance/
 Always preview first to catch configuration issues:
 
 ```bash
-finance ingest
+gilt ingest
 ```
 
 **What to look for:**
@@ -210,7 +210,7 @@ finance ingest
 If preview looks good:
 
 ```bash
-finance ingest --write
+gilt ingest --write
 ```
 
 **What happens:**
@@ -242,10 +242,10 @@ Convert the imported data to event-sourced format:
 
 ```bash
 # Preview migration
-finance backfill-events
+gilt backfill-events
 
 # Execute with validation
-finance backfill-events --write
+gilt backfill-events --write
 ```
 
 **What happens:**
@@ -293,7 +293,7 @@ Step 3: Validating projections
 ### List Accounts
 
 ```bash
-finance accounts
+gilt accounts
 ```
 
 Should show all your configured accounts with transaction counts.
@@ -302,13 +302,13 @@ Should show all your configured accounts with transaction counts.
 
 ```bash
 # View last 20 transactions
-finance ytd --account CHECKING --limit 20
+gilt ytd --account CHECKING --limit 20
 
 # View specific year
-finance ytd --account CREDIT_CARD --year 2025
+gilt ytd --account CREDIT_CARD --year 2025
 
 # All transactions (no limit)
-finance ytd --account CHECKING
+gilt ytd --account CHECKING
 ```
 
 ### Check for Duplicates
@@ -317,20 +317,20 @@ Transfer linking should have automatically identified inter-account transfers:
 
 ```bash
 # Look for "LINKED_TRANSFER" in metadata
-finance ytd --account CHECKING | grep -i transfer
+gilt ytd --account CHECKING | grep -i transfer
 ```
 
 ### Review Uncategorized Transactions
 
 ```bash
 # All uncategorized
-finance uncategorized
+gilt uncategorized
 
 # By account
-finance uncategorized --account CHECKING
+gilt uncategorized --account CHECKING
 
 # Only large amounts
-finance uncategorized --min-amount 100
+gilt uncategorized --min-amount 100
 ```
 
 Most transactions will be uncategorized initially — that's normal! Categorization happens in the next workflow.
@@ -366,10 +366,10 @@ ollama list
 
 ### Test Duplicate Detection
 
-Next time you import, Finance will automatically use the LLM to suggest duplicates:
+Next time you import, Gilt will automatically use the LLM to suggest duplicates:
 
 ```bash
-finance ingest --write
+gilt ingest --write
 ```
 
 If duplicates are found, you'll see an interactive prompt:
@@ -396,7 +396,7 @@ Now that your data is imported, you can:
 
 ### CSV Files Not Matched
 
-**Problem**: `finance ingest` shows "no matching account" for your CSV
+**Problem**: `gilt ingest` shows "no matching account" for your CSV
 
 **Solution**: Update `source_patterns` in `config/accounts.yml`:
 
@@ -424,7 +424,7 @@ accounts:
 wc -l ingest/your-file.csv
 
 # View first few transactions
-finance ytd --account YOUR_ACCOUNT --limit 10
+gilt ytd --account YOUR_ACCOUNT --limit 10
 ```
 
 ### Import Fails with Parse Error
@@ -447,7 +447,7 @@ accounts:
 
 ### Validation Failed After Backfill
 
-**Problem**: `finance backfill-events --write` reports validation errors
+**Problem**: `gilt backfill-events --write` reports validation errors
 
 **Solution**:
 1. Check the specific validation error message

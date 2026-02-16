@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Finance application now supports **automatic transaction categorization** using machine learning. The system learns from your manual categorizations and can automatically suggest categories for new transactions.
+The Gilt application now supports **automatic transaction categorization** using machine learning. The system learns from your manual categorizations and can automatically suggest categories for new transactions.
 
 ## How It Works
 
@@ -41,38 +41,38 @@ The simplest way to use auto-categorization is through the CLI command:
 
 ```bash
 # 1. Build training data by categorizing transactions manually
-finance categorize --desc-prefix "SPOTIFY" --category "Entertainment:Music" --yes --write
-finance categorize --desc-prefix "LOBLAWS" --category "Groceries" --yes --write
+gilt categorize --desc-prefix "SPOTIFY" --category "Entertainment:Music" --yes --write
+gilt categorize --desc-prefix "LOBLAWS" --category "Groceries" --yes --write
 
 # 2. Auto-categorize new transactions (dry-run)
-finance auto-categorize
+gilt auto-categorize
 
 # 3. Review and apply
-finance auto-categorize --write
+gilt auto-categorize --write
 ```
 
-### CLI Command: `finance auto-categorize`
+### CLI Command: `gilt auto-categorize`
 
 **Basic Usage:**
 
 ```bash
 # Dry-run with default confidence (0.7)
-finance auto-categorize
+gilt auto-categorize
 
 # Apply predictions with write flag
-finance auto-categorize --write
+gilt auto-categorize --write
 
 # Higher confidence threshold (fewer but more accurate predictions)
-finance auto-categorize --confidence 0.8 --write
+gilt auto-categorize --confidence 0.8 --write
 
 # Interactive review mode
-finance auto-categorize --interactive --write
+gilt auto-categorize --interactive --write
 
 # Limit to specific account
-finance auto-categorize --account MYBANK_CHQ --write
+gilt auto-categorize --account MYBANK_CHQ --write
 
 # Process only first N transactions
-finance auto-categorize --limit 50 --write
+gilt auto-categorize --limit 50 --write
 ```
 
 **Options:**
@@ -89,7 +89,7 @@ finance auto-categorize --limit 50 --write
 Review each prediction and approve/reject/modify:
 
 ```bash
-finance auto-categorize --interactive --write
+gilt auto-categorize --interactive --write
 ```
 
 For each transaction, you can:
@@ -141,15 +141,15 @@ First, build up training data by categorizing transactions:
 
 ```bash
 # Categorize recurring subscriptions
-finance categorize --desc-prefix "SPOTIFY" --category "Entertainment:Music" --yes --write
-finance categorize --desc-prefix "NETFLIX" --category "Entertainment:Streaming" --yes --write
+gilt categorize --desc-prefix "SPOTIFY" --category "Entertainment:Music" --yes --write
+gilt categorize --desc-prefix "NETFLIX" --category "Entertainment:Streaming" --yes --write
 
 # Categorize groceries
-finance categorize --desc-prefix "LOBLAWS" --category "Groceries" --yes --write
-finance categorize --desc-prefix "SOBEYS" --category "Groceries" --yes --write
+gilt categorize --desc-prefix "LOBLAWS" --category "Groceries" --yes --write
+gilt categorize --desc-prefix "SOBEYS" --category "Groceries" --yes --write
 
 # Categorize utilities
-finance categorize --pattern "Payment.*EXAMPLE UTILITY" --category "Housing:Utilities" --yes --write
+gilt categorize --pattern "Payment.*EXAMPLE UTILITY" --category "Housing:Utilities" --yes --write
 ```
 
 ### 2. Train the Classifier
@@ -157,8 +157,8 @@ finance categorize --pattern "Payment.*EXAMPLE UTILITY" --category "Housing:Util
 Once you have sufficient categorizations (at least 5 per category):
 
 ```python
-from finance.services.event_sourcing_service import EventSourcingService
-from finance.ml.categorization_classifier import CategorizationClassifier
+from gilt.services.event_sourcing_service import EventSourcingService
+from gilt.ml.categorization_classifier import CategorizationClassifier
 
 # Initialize
 event_service = EventSourcingService()
@@ -291,16 +291,16 @@ for new txn            Classifier                  on features
 
 ### Components
 
-1. **`CategorizationService`** (`src/finance/services/categorization_service.py`)
+1. **`CategorizationService`** (`src/gilt/services/categorization_service.py`)
    - Emits `TransactionCategorized` events when categorizing
    - Optional `event_store` parameter enables tracking
 
-2. **`CategorizationTrainingBuilder`** (`src/finance/ml/categorization_training_builder.py`)
+2. **`CategorizationTrainingBuilder`** (`src/gilt/ml/categorization_training_builder.py`)
    - Extracts training data from categorization events
    - Builds TF-IDF features from descriptions
    - Filters categories with too few samples
 
-3. **`CategorizationClassifier`** (`src/finance/ml/categorization_classifier.py`)
+3. **`CategorizationClassifier`** (`src/gilt/ml/categorization_classifier.py`)
    - RandomForest classifier for category prediction
    - Confidence scoring for prediction quality
    - Feature importance analysis
@@ -313,12 +313,12 @@ Categorize a variety of transactions for each category:
 
 ```bash
 # Good: Multiple merchants per category
-finance categorize --desc-prefix "LOBLAWS" --category "Groceries" --write
-finance categorize --desc-prefix "SOBEYS" --category "Groceries" --write
-finance categorize --desc-prefix "METRO" --category "Groceries" --write
+gilt categorize --desc-prefix "LOBLAWS" --category "Groceries" --write
+gilt categorize --desc-prefix "SOBEYS" --category "Groceries" --write
+gilt categorize --desc-prefix "METRO" --category "Groceries" --write
 
 # Bad: Only one merchant pattern
-finance categorize --desc-prefix "LOBLAWS" --category "Groceries" --write
+gilt categorize --desc-prefix "LOBLAWS" --category "Groceries" --write
 ```
 
 ### 2. Re-train Periodically
@@ -344,7 +344,7 @@ Even with high confidence, occasionally review auto-categorized transactions:
 
 ```bash
 # Review recent categorizations
-finance ytd --limit 50 | grep "Entertainment"
+gilt ytd --limit 50 | grep "Entertainment"
 ```
 
 ### 5. Handle Ambiguous Cases
@@ -366,7 +366,7 @@ The categorization events are automatically tracked when using the CLI:
 
 ```bash
 # Every --write categorization creates an event
-finance categorize --desc-prefix "SPOTIFY" --category "Entertainment:Music" --write
+gilt categorize --desc-prefix "SPOTIFY" --category "Entertainment:Music" --write
 # → TransactionCategorized event emitted to event store
 ```
 
@@ -378,12 +378,12 @@ No additional flags needed - event tracking happens transparently.
 
 1. **Auto-categorization command**
    ```bash
-   finance auto-categorize --confidence 0.7 --write
+   gilt auto-categorize --confidence 0.7 --write
    ```
 
 2. **Interactive review mode**
    ```bash
-   finance review-suggestions
+   gilt review-suggestions
    # Shows predictions, allows approve/reject/modify
    ```
 

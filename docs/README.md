@@ -1,6 +1,6 @@
 # Building and Publishing Documentation
 
-This guide explains how to build and publish the Finance documentation using MkDocs.
+This guide explains how to build and publish the Gilt documentation using MkDocs.
 
 ## Prerequisites
 
@@ -112,7 +112,7 @@ def example():
 ```
 
 ```bash
-finance categorize --help
+gilt categorize --help
 ```
 ````
 
@@ -163,7 +163,7 @@ To host elsewhere:
 The documentation is configured in `mkdocs.yml`:
 
 ```yaml
-site_name: Finance - Privacy-First Financial Management
+site_name: Gilt - Privacy-First Financial Management
 site_description: Local-only, privacy-first financial management tool
 
 theme:

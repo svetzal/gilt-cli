@@ -1,13 +1,13 @@
 # Project Structure
 
-This document describes the file and directory organization of the Finance project.
+This document describes the file and directory organization of the Gilt project.
 
 ## Overview
 
-Finance follows a standard Python package structure with clear separation between CLI, GUI, and core business logic.
+Gilt follows a standard Python package structure with clear separation between CLI, GUI, and core business logic.
 
 ```
-finance/
+gilt/
 ├── config/                   # Configuration files
 │   ├── accounts.yml         # Account definitions
 │   └── categories.yml       # Category hierarchy
@@ -17,7 +17,7 @@ finance/
 ├── reports/                 # Generated reports (gitignored)
 ├── docs/                    # Documentation (MkDocs)
 ├── src/                     # Source code
-│   └── finance/            # Main package
+│   └── gilt/            # Main package
 │       ├── cli/            # Command-line interface
 │       ├── gui/            # Graphical interface
 │       ├── model/          # Data models
@@ -32,10 +32,10 @@ finance/
 
 ## Source Code Organization
 
-### Core Package (`src/finance/`)
+### Core Package (`src/gilt/`)
 
 ```
-src/finance/
+src/gilt/
 ├── __init__.py             # Package initialization
 ├── cli/                    # Command-line interface
 │   ├── __init__.py
@@ -119,8 +119,8 @@ Always use absolute imports from the package root:
 
 ```python
 # Good
-from finance.model.account import Account
-from finance.cli.command.util import validate_category
+from gilt.model.account import Account
+from gilt.cli.command.util import validate_category
 
 # Avoid
 from ..model.account import Account
@@ -142,8 +142,8 @@ from pydantic import BaseModel
 from rich.console import Console
 
 # 3. Local package
-from finance.model.account import Account
-from finance.model.ledger_io import load_ledger_csv
+from gilt.model.account import Account
+from gilt.model.ledger_io import load_ledger_csv
 ```
 
 ## Testing Structure
@@ -151,8 +151,8 @@ from finance.model.ledger_io import load_ledger_csv
 Tests use the `_spec.py` suffix and mirror the source structure:
 
 ```
-src/finance/model/category.py      → src/finance/model/category_spec.py
-src/finance/cli/command/budget.py  → src/finance/cli/command/budget_spec.py
+src/gilt/model/category.py      → src/gilt/model/category_spec.py
+src/gilt/cli/command/budget.py  → src/gilt/cli/command/budget_spec.py
 ```
 
 Test discovery: `pytest` finds all `*_spec.py` files automatically.
@@ -165,7 +165,7 @@ Project metadata and dependencies:
 
 ```toml
 [project]
-name = "finance"
+name = "gilt"
 version = "1.0.0"
 dependencies = [...]
 
@@ -174,8 +174,8 @@ gui = ["PySide6", ...]
 dev = ["pytest", "ruff", ...]
 
 [project.scripts]
-finance = "finance.cli.app:main"
-finance-gui = "finance.gui.app:main"
+gilt = "gilt.cli.app:main"
+gilt-gui = "gilt.gui.app:main"
 ```
 
 ### mkdocs.yml
@@ -183,7 +183,7 @@ finance-gui = "finance.gui.app:main"
 Documentation configuration:
 
 ```yaml
-site_name: Finance
+site_name: Gilt
 theme:
   name: material
 nav:

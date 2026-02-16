@@ -37,6 +37,7 @@ logs/
 # Packaging metadata
 *.egg-info/
 *.egg
+dist/
 
 # MkDocs build output
 site/
@@ -44,5 +45,5 @@ site/
 # Test coverage
 .coverage
 
-# User config (created via `finance init`)
+# User config (created via `gilt init`)
 config/

@@ -1,6 +1,6 @@
 # System Design
 
-This document describes the overall architecture and design decisions for Finance.
+This document describes the overall architecture and design decisions for Gilt.
 
 ## Design Principles
 
@@ -31,7 +31,7 @@ This document describes the overall architecture and design decisions for Financ
 - No update checks without permission
 
 **Security Model**:
-- User's file system permissions = Finance's security
+- User's file system permissions = Gilt's security
 - User can encrypt files at OS level
 - User can backup/delete data anytime
 
@@ -101,7 +101,7 @@ This document describes the overall architecture and design decisions for Financ
 **CLI (Command Line Interface)**:
 - Typer framework for commands
 - Rich library for formatted output
-- Flat command structure (`finance <verb>`)
+- Flat command structure (`gilt <verb>`)
 - Pipeable output for scripting
 
 **GUI (Graphical User Interface)**:
@@ -195,7 +195,7 @@ Category Config + Ledger Data → Aggregate → Prorate → Compare
 ### Standard Directory Structure
 
 ```
-finance/
+gilt/
 ├── config/
 │   ├── accounts.yml      # Account definitions
 │   └── categories.yml    # Category hierarchy and budgets
@@ -209,7 +209,7 @@ finance/
 │       └── ...
 ├── reports/              # Generated reports (optional)
 │   └── budget_report_2025_10.md
-└── src/finance/          # Source code
+└── src/gilt/          # Source code
     ├── cli/              # CLI commands
     ├── gui/              # GUI application
     ├── model/            # Data models
@@ -251,7 +251,7 @@ finance/
 - No indexing
 - Full file read/write
 
-**Decision**: CSV is good enough for personal finance (typically < 10k transactions). If needed, can add SQLite cache layer without changing CSV storage.
+**Decision**: CSV is good enough for personal gilt (typically < 10k transactions). If needed, can add SQLite cache layer without changing CSV storage.
 
 ### Why YAML for Config?
 

@@ -14,7 +14,7 @@ Effective budget tracking involves:
 
 ## Prerequisites
 
-- ✅ Finance installed and configured
+- ✅ Gilt installed and configured
 - ✅ At least 2-3 months of transaction data imported
 - ✅ Familiar with [Monthly Review workflow](monthly-review.md)
 
@@ -29,14 +29,14 @@ More data = better understanding:
 ```bash
 # If you haven't already, import several months
 # See Initial Setup Workflow for details
-finance ingest --write
+gilt ingest --write
 ```
 
 ### Review Current Categories
 
 ```bash
 # See what categories exist
-finance categories
+gilt categories
 ```
 
 ### Categorize Existing Transactions
@@ -45,12 +45,12 @@ Before analyzing spending, categorize as much as possible:
 
 ```bash
 # Batch categorize common patterns
-finance categorize --desc-prefix "SPOTIFY" --category "Entertainment:Streaming" --yes --write
-finance categorize --desc-prefix "UBER" --category "Transportation:Rideshare" --yes --write
+gilt categorize --desc-prefix "SPOTIFY" --category "Entertainment:Streaming" --yes --write
+gilt categorize --desc-prefix "UBER" --category "Transportation:Rideshare" --yes --write
 # ... etc (see Monthly Review for more patterns)
 
 # Check progress
-finance uncategorized
+gilt uncategorized
 ```
 
 **Goal**: Get at least 80% of transactions categorized before analyzing.
@@ -61,9 +61,9 @@ Look at historical spending without budgets set:
 
 ```bash
 # Last 3 months individually
-finance budget --year 2025 --month 9
-finance budget --year 2025 --month 10
-finance budget --year 2025 --month 11
+gilt budget --year 2025 --month 9
+gilt budget --year 2025 --month 10
+gilt budget --year 2025 --month 11
 ```
 
 **Calculate averages:**
@@ -150,29 +150,29 @@ Based on your spending:
 
 ```bash
 # Work-related (if freelance/contractor)
-finance category --add "Work" --description "Business expenses" --write
-finance category --add "Work:Equipment" --write
-finance category --add "Work:Travel" --write
+gilt category --add "Work" --description "Business expenses" --write
+gilt category --add "Work:Equipment" --write
+gilt category --add "Work:Travel" --write
 
 # Pets
-finance category --add "Pets" --description "Pet care" --write
-finance category --add "Pets:Food" --write
-finance category --add "Pets:Vet" --write
+gilt category --add "Pets" --description "Pet care" --write
+gilt category --add "Pets:Food" --write
+gilt category --add "Pets:Vet" --write
 
 # Education
-finance category --add "Education" --description "Learning and development" --write
-finance category --add "Education:Courses" --write
-finance category --add "Education:Books" --write
+gilt category --add "Education" --description "Learning and development" --write
+gilt category --add "Education:Courses" --write
+gilt category --add "Education:Books" --write
 
 # Gifts
-finance category --add "Gifts" --description "Gifts and charitable giving" --write
+gilt category --add "Gifts" --description "Gifts and charitable giving" --write
 ```
 
 ### Review Category Usage
 
 ```bash
 # See which categories are being used
-finance categories
+gilt categories
 ```
 
 Remove any categories with zero usage that you don't plan to use.
@@ -199,19 +199,19 @@ Use your historical analysis from Step 1:
 
 ```bash
 # Essential expenses
-finance category --set-budget "Housing" --amount 2000 --period monthly --write
-finance category --set-budget "Transportation" --amount 350 --period monthly --write
+gilt category --set-budget "Housing" --amount 2000 --period monthly --write
+gilt category --set-budget "Transportation" --amount 350 --period monthly --write
 
 # Food
-finance category --set-budget "Groceries" --amount 600 --period monthly --write
-finance category --set-budget "Dining Out" --amount 500 --period monthly --write
+gilt category --set-budget "Groceries" --amount 600 --period monthly --write
+gilt category --set-budget "Dining Out" --amount 500 --period monthly --write
 
 # Healthcare
-finance category --set-budget "Healthcare" --amount 200 --period monthly --write
+gilt category --set-budget "Healthcare" --amount 200 --period monthly --write
 
 # Discretionary
-finance category --set-budget "Entertainment" --amount 200 --period monthly --write
-finance category --set-budget "Shopping" --amount 300 --period monthly --write
+gilt category --set-budget "Entertainment" --amount 200 --period monthly --write
+gilt category --set-budget "Shopping" --amount 300 --period monthly --write
 
 # Financial (usually no budget, just tracking)
 # Banking fees - track but don't budget
@@ -237,7 +237,7 @@ categories:
 Then reload:
 
 ```bash
-finance categories
+gilt categories
 ```
 
 ### Annual vs Monthly Budgets
@@ -246,11 +246,11 @@ Some expenses are annual:
 
 ```bash
 # Annual expenses
-finance category --set-budget "Insurance" --amount 1200 --period yearly --write
-finance category --set-budget "Gifts" --amount 2000 --period yearly --write
+gilt category --set-budget "Insurance" --amount 1200 --period yearly --write
+gilt category --set-budget "Gifts" --amount 2000 --period yearly --write
 
-# Finance automatically pro-rates when viewing monthly reports
-finance budget --year 2025 --month 11
+# Gilt automatically pro-rates when viewing monthly reports
+gilt budget --year 2025 --month 11
 # Shows Insurance: $100/month (from $1200/year ÷ 12)
 ```
 
@@ -262,14 +262,14 @@ For tight budget monitoring:
 
 ```bash
 # Quick status of current month
-finance budget --year $(date +%Y) --month $(date +%m)
+gilt budget --year $(date +%Y) --month $(date +%m)
 ```
 
 Add to your shell profile for convenience:
 
 ```bash
 # Add to ~/.zshrc or ~/.bashrc
-alias budget-now='finance budget --year $(date +%Y) --month $(date +%m)'
+alias budget-now='gilt budget --year $(date +%Y) --month $(date +%m)'
 ```
 
 ### Weekly Categorization
@@ -278,7 +278,7 @@ Don't wait until month-end:
 
 ```bash
 # Every Sunday, categorize the week
-finance uncategorized --limit 50
+gilt uncategorized --limit 50
 
 # Batch categorize common patterns
 bash scripts/categorize-common.sh  # your saved patterns
@@ -290,7 +290,7 @@ Check progress halfway through the month:
 
 ```bash
 # Day 15 check-in
-finance budget --year 2025 --month 11
+gilt budget --year 2025 --month 11
 ```
 
 **Questions to ask:**
@@ -304,10 +304,10 @@ Full analysis at month close:
 
 ```bash
 # Complete view
-finance budget --year 2025 --month 11
+gilt budget --year 2025 --month 11
 
 # Category details for over-budget items
-finance budget --category "Dining Out" --year 2025 --month 11
+gilt budget --category "Dining Out" --year 2025 --month 11
 ```
 
 ## Step 5: Analyze and Adjust
@@ -317,7 +317,7 @@ finance budget --category "Dining Out" --year 2025 --month 11
 Review results:
 
 ```bash
-finance budget --year 2025 --month 11
+gilt budget --year 2025 --month 11
 ```
 
 **For each category:**
@@ -336,42 +336,42 @@ finance budget --year 2025 --month 11
 
 ```bash
 # Increase budget if spending is justified
-finance category --set-budget "Groceries" --amount 700 --period monthly --write
+gilt category --set-budget "Groceries" --amount 700 --period monthly --write
 
 # Or reallocate from elsewhere
-finance category --set-budget "Entertainment" --amount 150 --period monthly --write
-finance category --set-budget "Groceries" --amount 700 --period monthly --write
+gilt category --set-budget "Entertainment" --amount 150 --period monthly --write
+gilt category --set-budget "Groceries" --amount 700 --period monthly --write
 ```
 
 **Budget Too High** (consistently under):
 
 ```bash
 # Reduce and reallocate
-finance category --set-budget "Entertainment" --amount 150 --period monthly --write
-finance category --set-budget "Dining Out" --amount 550 --period monthly --write
+gilt category --set-budget "Entertainment" --amount 150 --period monthly --write
+gilt category --set-budget "Dining Out" --amount 550 --period monthly --write
 ```
 
 **Wrong Granularity**:
 
 ```bash
 # Too broad? Split into subcategories
-finance category --add "Entertainment:Streaming" --write
-finance category --add "Entertainment:Events" --write
-finance category --add "Entertainment:Hobbies" --write
+gilt category --add "Entertainment:Streaming" --write
+gilt category --add "Entertainment:Events" --write
+gilt category --add "Entertainment:Hobbies" --write
 
 # Set sub-budgets (optional)
-finance category --set-budget "Entertainment:Streaming" --amount 50 --period monthly --write
+gilt category --set-budget "Entertainment:Streaming" --amount 50 --period monthly --write
 
 # Recategorize existing
-finance recategorize --from "Entertainment" --to "Entertainment:Streaming" --write
+gilt recategorize --from "Entertainment" --to "Entertainment:Streaming" --write
 ```
 
 **Category Not Useful**:
 
 ```bash
 # Consolidate or remove
-finance recategorize --from "OldCategory" --to "NewCategory" --write
-finance category --remove "OldCategory" --write
+gilt recategorize --from "OldCategory" --to "NewCategory" --write
+gilt category --remove "OldCategory" --write
 ```
 
 ### After 2-3 Months
@@ -380,9 +380,9 @@ Look for trends:
 
 ```bash
 # Compare 3 months
-finance budget --year 2025 --month 9
-finance budget --year 2025 --month 10
-finance budget --year 2025 --month 11
+gilt budget --year 2025 --month 9
+gilt budget --year 2025 --month 10
+gilt budget --year 2025 --month 11
 ```
 
 **Calculate averages:**
@@ -394,10 +394,10 @@ finance budget --year 2025 --month 11
 
 ```bash
 # Housing consistently at $2,100
-finance category --set-budget "Housing" --amount 2100 --period monthly --write
+gilt category --set-budget "Housing" --amount 2100 --period monthly --write
 
 # Dining out averaging $450 (reduction goal achieved!)
-finance category --set-budget "Dining Out" --amount 450 --period monthly --write
+gilt category --set-budget "Dining Out" --amount 450 --period monthly --write
 ```
 
 ## Step 6: Advanced Tracking
@@ -411,9 +411,9 @@ Allocate every dollar:
 INCOME=5000
 
 # Allocate to all categories (should sum to $5000)
-finance category --set-budget "Housing" --amount 2000 --period monthly --write
-finance category --set-budget "Savings" --amount 1000 --period monthly --write
-finance category --set-budget "Groceries" --amount 600 --period monthly --write
+gilt category --set-budget "Housing" --amount 2000 --period monthly --write
+gilt category --set-budget "Savings" --amount 1000 --period monthly --write
+gilt category --set-budget "Groceries" --amount 600 --period monthly --write
 # ... etc until all $5000 allocated
 ```
 
@@ -421,7 +421,7 @@ Verify allocation:
 
 ```bash
 # Sum all budgets
-finance categories | awk '{sum+=$NF} END {print "Total: $" sum}'
+gilt categories | awk '{sum+=$NF} END {print "Total: $" sum}'
 ```
 
 ### Envelope System Simulation
@@ -430,10 +430,10 @@ Track "envelopes" via categories:
 
 ```bash
 # Discretionary spending envelope
-finance category --set-budget "Discretionary" --amount 500 --period monthly --write
+gilt category --set-budget "Discretionary" --amount 500 --period monthly --write
 
 # Check remaining in envelope
-finance budget --category "Discretionary" --year 2025 --month 11
+gilt budget --category "Discretionary" --year 2025 --month 11
 ```
 
 When envelope is empty, stop spending in that category.
@@ -445,10 +445,10 @@ Save for irregular expenses:
 ```bash
 # Annual car insurance = $1,200
 # Save $100/month in "Insurance" category
-finance category --set-budget "Insurance" --amount 100 --period monthly --write
+gilt category --set-budget "Insurance" --amount 100 --period monthly --write
 
 # Track as transfers to savings:
-finance categorize --desc-prefix "TRANSFER TO SAVINGS" --category "Savings:Insurance" --write
+gilt categorize --desc-prefix "TRANSFER TO SAVINGS" --category "Savings:Insurance" --write
 ```
 
 ### Budget Rollover (Manual)
@@ -458,7 +458,7 @@ If under-spent this month, increase next month's budget:
 ```bash
 # November: Budgeted $400, spent $350, $50 remaining
 # December: Set budget to $450 (400 + 50 rollover)
-finance category --set-budget "Dining Out" --amount 450 --period monthly --write
+gilt category --set-budget "Dining Out" --amount 450 --period monthly --write
 ```
 
 ## Budget Templates
@@ -520,17 +520,17 @@ Generate reports for review:
 
 ```bash
 # Markdown format
-finance budget --year 2025 --month 11 > reports/2025-11-budget.md
+gilt budget --year 2025 --month 11 > reports/2025-11-budget.md
 
 # Add context
 {
   echo "# November 2025 Budget Review"
   echo
   echo "## Budget vs Actual"
-  finance budget --year 2025 --month 11
+  gilt budget --year 2025 --month 11
   echo
   echo "## Uncategorized (need attention)"
-  finance uncategorized --year 2025 --month 11 --limit 10
+  gilt uncategorized --year 2025 --month 11 --limit 10
   echo
   echo "## Notes"
   echo "- Higher dining out due to birthday celebrations"
@@ -546,16 +546,16 @@ finance budget --year 2025 --month 11 > reports/2025-11-budget.md
   echo "# Q4 2025 Budget Summary"
   echo
   echo "## October"
-  finance budget --year 2025 --month 10
+  gilt budget --year 2025 --month 10
   echo
   echo "## November"
-  finance budget --year 2025 --month 11
+  gilt budget --year 2025 --month 11
   echo
   echo "## December"
-  finance budget --year 2025 --month 12
+  gilt budget --year 2025 --month 12
   echo
   echo "## Q4 Totals"
-  finance budget --year 2025  # Shows year-to-date
+  gilt budget --year 2025  # Shows year-to-date
 } > reports/2025-Q4-budget.md
 ```
 
@@ -563,7 +563,7 @@ finance budget --year 2025 --month 11 > reports/2025-11-budget.md
 
 ```bash
 # Annual summary
-finance budget --year 2025 > reports/2025-annual-budget.md
+gilt budget --year 2025 > reports/2025-annual-budget.md
 ```
 
 ## Troubleshooting
@@ -611,13 +611,13 @@ finance budget --year 2025 > reports/2025-annual-budget.md
 1. **Automate patterns**:
    ```bash
    # Save to scripts/auto-categorize.sh
-   finance categorize --desc-prefix "SPOTIFY" --category "Entertainment:Streaming" --yes --write
+   gilt categorize --desc-prefix "SPOTIFY" --category "Entertainment:Streaming" --yes --write
    # ... 20+ common patterns
    ```
 2. **Focus on large amounts**:
    ```bash
    # Only categorize >$50
-   finance uncategorized --min-amount 50
+   gilt uncategorized --min-amount 50
    ```
 3. **Batch processing**:
    - Do weekly mini-sessions (10 min) vs monthly marathon
@@ -633,13 +633,13 @@ finance budget --year 2025 > reports/2025-annual-budget.md
 1. **Consolidate**:
    ```bash
    # Too many entertainment sub-categories
-   finance recategorize --from "Entertainment:Concerts" --to "Entertainment:Events" --write
-   finance recategorize --from "Entertainment:Theater" --to "Entertainment:Events" --write
+   gilt recategorize --from "Entertainment:Concerts" --to "Entertainment:Events" --write
+   gilt recategorize --from "Entertainment:Theater" --to "Entertainment:Events" --write
    ```
 2. **Rule of thumb**: 10-15 main categories, 2-4 subcategories each
 3. **Combine rare categories**:
    ```bash
-   finance recategorize --from "Pet:Toys" --to "Pet:Food" --write
+   gilt recategorize --from "Pet:Toys" --to "Pet:Food" --write
    ```
 
 ## Success Criteria

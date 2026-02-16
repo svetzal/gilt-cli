@@ -1,9 +1,26 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
-name = "finance-local"
-version = "0.0.0"
-description = "Local-only finance utilities (privacy-first)"
+name = "gilt"
+version = "0.1.0"
+description = "Local-only, privacy-first personal finance CLI"
 requires-python = ">=3.13"
 readme = "README.md"
+license = "MIT"
+authors = [
+  { name = "Stacey Vetzal", email = "stacey@mojility.ca" },
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: End Users/Desktop",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Office/Business :: Financial",
+]
 dependencies = [
   "pandas",
   "pyyaml",
@@ -36,9 +53,21 @@ ml = [
   "lightgbm>=4.0,<5",
 ]
 
+[project.urls]
+Homepage = "https://github.com/svetzal/gilt"
+Repository = "https://github.com/svetzal/gilt"
+Issues = "https://github.com/svetzal/gilt/issues"
+
 [project.scripts]
-finance = "finance.cli.app:app"
-finance-gui = "finance.gui.app:main"
+gilt = "gilt.cli.app:app"
+gilt-gui = "gilt.gui.app:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gilt"]
+exclude = ["*_spec.py"]
+
+[tool.hatch.build.targets.sdist]
+exclude = ["*_spec.py"]
 
 [tool.ruff]
 # Target Python 3.13 syntax/features for linting and rules

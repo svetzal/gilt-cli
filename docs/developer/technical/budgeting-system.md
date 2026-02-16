@@ -152,15 +152,15 @@ Three equivalent ways to specify category:
 **CLI**:
 ```bash
 # Single transaction
-finance categorize --account MYBANK_CHQ --txid abc123 \
+gilt categorize --account MYBANK_CHQ --txid abc123 \
   --category "Housing:Utilities" --write
 
 # Batch by description
-finance categorize --desc-prefix "EXAMPLE UTILITY" \
+gilt categorize --desc-prefix "EXAMPLE UTILITY" \
   --category "Housing:Utilities" --yes --write
 
 # Batch by pattern
-finance categorize --pattern "PAYMENT.*UTILITY" \
+gilt categorize --pattern "PAYMENT.*UTILITY" \
   --category "Housing:Utilities" --yes --write
 ```
 
@@ -177,11 +177,11 @@ Rename categories across all transactions:
 
 ```bash
 # CLI
-finance recategorize --from "Old Category" \
+gilt recategorize --from "Old Category" \
   --to "New Category" --write
 
 # With subcategory
-finance recategorize --from "Old:Sub" \
+gilt recategorize --from "Old:Sub" \
   --to "New:Sub" --write
 ```
 
@@ -284,7 +284,7 @@ def calculate_budget_status(
 ### List Categories
 
 ```bash
-finance categories
+gilt categories
 
 # Output:
 ┌─────────────┬─────────────┬──────────────────┬─────────┬────────┐
@@ -301,52 +301,52 @@ finance categories
 
 ```bash
 # Add category
-finance category --add "Housing" \
+gilt category --add "Housing" \
   --description "Housing expenses" \
   --write
 
 # Add subcategory
-finance category --add "Housing:Utilities" \
+gilt category --add "Housing:Utilities" \
   --description "Electric, gas, water" \
   --write
 
 # Set budget
-finance category --set-budget "Housing" \
+gilt category --set-budget "Housing" \
   --amount 2500 --period monthly --write
 
 # Remove category
-finance category --remove "Old Category" --write
+gilt category --remove "Old Category" --write
 ```
 
 ### Find Uncategorized
 
 ```bash
-finance uncategorized
+gilt uncategorized
 
 # Filter by account
-finance uncategorized --account MYBANK_CHQ
+gilt uncategorized --account MYBANK_CHQ
 
 # Filter by year
-finance uncategorized --year 2025
+gilt uncategorized --year 2025
 
 # Filter by amount
-finance uncategorized --min-amount 100
+gilt uncategorized --min-amount 100
 ```
 
 ### Budget Report
 
 ```bash
 # Current month
-finance budget
+gilt budget
 
 # Specific month
-finance budget --year 2025 --month 10
+gilt budget --year 2025 --month 10
 
 # Whole year
-finance budget --year 2025
+gilt budget --year 2025
 
 # Single category
-finance budget --category "Dining Out" --year 2025
+gilt budget --category "Dining Out" --year 2025
 
 # Output:
 ┌─────────────┬──────────┬──────────┬───────────┬──────┐
@@ -366,7 +366,7 @@ Total: $3,700 budgeted, $3,345 actual, $355 remaining (90.4%)
 Find categories in transactions that aren't defined in config:
 
 ```bash
-finance diagnose-categories
+gilt diagnose-categories
 
 # Output if issues found:
 ❌ Found orphaned categories:
@@ -380,7 +380,7 @@ finance diagnose-categories
 
 Suggested actions:
 1. Add missing categories to config/categories.yml
-2. Fix typos using: finance recategorize --from "..." --to "..."
+2. Fix typos using: gilt recategorize --from "..." --to "..."
 ```
 
 ## GUI Views
@@ -498,7 +498,7 @@ Quick actions:
 ### Categorization Workflow
 
 **Efficient categorization**:
-1. Find uncategorized: `finance uncategorized`
+1. Find uncategorized: `gilt uncategorized`
 2. Batch categorize recurring expenses first
 3. Categorize one-off transactions individually
 4. Review and adjust as needed
@@ -506,18 +506,18 @@ Quick actions:
 **Batch categorization examples**:
 ```bash
 # Recurring subscriptions
-finance categorize --desc-prefix "SPOTIFY" \
+gilt categorize --desc-prefix "SPOTIFY" \
   --category "Entertainment:Music" --yes --write
 
-finance categorize --desc-prefix "NETFLIX" \
+gilt categorize --desc-prefix "NETFLIX" \
   --category "Entertainment:Video" --yes --write
 
 # Utilities
-finance categorize --pattern "EXAMPLE UTILITY|OTHER UTILITY" \
+gilt categorize --pattern "EXAMPLE UTILITY|OTHER UTILITY" \
   --category "Housing:Utilities" --yes --write
 
 # Transit
-finance categorize --desc-prefix "COMPASS CARD" \
+gilt categorize --desc-prefix "COMPASS CARD" \
   --category "Transportation:Transit" --yes --write
 ```
 

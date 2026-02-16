@@ -1,6 +1,6 @@
 # Command Line Interface (CLI)
 
-The Finance CLI provides powerful, scriptable commands for managing your financial data.
+The Gilt CLI provides powerful, scriptable commands for managing your financial data.
 
 ## Overview
 
@@ -11,7 +11,7 @@ The CLI is designed for:
 - **Server environments**: Works without GUI
 - **Power users**: Fast, keyboard-driven workflow
 
-All commands follow the pattern: `finance <command> [options]`
+All commands follow the pattern: `gilt <command> [options]`
 
 ## Core Principles
 
@@ -21,10 +21,10 @@ All commands that modify data default to **dry-run mode**:
 
 ```bash
 # Preview what would happen (safe)
-finance categorize --desc-prefix "SPOTIFY" --category "Entertainment"
+gilt categorize --desc-prefix "SPOTIFY" --category "Entertainment"
 
 # Actually make the change (requires --write)
-finance categorize --desc-prefix "SPOTIFY" --category "Entertainment" --write
+gilt categorize --desc-prefix "SPOTIFY" --category "Entertainment" --write
 ```
 
 !!! tip "Always Preview First"
@@ -88,13 +88,13 @@ Always preview before writing:
 
 ```bash
 # 1. Preview
-finance categorize --desc-prefix "UTILITY CO" --category "Housing:Utilities"
+gilt categorize --desc-prefix "UTILITY CO" --category "Housing:Utilities"
 
 # 2. Review output
 # ... check that it looks correct ...
 
 # 3. Write
-finance categorize --desc-prefix "UTILITY CO" --category "Housing:Utilities" --write
+gilt categorize --desc-prefix "UTILITY CO" --category "Housing:Utilities" --write
 ```
 
 ### Batch Operations
@@ -103,11 +103,11 @@ Process multiple transactions at once:
 
 ```bash
 # Categorize all Spotify charges
-finance categorize --desc-prefix "SPOTIFY" \
+gilt categorize --desc-prefix "SPOTIFY" \
   --category "Entertainment:Music" --yes --write
 
 # Add notes to all gym payments
-finance note --desc-prefix "GOODLIFE" \
+gilt note --desc-prefix "GOODLIFE" \
   --note "Gym membership" --yes --write
 ```
 
@@ -119,16 +119,16 @@ Most commands support filtering:
 
 ```bash
 # By account
-finance ytd --account MYBANK_CHQ
+gilt ytd --account MYBANK_CHQ
 
 # By year
-finance uncategorized --year 2025
+gilt uncategorized --year 2025
 
 # By amount
-finance uncategorized --min-amount 100
+gilt uncategorized --min-amount 100
 
 # Combined
-finance ytd --account MYBANK_CHQ --year 2025 --limit 50
+gilt ytd --account MYBANK_CHQ --year 2025 --limit 50
 ```
 
 ### Multi-Account Operations
@@ -137,14 +137,14 @@ Some commands work across all accounts:
 
 ```bash
 # Categorize in all accounts
-finance categorize --desc-prefix "NETFLIX" \
+gilt categorize --desc-prefix "NETFLIX" \
   --category "Entertainment:Video" --yes --write
 
 # Find uncategorized in all accounts
-finance uncategorized
+gilt uncategorized
 
 # Budget across all accounts
-finance budget --year 2025 --month 10
+gilt budget --year 2025 --month 10
 ```
 
 ## Global Options
@@ -202,7 +202,7 @@ Commands return standard exit codes:
 Useful for scripting:
 
 ```bash
-if finance ingest --write; then
+if gilt ingest --write; then
     echo "Import successful"
 else
     echo "Import failed"
@@ -224,8 +224,8 @@ None currently supported, but configuration can be customized via:
 Tab completion for commands (if supported by your shell):
 
 ```bash
-finance cat<TAB>
-# Completes to: finance categorize
+gilt cat<TAB>
+# Completes to: gilt categorize
 ```
 
 ### Aliases
@@ -234,9 +234,9 @@ Create aliases for common commands:
 
 ```bash
 # In ~/.bashrc or ~/.zshrc
-alias fin='finance'
-alias fin-import='finance ingest --write'
-alias fin-budget='finance budget --year 2025'
+alias fin='gilt'
+alias fin-import='gilt ingest --write'
+alias fin-budget='gilt budget --year 2025'
 ```
 
 ### Piping
@@ -245,10 +245,10 @@ Some commands support piping:
 
 ```bash
 # Find large transactions
-finance ytd --account MYBANK_CHQ | grep -E '\$[0-9]{3,}'
+gilt ytd --account MYBANK_CHQ | grep -E '\$[0-9]{3,}'
 
 # Export to CSV
-finance ytd --account MYBANK_CHQ --format csv > transactions.csv
+gilt ytd --account MYBANK_CHQ --format csv > transactions.csv
 ```
 
 ## Troubleshooting
@@ -256,7 +256,7 @@ finance ytd --account MYBANK_CHQ --format csv > transactions.csv
 ### Command Not Found
 
 ```bash
-finance: command not found
+gilt: command not found
 ```
 
 **Solution**: Activate virtual environment:

@@ -1,6 +1,6 @@
 # GUI Overview
 
-The Finance GUI provides a modern, visual interface for managing your financial data built with Qt6.
+The Gilt GUI provides a modern, visual interface for managing your financial data built with Qt6.
 
 ## Overview
 
@@ -27,13 +27,13 @@ This installs PySide6 and Qt Charts (~100 MB download).
 Start the GUI:
 
 ```bash
-finance-gui
+gilt-gui
 ```
 
 Or directly:
 
 ```bash
-python -m finance.gui.app
+python -m gilt.gui.app
 ```
 
 ## Main Window
@@ -208,9 +208,9 @@ Same privacy principles as CLI:
 - ✅ You control all data
 
 **Settings Storage**:
-- macOS: `~/Library/Preferences/com.Mojility.Finance.plist`
-- Linux: `~/.config/Mojility/Finance.conf`
-- Windows: Registry under `HKEY_CURRENT_USER\Software\Mojility\Finance`
+- macOS: `~/Library/Preferences/com.Mojility.Gilt.plist`
+- Linux: `~/.config/Mojility/Gilt.conf`
+- Windows: Registry under `HKEY_CURRENT_USER\Software\Mojility\Gilt`
 
 Settings contain only paths and preferences (no financial data).
 
@@ -253,10 +253,10 @@ pip install -e .[gui]
 **Solution**: Check settings file permissions:
 ```bash
 # macOS
-ls -la ~/Library/Preferences/com.Mojility.Finance.plist
+ls -la ~/Library/Preferences/com.Mojility.Gilt.plist
 
 # Linux
-ls -la ~/.config/Mojility/Finance.conf
+ls -la ~/.config/Mojility/Gilt.conf
 ```
 
 ### Application Crashes

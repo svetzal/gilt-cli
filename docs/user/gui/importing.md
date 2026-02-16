@@ -1,6 +1,6 @@
 # Smart Import Wizard
 
-The **Smart Import Wizard** is the primary way to bring bank data into Finance. It uses local machine learning to intelligently map files to accounts and detect duplicate transactions before they enter your ledger.
+The **Smart Import Wizard** is the primary way to bring bank data into Gilt. It uses local machine learning to intelligently map files to accounts and detect duplicate transactions before they enter your ledger.
 
 ## Starting the Wizard
 
