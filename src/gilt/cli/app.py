@@ -141,16 +141,21 @@ def ytd(
     include_duplicates: bool = typer.Option(
         False, "--include-duplicates", help="Include transactions marked as duplicates"
     ),
+    raw: bool = typer.Option(
+        False, "--raw", help="Show original bank descriptions instead of vendor names"
+    ),
 ):
     """Show year-to-date transactions for a single account as a Rich table.
 
     Loads transactions from projections database. Duplicates are automatically excluded
-    unless --include-duplicates is specified.
+    unless --include-duplicates is specified. Enriched transactions show vendor names
+    by default; use --raw to see original bank descriptions.
 
     Examples:
       gilt ytd --account MYBANK_CHQ
       gilt ytd -a MYBANK_CC --year 2024 --limit 50
       gilt ytd -a BANK2_LOC --include-duplicates
+      gilt ytd -a MYBANK_CHQ --raw
     """
     from gilt.cli.command import ytd as cmd_ytd
 
@@ -161,6 +166,7 @@ def ytd(
         limit=limit,
         default_currency=default_currency,
         include_duplicates=include_duplicates,
+        raw=raw,
     )
     raise typer.Exit(code=code)
 
@@ -510,6 +516,44 @@ def ingest(
     code = cmd_ingest.run(
         workspace=_ws(ctx),
         write=write,
+    )
+    raise typer.Exit(code=code)
+
+
+@app.command(name="ingest-receipts")
+def ingest_receipts(
+    ctx: typer.Context,
+    source: Path = typer.Option(
+        ..., "--source", help="Root directory containing receipt JSON files (recursive scan)"
+    ),
+    write: bool = typer.Option(False, "--write", help=HELP_WRITE),
+    year: Optional[int] = typer.Option(
+        None, "--year", "-y", help="Only process receipts from this year"
+    ),
+    account: Optional[str] = typer.Option(
+        None, "--account", "-a", help="Limit matching to this account"
+    ),
+):
+    """Ingest receipt JSON sidecar files and enrich matching bank transactions.
+
+    Reads mailctl.receipt.v1 JSON files, matches them to existing bank transactions
+    by amount and date, and creates TransactionEnriched events.
+
+    Examples:
+      gilt ingest-receipts --source ~/receipts
+      gilt ingest-receipts --source ~/receipts --year 2025 --write
+      gilt ingest-receipts --source ~/receipts --account MYBANK_CC --write
+
+    Safety: dry-run by default. Use --write to persist enrichment events.
+    """
+    from gilt.cli.command import ingest_receipts as cmd_ingest_receipts
+
+    code = cmd_ingest_receipts.run(
+        workspace=_ws(ctx),
+        source=source,
+        write=write,
+        year=year,
+        account=account,
     )
     raise typer.Exit(code=code)
 

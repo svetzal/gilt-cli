@@ -396,6 +396,50 @@ class BudgetDeleted(Event):
         return Decimal(str(value))
 
 
+class TransactionEnriched(Event):
+    """Event emitted when a transaction is enriched with receipt/invoice data.
+
+    Captures structured data from email receipts (JSON sidecar files) that
+    provide vendor details, invoice numbers, tax breakdowns, and links to
+    PDF receipts. If multiple enrichments exist for one transaction, the
+    latest event wins during projection.
+    """
+
+    event_type: str = Field(default="TransactionEnriched", frozen=True)
+    aggregate_type: str = Field(default="transaction", frozen=True)
+
+    transaction_id: str  # Links to existing transaction
+    vendor: str  # Proper company name, e.g. 'Zoom Communications, Inc.'
+    service: Optional[str] = None  # Specific product/plan
+    invoice_number: Optional[str] = None
+    tax_amount: Optional[Decimal] = None
+    tax_type: Optional[str] = None  # e.g. 'HST', 'GST', None
+    currency: str = "CAD"
+    receipt_file: Optional[str] = None  # Relative path to PDF
+    enrichment_source: str  # Path to the JSON file that provided this data
+    source_email: Optional[str] = None  # Sender address from receipt email
+    aggregate_id: Optional[str] = None
+
+    def __init__(self, **data):
+        """Initialize and set aggregate_id to transaction_id."""
+        if "aggregate_id" not in data and "transaction_id" in data:
+            data["aggregate_id"] = data["transaction_id"]
+        super().__init__(**data)
+
+    @field_serializer("tax_amount")
+    def serialize_tax_amount(self, value: Optional[Decimal]) -> Optional[str]:
+        return str(value) if value is not None else None
+
+    @field_validator("tax_amount", mode="before")
+    @classmethod
+    def parse_tax_amount(cls, value: Any) -> Optional[Decimal]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return Decimal(value)
+        return Decimal(str(value))
+
+
 class PromptUpdated(Event):
     """Event emitted when adaptive prompt learning updates the prompt.
 
@@ -427,6 +471,7 @@ __all__ = [
     "DuplicateConfirmed",
     "DuplicateRejected",
     "TransactionCategorized",
+    "TransactionEnriched",
     "CategorizationRuleCreated",
     "BudgetCreated",
     "BudgetUpdated",

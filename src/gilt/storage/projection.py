@@ -26,6 +26,7 @@ from gilt.model.events import (
     TransactionImported,
     TransactionDescriptionObserved,
     TransactionCategorized,
+    TransactionEnriched,
     DuplicateConfirmed,
     DuplicateRejected,
 )
@@ -66,10 +67,22 @@ class ProjectionBuilder:
                     primary_transaction_id TEXT,
                     last_event_id TEXT,
                     projection_version INTEGER DEFAULT 1,
+                    vendor TEXT,
+                    service TEXT,
+                    invoice_number TEXT,
+                    tax_amount REAL,
+                    tax_type TEXT,
+                    enrichment_currency TEXT,
+                    receipt_file TEXT,
+                    enrichment_source TEXT,
+                    source_email TEXT,
                     FOREIGN KEY (primary_transaction_id)
                         REFERENCES transaction_projections(transaction_id)
                 )
             """)
+
+            # Migrate existing databases: add enrichment columns if missing
+            self._migrate_enrichment_columns(conn)
 
             conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_txn_proj_date
@@ -96,6 +109,31 @@ class ProjectionBuilder:
             conn.commit()
         finally:
             conn.close()
+
+    def _migrate_enrichment_columns(self, conn: sqlite3.Connection) -> None:
+        """Add enrichment columns to existing databases that lack them."""
+        cursor = conn.execute("PRAGMA table_info(transaction_projections)")
+        existing_columns = {row[1] for row in cursor.fetchall()}
+
+        enrichment_columns = [
+            ("vendor", "TEXT"),
+            ("service", "TEXT"),
+            ("invoice_number", "TEXT"),
+            ("tax_amount", "REAL"),
+            ("tax_type", "TEXT"),
+            ("enrichment_currency", "TEXT"),
+            ("receipt_file", "TEXT"),
+            ("enrichment_source", "TEXT"),
+            ("source_email", "TEXT"),
+        ]
+
+        for col_name, col_type in enrichment_columns:
+            if col_name not in existing_columns:
+                conn.execute(
+                    f"ALTER TABLE transaction_projections ADD COLUMN {col_name} {col_type}"
+                )
+
+        conn.commit()
 
     def rebuild_from_scratch(self, event_store: EventStore) -> int:
         """Rebuild all projections from event store.
@@ -173,11 +211,12 @@ class ProjectionBuilder:
                 self._apply_description_observed(conn, event)
             elif isinstance(event, TransactionCategorized):
                 self._apply_transaction_categorized(conn, event)
+            elif isinstance(event, TransactionEnriched):
+                self._apply_transaction_enriched(conn, event)
             elif isinstance(event, DuplicateConfirmed):
                 self._apply_duplicate_confirmed(conn, event)
             elif isinstance(event, DuplicateRejected):
                 self._apply_duplicate_rejected(conn, event)
-            # Other event types handled in future phases
 
             processed += 1
 
@@ -317,6 +356,44 @@ class ProjectionBuilder:
             (
                 event.category,
                 event.subcategory,
+                event.event_id,
+                event.transaction_id,
+            ),
+        )
+
+    def _apply_transaction_enriched(
+        self, conn: sqlite3.Connection, event: TransactionEnriched
+    ) -> None:
+        """Apply TransactionEnriched event to projection.
+
+        Updates the transaction with vendor/receipt data. If multiple
+        enrichments exist for one transaction, the latest wins.
+        """
+        conn.execute(
+            """
+            UPDATE transaction_projections
+            SET vendor = ?,
+                service = ?,
+                invoice_number = ?,
+                tax_amount = ?,
+                tax_type = ?,
+                enrichment_currency = ?,
+                receipt_file = ?,
+                enrichment_source = ?,
+                source_email = ?,
+                last_event_id = ?
+            WHERE transaction_id = ?
+            """,
+            (
+                event.vendor,
+                event.service,
+                event.invoice_number,
+                float(event.tax_amount) if event.tax_amount is not None else None,
+                event.tax_type,
+                event.currency,
+                event.receipt_file,
+                event.enrichment_source,
+                event.source_email,
                 event.event_id,
                 event.transaction_id,
             ),

@@ -127,6 +127,10 @@ def run(
             console.print()
             console.print(f"[dim]ℹ {evolved_count} transactions have evolved descriptions[/dim]")
 
+        enriched_count = sum(1 for txn in transactions if txn.get("vendor"))
+        if enriched_count > 0:
+            console.print(f"[dim]ℹ {enriched_count} transactions enriched with receipt data[/dim]")
+
         return 0
 
     except Exception as e:

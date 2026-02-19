@@ -21,6 +21,7 @@ def run(
     limit: Optional[int] = None,
     default_currency: Optional[str] = None,
     include_duplicates: bool = False,
+    raw: bool = False,
 ) -> int:
     """Show year-to-date transactions for a single account as a Rich table.
 
@@ -144,9 +145,14 @@ def run(
 
         display_notes = " | ".join(note_parts) if note_parts else ""
 
+        # Show vendor name instead of raw bank description when enriched
+        display_desc = t.description or ""
+        if not raw and t.vendor:
+            display_desc = t.vendor
+
         table.add_row(
             t.date.strftime("%Y-%m-%d"),
-            t.description or "",
+            display_desc,
             fmt_amount(amt),
             t.currency or "",
             t.transaction_id[:8],

@@ -17,6 +17,7 @@ from gilt.model.events import (
     DuplicateConfirmed,
     DuplicateRejected,
     TransactionCategorized,
+    TransactionEnriched,
     CategorizationRuleCreated,
     BudgetCreated,
     PromptUpdated,
@@ -246,6 +247,59 @@ class DescribeBudgetCreated:
         assert event.event_type == "BudgetCreated"
         assert event.amount == Decimal("200.00")
         assert event.period_type == "monthly"
+
+
+class DescribeTransactionEnriched:
+    """Test TransactionEnriched event."""
+
+    def it_should_create_valid_enrichment_event(self):
+        """Should create a valid enrichment event with all fields."""
+        event = TransactionEnriched(
+            transaction_id="abc123",
+            vendor="Zoom Communications, Inc.",
+            service="Zoom Workplace Pro + Scheduler",
+            invoice_number="INV342066242",
+            tax_amount=Decimal("4.03"),
+            tax_type="HST",
+            currency="CAD",
+            receipt_file="2026/02/Zoom-INV342066242.pdf",
+            enrichment_source="receipts/2026/02/zoom-receipt.json",
+            source_email="noreply@zoom.us",
+        )
+        assert event.event_type == "TransactionEnriched"
+        assert event.aggregate_type == "transaction"
+        assert event.aggregate_id == "abc123"
+        assert event.vendor == "Zoom Communications, Inc."
+        assert event.tax_amount == Decimal("4.03")
+
+    def it_should_allow_optional_fields_to_be_none(self):
+        """Should allow optional fields to be omitted."""
+        event = TransactionEnriched(
+            transaction_id="abc123",
+            vendor="Amazon.ca",
+            enrichment_source="receipts/2026/02/amazon.json",
+        )
+        assert event.service is None
+        assert event.invoice_number is None
+        assert event.tax_amount is None
+        assert event.tax_type is None
+        assert event.receipt_file is None
+        assert event.source_email is None
+        assert event.currency == "CAD"
+
+    def it_should_serialize_and_deserialize(self):
+        """Should round-trip through JSON correctly."""
+        event = TransactionEnriched(
+            transaction_id="abc123",
+            vendor="Zoom Communications, Inc.",
+            tax_amount=Decimal("4.03"),
+            enrichment_source="receipts/zoom.json",
+        )
+        json_str = event.model_dump_json()
+        restored = TransactionEnriched.model_validate_json(json_str)
+        assert restored.transaction_id == event.transaction_id
+        assert restored.vendor == event.vendor
+        assert restored.tax_amount == Decimal("4.03")
 
 
 class DescribePromptUpdated:

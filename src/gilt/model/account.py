@@ -89,6 +89,7 @@ class Transaction(BaseModel):
     subcategory: Optional[str] = None
     notes: Optional[str] = None
     source_file: Optional[str] = None
+    vendor: Optional[str] = None
     metadata: Dict[str, Any] = Field(
         default_factory=dict, description="Freeform, local-only metadata"
     )
@@ -145,6 +146,7 @@ class Transaction(BaseModel):
             subcategory=row.get("subcategory"),
             notes=row.get("notes"),
             source_file=row.get("source_file"),
+            vendor=row.get("vendor"),
             metadata=metadata,
         )
 

@@ -15,6 +15,7 @@ from gilt.model.events import (
     TransactionImported,
     TransactionDescriptionObserved,
     TransactionCategorized,
+    TransactionEnriched,
 )
 from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
@@ -553,3 +554,118 @@ class DescribeProjectionBuilder:
         # After incremental rebuild, should be at sequence 3
         projection_builder.rebuild_incremental(event_store)
         assert projection_builder.get_current_sequence() == 3
+
+    def it_should_apply_transaction_enriched_event(self, event_store, projection_builder):
+        """Test that TransactionEnriched events populate enrichment columns."""
+        # Import transaction
+        event1 = TransactionImported(
+            transaction_date="2026-02-15",
+            transaction_id="abc123",
+            source_file="test.csv",
+            source_account="TEST_ACCT",
+            raw_description="ZOOM.US 888-799-9666",
+            amount=Decimal("-30.99"),
+            currency="CAD",
+            raw_data={},
+        )
+        event_store.append_event(event1)
+
+        # Enrich it
+        event2 = TransactionEnriched(
+            transaction_id="abc123",
+            vendor="Zoom Communications, Inc.",
+            service="Zoom Workplace Pro + Scheduler",
+            invoice_number="INV342066242",
+            tax_amount=Decimal("4.03"),
+            tax_type="HST",
+            currency="CAD",
+            receipt_file="2026/02/Zoom-INV342066242.pdf",
+            enrichment_source="receipts/zoom.json",
+            source_email="noreply@zoom.us",
+        )
+        event_store.append_event(event2)
+
+        # Build projection
+        projection_builder.rebuild_from_scratch(event_store)
+
+        # Verify enrichment columns
+        txn = projection_builder.get_transaction("abc123")
+        assert txn is not None
+        assert txn["vendor"] == "Zoom Communications, Inc."
+        assert txn["service"] == "Zoom Workplace Pro + Scheduler"
+        assert txn["invoice_number"] == "INV342066242"
+        assert txn["tax_amount"] == 4.03
+        assert txn["tax_type"] == "HST"
+        assert txn["enrichment_currency"] == "CAD"
+        assert txn["receipt_file"] == "2026/02/Zoom-INV342066242.pdf"
+        assert txn["enrichment_source"] == "receipts/zoom.json"
+        assert txn["source_email"] == "noreply@zoom.us"
+
+        # Original description should be preserved
+        assert txn["canonical_description"] == "ZOOM.US 888-799-9666"
+
+    def it_should_use_latest_enrichment_when_multiple_exist(self, event_store, projection_builder):
+        """Test that latest enrichment wins for the same transaction."""
+        # Import transaction
+        event1 = TransactionImported(
+            transaction_date="2026-02-15",
+            transaction_id="abc123",
+            source_file="test.csv",
+            source_account="TEST_ACCT",
+            raw_description="ZOOM.US 888-799-9666",
+            amount=Decimal("-30.99"),
+            currency="CAD",
+            raw_data={},
+        )
+        event_store.append_event(event1)
+
+        # First enrichment
+        event2 = TransactionEnriched(
+            transaction_id="abc123",
+            vendor="Zoom Video Communications",
+            enrichment_source="receipts/zoom-v1.json",
+        )
+        event_store.append_event(event2)
+
+        # Second (corrected) enrichment
+        event3 = TransactionEnriched(
+            transaction_id="abc123",
+            vendor="Zoom Communications, Inc.",
+            service="Zoom Workplace Pro",
+            invoice_number="INV342066242",
+            enrichment_source="receipts/zoom-v2.json",
+        )
+        event_store.append_event(event3)
+
+        # Build projection
+        projection_builder.rebuild_from_scratch(event_store)
+
+        # Latest enrichment should win
+        txn = projection_builder.get_transaction("abc123")
+        assert txn["vendor"] == "Zoom Communications, Inc."
+        assert txn["service"] == "Zoom Workplace Pro"
+        assert txn["invoice_number"] == "INV342066242"
+        assert txn["enrichment_source"] == "receipts/zoom-v2.json"
+
+    def it_should_leave_enrichment_columns_null_when_not_enriched(self, event_store, projection_builder):
+        """Test that unenriched transactions have null enrichment columns."""
+        event = TransactionImported(
+            transaction_date="2026-02-15",
+            transaction_id="abc123",
+            source_file="test.csv",
+            source_account="TEST_ACCT",
+            raw_description="GROCERY STORE",
+            amount=Decimal("-50.00"),
+            currency="CAD",
+            raw_data={},
+        )
+        event_store.append_event(event)
+
+        projection_builder.rebuild_from_scratch(event_store)
+
+        txn = projection_builder.get_transaction("abc123")
+        assert txn["vendor"] is None
+        assert txn["service"] is None
+        assert txn["invoice_number"] is None
+        assert txn["tax_amount"] is None
+        assert txn["receipt_file"] is None
