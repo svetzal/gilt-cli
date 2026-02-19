@@ -110,6 +110,7 @@ def run(
     if compare:
         table.add_column("Bank Description", style="white")
         table.add_column("Vendor", style="green")
+        table.add_column("Service", style="green")
     else:
         table.add_column("Description", style="white")
     table.add_column("Amount", justify="right")
@@ -169,6 +170,7 @@ def run(
                 t.date.strftime("%Y-%m-%d"),
                 t.description or "",
                 t.vendor or "",
+                t.service or "",
                 fmt_amount(amt),
                 t.currency or "",
                 t.transaction_id[:8],
@@ -178,7 +180,7 @@ def run(
             # Show vendor name instead of raw bank description when enriched
             display_desc = t.description or ""
             if not raw and t.vendor:
-                display_desc = t.vendor
+                display_desc = f"{t.vendor} - {t.service}" if t.service else t.vendor
 
             table.add_row(
                 t.date.strftime("%Y-%m-%d"),
@@ -195,10 +197,10 @@ def run(
     # Net label varies slightly to hint meaning for liabilities
     net_label = "Net" if acct_nature == "asset" else "Net Change"
     if compare:
-        table.add_row("", "", "", Text(""), "", "", "")
-        table.add_row("", "", Text(label_pos, style="bold"), fmt_amount(credits_amount), "", "", "")
-        table.add_row("", "", Text(label_neg, style="bold"), fmt_amount(debits_amount), "", "", "")
-        table.add_row("", "", Text(net_label, style="bold"), fmt_amount(total_amount), "", "", "")
+        table.add_row("", "", "", "", Text(""), "", "", "")
+        table.add_row("", "", Text(label_pos, style="bold"), "", fmt_amount(credits_amount), "", "", "")
+        table.add_row("", "", Text(label_neg, style="bold"), "", fmt_amount(debits_amount), "", "", "")
+        table.add_row("", "", Text(net_label, style="bold"), "", fmt_amount(total_amount), "", "", "")
     else:
         table.add_row("", "", Text(""), "", "", "")
         table.add_row("", Text(label_pos, style="bold"), fmt_amount(credits_amount), "", "", "")

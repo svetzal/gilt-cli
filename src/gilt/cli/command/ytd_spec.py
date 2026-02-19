@@ -1,10 +1,14 @@
 from __future__ import annotations
 
-"""Tests for ytd command --compare flag."""
+"""Tests for ytd command --compare flag and service display."""
 
 from decimal import Decimal
+from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
+
+from rich.console import Console
 
 from gilt.cli.command.ytd import run
 from gilt.model.account import Transaction, TransactionGroup
@@ -150,3 +154,179 @@ class DescribeYtdCompareFlag:
                 workspace=workspace,
             )
             assert rc == 0
+
+
+class DescribeYtdServiceDisplay:
+    """Tests for service field display in ytd command."""
+
+    def it_should_show_vendor_dash_service_when_service_present(self):
+        with TemporaryDirectory() as tmpdir:
+            workspace = Workspace(root=Path(tmpdir))
+            Path(tmpdir, "data", "accounts").mkdir(parents=True)
+
+            groups = [
+                TransactionGroup(
+                    group_id="1",
+                    primary=Transaction(
+                        transaction_id="1111111111111111",
+                        date="2025-01-01",
+                        description="APPLE.COM/BILL",
+                        amount=-9.99,
+                        currency="CAD",
+                        account_id="TEST_ACCT",
+                    ),
+                ),
+            ]
+
+            enrichments = [
+                TransactionEnriched(
+                    transaction_id="1111111111111111",
+                    vendor="Apple",
+                    service="Max Shmexy",
+                    enrichment_source="test.json",
+                ),
+            ]
+
+            _build_projections_with_enrichment(workspace, groups, enrichments)
+
+            buf = StringIO()
+            test_console = Console(file=buf, width=200)
+            with patch("gilt.cli.command.ytd.console", test_console):
+                rc = run(
+                    account="TEST_ACCT",
+                    year=2025,
+                    workspace=workspace,
+                )
+            assert rc == 0
+            output = buf.getvalue()
+            assert "Apple - Max Shmexy" in output
+
+    def it_should_show_only_vendor_when_service_is_null(self):
+        with TemporaryDirectory() as tmpdir:
+            workspace = Workspace(root=Path(tmpdir))
+            Path(tmpdir, "data", "accounts").mkdir(parents=True)
+
+            groups = [
+                TransactionGroup(
+                    group_id="1",
+                    primary=Transaction(
+                        transaction_id="1111111111111111",
+                        date="2025-01-01",
+                        description="ACME CORP PAYMENT",
+                        amount=-50.00,
+                        currency="CAD",
+                        account_id="TEST_ACCT",
+                    ),
+                ),
+            ]
+
+            enrichments = [
+                TransactionEnriched(
+                    transaction_id="1111111111111111",
+                    vendor="Acme Corp",
+                    enrichment_source="test.json",
+                ),
+            ]
+
+            _build_projections_with_enrichment(workspace, groups, enrichments)
+
+            buf = StringIO()
+            test_console = Console(file=buf, width=200)
+            with patch("gilt.cli.command.ytd.console", test_console):
+                rc = run(
+                    account="TEST_ACCT",
+                    year=2025,
+                    workspace=workspace,
+                )
+            assert rc == 0
+            output = buf.getvalue()
+            assert "Acme Corp" in output
+            assert "Acme Corp -" not in output
+
+    def it_should_show_service_column_in_compare_mode(self):
+        with TemporaryDirectory() as tmpdir:
+            workspace = Workspace(root=Path(tmpdir))
+            Path(tmpdir, "data", "accounts").mkdir(parents=True)
+
+            groups = [
+                TransactionGroup(
+                    group_id="1",
+                    primary=Transaction(
+                        transaction_id="1111111111111111",
+                        date="2025-01-01",
+                        description="APPLE.COM/BILL",
+                        amount=-9.99,
+                        currency="CAD",
+                        account_id="TEST_ACCT",
+                    ),
+                ),
+            ]
+
+            enrichments = [
+                TransactionEnriched(
+                    transaction_id="1111111111111111",
+                    vendor="Apple",
+                    service="Max Shmexy",
+                    enrichment_source="test.json",
+                ),
+            ]
+
+            _build_projections_with_enrichment(workspace, groups, enrichments)
+
+            buf = StringIO()
+            test_console = Console(file=buf, width=200)
+            with patch("gilt.cli.command.ytd.console", test_console):
+                rc = run(
+                    account="TEST_ACCT",
+                    year=2025,
+                    workspace=workspace,
+                    compare=True,
+                )
+            assert rc == 0
+            output = buf.getvalue()
+            assert "Service" in output
+            assert "Max Shmexy" in output
+
+    def it_should_show_raw_description_in_raw_mode_even_with_service(self):
+        with TemporaryDirectory() as tmpdir:
+            workspace = Workspace(root=Path(tmpdir))
+            Path(tmpdir, "data", "accounts").mkdir(parents=True)
+
+            groups = [
+                TransactionGroup(
+                    group_id="1",
+                    primary=Transaction(
+                        transaction_id="1111111111111111",
+                        date="2025-01-01",
+                        description="APPLE.COM/BILL",
+                        amount=-9.99,
+                        currency="CAD",
+                        account_id="TEST_ACCT",
+                    ),
+                ),
+            ]
+
+            enrichments = [
+                TransactionEnriched(
+                    transaction_id="1111111111111111",
+                    vendor="Apple",
+                    service="Max Shmexy",
+                    enrichment_source="test.json",
+                ),
+            ]
+
+            _build_projections_with_enrichment(workspace, groups, enrichments)
+
+            buf = StringIO()
+            test_console = Console(file=buf, width=200)
+            with patch("gilt.cli.command.ytd.console", test_console):
+                rc = run(
+                    account="TEST_ACCT",
+                    year=2025,
+                    workspace=workspace,
+                    raw=True,
+                )
+            assert rc == 0
+            output = buf.getvalue()
+            assert "APPLE.COM/BILL" in output
+            assert "Apple - Max Shmexy" not in output
