@@ -27,7 +27,7 @@ def _add_transaction(
     *,
     transaction_id: str = "abcd1234abcd1234",
     date: str = "2025-06-15",
-    amount: str = "-35.01",
+    amount: str = "-39.04",
     account_id: str = "MYBANK_CC",
     description: str = "ACME CORP PURCHASE",
 ):

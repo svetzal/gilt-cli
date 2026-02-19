@@ -197,7 +197,8 @@ def match_receipt_to_transactions(
     fx_candidates = []
     pattern_candidates = []
 
-    receipt_amount = abs(receipt.amount)
+    receipt_total = receipt.amount + receipt.tax_amount if receipt.tax_amount else receipt.amount
+    receipt_amount = abs(receipt_total)
     vendor_key = receipt.vendor.lower() if vendor_patterns else None
     vendor_substrings = vendor_patterns.get(vendor_key, []) if vendor_patterns and vendor_key else []
 
