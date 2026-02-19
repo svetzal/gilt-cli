@@ -201,6 +201,8 @@ def match_receipt_to_transactions(
     receipt_amount = abs(receipt_total)
     vendor_key = receipt.vendor.lower() if vendor_patterns else None
     vendor_substrings = vendor_patterns.get(vendor_key, []) if vendor_patterns and vendor_key else []
+    # When the vendor has known patterns, exact/FX must also verify description
+    vendor_has_patterns = bool(vendor_substrings)
 
     for txn in transactions:
         if account_id and txn.get("account_id") != account_id:
@@ -216,20 +218,28 @@ def match_receipt_to_transactions(
             continue
         days_diff = abs((txn_date - receipt.receipt_date).days)
 
-        # Strategy 1: Exact match
-        if amount_diff <= amount_tolerance and days_diff <= date_window_days:
-            exact_candidates.append(txn)
+        # Check vendor description match (used by exact and FX strategies)
+        desc = txn.get("canonical_description", "").upper()
+        desc_matches_vendor = (
+            not vendor_has_patterns
+            or any(s.upper() in desc for s in vendor_substrings)
+        )
 
-        # Strategy 2: FX-tolerant match (different currencies only)
+        # Strategy 1: Exact match (vendor-filtered when patterns exist)
+        if amount_diff <= amount_tolerance and days_diff <= date_window_days:
+            if desc_matches_vendor:
+                exact_candidates.append(txn)
+
+        # Strategy 2: FX-tolerant match (vendor-filtered when patterns exist)
         txn_currency = txn.get("currency", "CAD")
         if receipt.currency != txn_currency:
             pct_diff = amount_diff / receipt_amount if receipt_amount else Decimal("999")
             if pct_diff <= _FX_AMOUNT_PCT and days_diff <= _FX_DATE_WINDOW:
-                fx_candidates.append(txn)
+                if desc_matches_vendor:
+                    fx_candidates.append(txn)
 
         # Strategy 3: Vendor-pattern match
         if vendor_substrings:
-            desc = txn.get("canonical_description", "").upper()
             if any(s.upper() in desc for s in vendor_substrings):
                 pct_diff = amount_diff / receipt_amount if receipt_amount else Decimal("999")
                 if pct_diff <= _PATTERN_AMOUNT_PCT and days_diff <= date_window_days:

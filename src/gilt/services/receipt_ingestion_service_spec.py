@@ -497,6 +497,180 @@ class DescribeTaxInclusiveMatching:
         assert result.match_confidence == "pattern-assisted"
 
 
+class DescribeVendorPatternFilteringOnExactAndFx:
+    """When vendor_patterns are provided and the receipt vendor has known patterns,
+    exact and FX strategies should also verify the description matches."""
+
+    def it_should_reject_exact_match_when_vendor_has_patterns_but_description_differs(self):
+        receipt = _make_receipt(
+            vendor="Sample Store", amount=Decimal("49.99"), date_str="2025-06-15"
+        )
+        transactions = [
+            _make_txn_row(
+                amount="-49.99",
+                canonical_description="UNRELATED VENDOR PURCHASE",
+            )
+        ]
+        vendor_patterns = {"sample store": ["SAMPLE.COM/BILL", "SAMPLE STORE"]}
+
+        result = match_receipt_to_transactions(
+            receipt, transactions, vendor_patterns=vendor_patterns
+        )
+
+        assert result.status == "unmatched"
+
+    def it_should_accept_exact_match_when_vendor_has_patterns_and_description_matches(self):
+        receipt = _make_receipt(
+            vendor="Sample Store", amount=Decimal("49.99"), date_str="2025-06-15"
+        )
+        transactions = [
+            _make_txn_row(
+                amount="-49.99",
+                canonical_description="SAMPLE.COM/BILL SUBSCRIPTION",
+            )
+        ]
+        vendor_patterns = {"sample store": ["SAMPLE.COM/BILL", "SAMPLE STORE"]}
+
+        result = match_receipt_to_transactions(
+            receipt, transactions, vendor_patterns=vendor_patterns
+        )
+
+        assert result.status == "matched"
+        assert result.match_confidence == "exact"
+
+    def it_should_keep_exact_match_when_vendor_has_no_patterns_defined(self):
+        receipt = _make_receipt(
+            vendor="Unknown Vendor", amount=Decimal("49.99"), date_str="2025-06-15"
+        )
+        transactions = [
+            _make_txn_row(
+                amount="-49.99",
+                canonical_description="TOTALLY DIFFERENT DESCRIPTION",
+            )
+        ]
+        vendor_patterns = {"sample store": ["SAMPLE.COM/BILL"]}
+
+        result = match_receipt_to_transactions(
+            receipt, transactions, vendor_patterns=vendor_patterns
+        )
+
+        assert result.status == "matched"
+        assert result.match_confidence == "exact"
+
+    def it_should_reject_fx_match_when_vendor_has_patterns_but_description_differs(self):
+        receipt = _make_receipt(
+            vendor="Sample Store",
+            amount=Decimal("13.49"),
+            currency="USD",
+            date_str="2025-06-15",
+        )
+        transactions = [
+            _make_txn_row(
+                amount="-13.55",
+                canonical_description="UNRELATED VENDOR PURCHASE",
+            )
+        ]
+        vendor_patterns = {"sample store": ["SAMPLE.COM/BILL", "SAMPLE STORE"]}
+
+        result = match_receipt_to_transactions(
+            receipt, transactions, vendor_patterns=vendor_patterns
+        )
+
+        assert result.status == "unmatched"
+
+    def it_should_accept_fx_match_when_vendor_has_patterns_and_description_matches(self):
+        receipt = _make_receipt(
+            vendor="Sample Store",
+            amount=Decimal("13.49"),
+            currency="USD",
+            date_str="2025-06-15",
+        )
+        transactions = [
+            _make_txn_row(
+                amount="-13.55",
+                canonical_description="SAMPLE.COM/BILL SUBSCRIPTION",
+            )
+        ]
+        vendor_patterns = {"sample store": ["SAMPLE.COM/BILL", "SAMPLE STORE"]}
+
+        result = match_receipt_to_transactions(
+            receipt, transactions, vendor_patterns=vendor_patterns
+        )
+
+        assert result.status == "matched"
+        assert result.match_confidence == "fx-adjusted"
+
+    def it_should_keep_fx_match_when_vendor_has_no_patterns_defined(self):
+        receipt = _make_receipt(
+            vendor="Unknown Vendor",
+            amount=Decimal("13.49"),
+            currency="USD",
+            date_str="2025-06-15",
+        )
+        transactions = [
+            _make_txn_row(
+                amount="-13.55",
+                canonical_description="TOTALLY DIFFERENT DESCRIPTION",
+            )
+        ]
+        vendor_patterns = {"sample store": ["SAMPLE.COM/BILL"]}
+
+        result = match_receipt_to_transactions(
+            receipt, transactions, vendor_patterns=vendor_patterns
+        )
+
+        assert result.status == "matched"
+        assert result.match_confidence == "fx-adjusted"
+
+    def it_should_prevent_false_positive_cross_vendor_match(self):
+        """Reproduces the Apple/$49.99 receipt matching FEELHEALGROW/$50.00 bug."""
+        receipt = _make_receipt(
+            vendor="Sample Store", amount=Decimal("49.99"), date_str="2025-06-15"
+        )
+        transactions = [
+            _make_txn_row(
+                amount="-50.00",
+                canonical_description="UNRELATED VENDOR OTHERTOWN",
+            )
+        ]
+        vendor_patterns = {"sample store": ["SAMPLE.COM/BILL", "SAMPLE.COM"]}
+
+        result = match_receipt_to_transactions(
+            receipt, transactions, vendor_patterns=vendor_patterns
+        )
+
+        assert result.status == "unmatched"
+
+    def it_should_still_allow_pattern_fallback_when_exact_rejected_by_vendor(self):
+        """When exact is rejected due to vendor mismatch, pattern strategy can still match."""
+        receipt = _make_receipt(
+            vendor="Sample Store", amount=Decimal("49.99"), date_str="2025-06-15"
+        )
+        transactions = [
+            # This one has right amount but wrong description → exact rejected
+            _make_txn_row(
+                transaction_id="wrong_desc_1234567",
+                amount="-49.99",
+                canonical_description="UNRELATED VENDOR PURCHASE",
+            ),
+            # This one has close amount and right description → pattern match
+            _make_txn_row(
+                transaction_id="right_desc_1234567",
+                amount="-50.50",
+                canonical_description="SAMPLE.COM/BILL SUBSCRIPTION",
+            ),
+        ]
+        vendor_patterns = {"sample store": ["SAMPLE.COM/BILL"]}
+
+        result = match_receipt_to_transactions(
+            receipt, transactions, vendor_patterns=vendor_patterns
+        )
+
+        assert result.status == "matched"
+        assert result.match_confidence == "pattern-assisted"
+        assert result.transaction_id == "right_desc_1234567"
+
+
 class DescribeMatchConfidencePreference:
     def it_should_prefer_exact_over_fx_match(self):
         receipt = _make_receipt(
@@ -521,16 +695,16 @@ class DescribeMatchConfidencePreference:
         assert result.match_confidence == "exact"
         assert result.transaction_id == "exact_id_12345678"
 
-    def it_should_prefer_exact_over_pattern_match(self):
+    def it_should_prefer_exact_over_pattern_when_description_matches(self):
         receipt = _make_receipt(
             vendor="Acme Corp", amount=Decimal("35.01"), date_str="2025-06-15"
         )
         transactions = [
-            # Exact amount match but different description
+            # Exact amount match with matching description
             _make_txn_row(
                 transaction_id="exact_id_12345678",
                 amount="-35.01",
-                canonical_description="GENERIC STORE",
+                canonical_description="ACME.COM/BILL ON",
             ),
             # Pattern match but different amount
             _make_txn_row(
@@ -548,6 +722,34 @@ class DescribeMatchConfidencePreference:
         assert result.status == "matched"
         assert result.match_confidence == "exact"
         assert result.transaction_id == "exact_id_12345678"
+
+    def it_should_fall_to_pattern_when_exact_rejected_by_vendor_filter(self):
+        receipt = _make_receipt(
+            vendor="Acme Corp", amount=Decimal("35.01"), date_str="2025-06-15"
+        )
+        transactions = [
+            # Exact amount but wrong description → rejected by vendor filter
+            _make_txn_row(
+                transaction_id="exact_id_12345678",
+                amount="-35.01",
+                canonical_description="GENERIC STORE",
+            ),
+            # Pattern match with right description
+            _make_txn_row(
+                transaction_id="pattern_id_123456",
+                amount="-35.80",
+                canonical_description="ACME.COM/BILL ON",
+            ),
+        ]
+        vendor_patterns = {"acme corp": ["ACME.COM/BILL"]}
+
+        result = match_receipt_to_transactions(
+            receipt, transactions, vendor_patterns=vendor_patterns
+        )
+
+        assert result.status == "matched"
+        assert result.match_confidence == "pattern-assisted"
+        assert result.transaction_id == "pattern_id_123456"
 
     def it_should_fall_through_to_fx_when_no_exact(self):
         receipt = _make_receipt(

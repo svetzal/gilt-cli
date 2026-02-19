@@ -24,6 +24,26 @@ from gilt.services.receipt_ingestion_service import (
 )
 from gilt.workspace import Workspace
 
+# Default vendor → description-substring map for receipt matching.
+# When a receipt's vendor matches a key here, exact and FX strategies
+# require the bank description to contain at least one substring.
+_DEFAULT_VENDOR_PATTERNS: dict[str, list[str]] = {
+    "apple": ["APPLE.COM/BILL", "APPLE.COM"],
+    "github": ["GITHUB"],
+    "paddle": ["PADDLE"],
+    "zoom": ["ZOOM"],
+    "suno": ["SUNO"],
+    "costco": ["COSTCO"],
+    "vevor": ["VEVOR"],
+    "lyft": ["LYFT"],
+    "feel heal grow": ["FEELHEALGRO"],
+    "anthropic": ["ANTHROPIC", "CLAUDE"],
+    "paypal": ["PAYPAL"],
+    "microsoft": ["MICROSOFT"],
+    "canadian tire": ["CANADIAN TIRE"],
+    "best buy": ["BEST BUY"],
+}
+
 from .util import console
 
 
@@ -96,7 +116,8 @@ def run(
             continue
 
         result = match_receipt_to_transactions(
-            receipt, all_transactions, account_id=account
+            receipt, all_transactions, account_id=account,
+            vendor_patterns=_DEFAULT_VENDOR_PATTERNS,
         )
         results.append(result)
 
