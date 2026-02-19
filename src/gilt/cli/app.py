@@ -144,18 +144,23 @@ def ytd(
     raw: bool = typer.Option(
         False, "--raw", help="Show original bank descriptions instead of vendor names"
     ),
+    compare: bool = typer.Option(
+        False, "--compare", help="Show enriched transactions with bank description and vendor side by side"
+    ),
 ):
     """Show year-to-date transactions for a single account as a Rich table.
 
     Loads transactions from projections database. Duplicates are automatically excluded
     unless --include-duplicates is specified. Enriched transactions show vendor names
-    by default; use --raw to see original bank descriptions.
+    by default; use --raw to see original bank descriptions. Use --compare to show
+    enriched transactions with both bank description and vendor name side by side.
 
     Examples:
       gilt ytd --account MYBANK_CHQ
       gilt ytd -a MYBANK_CC --year 2024 --limit 50
       gilt ytd -a BANK2_LOC --include-duplicates
       gilt ytd -a MYBANK_CHQ --raw
+      gilt ytd -a MYBANK_CC --compare
     """
     from gilt.cli.command import ytd as cmd_ytd
 
@@ -167,6 +172,7 @@ def ytd(
         default_currency=default_currency,
         include_duplicates=include_duplicates,
         raw=raw,
+        compare=compare,
     )
     raise typer.Exit(code=code)
 

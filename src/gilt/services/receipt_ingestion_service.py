@@ -83,6 +83,7 @@ class MatchResult:
     candidate_count: int = 0
     current_description: Optional[str] = None
     candidates: list[dict] = field(default_factory=list)
+    match_confidence: Optional[str] = None  # "exact", "fx-adjusted", "pattern-assisted"
 
 
 def scan_receipt_files(source_dir: Path, year: Optional[int] = None) -> list[Path]:
@@ -132,50 +133,12 @@ def find_already_ingested_invoices(enrichment_events: list) -> set[str]:
     return invoices
 
 
-def match_receipt_to_transactions(
+def _resolve_candidates(
     receipt: ReceiptData,
-    transactions: list[dict],
-    account_id: Optional[str] = None,
-    amount_tolerance: Decimal = Decimal("0.02"),
-    date_window_days: int = 3,
+    candidates: list[dict],
+    confidence: str,
 ) -> MatchResult:
-    """Match a receipt to bank transactions by amount and date.
-
-    Args:
-        receipt: Parsed receipt data.
-        transactions: List of projection row dicts.
-        account_id: If provided, only match transactions in this account.
-        amount_tolerance: Maximum difference in amount to consider a match.
-        date_window_days: Maximum days between receipt date and transaction date.
-
-    Returns:
-        MatchResult indicating matched/ambiguous/unmatched.
-    """
-    candidates = []
-    receipt_amount = abs(receipt.amount)
-
-    for txn in transactions:
-        # Filter by account if specified
-        if account_id and txn.get("account_id") != account_id:
-            continue
-
-        # Amount check: receipt amount is positive, transaction amount is negative (debit)
-        txn_amount = abs(Decimal(str(txn["amount"])))
-        if abs(txn_amount - receipt_amount) > amount_tolerance:
-            continue
-
-        # Date check
-        txn_date_str = txn.get("transaction_date", "")
-        try:
-            txn_date = date.fromisoformat(txn_date_str)
-        except ValueError:
-            continue
-
-        if abs((txn_date - receipt.receipt_date).days) > date_window_days:
-            continue
-
-        candidates.append(txn)
-
+    """Build a MatchResult from a list of candidates at a given confidence level."""
     if len(candidates) == 1:
         txn = candidates[0]
         return MatchResult(
@@ -185,17 +148,103 @@ def match_receipt_to_transactions(
             candidate_count=1,
             current_description=txn.get("canonical_description", ""),
             candidates=candidates,
+            match_confidence=confidence,
         )
-    elif len(candidates) > 1:
+    else:
         return MatchResult(
             receipt=receipt,
             status="ambiguous",
             candidate_count=len(candidates),
             candidates=candidates,
+            match_confidence=confidence,
         )
-    else:
-        return MatchResult(
-            receipt=receipt,
-            status="unmatched",
-            candidate_count=0,
-        )
+
+
+_FX_AMOUNT_PCT = Decimal("0.08")  # 8% tolerance for FX matches
+_FX_DATE_WINDOW = 2
+_PATTERN_AMOUNT_PCT = Decimal("0.08")  # 8% tolerance for vendor-pattern matches
+
+
+def match_receipt_to_transactions(
+    receipt: ReceiptData,
+    transactions: list[dict],
+    account_id: Optional[str] = None,
+    amount_tolerance: Decimal = Decimal("0.02"),
+    date_window_days: int = 3,
+    vendor_patterns: Optional[dict[str, list[str]]] = None,
+) -> MatchResult:
+    """Match a receipt to bank transactions using multi-strategy matching.
+
+    Strategies (tried in priority order):
+    1. Exact: amount within tolerance, date within window.
+    2. FX-tolerant: receipt currency differs from transaction currency,
+       amount within 8%, date within ±2 days.
+    3. Vendor-pattern: vendor maps to a description substring,
+       amount within 8%, date within window.
+
+    Args:
+        receipt: Parsed receipt data.
+        transactions: List of projection row dicts.
+        account_id: If provided, only match transactions in this account.
+        amount_tolerance: Maximum absolute amount difference for exact match.
+        date_window_days: Maximum days between receipt and transaction for exact/pattern.
+        vendor_patterns: Map of lowercase vendor name to description substrings.
+
+    Returns:
+        MatchResult with match_confidence indicating which strategy matched.
+    """
+    exact_candidates = []
+    fx_candidates = []
+    pattern_candidates = []
+
+    receipt_amount = abs(receipt.amount)
+    vendor_key = receipt.vendor.lower() if vendor_patterns else None
+    vendor_substrings = vendor_patterns.get(vendor_key, []) if vendor_patterns and vendor_key else []
+
+    for txn in transactions:
+        if account_id and txn.get("account_id") != account_id:
+            continue
+
+        txn_amount = abs(Decimal(str(txn["amount"])))
+        amount_diff = abs(txn_amount - receipt_amount)
+
+        txn_date_str = txn.get("transaction_date", "")
+        try:
+            txn_date = date.fromisoformat(txn_date_str)
+        except ValueError:
+            continue
+        days_diff = abs((txn_date - receipt.receipt_date).days)
+
+        # Strategy 1: Exact match
+        if amount_diff <= amount_tolerance and days_diff <= date_window_days:
+            exact_candidates.append(txn)
+
+        # Strategy 2: FX-tolerant match (different currencies only)
+        txn_currency = txn.get("currency", "CAD")
+        if receipt.currency != txn_currency:
+            pct_diff = amount_diff / receipt_amount if receipt_amount else Decimal("999")
+            if pct_diff <= _FX_AMOUNT_PCT and days_diff <= _FX_DATE_WINDOW:
+                fx_candidates.append(txn)
+
+        # Strategy 3: Vendor-pattern match
+        if vendor_substrings:
+            desc = txn.get("canonical_description", "").upper()
+            if any(s.upper() in desc for s in vendor_substrings):
+                pct_diff = amount_diff / receipt_amount if receipt_amount else Decimal("999")
+                if pct_diff <= _PATTERN_AMOUNT_PCT and days_diff <= date_window_days:
+                    pattern_candidates.append(txn)
+
+    # Return best strategy (highest confidence first)
+    for candidates, confidence in [
+        (exact_candidates, "exact"),
+        (fx_candidates, "fx-adjusted"),
+        (pattern_candidates, "pattern-assisted"),
+    ]:
+        if candidates:
+            return _resolve_candidates(receipt, candidates, confidence)
+
+    return MatchResult(
+        receipt=receipt,
+        status="unmatched",
+        candidate_count=0,
+    )

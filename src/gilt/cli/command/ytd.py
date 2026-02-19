@@ -22,6 +22,7 @@ def run(
     default_currency: Optional[str] = None,
     include_duplicates: bool = False,
     raw: bool = False,
+    compare: bool = False,
 ) -> int:
     """Show year-to-date transactions for a single account as a Rich table.
 
@@ -84,15 +85,33 @@ def run(
     if limit is not None:
         primaries = primaries[:limit]
 
+    # In compare mode, filter to only enriched transactions
+    if compare:
+        primaries = [t for t in primaries if t.vendor]
+
     if not primaries:
-        console.print(f"[yellow]No transactions for account[/] [bold]{account}[/] in {the_year}.")
+        if compare:
+            console.print(
+                f"[yellow]No enriched transactions for account[/] [bold]{account}[/] in {the_year}."
+            )
+        else:
+            console.print(
+                f"[yellow]No transactions for account[/] [bold]{account}[/] in {the_year}."
+            )
         return 0
 
     # Title with nature indicator
     nature_label = "Asset" if acct_nature == "asset" else "Liability"
-    table = Table(title=f"{account} — YTD {the_year} ({nature_label})", show_lines=False)
+    title_suffix = " — Enrichment Compare" if compare else ""
+    table = Table(
+        title=f"{account} — YTD {the_year} ({nature_label}){title_suffix}", show_lines=False
+    )
     table.add_column("Date", style="cyan", no_wrap=True)
-    table.add_column("Description", style="white")
+    if compare:
+        table.add_column("Bank Description", style="white")
+        table.add_column("Vendor", style="green")
+    else:
+        table.add_column("Description", style="white")
     table.add_column("Amount", justify="right")
     table.add_column("Currency", style="magenta", no_wrap=True)
     table.add_column("TxnID8", style="dim", no_wrap=True)
@@ -145,29 +164,46 @@ def run(
 
         display_notes = " | ".join(note_parts) if note_parts else ""
 
-        # Show vendor name instead of raw bank description when enriched
-        display_desc = t.description or ""
-        if not raw and t.vendor:
-            display_desc = t.vendor
+        if compare:
+            table.add_row(
+                t.date.strftime("%Y-%m-%d"),
+                t.description or "",
+                t.vendor or "",
+                fmt_amount(amt),
+                t.currency or "",
+                t.transaction_id[:8],
+                display_notes,
+            )
+        else:
+            # Show vendor name instead of raw bank description when enriched
+            display_desc = t.description or ""
+            if not raw and t.vendor:
+                display_desc = t.vendor
 
-        table.add_row(
-            t.date.strftime("%Y-%m-%d"),
-            display_desc,
-            fmt_amount(amt),
-            t.currency or "",
-            t.transaction_id[:8],
-            display_notes,
-        )
+            table.add_row(
+                t.date.strftime("%Y-%m-%d"),
+                display_desc,
+                fmt_amount(amt),
+                t.currency or "",
+                t.transaction_id[:8],
+                display_notes,
+            )
 
     # Totals footer rows (labels depend on account nature)
     label_pos = "Credits" if acct_nature == "asset" else "Charges"
     label_neg = "Debits" if acct_nature == "asset" else "Payments"
-    table.add_row("", "", Text(""), "", "", "")
-    table.add_row("", Text(label_pos, style="bold"), fmt_amount(credits_amount), "", "", "")
-    table.add_row("", Text(label_neg, style="bold"), fmt_amount(debits_amount), "", "", "")
     # Net label varies slightly to hint meaning for liabilities
     net_label = "Net" if acct_nature == "asset" else "Net Change"
-    table.add_row("", Text(net_label, style="bold"), fmt_amount(total_amount), "", "", "")
+    if compare:
+        table.add_row("", "", "", Text(""), "", "", "")
+        table.add_row("", "", Text(label_pos, style="bold"), fmt_amount(credits_amount), "", "", "")
+        table.add_row("", "", Text(label_neg, style="bold"), fmt_amount(debits_amount), "", "", "")
+        table.add_row("", "", Text(net_label, style="bold"), fmt_amount(total_amount), "", "", "")
+    else:
+        table.add_row("", "", Text(""), "", "", "")
+        table.add_row("", Text(label_pos, style="bold"), fmt_amount(credits_amount), "", "", "")
+        table.add_row("", Text(label_neg, style="bold"), fmt_amount(debits_amount), "", "", "")
+        table.add_row("", Text(net_label, style="bold"), fmt_amount(total_amount), "", "", "")
 
     console.print(table)
     return 0

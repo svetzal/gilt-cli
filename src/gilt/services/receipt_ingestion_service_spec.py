@@ -38,6 +38,31 @@ def _write_receipt_json(path: Path, overrides: dict | None = None) -> Path:
     return path
 
 
+def _make_receipt(
+    *,
+    vendor: str = "Acme Corp",
+    service: str | None = "Widget Pro",
+    amount: Decimal = Decimal("35.01"),
+    currency: str = "CAD",
+    date_str: str = "2025-06-15",
+    invoice_number: str | None = "INV001",
+) -> ReceiptData:
+    """Helper to build a ReceiptData directly (no file I/O)."""
+    return ReceiptData(
+        vendor=vendor,
+        service=service,
+        amount=amount,
+        currency=currency,
+        tax_amount=None,
+        tax_type=None,
+        receipt_date=date.fromisoformat(date_str),
+        invoice_number=invoice_number,
+        source_email=None,
+        receipt_file=None,
+        source_path=Path("/tmp/fake-receipt.json"),
+    )
+
+
 def _make_txn_row(
     *,
     transaction_id: str = "abcd1234abcd1234",
@@ -229,6 +254,214 @@ class DescribeMatchReceiptToTransactions:
 
             assert result.status == "matched"
             assert result.transaction_id == "aaaa111111111111"
+
+
+    def it_should_set_confidence_exact_on_match(self):
+        with TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "receipt.json"
+            _write_receipt_json(path)
+            receipt = ReceiptData.from_json_file(path)
+
+            transactions = [_make_txn_row()]
+            result = match_receipt_to_transactions(receipt, transactions)
+
+            assert result.status == "matched"
+            assert result.match_confidence == "exact"
+
+
+class DescribeFxTolerantMatching:
+    def it_should_match_usd_receipt_to_cad_transaction_within_tolerance(self):
+        receipt = _make_receipt(amount=Decimal("13.49"), currency="USD", date_str="2025-06-15")
+        # Bank posts $13.55 CAD for a $13.49 USD charge (~0.4% diff)
+        transactions = [_make_txn_row(amount="-13.55")]
+
+        result = match_receipt_to_transactions(receipt, transactions)
+
+        assert result.status == "matched"
+        assert result.match_confidence == "fx-adjusted"
+
+    def it_should_reject_when_amount_exceeds_eight_percent(self):
+        receipt = _make_receipt(amount=Decimal("13.49"), currency="USD", date_str="2025-06-15")
+        # 15.00 CAD is ~11% more than 13.49 — too far
+        transactions = [_make_txn_row(amount="-15.00")]
+
+        result = match_receipt_to_transactions(receipt, transactions)
+
+        assert result.status == "unmatched"
+
+    def it_should_not_apply_fx_when_currencies_match(self):
+        receipt = _make_receipt(amount=Decimal("13.49"), currency="CAD", date_str="2025-06-15")
+        # Same currency, 13.55 is outside exact tolerance ($0.02) but within 8%
+        transactions = [_make_txn_row(amount="-13.55")]
+
+        result = match_receipt_to_transactions(receipt, transactions)
+
+        # Should NOT match via FX since currencies are the same
+        assert result.status == "unmatched"
+
+    def it_should_use_tighter_date_window_of_two_days(self):
+        receipt = _make_receipt(amount=Decimal("13.49"), currency="USD", date_str="2025-06-15")
+        # 3 days away — within exact window but outside FX window
+        transactions = [_make_txn_row(amount="-13.55", transaction_date="2025-06-18")]
+
+        result = match_receipt_to_transactions(receipt, transactions)
+
+        assert result.status == "unmatched"
+
+    def it_should_match_within_two_day_fx_window(self):
+        receipt = _make_receipt(amount=Decimal("13.49"), currency="USD", date_str="2025-06-15")
+        transactions = [_make_txn_row(amount="-13.55", transaction_date="2025-06-17")]
+
+        result = match_receipt_to_transactions(receipt, transactions)
+
+        assert result.status == "matched"
+        assert result.match_confidence == "fx-adjusted"
+
+
+class DescribeVendorPatternMatching:
+    def it_should_match_when_vendor_pattern_found_and_amount_close(self):
+        receipt = _make_receipt(
+            vendor="Acme Corp", amount=Decimal("35.01"), date_str="2025-06-15"
+        )
+        transactions = [
+            _make_txn_row(amount="-35.50", canonical_description="ACME.COM/BILL ON")
+        ]
+        vendor_patterns = {"acme corp": ["ACME.COM/BILL"]}
+
+        result = match_receipt_to_transactions(
+            receipt, transactions, vendor_patterns=vendor_patterns
+        )
+
+        assert result.status == "matched"
+        assert result.match_confidence == "pattern-assisted"
+
+    def it_should_not_match_when_vendor_pattern_not_in_description(self):
+        receipt = _make_receipt(
+            vendor="Acme Corp", amount=Decimal("35.01"), date_str="2025-06-15"
+        )
+        transactions = [
+            _make_txn_row(amount="-35.50", canonical_description="SOME OTHER STORE")
+        ]
+        vendor_patterns = {"acme corp": ["ACME.COM/BILL"]}
+
+        result = match_receipt_to_transactions(
+            receipt, transactions, vendor_patterns=vendor_patterns
+        )
+
+        assert result.status == "unmatched"
+
+    def it_should_not_match_when_amount_exceeds_eight_percent(self):
+        receipt = _make_receipt(
+            vendor="Acme Corp", amount=Decimal("35.01"), date_str="2025-06-15"
+        )
+        transactions = [
+            _make_txn_row(amount="-40.00", canonical_description="ACME.COM/BILL ON")
+        ]
+        vendor_patterns = {"acme corp": ["ACME.COM/BILL"]}
+
+        result = match_receipt_to_transactions(
+            receipt, transactions, vendor_patterns=vendor_patterns
+        )
+
+        assert result.status == "unmatched"
+
+    def it_should_match_case_insensitively(self):
+        receipt = _make_receipt(
+            vendor="Acme Corp", amount=Decimal("35.01"), date_str="2025-06-15"
+        )
+        transactions = [
+            _make_txn_row(amount="-35.50", canonical_description="acme.com/bill purchase")
+        ]
+        vendor_patterns = {"acme corp": ["ACME.COM/BILL"]}
+
+        result = match_receipt_to_transactions(
+            receipt, transactions, vendor_patterns=vendor_patterns
+        )
+
+        assert result.status == "matched"
+        assert result.match_confidence == "pattern-assisted"
+
+
+class DescribeMatchConfidencePreference:
+    def it_should_prefer_exact_over_fx_match(self):
+        receipt = _make_receipt(
+            amount=Decimal("35.01"), currency="USD", date_str="2025-06-15"
+        )
+        transactions = [
+            # Exact amount match (even though currencies differ)
+            _make_txn_row(
+                transaction_id="exact_id_12345678",
+                amount="-35.01",
+            ),
+            # FX-close match
+            _make_txn_row(
+                transaction_id="fx_id_123456789ab",
+                amount="-35.80",
+            ),
+        ]
+
+        result = match_receipt_to_transactions(receipt, transactions)
+
+        assert result.status == "matched"
+        assert result.match_confidence == "exact"
+        assert result.transaction_id == "exact_id_12345678"
+
+    def it_should_prefer_exact_over_pattern_match(self):
+        receipt = _make_receipt(
+            vendor="Acme Corp", amount=Decimal("35.01"), date_str="2025-06-15"
+        )
+        transactions = [
+            # Exact amount match but different description
+            _make_txn_row(
+                transaction_id="exact_id_12345678",
+                amount="-35.01",
+                canonical_description="GENERIC STORE",
+            ),
+            # Pattern match but different amount
+            _make_txn_row(
+                transaction_id="pattern_id_123456",
+                amount="-35.80",
+                canonical_description="ACME.COM/BILL ON",
+            ),
+        ]
+        vendor_patterns = {"acme corp": ["ACME.COM/BILL"]}
+
+        result = match_receipt_to_transactions(
+            receipt, transactions, vendor_patterns=vendor_patterns
+        )
+
+        assert result.status == "matched"
+        assert result.match_confidence == "exact"
+        assert result.transaction_id == "exact_id_12345678"
+
+    def it_should_fall_through_to_fx_when_no_exact(self):
+        receipt = _make_receipt(
+            amount=Decimal("13.49"), currency="USD", date_str="2025-06-15"
+        )
+        # Only FX-range match, no exact
+        transactions = [_make_txn_row(amount="-13.80")]
+
+        result = match_receipt_to_transactions(receipt, transactions)
+
+        assert result.status == "matched"
+        assert result.match_confidence == "fx-adjusted"
+
+    def it_should_fall_through_to_pattern_when_no_exact_or_fx(self):
+        receipt = _make_receipt(
+            vendor="Acme Corp", amount=Decimal("35.01"), date_str="2025-06-15"
+        )
+        # Amount within 8% but not exact, same currency (no FX)
+        transactions = [
+            _make_txn_row(amount="-36.00", canonical_description="ACME.COM/BILL ON")
+        ]
+        vendor_patterns = {"acme corp": ["ACME.COM/BILL"]}
+
+        result = match_receipt_to_transactions(
+            receipt, transactions, vendor_patterns=vendor_patterns
+        )
+
+        assert result.status == "matched"
+        assert result.match_confidence == "pattern-assisted"
 
 
 class DescribeFindAlreadyIngestedInvoices:

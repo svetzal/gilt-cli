@@ -117,9 +117,10 @@ def run(
         for r in results:
             receipt = r.receipt
             amount_str = f"${receipt.amount:,.2f}"
+            confidence = r.match_confidence or ""
 
             if r.status == "matched":
-                status = "[green]matched[/green]"
+                status = f"[green]matched ({confidence})[/green]"
                 details = f"txid={r.transaction_id[:8]}"
                 if r.current_description:
                     details += f"  {r.current_description[:40]}"
@@ -159,6 +160,7 @@ def run(
                 receipt_file=receipt.receipt_file,
                 enrichment_source=str(receipt.source_path),
                 source_email=receipt.source_email,
+                match_confidence=r.match_confidence,
             )
             store.append_event(event)
             written += 1

@@ -418,6 +418,7 @@ class TransactionEnriched(Event):
     receipt_file: Optional[str] = None  # Relative path to PDF
     enrichment_source: str  # Path to the JSON file that provided this data
     source_email: Optional[str] = None  # Sender address from receipt email
+    match_confidence: Optional[str] = None  # "exact", "fx-adjusted", "pattern-assisted"
     aggregate_id: Optional[str] = None
 
     def __init__(self, **data):
