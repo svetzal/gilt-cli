@@ -39,7 +39,7 @@ def _build_projections_with_enrichment(
         )
         store.append_event(evt)
 
-    for enrichment in (enrichments or []):
+    for enrichment in enrichments or []:
         store.append_event(enrichment)
 
     builder = ProjectionBuilder(workspace.projections_path)

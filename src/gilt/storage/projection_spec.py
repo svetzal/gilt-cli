@@ -647,7 +647,9 @@ class DescribeProjectionBuilder:
         assert txn["invoice_number"] == "INV342066242"
         assert txn["enrichment_source"] == "receipts/zoom-v2.json"
 
-    def it_should_leave_enrichment_columns_null_when_not_enriched(self, event_store, projection_builder):
+    def it_should_leave_enrichment_columns_null_when_not_enriched(
+        self, event_store, projection_builder
+    ):
         """Test that unenriched transactions have null enrichment columns."""
         event = TransactionImported(
             transaction_date="2026-02-15",

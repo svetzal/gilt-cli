@@ -145,7 +145,9 @@ def ytd(
         False, "--raw", help="Show original bank descriptions instead of vendor names"
     ),
     compare: bool = typer.Option(
-        False, "--compare", help="Show enriched transactions with bank description and vendor side by side"
+        False,
+        "--compare",
+        help="Show enriched transactions with bank description and vendor side by side",
     ),
 ):
     """Show year-to-date transactions for a single account as a Rich table.

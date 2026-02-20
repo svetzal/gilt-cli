@@ -198,9 +198,15 @@ def run(
     net_label = "Net" if acct_nature == "asset" else "Net Change"
     if compare:
         table.add_row("", "", "", "", Text(""), "", "", "")
-        table.add_row("", "", Text(label_pos, style="bold"), "", fmt_amount(credits_amount), "", "", "")
-        table.add_row("", "", Text(label_neg, style="bold"), "", fmt_amount(debits_amount), "", "", "")
-        table.add_row("", "", Text(net_label, style="bold"), "", fmt_amount(total_amount), "", "", "")
+        table.add_row(
+            "", "", Text(label_pos, style="bold"), "", fmt_amount(credits_amount), "", "", ""
+        )
+        table.add_row(
+            "", "", Text(label_neg, style="bold"), "", fmt_amount(debits_amount), "", "", ""
+        )
+        table.add_row(
+            "", "", Text(net_label, style="bold"), "", fmt_amount(total_amount), "", "", ""
+        )
     else:
         table.add_row("", "", Text(""), "", "", "")
         table.add_row("", Text(label_pos, style="bold"), fmt_amount(credits_amount), "", "", "")

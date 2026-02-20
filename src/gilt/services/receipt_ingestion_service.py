@@ -200,7 +200,9 @@ def match_receipt_to_transactions(
     receipt_total = receipt.amount + receipt.tax_amount if receipt.tax_amount else receipt.amount
     receipt_amount = abs(receipt_total)
     vendor_key = receipt.vendor.lower() if vendor_patterns else None
-    vendor_substrings = vendor_patterns.get(vendor_key, []) if vendor_patterns and vendor_key else []
+    vendor_substrings = (
+        vendor_patterns.get(vendor_key, []) if vendor_patterns and vendor_key else []
+    )
     # When the vendor has known patterns, exact/FX must also verify description
     vendor_has_patterns = bool(vendor_substrings)
 
@@ -220,9 +222,8 @@ def match_receipt_to_transactions(
 
         # Check vendor description match (used by exact and FX strategies)
         desc = txn.get("canonical_description", "").upper()
-        desc_matches_vendor = (
-            not vendor_has_patterns
-            or any(s.upper() in desc for s in vendor_substrings)
+        desc_matches_vendor = not vendor_has_patterns or any(
+            s.upper() in desc for s in vendor_substrings
         )
 
         # Strategy 1: Exact match (vendor-filtered when patterns exist)

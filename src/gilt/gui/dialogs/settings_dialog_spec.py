@@ -50,9 +50,7 @@ class DescribeSettingsDialog:
     class DescribeGetAccountsConfig:
         def it_should_use_gilt_data_env_var_when_set(self, monkeypatch):
             monkeypatch.setenv("GILT_DATA", "/tmp/finances")
-            assert SettingsDialog.get_accounts_config() == Path(
-                "/tmp/finances/config/accounts.yml"
-            )
+            assert SettingsDialog.get_accounts_config() == Path("/tmp/finances/config/accounts.yml")
 
         def it_should_fall_back_to_relative_default(self, monkeypatch):
             monkeypatch.delenv("GILT_DATA", raising=False)
@@ -71,6 +69,4 @@ class DescribeSettingsDialog:
             monkeypatch.delenv("GILT_DATA", raising=False)
             with patch("gilt.gui.dialogs.settings_dialog.QSettings") as mock_qs:
                 mock_qs.return_value.value.side_effect = lambda key, default: default
-                assert SettingsDialog.get_categories_config() == Path(
-                    "config/categories.yml"
-                )
+                assert SettingsDialog.get_categories_config() == Path("config/categories.yml")

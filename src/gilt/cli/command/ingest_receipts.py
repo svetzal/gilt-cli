@@ -116,7 +116,9 @@ def run(
             continue
 
         result = match_receipt_to_transactions(
-            receipt, all_transactions, account_id=account,
+            receipt,
+            all_transactions,
+            account_id=account,
             vendor_patterns=_DEFAULT_VENDOR_PATTERNS,
         )
         results.append(result)
@@ -147,9 +149,7 @@ def run(
                     details += f"  {r.current_description[:40]}"
             elif r.status == "ambiguous":
                 status = f"[yellow]ambiguous ({r.candidate_count})[/yellow]"
-                details = ", ".join(
-                    c["transaction_id"][:8] for c in r.candidates[:5]
-                )
+                details = ", ".join(c["transaction_id"][:8] for c in r.candidates[:5])
             else:
                 status = "[red]unmatched[/red]"
                 details = ""
@@ -197,12 +197,8 @@ def run(
 
     if write and written > 0:
         console.print(f"\n[green]{written} TransactionEnriched event(s) written.[/green]")
-        console.print(
-            "[dim]Tip: Run 'gilt rebuild-projections' to update projections.[/dim]"
-        )
+        console.print("[dim]Tip: Run 'gilt rebuild-projections' to update projections.[/dim]")
     elif not write and matched:
-        console.print(
-            f"\n[dim]Dry-run: use --write to persist {len(matched)} enrichment(s)[/dim]"
-        )
+        console.print(f"\n[dim]Dry-run: use --write to persist {len(matched)} enrichment(s)[/dim]")
 
     return 0

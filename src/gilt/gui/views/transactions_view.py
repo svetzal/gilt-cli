@@ -712,9 +712,7 @@ class TransactionsView(QWidget):
         """Handle double-click to show transaction detail dialog."""
         enrichment = None
         if self.enrichment_service:
-            enrichment = self.enrichment_service.get_enrichment(
-                transaction.primary.transaction_id
-            )
+            enrichment = self.enrichment_service.get_enrichment(transaction.primary.transaction_id)
         dialog = TransactionDetailDialog(transaction, enrichment, self)
         dialog.exec()
 

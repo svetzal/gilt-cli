@@ -177,12 +177,14 @@ class DescribeIngestReceiptsCommand:
             builder = ProjectionBuilder(ws.projections_path)
 
             _add_transaction(
-                store, builder,
+                store,
+                builder,
                 transaction_id="aaaa111111111111",
                 account_id="MYBANK_CC",
             )
             _add_transaction(
-                store, builder,
+                store,
+                builder,
                 transaction_id="bbbb222222222222",
                 account_id="BANK2_CHQ",
             )
@@ -191,9 +193,7 @@ class DescribeIngestReceiptsCommand:
             source.mkdir()
             _write_receipt(source / "acme.json")
 
-            rc = run(
-                workspace=ws, source=source, write=True, account="MYBANK_CC"
-            )
+            rc = run(workspace=ws, source=source, write=True, account="MYBANK_CC")
             assert rc == 0
 
             enrichment_events = store.get_events_by_type("TransactionEnriched")
@@ -227,12 +227,14 @@ class DescribeIngestReceiptsCommand:
 
             # Two transactions with same amount and date
             _add_transaction(
-                store, builder,
+                store,
+                builder,
                 transaction_id="aaaa111111111111",
                 description="ACME PURCHASE 1",
             )
             _add_transaction(
-                store, builder,
+                store,
+                builder,
                 transaction_id="bbbb222222222222",
                 description="ACME PURCHASE 2",
             )
