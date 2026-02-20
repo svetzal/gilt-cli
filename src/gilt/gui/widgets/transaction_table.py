@@ -26,6 +26,7 @@ class TransactionTableWidget(QTableView):
     note_requested = Signal()  # User wants to add/edit note on selected transaction
     duplicate_resolution_requested = Signal()  # User wants to resolve duplicate
     manual_merge_requested = Signal()  # User wants to merge two selected transactions
+    detail_requested = Signal(object)  # User double-clicked a transaction row
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -74,9 +75,19 @@ class TransactionTableWidget(QTableView):
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self._show_context_menu)
 
+        # Double-click for detail view
+        self.doubleClicked.connect(self._on_double_clicked)
+
     def _on_selection_changed(self):
         """Handle selection change."""
         self.selection_changed.emit()
+
+    def _on_double_clicked(self, proxy_index):
+        """Handle double-click on a row to show transaction details."""
+        source_index = self._proxy.mapToSource(proxy_index)
+        txn = self._model.get_transaction(source_index.row())
+        if txn:
+            self.detail_requested.emit(txn)
 
     def update_transactions(self, transactions: list[TransactionGroup]):
         """

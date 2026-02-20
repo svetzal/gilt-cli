@@ -168,9 +168,9 @@ uv publish --index-url https://test.pypi.org/simple/
 
 **End-user install** (via pipx or uv):
 ```bash
-pipx install gilt
+pipx install "gilt[gui]"
 # or
-uv tool install gilt
+uv tool install "gilt[gui]"
 ```
 
 **Pre-release checklist**:

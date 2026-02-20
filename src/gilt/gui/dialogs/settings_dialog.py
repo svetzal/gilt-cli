@@ -6,6 +6,7 @@ Settings Dialog - Configuration dialog for application settings
 Allows users to configure data directories and other basic settings.
 """
 
+import os
 from pathlib import Path
 
 from PySide6.QtWidgets import (
@@ -199,26 +200,56 @@ class SettingsDialog(QDialog):
         super().accept()
 
     @staticmethod
+    def _gilt_data_root() -> Path | None:
+        """Return the GILT_DATA workspace root, or None if not set."""
+        env = os.environ.get("GILT_DATA")
+        return Path(env) if env else None
+
+    @staticmethod
     def get_data_dir() -> Path:
-        """Get the configured data directory."""
+        """Get the configured data directory.
+
+        Resolution: GILT_DATA env var → QSettings → relative default.
+        """
+        root = SettingsDialog._gilt_data_root()
+        if root is not None:
+            return root / "data" / "accounts"
         settings = QSettings()
         return Path(settings.value("paths/data_dir", "data/accounts"))
 
     @staticmethod
     def get_ingest_dir() -> Path:
-        """Get the configured ingest directory."""
+        """Get the configured ingest directory.
+
+        Resolution: GILT_DATA env var → QSettings → relative default.
+        """
+        root = SettingsDialog._gilt_data_root()
+        if root is not None:
+            return root / "ingest"
         settings = QSettings()
         return Path(settings.value("paths/ingest_dir", "ingest"))
 
     @staticmethod
     def get_accounts_config() -> Path:
-        """Get the configured accounts config path."""
+        """Get the configured accounts config path.
+
+        Resolution: GILT_DATA env var → QSettings → relative default.
+        """
+        root = SettingsDialog._gilt_data_root()
+        if root is not None:
+            return root / "config" / "accounts.yml"
         settings = QSettings()
         return Path(settings.value("paths/accounts_config", "config/accounts.yml"))
 
     @staticmethod
     def get_categories_config() -> Path:
-        """Get the configured categories config path."""
+        """Get the configured categories config path.
+
+        Resolution: GILT_DATA env var → QSettings → relative default.
+        """
+        root = SettingsDialog._gilt_data_root()
+        if root is not None:
+            return root / "config" / "categories.yml"
         settings = QSettings()
         return Path(settings.value("paths/categories_config", "config/categories.yml"))
 

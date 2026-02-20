@@ -27,15 +27,18 @@ from PySide6.QtCore import QDate, Signal, QThread
 
 from gilt.gui.widgets.transaction_table import TransactionTableWidget
 from gilt.gui.services.transaction_service import TransactionService
+from gilt.gui.services.enrichment_service import EnrichmentService
 from gilt.services.duplicate_service import DuplicateService
 from gilt.services.smart_category_service import SmartCategoryService
 from gilt.gui.dialogs.note_dialog import NoteDialog
 from gilt.gui.dialogs.categorize_dialog import CategorizeDialog
 from gilt.gui.dialogs.settings_dialog import SettingsDialog
 from gilt.gui.dialogs.duplicate_resolution_dialog import DuplicateResolutionDialog
+from gilt.gui.dialogs.transaction_detail_dialog import TransactionDetailDialog
 from gilt.model.account import TransactionGroup
 from gilt.model.duplicate import TransactionPair, DuplicateAssessment, DuplicateMatch
 from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
+from gilt.storage.event_store import EventStore
 
 
 class IntelligenceWorker(QThread):
@@ -104,6 +107,7 @@ class TransactionsView(QWidget):
         data_dir: Path,
         duplicate_service: DuplicateService = None,
         smart_category_service: SmartCategoryService = None,
+        event_store: EventStore = None,
         parent=None,
     ):
         super().__init__(parent)
@@ -111,6 +115,8 @@ class TransactionsView(QWidget):
         self.service = TransactionService(data_dir)
         self.duplicate_service = duplicate_service
         self.smart_category_service = smart_category_service
+        self.event_store = event_store
+        self.enrichment_service: EnrichmentService | None = None
         self._all_transactions: list[TransactionGroup] = []
         self.worker: IntelligenceWorker | None = None
         self._old_workers: list[IntelligenceWorker] = []
@@ -122,11 +128,22 @@ class TransactionsView(QWidget):
         categories_config = SettingsDialog.get_categories_config()
         self.category_service = CategoryService(categories_config)
 
+        self._load_enrichment()
         self._init_ui()
         self._connect_signals()
 
         # Load initial data
         self.reload_transactions()
+
+    def _load_enrichment(self):
+        """Load enrichment data from event store."""
+        if not self.event_store:
+            return
+        try:
+            events = self.event_store.get_events_by_type("TransactionEnriched")
+            self.enrichment_service = EnrichmentService(events)
+        except Exception:
+            self.enrichment_service = None
 
     def _init_ui(self):
         """Initialize the user interface."""
@@ -153,6 +170,10 @@ class TransactionsView(QWidget):
             for sub in c.subcategories:
                 all_cats.append(f"{c.name}: {sub.name}")
         self.table.set_categories(all_cats)
+
+        # Set enrichment service on model
+        if self.enrichment_service:
+            self.table.transaction_model.set_enrichment_service(self.enrichment_service)
 
         # Connect update signal
         self.table.transaction_model.transaction_updated.connect(self._on_transaction_updated)
@@ -251,8 +272,16 @@ class TransactionsView(QWidget):
         self.table.duplicate_resolution_requested.connect(self._on_resolve_duplicate_requested)
         self.table.manual_merge_requested.connect(self._on_manual_merge_requested)
 
+        # Double-click for detail view
+        self.table.detail_requested.connect(self._on_detail_requested)
+
     def reload_transactions(self):
         """Reload all transactions from disk."""
+        # Refresh enrichment data
+        self._load_enrichment()
+        if self.enrichment_service:
+            self.table.transaction_model.set_enrichment_service(self.enrichment_service)
+
         # Clear cache
         self.service.clear_cache()
 
@@ -678,6 +707,16 @@ class TransactionsView(QWidget):
 
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to merge transactions:\n{str(e)}")
+
+    def _on_detail_requested(self, transaction: TransactionGroup):
+        """Handle double-click to show transaction detail dialog."""
+        enrichment = None
+        if self.enrichment_service:
+            enrichment = self.enrichment_service.get_enrichment(
+                transaction.primary.transaction_id
+            )
+        dialog = TransactionDetailDialog(transaction, enrichment, self)
+        dialog.exec()
 
     def _on_transaction_updated(self, group: TransactionGroup):
         """Handle transaction update from table (inline edit)."""

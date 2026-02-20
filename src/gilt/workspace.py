@@ -7,7 +7,7 @@ to this root.
 
 Resolution priority:
 1. Explicit path (--data-dir CLI option)
-2. FINANCE_DATA environment variable
+2. GILT_DATA environment variable
 3. Current working directory
 """
 
@@ -36,7 +36,7 @@ class Workspace:
         """
         if explicit is not None:
             return cls(root=explicit)
-        env = os.environ.get("FINANCE_DATA")
+        env = os.environ.get("GILT_DATA")
         if env:
             return cls(root=Path(env))
         return cls(root=Path.cwd())

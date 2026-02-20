@@ -46,10 +46,10 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Finance")
         self.setMinimumSize(1200, 800)
 
-        # Get data directory and config paths from settings
+        # Resolve workspace: GILT_DATA env var → QSettings → CWD
+        self.workspace = Workspace.resolve()
         self.data_dir = SettingsDialog.get_data_dir()
         self.categories_config = SettingsDialog.get_categories_config()
-        self.workspace = Workspace(root=self.data_dir)
 
         self._init_services()
         self._init_ui()
@@ -213,6 +213,7 @@ class MainWindow(QMainWindow):
             self.data_dir,
             duplicate_service=self.duplicate_service,
             smart_category_service=self.smart_category_service,
+            event_store=self.event_store,
             parent=self,
         )
         self.content_stack.addWidget(self.transactions_view)
@@ -346,9 +347,9 @@ class MainWindow(QMainWindow):
         """Show the settings dialog."""
         dialog = SettingsDialog(self)
         if dialog.exec():
-            # Settings changed, reload data directory
+            # Settings changed, re-resolve workspace and paths
+            self.workspace = Workspace.resolve()
             self.data_dir = SettingsDialog.get_data_dir()
-            self.workspace = Workspace(root=self.data_dir)
             self._refresh_current_view()
             self.statusBar().showMessage("Settings saved", 3000)
 
