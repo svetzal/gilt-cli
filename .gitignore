@@ -27,8 +27,8 @@ venv/
 data/
 reports/
 
-# Optional: model artifacts
-models/
+# Optional: ML model artifacts
+/models/
 
 # Logs
 logs/
