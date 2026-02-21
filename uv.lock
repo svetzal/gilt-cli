@@ -613,7 +613,7 @@ wheels = [
 
 [[package]]
 name = "mojentic"
-version = "1.2.0"
+version = "1.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anthropic" },
@@ -630,9 +630,9 @@ dependencies = [
     { name = "tiktoken" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/fb/87/e8b55b79c20605c4a90a5fcf26b0fb4fa86fb26a56a4a901bae952ab6452/mojentic-1.2.0.tar.gz", hash = "sha256:d5bf6b75f7c7a59369de4c0c58360682692fa4be0f980ba94ce0910a84ac99c2", size = 121818, upload-time = "2026-02-05T23:13:06.61Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9d/f1/7d260bcde78a2b4ac027eb761804dde7f308075ad8f431c786b09b868b23/mojentic-1.2.1.tar.gz", hash = "sha256:00d3c4fb57bf638b581ba907e9502068b1325e7ceb67b0c1bed9ba5a56ee9240", size = 121837, upload-time = "2026-02-20T07:44:06.395Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/4d/2e/b1a1df2884400ed25e860dfba433941629dcfed5d7e472f60d627e510b18/mojentic-1.2.0-py3-none-any.whl", hash = "sha256:d4d1a80c974eaafd64cf20c551e70b08313db96523dc27ffe99b264fd63298c5", size = 179246, upload-time = "2026-02-05T23:13:04.549Z" },
+    { url = "https://files.pythonhosted.org/packages/c5/6e/a75638f85849ac1319cbf31e59eab2d405c8b1d093d6e4917795a35dd730/mojentic-1.2.1-py3-none-any.whl", hash = "sha256:6f37cfc31571d2ece146c545c20040145baf218a10e7331549cd99312515364c", size = 179251, upload-time = "2026-02-20T07:44:04.746Z" },
 ]
 
 [[package]]
