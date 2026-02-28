@@ -11,22 +11,22 @@ import subprocess
 from collections import defaultdict
 from datetime import date
 from pathlib import Path
-from typing import Dict, Optional, Tuple
 
-from .util import console
 from gilt.model.account import Transaction
-from gilt.workspace import Workspace
 from gilt.model.category import BudgetPeriod
 from gilt.model.category_io import load_categories_config
 from gilt.storage.projection import ProjectionBuilder
+from gilt.workspace import Workspace
+
+from .util import console
 
 
 def _aggregate_spending(
     data_dir: Path,
-    year: Optional[int],
-    month: Optional[int],
+    year: int | None,
+    month: int | None,
     projections_path: Path,
-) -> Dict[Tuple[str, Optional[str]], float]:
+) -> dict[tuple[str, str | None], float]:
     """Aggregate spending by category/subcategory for the specified period.
 
     Loads from projections database, automatically excluding duplicates.
@@ -34,7 +34,7 @@ def _aggregate_spending(
     Returns:
         Dict mapping (category, subcategory) to total amount spent
     """
-    spending: Dict[Tuple[str, Optional[str]], float] = defaultdict(float)
+    spending: dict[tuple[str, str | None], float] = defaultdict(float)
 
     # Check projections exist
     if not projections_path.exists():
@@ -67,10 +67,10 @@ def _aggregate_spending(
 
 def _collect_transactions(
     data_dir: Path,
-    year: Optional[int],
-    month: Optional[int],
+    year: int | None,
+    month: int | None,
     projections_path: Path,
-) -> Dict[str, list[tuple]]:
+) -> dict[str, list[tuple]]:
     """Collect individual expense transactions grouped by category for the period.
 
     Loads from projections database, automatically excluding duplicates.
@@ -78,7 +78,7 @@ def _collect_transactions(
     Each item is a tuple: (date_str, description, subcategory, amount_abs, account_id)
     Only expense transactions (amount < 0) are included for impact on budgets.
     """
-    result: Dict[str, list[tuple]] = defaultdict(list)
+    result: dict[str, list[tuple]] = defaultdict(list)
 
     # Check projections exist
     if not projections_path.exists():
@@ -117,7 +117,7 @@ def _collect_transactions(
         )
 
     # Deterministic sort: by date asc, amount asc, description asc
-    for cat, items in result.items():
+    for _cat, items in result.items():
         items.sort(key=lambda x: (x[0], x[3], x[1]))
 
     return dict(result)
@@ -125,10 +125,10 @@ def _collect_transactions(
 
 def _generate_markdown_report(
     category_config,
-    spending: Dict[Tuple[str, Optional[str]], float],
-    transactions_by_category: Dict[str, list[tuple]],
-    year: Optional[int],
-    month: Optional[int],
+    spending: dict[tuple[str, str | None], float],
+    transactions_by_category: dict[str, list[tuple]],
+    year: int | None,
+    month: int | None,
 ) -> str:
     """Generate markdown-formatted budget report.
 
@@ -181,7 +181,7 @@ def _generate_markdown_report(
 
         # Aggregate actual spending for this category
         cat_actual = 0.0
-        for (spent_cat, spent_subcat), amount in spending.items():
+        for (spent_cat, _spent_subcat), amount in spending.items():
             if spent_cat == cat.name:
                 cat_actual += amount
 
@@ -235,7 +235,7 @@ def _generate_markdown_report(
 
         # Aggregate actual spending for this category and subcategories
         cat_actual = 0.0
-        subcat_actuals: Dict[str, float] = {}
+        subcat_actuals: dict[str, float] = {}
 
         for (spent_cat, spent_subcat), amount in spending.items():
             if spent_cat == cat.name:
@@ -373,9 +373,9 @@ def _convert_to_docx(markdown_path: Path, docx_path: Path) -> bool:
 
 def run(
     *,
-    year: Optional[int] = None,
-    month: Optional[int] = None,
-    output: Optional[Path] = None,
+    year: int | None = None,
+    month: int | None = None,
+    output: Path | None = None,
     workspace: Workspace,
     write: bool = False,
 ) -> int:

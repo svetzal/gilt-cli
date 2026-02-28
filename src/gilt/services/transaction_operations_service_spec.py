@@ -13,9 +13,9 @@ import pytest
 
 from gilt.model.account import Transaction, TransactionGroup
 from gilt.services.transaction_operations_service import (
-    TransactionOperationsService,
-    SearchCriteria,
     NoteMode,
+    SearchCriteria,
+    TransactionOperationsService,
 )
 
 
@@ -398,7 +398,7 @@ class DescribePreviewBatchUpdate(DescribeTransactionOperationsService):
         previews = service.preview_batch_update(groups_for_batch, "New note", mode=NoteMode.REPLACE)
 
         assert len(previews) == 3
-        for original, updated in previews:
+        for _original, updated in previews:
             assert updated.primary.notes == "New note"
 
     def it_should_return_original_and_updated_pairs(self, service, groups_for_batch):

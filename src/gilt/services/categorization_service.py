@@ -19,7 +19,6 @@ All dependencies are injected. All functions return data structures.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 from gilt.model.account import TransactionGroup
 from gilt.model.category import CategoryConfig
@@ -52,7 +51,7 @@ class CategorizationPlan:
 
     matches: list[TransactionGroup]
     category: str
-    subcategory: Optional[str]
+    subcategory: str | None
     is_valid: bool
     validation_errors: list[str] = field(default_factory=list)
 
@@ -88,8 +87,8 @@ class CategorizationService:
     def __init__(
         self,
         category_config: CategoryConfig,
-        transaction_service: Optional[TransactionOperationsService] = None,
-        event_store: Optional["EventStore"] = None,
+        transaction_service: TransactionOperationsService | None = None,
+        event_store: EventStore | None = None,
     ):
         """
         Initialize categorization service.
@@ -106,7 +105,7 @@ class CategorizationService:
         self._event_store = event_store
 
     def validate_category(
-        self, category: str, subcategory: Optional[str] = None
+        self, category: str, subcategory: str | None = None
     ) -> ValidationResult:
         """
         Validate that a category (and optional subcategory) exists in config.
@@ -131,12 +130,11 @@ class CategorizationService:
             )
 
         # If subcategory specified, validate it exists
-        if subcategory is not None:
-            if not cat.has_subcategory(subcategory):
-                return ValidationResult(
-                    is_valid=False,
-                    errors=[f"Subcategory '{subcategory}' not found in category '{category}'"],
-                )
+        if subcategory is not None and not cat.has_subcategory(subcategory):
+            return ValidationResult(
+                is_valid=False,
+                errors=[f"Subcategory '{subcategory}' not found in category '{category}'"],
+            )
 
         return ValidationResult(is_valid=True, errors=[])
 
@@ -170,7 +168,7 @@ class CategorizationService:
         criteria: SearchCriteria,
         groups: list[TransactionGroup],
         category: str,
-        subcategory: Optional[str] = None,
+        subcategory: str | None = None,
     ) -> CategorizationPlan:
         """
         Plan a categorization operation with validation.
@@ -205,7 +203,7 @@ class CategorizationService:
         self,
         matches: list[TransactionGroup],
         category: str,
-        subcategory: Optional[str] = None,
+        subcategory: str | None = None,
     ) -> CategorizationResult:
         """
         Apply categorization to a list of transaction groups.
@@ -265,8 +263,8 @@ class CategorizationService:
     def _emit_categorization_event(
         self,
         transaction,
-        previous_category: Optional[str],
-        previous_subcategory: Optional[str],
+        previous_category: str | None,
+        previous_subcategory: str | None,
     ) -> None:
         """
         Emit TransactionCategorized event to event store.

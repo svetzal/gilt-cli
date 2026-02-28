@@ -8,13 +8,12 @@ All operations remain local-only with no network I/O.
 """
 
 from pathlib import Path
-from typing import Optional
 
-from gilt.model.category import Category, CategoryConfig, Subcategory, Budget, BudgetPeriod
+from gilt.model.category import Budget, BudgetPeriod, Category, CategoryConfig, Subcategory
 from gilt.model.category_io import (
     load_categories_config,
-    save_categories_config,
     parse_category_path,
+    save_categories_config,
 )
 
 
@@ -29,7 +28,7 @@ class CategoryService:
             config_path: Path to categories.yml config file
         """
         self.config_path = Path(config_path)
-        self._config: Optional[CategoryConfig] = None
+        self._config: CategoryConfig | None = None
 
     def load_categories(self, force_reload: bool = False) -> CategoryConfig:
         """
@@ -67,7 +66,7 @@ class CategoryService:
         config = self.load_categories()
         return config.categories
 
-    def find_category(self, name: str) -> Optional[Category]:
+    def find_category(self, name: str) -> Category | None:
         """
         Find a category by name.
 
@@ -83,8 +82,8 @@ class CategoryService:
     def add_category(
         self,
         name: str,
-        description: Optional[str] = None,
-        budget_amount: Optional[float] = None,
+        description: str | None = None,
+        budget_amount: float | None = None,
         budget_period: BudgetPeriod = BudgetPeriod.monthly,
         tax_deductible: bool = False,
     ) -> Category:
@@ -151,11 +150,11 @@ class CategoryService:
     def update_category(
         self,
         name: str,
-        new_name: Optional[str] = None,
-        description: Optional[str] = None,
-        budget_amount: Optional[float] = None,
-        budget_period: Optional[BudgetPeriod] = None,
-        tax_deductible: Optional[bool] = None,
+        new_name: str | None = None,
+        description: str | None = None,
+        budget_amount: float | None = None,
+        budget_period: BudgetPeriod | None = None,
+        tax_deductible: bool | None = None,
     ) -> bool:
         """
         Update an existing category.
@@ -198,7 +197,7 @@ class CategoryService:
         self,
         category_name: str,
         subcategory_name: str,
-        description: Optional[str] = None,
+        description: str | None = None,
     ) -> bool:
         """
         Add a subcategory to a category.
@@ -253,7 +252,7 @@ class CategoryService:
 
         return False
 
-    def validate_category_path(self, category: str, subcategory: Optional[str] = None) -> bool:
+    def validate_category_path(self, category: str, subcategory: str | None = None) -> bool:
         """
         Validate that a category (and optional subcategory) exists.
 
@@ -267,7 +266,7 @@ class CategoryService:
         config = self.load_categories()
         return config.validate_category_path(category, subcategory)
 
-    def parse_category_string(self, category_str: str) -> tuple[str, Optional[str]]:
+    def parse_category_string(self, category_str: str) -> tuple[str, str | None]:
         """
         Parse a category string (e.g., "Housing:Utilities") into parts.
 

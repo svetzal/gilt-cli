@@ -6,7 +6,6 @@ fast ML-based duplicate classification without requiring LLM inference.
 
 from __future__ import annotations
 
-from typing import List
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -43,7 +42,7 @@ class DuplicateFeatureExtractor:
         )
         self._is_fitted = False
 
-    def fit(self, pairs: List[TransactionPair]) -> None:
+    def fit(self, pairs: list[TransactionPair]) -> None:
         """Fit TF-IDF vectorizer on training data.
 
         Args:
@@ -116,7 +115,7 @@ class DuplicateFeatureExtractor:
             ]
         )
 
-    def get_feature_names(self) -> List[str]:
+    def get_feature_names(self) -> list[str]:
         """Return human-readable feature names."""
         return [
             "cosine_similarity",
@@ -194,7 +193,7 @@ class DuplicateFeatureExtractor:
         s2_lower = s2.lower()
 
         prefix_len = 0
-        for c1, c2 in zip(s1_lower, s2_lower):
+        for c1, c2 in zip(s1_lower, s2_lower, strict=False):
             if c1 == c2:
                 prefix_len += 1
             else:

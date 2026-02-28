@@ -1,24 +1,22 @@
 from __future__ import annotations
 
-from typing import List, Set
-
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QWizardPage,
-    QVBoxLayout,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QListWidget,
     QListWidgetItem,
     QPushButton,
-    QWidget,
     QSplitter,
-    QFrame,
+    QVBoxLayout,
+    QWidget,
+    QWizardPage,
 )
-from PySide6.QtCore import Qt
 
-from gilt.gui.services.import_service import ImportService, ImportFileMapping
-from gilt.model.duplicate import DuplicateMatch
+from gilt.gui.services.import_service import ImportFileMapping, ImportService
 from gilt.gui.theme import Theme
+from gilt.model.duplicate import DuplicateMatch
 
 
 class DuplicateReviewPage(QWizardPage):
@@ -27,10 +25,10 @@ class DuplicateReviewPage(QWizardPage):
     def __init__(self, service: ImportService):
         super().__init__()
         self.service = service
-        self.mappings: List[ImportFileMapping] = []
-        self.matches: List[DuplicateMatch] = []
-        self.resolved_indices: Set[int] = set()
-        self.exclude_ids: Set[str] = set()  # IDs to exclude from import
+        self.mappings: list[ImportFileMapping] = []
+        self.matches: list[DuplicateMatch] = []
+        self.resolved_indices: set[int] = set()
+        self.exclude_ids: set[str] = set()  # IDs to exclude from import
 
         self.setTitle("Review Potential Duplicates")
         self.setSubTitle(
@@ -256,5 +254,5 @@ class DuplicateReviewPage(QWizardPage):
         # For now, allow proceeding. Unresolved ones will be imported (default behavior).
         return True
 
-    def get_excluded_ids(self) -> Set[str]:
+    def get_excluded_ids(self) -> set[str]:
         return self.exclude_ids

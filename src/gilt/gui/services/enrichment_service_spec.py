@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from decimal import Decimal
 from datetime import datetime
+from decimal import Decimal
 
 from gilt.gui.services.enrichment_service import EnrichmentService
 from gilt.model.events import TransactionEnriched

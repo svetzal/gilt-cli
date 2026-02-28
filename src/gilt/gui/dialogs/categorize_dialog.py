@@ -9,10 +9,10 @@ Shows preview of category changes before applying them.
 from pathlib import Path
 
 from PySide6.QtWidgets import (
-    QVBoxLayout,
+    QComboBox,
     QHBoxLayout,
     QLabel,
-    QComboBox,
+    QVBoxLayout,
 )
 
 from gilt.gui.dialogs.preview_dialog import PreviewDialog

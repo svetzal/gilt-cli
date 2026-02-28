@@ -12,23 +12,23 @@ Principles:
 - Fully testable with simple unit tests
 """
 
-from gilt.services.duplicate_review_service import (
-    DuplicateReviewService,
-    ReviewSummary,
-    UserDecision,
-    SmartDefault,
-)
 from gilt.services.budget_service import (
-    BudgetService,
     BudgetItem,
+    BudgetService,
     BudgetSummary,
 )
 from gilt.services.category_management_service import (
+    AdditionResult,
+    BudgetUpdateResult,
     CategoryManagementService,
     CategoryUsage,
     RemovalPlan,
-    AdditionResult,
-    BudgetUpdateResult,
+)
+from gilt.services.duplicate_review_service import (
+    DuplicateReviewService,
+    ReviewSummary,
+    SmartDefault,
+    UserDecision,
 )
 from gilt.services.duplicate_service import DuplicateService
 from gilt.services.smart_category_service import SmartCategoryService

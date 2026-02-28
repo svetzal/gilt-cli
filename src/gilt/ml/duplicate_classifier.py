@@ -6,9 +6,8 @@ trained on engineered features. Requires training data from user feedback.
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import List, Optional
 import pickle
+from pathlib import Path
 
 try:
     import lightgbm as lgb
@@ -18,8 +17,8 @@ except ImportError:
 import numpy as np
 import pandas as pd
 
-from gilt.model.duplicate import TransactionPair, DuplicateAssessment
 from gilt.ml.feature_extractor import DuplicateFeatureExtractor
+from gilt.model.duplicate import DuplicateAssessment, TransactionPair
 
 
 class DuplicateClassifier:
@@ -34,7 +33,7 @@ class DuplicateClassifier:
     Requires training on labeled examples (50-500 pairs recommended).
     """
 
-    def __init__(self, model_path: Optional[Path] = None):
+    def __init__(self, model_path: Path | None = None):
         """Initialize classifier, optionally loading a pre-trained model.
 
         Args:
@@ -45,7 +44,7 @@ class DuplicateClassifier:
             raise ImportError("LightGBM not installed. Install with: pip install -e '.[ml]'")
 
         self.feature_extractor = DuplicateFeatureExtractor()
-        self.model: Optional[lgb.LGBMClassifier] = None
+        self.model: lgb.LGBMClassifier | None = None
         self._is_trained = False
 
         if model_path and model_path.exists():
@@ -53,8 +52,8 @@ class DuplicateClassifier:
 
     def train(
         self,
-        pairs: List[TransactionPair],
-        labels: List[bool],
+        pairs: list[TransactionPair],
+        labels: list[bool],
         validation_split: float = 0.2,
     ) -> dict:
         """Train classifier on labeled transaction pairs.

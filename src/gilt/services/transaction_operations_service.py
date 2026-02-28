@@ -20,13 +20,12 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from enum import Enum
-from typing import Optional
+from enum import StrEnum
 
 from gilt.model.account import TransactionGroup
 
 
-class NoteMode(str, Enum):
+class NoteMode(StrEnum):
     """Mode for adding notes to transactions."""
 
     REPLACE = "replace"
@@ -38,10 +37,10 @@ class NoteMode(str, Enum):
 class SearchCriteria:
     """Criteria for finding transactions."""
 
-    description: Optional[str] = None
-    desc_prefix: Optional[str] = None
-    pattern: Optional[str] = None  # Regex pattern string
-    amount: Optional[float] = None
+    description: str | None = None
+    desc_prefix: str | None = None
+    pattern: str | None = None  # Regex pattern string
+    amount: float | None = None
 
 
 @dataclass
@@ -49,8 +48,8 @@ class MatchResult:
     """Result of finding a transaction by ID prefix."""
 
     type: str  # "match", "ambiguous", "not_found"
-    transaction: Optional[TransactionGroup] = None
-    matches: Optional[list[TransactionGroup]] = None  # For ambiguous case
+    transaction: TransactionGroup | None = None
+    matches: list[TransactionGroup] | None = None  # For ambiguous case
 
     @property
     def is_match(self) -> bool:
@@ -155,7 +154,7 @@ class TransactionOperationsService:
         used_sign_insensitive = False
 
         # Compile regex pattern if provided
-        compiled_pattern: Optional[re.Pattern] = None
+        compiled_pattern: re.Pattern | None = None
         if criteria.pattern:
             try:
                 compiled_pattern = re.compile(criteria.pattern, re.IGNORECASE)
@@ -190,9 +189,7 @@ class TransactionOperationsService:
                 continue
 
             # Check amount criteria
-            if criteria.amount is None:
-                matched.append(group)
-            elif abs(txn.amount - criteria.amount) < 0.01:
+            if criteria.amount is None or abs(txn.amount - criteria.amount) < 0.01:
                 matched.append(group)
 
         # Second pass: if amount specified but no signed matches, try absolute value
@@ -249,15 +246,9 @@ class TransactionOperationsService:
         if mode == NoteMode.REPLACE:
             new_note = note_text
         elif mode == NoteMode.APPEND:
-            if current_note:
-                new_note = f"{current_note} {note_text}"
-            else:
-                new_note = note_text
+            new_note = f"{current_note} {note_text}" if current_note else note_text
         else:  # PREPEND
-            if current_note:
-                new_note = f"{note_text} {current_note}"
-            else:
-                new_note = note_text
+            new_note = f"{note_text} {current_note}" if current_note else note_text
 
         # Create new transaction with updated note
         updated_txn = group.primary.model_copy(update={"notes": new_note})

@@ -7,12 +7,11 @@ Handles loading, filtering, and manipulating transaction data for the GUI.
 All operations remain local-only with no network I/O.
 """
 
-from pathlib import Path
-from typing import Optional
 from datetime import date
+from pathlib import Path
 
-from gilt.model.ledger_io import load_ledger_csv
 from gilt.model.account import TransactionGroup
+from gilt.model.ledger_io import load_ledger_csv
 
 
 class TransactionService:
@@ -100,13 +99,13 @@ class TransactionService:
     def filter_transactions(
         self,
         transactions: list[TransactionGroup],
-        account_filter: Optional[list[str]] = None,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        min_amount: Optional[float] = None,
-        max_amount: Optional[float] = None,
-        category_filter: Optional[list[str]] = None,
-        search_text: Optional[str] = None,
+        account_filter: list[str] | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        min_amount: float | None = None,
+        max_amount: float | None = None,
+        category_filter: list[str] | None = None,
+        search_text: str | None = None,
         uncategorized_only: bool = False,
     ) -> list[TransactionGroup]:
         """

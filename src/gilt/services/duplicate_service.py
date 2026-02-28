@@ -9,15 +9,12 @@ improve future detection.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List, Optional
 
+from gilt.model.account import Transaction
 from gilt.model.duplicate import DuplicateMatch
 from gilt.model.events import DuplicateConfirmed, DuplicateRejected
 from gilt.storage.event_store import EventStore
 from gilt.transfer.duplicate_detector import DuplicateDetector
-
-
-from gilt.model.account import Transaction
 
 
 class DuplicateService:
@@ -35,10 +32,10 @@ class DuplicateService:
 
     def scan_transactions(
         self,
-        transactions: List[Transaction],
+        transactions: list[Transaction],
         max_days_apart: int = 1,
         amount_tolerance: float = 0.001,
-    ) -> List[DuplicateMatch]:
+    ) -> list[DuplicateMatch]:
         """Scan a list of transactions for duplicates.
 
         Args:
@@ -88,7 +85,7 @@ class DuplicateService:
         data_dir: Path,
         max_days_apart: int = 1,
         amount_tolerance: float = 0.001,
-    ) -> List[DuplicateMatch]:
+    ) -> list[DuplicateMatch]:
         """Scan for potential duplicates in the given data directory.
 
         Args:
@@ -105,8 +102,8 @@ class DuplicateService:
         self,
         match: DuplicateMatch,
         is_duplicate: bool,
-        keep_id: Optional[str] = None,
-        rationale: Optional[str] = None,
+        keep_id: str | None = None,
+        rationale: str | None = None,
     ) -> None:
         """Resolve a potential duplicate match based on user input.
 

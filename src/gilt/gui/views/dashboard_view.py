@@ -6,24 +6,24 @@ Dashboard View - Overview dashboard with key metrics
 Shows summary cards and quick access to important information.
 """
 
-from pathlib import Path
 from datetime import date
+from pathlib import Path
 
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
+    QGridLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
-    QGroupBox,
-    QGridLayout,
+    QVBoxLayout,
+    QWidget,
 )
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QFont
 
-from gilt.services.budget_service import BudgetService
 from gilt.gui.services.transaction_service import TransactionService
 from gilt.gui.theme import Theme
+from gilt.services.budget_service import BudgetService
 
 
 class SummaryCard(QGroupBox):

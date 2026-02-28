@@ -8,9 +8,9 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from gilt.cli.command.category import run
+from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.category import Budget, BudgetPeriod, Category, CategoryConfig, Subcategory
 from gilt.model.category_io import load_categories_config, save_categories_config
-from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.ledger_io import dump_ledger_csv
 from gilt.workspace import Workspace
 

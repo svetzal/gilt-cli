@@ -1,20 +1,19 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Optional
 
 import typer
 from rich.table import Table
 
-from .util import console
-from gilt.workspace import Workspace
-from gilt.model.category_io import parse_category_path
-from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
 from gilt.model.account import TransactionGroup
-from gilt.storage.projection import ProjectionBuilder
-from gilt.storage.event_store import EventStore
+from gilt.model.category_io import parse_category_path
 from gilt.model.events import TransactionCategorized
+from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
+from gilt.storage.event_store import EventStore
+from gilt.storage.projection import ProjectionBuilder
+from gilt.workspace import Workspace
 
+from .util import console
 
 """
 Rename categories across all ledger files.
@@ -76,7 +75,7 @@ def run(
 
     # Find matches by category/subcategory
     total_matched = 0
-    all_matches: List[tuple[str, TransactionGroup]] = []  # (account_id, group)
+    all_matches: list[tuple[str, TransactionGroup]] = []  # (account_id, group)
 
     for row in all_transactions:
         # Match category
@@ -84,9 +83,8 @@ def run(
             continue
 
         # Match subcategory if specified in --from
-        if from_subcat is not None:
-            if row.get("subcategory") != from_subcat:
-                continue
+        if from_subcat is not None and row.get("subcategory") != from_subcat:
+            continue
 
         # Convert row to TransactionGroup
         group = TransactionGroup.from_projection_row(row)
@@ -107,10 +105,11 @@ def run(
     # Confirm
     import sys
 
-    if sys.stdin.isatty():
-        if not typer.confirm(f"Rename category in {total_matched} transaction(s)?"):
-            console.print("Cancelled")
-            return 0
+    if sys.stdin.isatty() and not typer.confirm(
+        f"Rename category in {total_matched} transaction(s)?"
+    ):
+        console.print("Cancelled")
+        return 0
 
     # Apply renaming by account
     _apply_renaming(all_matches, to_cat, to_subcat, workspace)
@@ -120,7 +119,7 @@ def run(
 
 
 def _display_matches(
-    matches: List[tuple[str, TransactionGroup]],
+    matches: list[tuple[str, TransactionGroup]],
     from_category: str,
     to_category: str,
 ) -> None:
@@ -159,9 +158,9 @@ def _display_matches(
 
 
 def _apply_renaming(
-    matches: List[tuple[str, TransactionGroup]],
+    matches: list[tuple[str, TransactionGroup]],
     to_cat: str,
-    to_subcat: Optional[str],
+    to_subcat: str | None,
     workspace: Workspace,
 ) -> None:
     """Apply category renaming to matched transactions.
@@ -175,7 +174,7 @@ def _apply_renaming(
     data_dir = workspace.ledger_data_dir
 
     # Group by account
-    by_account: dict[str, List[TransactionGroup]] = {}
+    by_account: dict[str, list[TransactionGroup]] = {}
     for account_id, group in matches:
         if account_id not in by_account:
             by_account[account_id] = []

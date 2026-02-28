@@ -7,21 +7,21 @@ Shows two transactions side-by-side and asks user to confirm if they are duplica
 """
 
 from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QButtonGroup,
     QDialog,
-    QVBoxLayout,
+    QDialogButtonBox,
+    QGroupBox,
+    QHeaderView,
     QLabel,
+    QRadioButton,
     QTableWidget,
     QTableWidgetItem,
-    QRadioButton,
-    QButtonGroup,
-    QDialogButtonBox,
-    QHeaderView,
-    QGroupBox,
-    QAbstractItemView,
+    QVBoxLayout,
 )
 
-from gilt.model.duplicate import DuplicateMatch
 from gilt.gui.theme import Theme
+from gilt.model.duplicate import DuplicateMatch
 
 
 class DuplicateResolutionDialog(QDialog):

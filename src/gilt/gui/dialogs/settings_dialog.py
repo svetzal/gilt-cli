@@ -9,20 +9,20 @@ Allows users to configure data directories and other basic settings.
 import os
 from pathlib import Path
 
+from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import (
     QDialog,
-    QVBoxLayout,
-    QHBoxLayout,
+    QDialogButtonBox,
+    QFileDialog,
     QFormLayout,
+    QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
-    QFileDialog,
-    QDialogButtonBox,
     QTabWidget,
+    QVBoxLayout,
     QWidget,
 )
-from PySide6.QtCore import QSettings
 
 
 class SettingsDialog(QDialog):

@@ -13,18 +13,17 @@ Privacy:
 """
 
 from pathlib import Path
-from typing import List, Optional
 
 from mojentic.llm.gateways.models import LLMMessage
 from mojentic.llm.llm_broker import LLMBroker
 
+from gilt.config import DEFAULT_OLLAMA_MODEL
 from gilt.model.account import Transaction
 from gilt.model.duplicate import (
     DuplicateAssessment,
     DuplicateMatch,
     TransactionPair,
 )
-from gilt.config import DEFAULT_OLLAMA_MODEL
 from gilt.model.events import PromptUpdated
 from gilt.storage.event_store import EventStore
 from gilt.transfer.prompt_manager import PromptManager
@@ -36,10 +35,10 @@ class DuplicateDetector:
     def __init__(
         self,
         model: str = DEFAULT_OLLAMA_MODEL,
-        data_dir: Optional[Path] = None,
-        event_store_path: Optional[Path] = None,
+        data_dir: Path | None = None,
+        event_store_path: Path | None = None,
         use_ml: bool = True,
-        projections_path: Optional[Path] = None,
+        projections_path: Path | None = None,
     ):
         """Initialize detector with specified model and learned patterns.
 
@@ -53,15 +52,15 @@ class DuplicateDetector:
         self.model = model
         self.use_ml = use_ml
         self.projections_path = projections_path
-        self._llm: Optional[LLMBroker] = None
+        self._llm: LLMBroker | None = None
         self._ml_classifier = None
-        self.prompt_manager: Optional[PromptManager] = None
+        self.prompt_manager: PromptManager | None = None
         if data_dir:
             self.prompt_manager = PromptManager(data_dir)
 
         # Load latest PromptUpdated event for learned patterns
         self.prompt_version = "v1"
-        self.learned_patterns: List[str] = []
+        self.learned_patterns: list[str] = []
         if event_store_path and event_store_path.exists():
             self._load_learned_patterns(event_store_path)
             # Initialize ML classifier from training data if use_ml is True
@@ -126,7 +125,7 @@ class DuplicateDetector:
             self._llm = LLMBroker(model=self.model)
         return self._llm
 
-    def load_all_transactions(self, data_dir: Path) -> List[Transaction]:
+    def load_all_transactions(self, data_dir: Path) -> list[Transaction]:
         """Load all transactions from projections database.
 
         Args:
@@ -138,7 +137,7 @@ class DuplicateDetector:
         """
         from gilt.storage.projection import ProjectionBuilder
 
-        transactions: List[Transaction] = []
+        transactions: list[Transaction] = []
 
         # Use provided projections_path or fall back to default
         projections_path = self.projections_path or Path("data/projections.db")
@@ -161,10 +160,10 @@ class DuplicateDetector:
 
     def find_potential_duplicates(
         self,
-        transactions: List[Transaction],
+        transactions: list[Transaction],
         max_days_apart: int = 1,
         amount_tolerance: float = 0.001,
-    ) -> List[TransactionPair]:
+    ) -> list[TransactionPair]:
         """Find candidate transaction pairs that might be duplicates.
 
         Uses strict heuristics to narrow down pairs before LLM analysis:
@@ -184,7 +183,7 @@ class DuplicateDetector:
         Returns:
             List of transaction pairs to analyze with LLM
         """
-        pairs: List[TransactionPair] = []
+        pairs: list[TransactionPair] = []
 
         # Compare each transaction with subsequent ones
         for i, txn1 in enumerate(transactions):
@@ -327,10 +326,10 @@ Assess whether these are duplicates.""")
 
     def scan_transactions(
         self,
-        transactions: List[Transaction],
+        transactions: list[Transaction],
         max_days_apart: int = 1,
         amount_tolerance: float = 0.001,
-    ) -> List[DuplicateMatch]:
+    ) -> list[DuplicateMatch]:
         """Scan a list of transactions for duplicates.
 
         Args:
@@ -345,7 +344,7 @@ Assess whether these are duplicates.""")
             transactions, max_days_apart, amount_tolerance
         )
 
-        matches: List[DuplicateMatch] = []
+        matches: list[DuplicateMatch] = []
         for pair in candidate_pairs:
             assessment = self.assess_duplicate(pair)
             match = DuplicateMatch(pair=pair, assessment=assessment)
@@ -360,7 +359,7 @@ Assess whether these are duplicates.""")
         data_dir: Path,
         max_days_apart: int = 1,
         amount_tolerance: float = 0.001,
-    ) -> List[DuplicateMatch]:
+    ) -> list[DuplicateMatch]:
         """Scan all ledgers for duplicate transactions.
 
         Args:

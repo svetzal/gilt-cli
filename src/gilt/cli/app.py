@@ -10,7 +10,6 @@ All paths are resolved from a single workspace root:
 """
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -29,7 +28,7 @@ app = typer.Typer(no_args_is_help=True, add_completion=False, help=APP_HELP)
 @app.callback()
 def main(
     ctx: typer.Context,
-    data_dir: Optional[Path] = typer.Option(
+    data_dir: Path | None = typer.Option(
         None,
         "--data-dir",
         envvar="GILT_DATA",
@@ -83,17 +82,17 @@ def categories(ctx: typer.Context):
 @app.command()
 def category(
     ctx: typer.Context,
-    add: Optional[str] = typer.Option(
+    add: str | None = typer.Option(
         None, "--add", help="Add a new category (supports 'Category:Subcategory')"
     ),
-    remove: Optional[str] = typer.Option(None, "--remove", help="Remove a category"),
-    set_budget: Optional[str] = typer.Option(
+    remove: str | None = typer.Option(None, "--remove", help="Remove a category"),
+    set_budget: str | None = typer.Option(
         None, "--set-budget", help="Set budget for a category"
     ),
-    description: Optional[str] = typer.Option(
+    description: str | None = typer.Option(
         None, "--description", help="Description for new category"
     ),
-    amount: Optional[float] = typer.Option(None, "--amount", help="Budget amount"),
+    amount: float | None = typer.Option(None, "--amount", help="Budget amount"),
     period: str = typer.Option("monthly", "--period", help="Budget period (monthly or yearly)"),
     force: bool = typer.Option(
         False, "--force", help="Skip confirmations when removing used categories"
@@ -130,13 +129,13 @@ def category(
 def ytd(
     ctx: typer.Context,
     account: str = typer.Option(..., "--account", "-a", help=HELP_ACCOUNT_DISPLAY),
-    year: Optional[int] = typer.Option(
+    year: int | None = typer.Option(
         None, "--year", "-y", help="Year to filter (defaults to current year)"
     ),
-    limit: Optional[int] = typer.Option(
+    limit: int | None = typer.Option(
         None, "--limit", "-n", min=1, help="Max number of rows to show (after sorting)"
     ),
-    default_currency: Optional[str] = typer.Option(
+    default_currency: str | None = typer.Option(
         None, "--default-currency", help="Fallback currency if missing in legacy rows (e.g., CAD)"
     ),
     include_duplicates: bool = typer.Option(
@@ -183,31 +182,31 @@ def ytd(
 @app.command()
 def categorize(
     ctx: typer.Context,
-    account: Optional[str] = typer.Option(
+    account: str | None = typer.Option(
         None, "--account", "-a", help="Account ID (omit to categorize across all accounts)"
     ),
-    txid: Optional[str] = typer.Option(
+    txid: str | None = typer.Option(
         None, "--txid", "-t", help="Transaction ID prefix (single mode)"
     ),
-    description: Optional[str] = typer.Option(
+    description: str | None = typer.Option(
         None, "--description", "-d", help="Exact description to match (batch mode)"
     ),
-    desc_prefix: Optional[str] = typer.Option(
+    desc_prefix: str | None = typer.Option(
         None,
         "--desc-prefix",
         "-p",
         help="Description prefix to match (batch mode, case-insensitive)",
     ),
-    pattern: Optional[str] = typer.Option(
+    pattern: str | None = typer.Option(
         None, "--pattern", help="Regex pattern to match description (batch mode, case-insensitive)"
     ),
-    amount: Optional[float] = typer.Option(
+    amount: float | None = typer.Option(
         None, "--amount", "-m", help="Exact amount to match (batch mode)"
     ),
     category: str = typer.Option(
         ..., "--category", "-c", help="Category name (supports 'Category:Subcategory' syntax)"
     ),
-    subcategory: Optional[str] = typer.Option(
+    subcategory: str | None = typer.Option(
         None, "--subcategory", "-s", help="Subcategory name (alternative to colon syntax)"
     ),
     yes: bool = typer.Option(
@@ -283,7 +282,7 @@ def recategorize(
 @app.command(name="auto-categorize")
 def auto_categorize(
     ctx: typer.Context,
-    account: Optional[str] = typer.Option(
+    account: str | None = typer.Option(
         None, "--account", "-a", help="Account ID to filter (omit for all accounts)"
     ),
     confidence: float = typer.Option(
@@ -295,7 +294,7 @@ def auto_categorize(
     interactive: bool = typer.Option(
         False, "--interactive", "-i", help="Enable interactive review mode"
     ),
-    limit: Optional[int] = typer.Option(
+    limit: int | None = typer.Option(
         None, "--limit", "-n", min=1, help="Max number of transactions to auto-categorize"
     ),
     write: bool = typer.Option(False, "--write", help=HELP_WRITE),
@@ -330,14 +329,14 @@ def auto_categorize(
 @app.command()
 def uncategorized(
     ctx: typer.Context,
-    account: Optional[str] = typer.Option(
+    account: str | None = typer.Option(
         None, "--account", "-a", help="Account ID to filter (omit for all accounts)"
     ),
-    year: Optional[int] = typer.Option(None, "--year", "-y", help="Year to filter"),
-    limit: Optional[int] = typer.Option(
+    year: int | None = typer.Option(None, "--year", "-y", help="Year to filter"),
+    limit: int | None = typer.Option(
         None, "--limit", "-n", min=1, help="Max number of transactions to show"
     ),
-    min_amount: Optional[float] = typer.Option(
+    min_amount: float | None = typer.Option(
         None, "--min-amount", help="Minimum absolute amount to include"
     ),
 ):
@@ -366,13 +365,13 @@ def uncategorized(
 @app.command()
 def budget(
     ctx: typer.Context,
-    year: Optional[int] = typer.Option(
+    year: int | None = typer.Option(
         None, "--year", "-y", help="Year to report (default: current year)"
     ),
-    month: Optional[int] = typer.Option(
+    month: int | None = typer.Option(
         None, "--month", "-m", help="Month to report (1-12, requires --year)"
     ),
-    category: Optional[str] = typer.Option(
+    category: str | None = typer.Option(
         None, "--category", "-c", help="Filter to specific category"
     ),
 ):
@@ -418,13 +417,13 @@ def diagnose_categories(ctx: typer.Context):
 @app.command()
 def report(
     ctx: typer.Context,
-    year: Optional[int] = typer.Option(
+    year: int | None = typer.Option(
         None, "--year", "-y", help="Year to report (default: current year)"
     ),
-    month: Optional[int] = typer.Option(
+    month: int | None = typer.Option(
         None, "--month", "-m", help="Month to report (1-12, requires --year)"
     ),
-    output: Optional[Path] = typer.Option(
+    output: Path | None = typer.Option(
         None,
         "--output",
         "-o",
@@ -462,22 +461,22 @@ def report(
 def note(
     ctx: typer.Context,
     account: str = typer.Option(..., "--account", "-a", help=HELP_ACCOUNT_WITH_TX),
-    txid: Optional[str] = typer.Option(
+    txid: str | None = typer.Option(
         None, "--txid", "-t", help="Transaction ID prefix (TxnID8 as shown in tables)"
     ),
-    description: Optional[str] = typer.Option(
+    description: str | None = typer.Option(
         None, "--description", "-d", help="Exact description to match (batch mode)"
     ),
-    desc_prefix: Optional[str] = typer.Option(
+    desc_prefix: str | None = typer.Option(
         None,
         "--desc-prefix",
         "-p",
         help="Description prefix to match (batch mode, case-insensitive)",
     ),
-    pattern: Optional[str] = typer.Option(
+    pattern: str | None = typer.Option(
         None, "--pattern", help="Regex pattern to match description (batch mode, case-insensitive)"
     ),
-    amount: Optional[float] = typer.Option(
+    amount: float | None = typer.Option(
         None, "--amount", "-m", help="Exact amount to match (batch mode)"
     ),
     note: str = typer.Option(..., "--note", "-n", help="Note text to set on the transaction(s)"),
@@ -536,10 +535,10 @@ def ingest_receipts(
         ..., "--source", help="Root directory containing receipt JSON files (recursive scan)"
     ),
     write: bool = typer.Option(False, "--write", help=HELP_WRITE),
-    year: Optional[int] = typer.Option(
+    year: int | None = typer.Option(
         None, "--year", "-y", help="Only process receipts from this year"
     ),
-    account: Optional[str] = typer.Option(
+    account: str | None = typer.Option(
         None, "--account", "-a", help="Limit matching to this account"
     ),
 ):
@@ -665,7 +664,7 @@ def audit_ml(
     mode: str = typer.Option(
         "summary", "--mode", "-m", help="Audit mode: summary, training, predictions, or features"
     ),
-    filter_pattern: Optional[str] = typer.Option(
+    filter_pattern: str | None = typer.Option(
         None, "--filter", "-f", help="Regex pattern to filter descriptions"
     ),
     limit: int = typer.Option(20, "--limit", "-n", help="Maximum examples to show"),
@@ -732,10 +731,10 @@ def rebuild_projections(
     incremental: bool = typer.Option(
         False, "--incremental", help="Only apply new events since last rebuild (default behavior)"
     ),
-    events_db: Optional[Path] = typer.Option(
+    events_db: Path | None = typer.Option(
         None, "--events-db", help="Path to events database (advanced override)"
     ),
-    projections_db: Optional[Path] = typer.Option(
+    projections_db: Path | None = typer.Option(
         None, "--projections-db", help="Path to projections database (advanced override)"
     ),
 ):
@@ -764,15 +763,15 @@ def rebuild_projections(
 @app.command(name="backfill-events")
 def backfill_events(
     ctx: typer.Context,
-    events_db: Optional[Path] = typer.Option(
+    events_db: Path | None = typer.Option(
         None, "--event-store", help="Path to event store database (advanced override)"
     ),
-    projections_db: Optional[Path] = typer.Option(
+    projections_db: Path | None = typer.Option(
         None,
         "--projections-db",
         help="Path to transaction projections database (advanced override)",
     ),
-    budget_projections_db: Optional[Path] = typer.Option(
+    budget_projections_db: Path | None = typer.Option(
         None,
         "--budget-projections-db",
         help="Path to budget projections database (advanced override)",
@@ -805,15 +804,15 @@ def backfill_events(
 @app.command(name="migrate-to-events")
 def migrate_to_events(
     ctx: typer.Context,
-    events_db: Optional[Path] = typer.Option(
+    events_db: Path | None = typer.Option(
         None, "--event-store", help="Path to event store database (advanced override)"
     ),
-    projections_db: Optional[Path] = typer.Option(
+    projections_db: Path | None = typer.Option(
         None,
         "--projections-db",
         help="Path to transaction projections database (advanced override)",
     ),
-    budget_projections_db: Optional[Path] = typer.Option(
+    budget_projections_db: Path | None = typer.Option(
         None,
         "--budget-projections-db",
         help="Path to budget projections database (advanced override)",

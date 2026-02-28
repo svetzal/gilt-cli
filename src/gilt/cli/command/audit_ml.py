@@ -8,23 +8,22 @@ Provides visibility into:
 - Past user decisions that shaped the model
 """
 
-from typing import Optional
 
 from rich.console import Console
 from rich.table import Table
 
 from gilt.config import DEFAULT_OLLAMA_MODEL
-from gilt.workspace import Workspace
-from gilt.transfer.duplicate_detector import DuplicateDetector
 from gilt.ml.duplicate_classifier import DuplicateClassifier
 from gilt.ml.training_data_builder import TrainingDataBuilder
 from gilt.services.event_sourcing_service import EventSourcingService
+from gilt.transfer.duplicate_detector import DuplicateDetector
+from gilt.workspace import Workspace
 
 
 def run(
     workspace: Workspace,
     mode: str = "summary",
-    filter_pattern: Optional[str] = None,
+    filter_pattern: str | None = None,
     limit: int = 20,
 ) -> int:
     """Audit ML classifier training data and decisions.
@@ -97,7 +96,7 @@ def show_summary(console: Console, builder: TrainingDataBuilder) -> int:
 
 
 def show_training_data(
-    console: Console, builder: TrainingDataBuilder, filter_pattern: Optional[str], limit: int
+    console: Console, builder: TrainingDataBuilder, filter_pattern: str | None, limit: int
 ) -> int:
     """Show training examples used to train the classifier."""
     import re
@@ -113,16 +112,16 @@ def show_training_data(
         pattern = re.compile(filter_pattern, re.IGNORECASE)
         filtered = [
             (p, lab)
-            for p, lab in zip(pairs, labels)
+            for p, lab in zip(pairs, labels, strict=False)
             if pattern.search(p.txn1_description) or pattern.search(p.txn2_description)
         ]
-        pairs, labels = zip(*filtered) if filtered else ([], [])
+        pairs, labels = zip(*filtered, strict=False) if filtered else ([], [])
         console.print(
             f"\n[cyan]Filtered to {len(pairs)} examples matching '{filter_pattern}'[/cyan]\n"
         )
 
     # Show positive examples
-    positive_pairs = [(p, lab) for p, lab in zip(pairs, labels) if lab]
+    positive_pairs = [(p, lab) for p, lab in zip(pairs, labels, strict=False) if lab]
     if positive_pairs:
         console.print(
             f"[green]Positive Examples (Marked as Duplicates) - Showing {min(limit, len(positive_pairs))} of {len(positive_pairs)}[/green]\n"
@@ -143,7 +142,7 @@ def show_training_data(
             console.print(table)
 
     # Show negative examples
-    negative_pairs = [(p, lab) for p, lab in zip(pairs, labels) if not lab]
+    negative_pairs = [(p, lab) for p, lab in zip(pairs, labels, strict=False) if not lab]
     if negative_pairs:
         console.print(
             f"\n[yellow]Negative Examples (Marked as NOT Duplicates) - Showing {min(limit, len(negative_pairs))} of {len(negative_pairs)}[/yellow]\n"
@@ -170,7 +169,7 @@ def show_predictions(
     console: Console,
     workspace: Workspace,
     es_service: EventSourcingService,
-    filter_pattern: Optional[str],
+    filter_pattern: str | None,
     limit: int,
 ) -> int:
     """Show ML predictions on current candidate pairs."""

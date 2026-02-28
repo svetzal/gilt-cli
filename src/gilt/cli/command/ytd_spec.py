@@ -12,7 +12,7 @@ from rich.console import Console
 
 from gilt.cli.command.ytd import run
 from gilt.model.account import Transaction, TransactionGroup
-from gilt.model.events import TransactionImported, TransactionEnriched
+from gilt.model.events import TransactionEnriched, TransactionImported
 from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace

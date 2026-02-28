@@ -7,7 +7,6 @@ Tests for category I/O functions.
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-
 from gilt.model.category import Budget, BudgetPeriod, Category, CategoryConfig, Subcategory
 from gilt.model.category_io import (
     load_categories_config,

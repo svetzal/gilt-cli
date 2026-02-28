@@ -6,11 +6,11 @@ Transaction Table Model - Qt model for displaying transactions
 Provides data to QTableView for transaction display with sorting and formatting.
 """
 
-from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex, Signal
+from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt, Signal
 
-from gilt.model.account import TransactionGroup
-from gilt.gui.theme import Theme
 from gilt.gui.services.enrichment_service import EnrichmentService
+from gilt.gui.theme import Theme
+from gilt.model.account import TransactionGroup
 
 
 class TransactionTableModel(QAbstractTableModel):
@@ -151,9 +151,7 @@ class TransactionTableModel(QAbstractTableModel):
 
         # Text alignment
         elif role == Qt.TextAlignmentRole:
-            if col == self.COL_AMOUNT:
-                return Qt.AlignRight | Qt.AlignVCenter
-            elif col == self.COL_CONFIDENCE:
+            if col == self.COL_AMOUNT or col == self.COL_CONFIDENCE:
                 return Qt.AlignRight | Qt.AlignVCenter
             elif col == self.COL_RISK:
                 return Qt.AlignCenter
@@ -191,11 +189,10 @@ class TransactionTableModel(QAbstractTableModel):
                 if conf is not None and conf < 0.8:
                     return Theme.color("warning_fg")
 
-            if col == self.COL_DESCRIPTION:
-                if self._enrichment_service and self._enrichment_service.is_enriched(
-                    txn.transaction_id
-                ):
-                    return Theme.color("link_fg")
+            if col == self.COL_DESCRIPTION and self._enrichment_service and self._enrichment_service.is_enriched(
+                txn.transaction_id
+            ):
+                return Theme.color("link_fg")
 
             if col == self.COL_AMOUNT:
                 if txn.amount < 0:
@@ -204,9 +201,8 @@ class TransactionTableModel(QAbstractTableModel):
                     return Theme.color("positive_fg")
                 else:
                     return Theme.color("neutral_fg")
-            elif col == self.COL_TRANSFER:
-                if txn.metadata and "transfer" in txn.metadata:
-                    return Theme.color("link_fg")
+            elif col == self.COL_TRANSFER and txn.metadata and "transfer" in txn.metadata:
+                return Theme.color("link_fg")
 
         # Tooltip
         elif role == Qt.ToolTipRole:
@@ -227,17 +223,16 @@ class TransactionTableModel(QAbstractTableModel):
                 if txn.source_file:
                     tooltip += f"\nSource: {txn.source_file}"
                 return tooltip
-            elif col == self.COL_TRANSFER:
-                if txn.metadata and "transfer" in txn.metadata:
-                    transfer = txn.metadata["transfer"]
-                    lines = []
-                    if "role" in transfer:
-                        lines.append(f"Role: {transfer['role']}")
-                    if "counterparty_account_id" in transfer:
-                        lines.append(f"Counterparty: {transfer['counterparty_account_id']}")
-                    if "method" in transfer:
-                        lines.append(f"Method: {transfer['method']}")
-                    return "\n".join(lines)
+            elif col == self.COL_TRANSFER and txn.metadata and "transfer" in txn.metadata:
+                transfer = txn.metadata["transfer"]
+                lines = []
+                if "role" in transfer:
+                    lines.append(f"Role: {transfer['role']}")
+                if "counterparty_account_id" in transfer:
+                    lines.append(f"Counterparty: {transfer['counterparty_account_id']}")
+                if "method" in transfer:
+                    lines.append(f"Method: {transfer['method']}")
+                return "\n".join(lines)
 
         return None
 

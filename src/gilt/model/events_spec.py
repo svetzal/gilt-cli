@@ -2,25 +2,25 @@
 Tests for event sourcing models.
 """
 
+import json
 from datetime import datetime
 from decimal import Decimal
-import json
 
 import pytest
 from pydantic import ValidationError
 
 from gilt.model.events import (
-    Event,
-    TransactionImported,
-    TransactionDescriptionObserved,
-    DuplicateSuggested,
+    BudgetCreated,
+    CategorizationRuleCreated,
     DuplicateConfirmed,
     DuplicateRejected,
-    TransactionCategorized,
-    TransactionEnriched,
-    CategorizationRuleCreated,
-    BudgetCreated,
+    DuplicateSuggested,
+    Event,
     PromptUpdated,
+    TransactionCategorized,
+    TransactionDescriptionObserved,
+    TransactionEnriched,
+    TransactionImported,
 )
 
 

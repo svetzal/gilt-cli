@@ -4,19 +4,19 @@ from __future__ import annotations
 Tests for categorize command.
 """
 
+from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from gilt.cli.command.categorize import run
+from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.category import Category, CategoryConfig, Subcategory
 from gilt.model.category_io import save_categories_config
-from gilt.model.account import Transaction, TransactionGroup
+from gilt.model.events import TransactionCategorized, TransactionImported
 from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
-from gilt.storage.projection import ProjectionBuilder
 from gilt.storage.event_store import EventStore
-from gilt.model.events import TransactionImported, TransactionCategorized
+from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
-from decimal import Decimal
 
 
 def _write_ledger(path: Path, groups: list[TransactionGroup]):

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from gilt.workspace import Workspace
@@ -34,7 +34,7 @@ class EventStoreStatus:
 
     exists: bool
     path: Path
-    csv_files_count: Optional[int] = None  # Number of CSV files found if event store missing
+    csv_files_count: int | None = None  # Number of CSV files found if event store missing
 
 
 @dataclass
@@ -71,9 +71,9 @@ class EventSourcingService:
 
     def __init__(
         self,
-        event_store_path: Optional[Path] = None,
-        projections_path: Optional[Path] = None,
-        workspace: Optional["Workspace"] = None,
+        event_store_path: Path | None = None,
+        projections_path: Path | None = None,
+        workspace: Workspace | None = None,
     ):
         """
         Initialize the service.
@@ -91,7 +91,7 @@ class EventSourcingService:
             self.event_store_path = event_store_path or Path("data/events.db")
             self.projections_path = projections_path or Path("data/projections.db")
 
-    def check_event_store_status(self, data_dir: Optional[Path] = None) -> EventStoreStatus:
+    def check_event_store_status(self, data_dir: Path | None = None) -> EventStoreStatus:
         """
         Check if event store exists and gather diagnostic info.
 
@@ -170,7 +170,7 @@ class EventSourcingService:
         return ProjectionBuilder(self.projections_path)
 
     def ensure_projections_up_to_date(
-        self, event_store: EventStore, projection_builder: Optional[ProjectionBuilder] = None
+        self, event_store: EventStore, projection_builder: ProjectionBuilder | None = None
     ) -> int:
         """
         Ensure projections are up to date, rebuilding if necessary.

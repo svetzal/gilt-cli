@@ -13,7 +13,6 @@ Privacy:
 """
 
 from datetime import date
-from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -26,14 +25,14 @@ class TransactionPair(BaseModel):
     txn1_description: str
     txn1_amount: float
     txn1_account: str
-    txn1_source_file: Optional[str] = None  # Which ingest file it came from
+    txn1_source_file: str | None = None  # Which ingest file it came from
 
     txn2_id: str
     txn2_date: date
     txn2_description: str
     txn2_amount: float
     txn2_account: str
-    txn2_source_file: Optional[str] = None  # Which ingest file it came from
+    txn2_source_file: str | None = None  # Which ingest file it came from
 
 
 class DuplicateAssessment(BaseModel):

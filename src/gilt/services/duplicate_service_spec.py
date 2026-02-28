@@ -1,10 +1,11 @@
-from unittest.mock import Mock
-from gilt.services.duplicate_service import DuplicateService
-from gilt.model.duplicate import TransactionPair, DuplicateAssessment, DuplicateMatch
-from gilt.model.events import DuplicateConfirmed, DuplicateRejected
-from gilt.transfer.duplicate_detector import DuplicateDetector
-from gilt.storage.event_store import EventStore
 from datetime import date
+from unittest.mock import Mock
+
+from gilt.model.duplicate import DuplicateAssessment, DuplicateMatch, TransactionPair
+from gilt.model.events import DuplicateConfirmed, DuplicateRejected
+from gilt.services.duplicate_service import DuplicateService
+from gilt.storage.event_store import EventStore
+from gilt.transfer.duplicate_detector import DuplicateDetector
 
 
 class DescribeDuplicateService:

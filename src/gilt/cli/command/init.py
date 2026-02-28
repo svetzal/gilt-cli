@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from .util import console
 from gilt.workspace import Workspace
 
+from .util import console
 
 _STARTER_ACCOUNTS_YML = """\
 # Accounts configuration

@@ -15,13 +15,12 @@ Options:
 """
 
 from pathlib import Path
-from typing import Optional
 
 from rich.console import Console
 from rich.table import Table
 
-from gilt.workspace import Workspace
 from gilt.services.event_sourcing_service import EventSourcingService
+from gilt.workspace import Workspace
 
 console = Console()
 
@@ -30,8 +29,8 @@ def run(
     workspace: Workspace,
     from_scratch: bool = False,
     incremental: bool = False,
-    events_db: Optional[Path] = None,
-    projections_db: Optional[Path] = None,
+    events_db: Path | None = None,
+    projections_db: Path | None = None,
 ) -> int:
     """Rebuild transaction projections from event store.
 

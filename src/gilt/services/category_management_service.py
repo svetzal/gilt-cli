@@ -19,7 +19,6 @@ All dependencies are injected. All functions return data structures.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 from gilt.model.account import TransactionGroup
 from gilt.model.category import Budget, BudgetPeriod, Category, CategoryConfig, Subcategory
@@ -30,7 +29,7 @@ class CategoryUsage:
     """Usage information for a category/subcategory."""
 
     category: str
-    subcategory: Optional[str]
+    subcategory: str | None
     transaction_count: int
     transaction_ids: list[str] = field(default_factory=list)
 
@@ -52,8 +51,8 @@ class AdditionResult:
     success: bool
     already_exists: bool
     errors: list[str] = field(default_factory=list)
-    added_category: Optional[str] = None
-    added_subcategory: Optional[str] = None
+    added_category: str | None = None
+    added_subcategory: str | None = None
 
 
 @dataclass
@@ -61,8 +60,8 @@ class BudgetUpdateResult:
     """Result of updating a budget."""
 
     success: bool
-    previous_budget: Optional[Budget] = None
-    new_budget: Optional[Budget] = None
+    previous_budget: Budget | None = None
+    new_budget: Budget | None = None
     errors: list[str] = field(default_factory=list)
 
 
@@ -97,7 +96,7 @@ class CategoryManagementService:
     def count_usage(
         self,
         category: str,
-        subcategory: Optional[str],
+        subcategory: str | None,
         transaction_groups: list[TransactionGroup],
     ) -> CategoryUsage:
         """
@@ -114,9 +113,8 @@ class CategoryManagementService:
         matching_ids: list[str] = []
 
         for group in transaction_groups:
-            if group.primary.category == category:
-                if subcategory is None or group.primary.subcategory == subcategory:
-                    matching_ids.append(group.primary.transaction_id)
+            if group.primary.category == category and (subcategory is None or group.primary.subcategory == subcategory):
+                matching_ids.append(group.primary.transaction_id)
 
         return CategoryUsage(
             category=category,
@@ -128,7 +126,7 @@ class CategoryManagementService:
     def plan_removal(
         self,
         category: str,
-        subcategory: Optional[str],
+        subcategory: str | None,
         transaction_groups: list[TransactionGroup],
         force: bool = False,
     ) -> RemovalPlan:
@@ -214,8 +212,8 @@ class CategoryManagementService:
     def add_category(
         self,
         category: str,
-        subcategory: Optional[str],
-        description: Optional[str] = None,
+        subcategory: str | None,
+        description: str | None = None,
     ) -> AdditionResult:
         """
         Add a new category or subcategory with validation.
@@ -343,7 +341,7 @@ class CategoryManagementService:
     def remove_category(
         self,
         category: str,
-        subcategory: Optional[str] = None,
+        subcategory: str | None = None,
     ) -> bool:
         """
         Actually remove a category/subcategory from config.

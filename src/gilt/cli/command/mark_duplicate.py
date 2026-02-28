@@ -11,23 +11,21 @@ Privacy:
 
 from __future__ import annotations
 
-from typing import Optional
-
 from rich.console import Console
-from rich.table import Table
 from rich.prompt import Prompt
+from rich.table import Table
 
-from gilt.workspace import Workspace
-from gilt.storage.projection import ProjectionBuilder
-from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.model.events import DuplicateConfirmed
+from gilt.services.event_sourcing_service import EventSourcingService
+from gilt.storage.projection import ProjectionBuilder
+from gilt.workspace import Workspace
 
 
 def _find_transaction_by_prefix(
     projection_builder: ProjectionBuilder,
     txid_prefix: str,
     console: Console,
-) -> Optional[dict]:
+) -> dict | None:
     """Find a transaction by ID prefix (min 8 chars).
 
     Args:

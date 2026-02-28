@@ -5,20 +5,20 @@ Budget reporting: compare actual spending vs budgeted amounts.
 """
 
 from datetime import date
-from typing import Optional
 
 from rich.table import Table
 
-from .util import console
-from gilt.services.budget_service import BudgetService, BudgetItem
+from gilt.services.budget_service import BudgetItem, BudgetService
 from gilt.workspace import Workspace
+
+from .util import console
 
 
 def run(
     *,
-    year: Optional[int] = None,
-    month: Optional[int] = None,
-    category: Optional[str] = None,
+    year: int | None = None,
+    month: int | None = None,
+    category: str | None = None,
     workspace: Workspace,
 ) -> int:
     """Display budget summary comparing actual spending vs budgeted amounts.
@@ -69,9 +69,9 @@ def run(
 
 def _display_budget_report(
     summary,
-    year: Optional[int],
-    month: Optional[int],
-    category_filter: Optional[str],
+    year: int | None,
+    month: int | None,
+    category_filter: str | None,
 ) -> None:
     """Display the budget report table.
 
@@ -82,10 +82,7 @@ def _display_budget_report(
         category_filter: Category filter (for title)
     """
     # Build title
-    if category_filter:
-        title = f"Budget Report: {category_filter}"
-    else:
-        title = "Budget Report"
+    title = f"Budget Report: {category_filter}" if category_filter else "Budget Report"
 
     if year and month:
         title += f" ({year}-{month:02d})"
@@ -131,16 +128,10 @@ def _add_budget_row_from_item(table: Table, item: BudgetItem) -> None:
         item: BudgetItem containing row data
     """
     # Format category name
-    if item.is_category_header:
-        category_name = f"[bold]{item.category_name}[/]"
-    else:
-        category_name = ""
+    category_name = f"[bold]{item.category_name}[/]" if item.is_category_header else ""
 
     # Format subcategory name
-    if item.subcategory_name:
-        subcategory_name = f"  {item.subcategory_name}"
-    else:
-        subcategory_name = ""
+    subcategory_name = f"  {item.subcategory_name}" if item.subcategory_name else ""
 
     # Format budget
     budget_str = f"${item.budget_amount:,.2f}" if item.budget_amount else "—"

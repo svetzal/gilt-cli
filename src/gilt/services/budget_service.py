@@ -6,13 +6,12 @@ Budget Service - Business logic for budget calculations
 Provides budget vs actual calculations, spending aggregation, and trend analysis.
 """
 
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-from datetime import date
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import date
+from pathlib import Path
 
-from gilt.model.category import Category, BudgetPeriod
+from gilt.model.category import BudgetPeriod, Category
 from gilt.model.category_io import load_categories_config
 from gilt.model.ledger_io import load_ledger_csv
 
@@ -22,12 +21,12 @@ class BudgetItem:
     """A budget item with actual spending comparison."""
 
     category_name: str
-    subcategory_name: Optional[str]
-    description: Optional[str]
-    budget_amount: Optional[float]  # Prorated for period
+    subcategory_name: str | None
+    description: str | None
+    budget_amount: float | None  # Prorated for period
     actual_amount: float
-    remaining: Optional[float]
-    percent_used: Optional[float]
+    remaining: float | None
+    percent_used: float | None
     is_over_budget: bool
     is_category_header: bool  # True for main category rows
 
@@ -41,7 +40,7 @@ class BudgetSummary:
     total_remaining: float
     percent_used: float
     over_budget_count: int
-    items: List[BudgetItem]
+    items: list[BudgetItem]
 
 
 class BudgetService:
@@ -60,9 +59,9 @@ class BudgetService:
 
     def get_budget_summary(
         self,
-        year: Optional[int] = None,
-        month: Optional[int] = None,
-        category_filter: Optional[str] = None,
+        year: int | None = None,
+        month: int | None = None,
+        category_filter: str | None = None,
     ) -> BudgetSummary:
         """
         Get budget summary for the specified period.
@@ -101,7 +100,7 @@ class BudgetService:
 
             # Aggregate actual spending for this category
             cat_actual = 0.0
-            subcat_actuals: Dict[str, float] = {}
+            subcat_actuals: dict[str, float] = {}
 
             for (spent_cat, spent_subcat), amount in spending.items():
                 if spent_cat == cat.name:
@@ -175,9 +174,9 @@ class BudgetService:
     def _calculate_budget_for_period(
         self,
         category: Category,
-        year: Optional[int],
-        month: Optional[int],
-    ) -> Optional[float]:
+        year: int | None,
+        month: int | None,
+    ) -> float | None:
         """
         Calculate budget amount for the specified period.
 
@@ -207,10 +206,10 @@ class BudgetService:
 
     def _aggregate_spending(
         self,
-        year: Optional[int],
-        month: Optional[int],
-        category_filter: Optional[str],
-    ) -> Dict[Tuple[str, Optional[str]], float]:
+        year: int | None,
+        month: int | None,
+        category_filter: str | None,
+    ) -> dict[tuple[str, str | None], float]:
         """
         Aggregate spending by category/subcategory for the specified period.
 
@@ -222,7 +221,7 @@ class BudgetService:
         Returns:
             Dict mapping (category, subcategory) to total amount spent
         """
-        spending: Dict[Tuple[str, Optional[str]], float] = defaultdict(float)
+        spending: dict[tuple[str, str | None], float] = defaultdict(float)
 
         try:
             for ledger_path in sorted(self.data_dir.glob("*.csv")):
@@ -260,9 +259,9 @@ class BudgetService:
 
     def get_spending_by_category(
         self,
-        year: Optional[int] = None,
-        month: Optional[int] = None,
-    ) -> Dict[str, float]:
+        year: int | None = None,
+        month: int | None = None,
+    ) -> dict[str, float]:
         """
         Get spending aggregated by category only (no subcategories).
 
@@ -276,7 +275,7 @@ class BudgetService:
         spending = self._aggregate_spending(year, month, None)
 
         # Roll up to category level
-        category_totals: Dict[str, float] = defaultdict(float)
+        category_totals: dict[str, float] = defaultdict(float)
         for (category, _), amount in spending.items():
             category_totals[category] += amount
 
@@ -284,8 +283,8 @@ class BudgetService:
 
     def get_total_spending(
         self,
-        year: Optional[int] = None,
-        month: Optional[int] = None,
+        year: int | None = None,
+        month: int | None = None,
     ) -> float:
         """
         Get total spending for the period.

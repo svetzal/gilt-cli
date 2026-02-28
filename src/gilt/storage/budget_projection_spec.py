@@ -7,16 +7,16 @@ Validates budget event replay, historical queries, and time-travel capabilities.
 from __future__ import annotations
 
 import tempfile
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
-from datetime import datetime, date, timedelta
 from uuid import uuid4
 
 import pytest
 
-from gilt.model.events import BudgetCreated, BudgetUpdated, BudgetDeleted
+from gilt.model.events import BudgetCreated, BudgetDeleted, BudgetUpdated
+from gilt.storage.budget_projection import BudgetProjection, BudgetProjectionBuilder
 from gilt.storage.event_store import EventStore
-from gilt.storage.budget_projection import BudgetProjectionBuilder, BudgetProjection
 
 
 class DescribeBudgetProjectionBuilder:

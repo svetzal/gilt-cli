@@ -83,11 +83,18 @@ exclude = [
 ]
 
 [tool.ruff.lint]
-# Keep it minimal; you can enable more rulesets later
-select = ["E", "F"]
-# E402: all source files use module docstrings before imports (intentional style)
+select = ["E", "F", "B", "C90", "I", "SIM", "UP"]
+# E402: source files use module docstrings before imports (intentional style)
 # E501: line length enforced by ruff format; remaining violations are unbreakable strings
-ignore = ["E402", "E501"]
+# B008: typer.Option / Qt defaults in function signatures are idiomatic for those frameworks
+# C901: complex functions tracked separately; refactoring deferred to focused PRs
+ignore = ["E402", "E501", "B008", "C901"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 12
+
+[tool.ruff.lint.isort]
+known-first-party = ["gilt"]
 
 
 [tool.pyright]

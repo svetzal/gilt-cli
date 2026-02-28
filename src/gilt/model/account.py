@@ -14,13 +14,12 @@ Privacy
 - Keep usage local. Do not log raw descriptions externally.
 """
 
-from datetime import date, datetime
-from typing import Any, Dict, List, Optional
-from enum import Enum
 import json
+from datetime import date, datetime
+from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, Field, computed_field, model_validator
-
 
 # ------------------------------
 # Accounts (mirrors config file)
@@ -34,14 +33,14 @@ class ImportHints(BaseModel):
     a strict schema. Values may be refined later.
     """
 
-    date_format: Optional[str] = Field(default="auto", description="Date parsing format or 'auto'.")
-    decimal: Optional[str] = Field(default=".")
-    thousands: Optional[str] = Field(default=",")
-    amount_sign: Optional[str] = Field(default="expenses_negative")
-    possible_columns: Optional[Dict[str, List[str]]] = None
+    date_format: str | None = Field(default="auto", description="Date parsing format or 'auto'.")
+    decimal: str | None = Field(default=".")
+    thousands: str | None = Field(default=",")
+    amount_sign: str | None = Field(default="expenses_negative")
+    possible_columns: dict[str, list[str]] | None = None
 
 
-class AccountNature(str, Enum):
+class AccountNature(StrEnum):
     asset = "asset"
     liability = "liability"
 
@@ -54,12 +53,12 @@ class Account(BaseModel):
     """
 
     account_id: str
-    institution: Optional[str] = None
-    product: Optional[str] = None
-    currency: Optional[str] = None
-    description: Optional[str] = None
-    source_patterns: Optional[List[str]] = None
-    import_hints: Optional[ImportHints] = None
+    institution: str | None = None
+    product: str | None = None
+    currency: str | None = None
+    description: str | None = None
+    source_patterns: list[str] | None = None
+    import_hints: ImportHints | None = None
     nature: AccountNature = Field(
         default=AccountNature.asset,
         description="Account nature for sign semantics: asset or liability (credit)",
@@ -84,14 +83,14 @@ class Transaction(BaseModel):
     amount: float
     currency: str = "CAD"
     account_id: str
-    counterparty: Optional[str] = None
-    category: Optional[str] = None
-    subcategory: Optional[str] = None
-    notes: Optional[str] = None
-    source_file: Optional[str] = None
-    vendor: Optional[str] = None
-    service: Optional[str] = None
-    metadata: Dict[str, Any] = Field(
+    counterparty: str | None = None
+    category: str | None = None
+    subcategory: str | None = None
+    notes: str | None = None
+    source_file: str | None = None
+    vendor: str | None = None
+    service: str | None = None
+    metadata: dict[str, Any] = Field(
         default_factory=dict, description="Freeform, local-only metadata"
     )
 
@@ -114,7 +113,7 @@ class Transaction(BaseModel):
         return hashlib.sha256(self.description.encode("utf-8")).hexdigest()[:8]
 
     @classmethod
-    def from_projection_row(cls, row: dict) -> "Transaction":
+    def from_projection_row(cls, row: dict) -> Transaction:
         """Construct a Transaction from a projection database row dict.
 
         Projection rows use different field names than the Transaction model:
@@ -161,15 +160,15 @@ class SplitLine(BaseModel):
     - Future: allocate to another internal account_id for direct transfer posting.
     """
 
-    line_id: Optional[str] = None
+    line_id: str | None = None
     amount: float
     # Optional target account for double-entry style modeling (future-friendly)
-    target_account_id: Optional[str] = None
+    target_account_id: str | None = None
     # Category tagging (coarse and fine)
-    category: Optional[str] = None
-    subcategory: Optional[str] = None
-    memo: Optional[str] = None
-    percent: Optional[float] = Field(default=None, ge=0, le=100)
+    category: str | None = None
+    subcategory: str | None = None
+    memo: str | None = None
+    percent: float | None = Field(default=None, ge=0, le=100)
 
 
 class TransactionGroup(BaseModel):
@@ -185,7 +184,7 @@ class TransactionGroup(BaseModel):
 
     group_id: str
     primary: Transaction
-    splits: List[SplitLine] = Field(default_factory=list)
+    splits: list[SplitLine] = Field(default_factory=list)
     tolerance: float = Field(
         default=0.01, ge=0.0, description="Allowed difference between sum(splits) and amount"
     )
@@ -201,7 +200,7 @@ class TransactionGroup(BaseModel):
         return bool(self.splits)
 
     @model_validator(mode="after")
-    def _validate_splits_total(self) -> "TransactionGroup":
+    def _validate_splits_total(self) -> TransactionGroup:
         if self.splits:
             diff = abs(self.total_splits - self.primary.amount)
             if diff > self.tolerance:
@@ -212,7 +211,7 @@ class TransactionGroup(BaseModel):
         return self
 
     @classmethod
-    def from_projection_row(cls, row: dict) -> "TransactionGroup":
+    def from_projection_row(cls, row: dict) -> TransactionGroup:
         """Construct a TransactionGroup from a projection database row dict.
 
         Args:
@@ -235,15 +234,15 @@ class TransferLink(BaseModel):
     refer to linked pairs without exposing raw descriptions.
     """
 
-    link_id: Optional[str] = None
+    link_id: str | None = None
     debit_account_id: str
     debit_transaction_id: str
     credit_account_id: str
     credit_transaction_id: str
     amount: float
-    method: Optional[str] = None
-    score: Optional[float] = Field(default=None, ge=0.0, le=1.0)
-    notes: Optional[str] = None
+    method: str | None = None
+    score: float | None = Field(default=None, ge=0.0, le=1.0)
+    notes: str | None = None
 
 
 __all__ = [

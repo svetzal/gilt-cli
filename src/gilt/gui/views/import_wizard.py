@@ -12,34 +12,32 @@ Guides users through:
 """
 
 from pathlib import Path
-from typing import List, Optional, Dict
 
+from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtGui import QDragEnterEvent, QDropEvent
 from PySide6.QtWidgets import (
-    QWizard,
-    QWizardPage,
-    QVBoxLayout,
+    QCheckBox,
+    QComboBox,
+    QFileDialog,
+    QGroupBox,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
-    QPushButton,
     QListWidget,
+    QMessageBox,
+    QProgressBar,
+    QPushButton,
     QTableWidget,
     QTableWidgetItem,
-    QHeaderView,
-    QFileDialog,
-    QComboBox,
-    QCheckBox,
-    QProgressBar,
     QTextEdit,
-    QGroupBox,
-    QMessageBox,
+    QVBoxLayout,
+    QWizard,
+    QWizardPage,
 )
-from PySide6.QtCore import Qt, Signal, QThread
-from PySide6.QtGui import QDragEnterEvent, QDropEvent
 
-from gilt.gui.services.import_service import ImportService, ImportFileMapping, ImportResult
-from gilt.gui.views.duplicate_review_page import DuplicateReviewPage
+from gilt.gui.services.import_service import ImportFileMapping, ImportResult, ImportService
 from gilt.gui.views.categorization_review_page import CategorizationReviewPage
-
+from gilt.gui.views.duplicate_review_page import DuplicateReviewPage
 
 # Page IDs
 PAGE_SELECT_FILES = 0
@@ -61,10 +59,10 @@ class ImportWorker(QThread):
     def __init__(
         self,
         service: ImportService,
-        mappings: List[ImportFileMapping],
+        mappings: list[ImportFileMapping],
         write: bool,
-        exclude_ids: Optional[List[str]] = None,
-        categorization_map: Optional[Dict[str, str]] = None,
+        exclude_ids: list[str] | None = None,
+        categorization_map: dict[str, str] | None = None,
     ):
         super().__init__()
         self.service = service
@@ -88,9 +86,9 @@ class ImportWorker(QThread):
                 file_progress_start = int((i / len(self.mappings)) * 100)
                 file_progress_end = int(((i + 1) / len(self.mappings)) * 100)
 
-                def progress_callback(pct):
-                    overall = file_progress_start + int(
-                        (pct / 100) * (file_progress_end - file_progress_start)
+                def progress_callback(pct, _start=file_progress_start, _end=file_progress_end):
+                    overall = _start + int(
+                        (pct / 100) * (_end - _start)
                     )
                     self.progress.emit(overall)
 
@@ -147,7 +145,7 @@ class FileSelectionPage(QWizardPage):
             "Choose one or more bank CSV files to import. You can drag and drop files or use the file browser."
         )
 
-        self.selected_files: List[Path] = []
+        self.selected_files: list[Path] = []
 
         self._init_ui()
 
@@ -202,10 +200,9 @@ class FileSelectionPage(QWizardPage):
         urls = event.mimeData().urls()
         for url in urls:
             path = Path(url.toLocalFile())
-            if path.is_file() and path.suffix.lower() == ".csv":
-                if path not in self.selected_files:
-                    self.selected_files.append(path)
-                    self.file_list.addItem(path.name)
+            if path.is_file() and path.suffix.lower() == ".csv" and path not in self.selected_files:
+                self.selected_files.append(path)
+                self.file_list.addItem(path.name)
 
         self._update_info()
         self.completeChanged.emit()
@@ -259,7 +256,7 @@ class FileSelectionPage(QWizardPage):
         """Check if page is complete."""
         return len(self.selected_files) > 0
 
-    def get_selected_files(self) -> List[Path]:
+    def get_selected_files(self) -> list[Path]:
         """Get selected file paths."""
         return self.selected_files
 
@@ -274,7 +271,7 @@ class AccountMappingPage(QWizardPage):
         self.setTitle("Account Mapping")
         self.setSubTitle("Review and confirm which account each file should be imported to.")
 
-        self.mappings: List[ImportFileMapping] = []
+        self.mappings: list[ImportFileMapping] = []
 
         self._init_ui()
 
@@ -387,7 +384,7 @@ class AccountMappingPage(QWizardPage):
         # All files must have an account selected
         return all(m.selected_account_id for m in self.mappings)
 
-    def get_mappings(self) -> List[ImportFileMapping]:
+    def get_mappings(self) -> list[ImportFileMapping]:
         """Get file mappings."""
         return self.mappings
 
@@ -558,7 +555,7 @@ class ExecutePage(QWizardPage):
 
         self.import_complete = False
         self.import_successful = False
-        self.worker: Optional[ImportWorker] = None
+        self.worker: ImportWorker | None = None
 
         self._init_ui()
 
@@ -632,10 +629,10 @@ class ExecutePage(QWizardPage):
     def _start_import(
         self,
         service: ImportService,
-        mappings: List[ImportFileMapping],
+        mappings: list[ImportFileMapping],
         write: bool,
         exclude_ids: set[str] = None,
-        categorization_map: Dict[str, str] = None,
+        categorization_map: dict[str, str] = None,
     ):
         """Start the import operation in a background thread."""
         exclude_list = list(exclude_ids) if exclude_ids else None

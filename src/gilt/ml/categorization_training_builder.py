@@ -6,7 +6,6 @@ an ML classifier that can automatically categorize new transactions.
 
 from __future__ import annotations
 
-from typing import List, Tuple
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 
@@ -37,7 +36,7 @@ class CategorizationTrainingBuilder:
         )
         self._is_fitted = False
 
-    def load_from_events(self, source_filter: str = "user") -> Tuple[List[dict], List[str]]:
+    def load_from_events(self, source_filter: str = "user") -> tuple[list[dict], list[str]]:
         """Load training examples from TransactionCategorized events.
 
         Args:
@@ -49,8 +48,8 @@ class CategorizationTrainingBuilder:
             - transaction_data: List of dicts with transaction info
             - category_labels: List of "Category:Subcategory" strings
         """
-        transaction_data: List[dict] = []
-        category_labels: List[str] = []
+        transaction_data: list[dict] = []
+        category_labels: list[str] = []
 
         # Get all categorization events from specified source
         events = self.event_store.get_events_by_type("TransactionCategorized")
@@ -98,7 +97,7 @@ class CategorizationTrainingBuilder:
 
         return transaction_data, category_labels
 
-    def build_features(self, transaction_data: List[dict]) -> np.ndarray:
+    def build_features(self, transaction_data: list[dict]) -> np.ndarray:
         """Build feature vectors from transaction data.
 
         Features include:
@@ -141,7 +140,7 @@ class CategorizationTrainingBuilder:
         self,
         source_filter: str = "user",
         min_samples_per_category: int = 2,
-    ) -> Tuple[np.ndarray, np.ndarray, List[str]]:
+    ) -> tuple[np.ndarray, np.ndarray, list[str]]:
         """Get complete training dataset with features and labels.
 
         Args:
@@ -172,7 +171,7 @@ class CategorizationTrainingBuilder:
         # Filter data
         filtered_txns = []
         filtered_labels = []
-        for txn, label in zip(transaction_data, category_labels):
+        for txn, label in zip(transaction_data, category_labels, strict=False):
             if label in valid_categories:
                 filtered_txns.append(txn)
                 filtered_labels.append(label)

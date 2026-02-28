@@ -16,19 +16,18 @@ Privacy: All processing is local-only. No network I/O.
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from pathlib import Path
-from typing import Dict, List, Optional
-import json
 
 from gilt.model.events import (
-    Event,
-    TransactionImported,
-    TransactionDescriptionObserved,
-    TransactionCategorized,
-    TransactionEnriched,
     DuplicateConfirmed,
     DuplicateRejected,
+    Event,
+    TransactionCategorized,
+    TransactionDescriptionObserved,
+    TransactionEnriched,
+    TransactionImported,
 )
 from gilt.storage.event_store import EventStore
 
@@ -190,7 +189,7 @@ class ProjectionBuilder:
             conn.close()
 
     def _apply_events(
-        self, conn: sqlite3.Connection, events: List[Event], start_sequence: int
+        self, conn: sqlite3.Connection, events: list[Event], start_sequence: int
     ) -> int:
         """Apply a list of events to projections.
 
@@ -459,7 +458,7 @@ class ProjectionBuilder:
             ),
         )
 
-    def get_transaction(self, transaction_id: str) -> Optional[Dict]:
+    def get_transaction(self, transaction_id: str) -> dict | None:
         """Retrieve a single transaction projection.
 
         Args:
@@ -479,7 +478,7 @@ class ProjectionBuilder:
         finally:
             conn.close()
 
-    def get_all_transactions(self, include_duplicates: bool = False) -> List[Dict]:
+    def get_all_transactions(self, include_duplicates: bool = False) -> list[dict]:
         """Retrieve all transaction projections.
 
         Args:

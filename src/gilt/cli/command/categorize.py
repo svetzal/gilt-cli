@@ -1,32 +1,31 @@
 from __future__ import annotations
 
-from pathlib import Path
-from typing import List, Optional
 from datetime import datetime
+from pathlib import Path
 
 import typer
 from rich.table import Table
 
-from .util import console
-from gilt.workspace import Workspace
-from gilt.model.category_io import load_categories_config, parse_category_path
-from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
 from gilt.model.account import TransactionGroup
-from gilt.services.transaction_operations_service import (
-    TransactionOperationsService,
-    SearchCriteria,
-)
+from gilt.model.category_io import load_categories_config, parse_category_path
+from gilt.model.events import TransactionCategorized
+from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
 from gilt.services.categorization_service import CategorizationService
 from gilt.services.event_sourcing_service import EventSourcingService
-from gilt.storage.projection import ProjectionBuilder
+from gilt.services.transaction_operations_service import (
+    SearchCriteria,
+    TransactionOperationsService,
+)
 from gilt.storage.event_store import EventStore
-from gilt.model.events import TransactionCategorized
+from gilt.storage.projection import ProjectionBuilder
+from gilt.workspace import Workspace
 
+from .util import console
 
 """Categorize transactions (single or batch mode)."""
 
 
-def _find_account_ledgers(data_dir: Path, account: Optional[str]) -> List[Path]:
+def _find_account_ledgers(data_dir: Path, account: str | None) -> list[Path]:
     """Find ledger files to process."""
     if account:
         ledger_path = data_dir / f"{account}.csv"
@@ -40,19 +39,19 @@ def _find_account_ledgers(data_dir: Path, account: Optional[str]) -> List[Path]:
 
 def run(
     *,
-    account: Optional[str] = None,
-    txid: Optional[str] = None,
-    description: Optional[str] = None,
-    desc_prefix: Optional[str] = None,
-    pattern: Optional[str] = None,
-    amount: Optional[float] = None,
+    account: str | None = None,
+    txid: str | None = None,
+    description: str | None = None,
+    desc_prefix: str | None = None,
+    pattern: str | None = None,
+    amount: float | None = None,
     category: str,
-    subcategory: Optional[str] = None,
+    subcategory: str | None = None,
     assume_yes: bool = False,
     workspace: Workspace,
     write: bool = False,
-    service: Optional[TransactionOperationsService] = None,
-    categorization_service: Optional[CategorizationService] = None,
+    service: TransactionOperationsService | None = None,
+    categorization_service: CategorizationService | None = None,
 ) -> int:
     """Categorize transactions in ledger files.
 
@@ -165,7 +164,7 @@ def run(
 
     # Convert projection rows to TransactionGroup objects for service operations
     # Group by account_id to maintain mapping for CSV writes
-    groups_by_account: dict[str, List[TransactionGroup]] = {}
+    groups_by_account: dict[str, list[TransactionGroup]] = {}
     for row in all_transactions:
         account_id = row["account_id"]
         if account_id not in groups_by_account:
@@ -177,7 +176,7 @@ def run(
 
     # Process groups using service for finding matches
     total_matched = 0
-    all_matches: List[tuple[str, TransactionGroup]] = []  # (account_id, group)
+    all_matches: list[tuple[str, TransactionGroup]] = []  # (account_id, group)
 
     for account_id, groups in groups_by_account.items():
         # Use service for finding matches
@@ -248,10 +247,11 @@ def run(
             import sys
 
             # Only prompt if in an interactive terminal
-            if sys.stdin.isatty():
-                if not typer.confirm(f"Categorize {total_matched} transaction(s)?"):
-                    console.print("Cancelled")
-                    return 0
+            if sys.stdin.isatty() and not typer.confirm(
+                f"Categorize {total_matched} transaction(s)?"
+            ):
+                console.print("Cancelled")
+                return 0
             # Non-interactive environment (e.g., tests): proceed without prompting
 
     if not write:
@@ -267,7 +267,7 @@ def run(
 
     # Write back to ledger files by account
     # Group by account_id and load CSV, apply updates, write back
-    by_account: dict[str, List[tuple[str, TransactionGroup]]] = {}
+    by_account: dict[str, list[tuple[str, TransactionGroup]]] = {}
     for account_id, group in all_matches:
         if account_id not in by_account:
             by_account[account_id] = []
@@ -276,7 +276,7 @@ def run(
     # Map updated transactions by ID for lookup
     updated_by_id = {g.primary.transaction_id: g for g in result.updated_transactions}
 
-    for account_id, items in by_account.items():
+    for account_id, _items in by_account.items():
         ledger_path = workspace.ledger_data_dir / f"{account_id}.csv"
         if not ledger_path.exists():
             console.print(f"[yellow]Warning: Ledger not found for {account_id}[/yellow]")
@@ -317,9 +317,9 @@ def run(
 
 
 def _display_matches(
-    matches: List[tuple[str, TransactionGroup]],
+    matches: list[tuple[str, TransactionGroup]],
     category: str,
-    subcategory: Optional[str],
+    subcategory: str | None,
 ) -> None:
     """Display matched transactions in a table."""
     table = Table(title="Matched Transactions", show_lines=False)

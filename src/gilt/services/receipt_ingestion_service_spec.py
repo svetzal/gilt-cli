@@ -109,7 +109,7 @@ class DescribeReceiptDataParsing:
 
             try:
                 ReceiptData.from_json_file(path)
-                assert False, "Should have raised ValueError"
+                raise AssertionError("Should have raised ValueError")
             except ValueError as e:
                 assert "Unsupported schema" in str(e)
 

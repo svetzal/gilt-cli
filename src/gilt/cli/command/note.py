@@ -4,14 +4,15 @@ from __future__ import annotations
 
 from rich.table import Table
 
-from .util import console
 from gilt.model.account import TransactionGroup
 from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
 from gilt.services.transaction_operations_service import (
-    TransactionOperationsService,
     SearchCriteria,
+    TransactionOperationsService,
 )
 from gilt.workspace import Workspace
+
+from .util import console
 
 
 def _highlight_prefix(desc: str, prefix: str, style: str = "bold yellow") -> str:

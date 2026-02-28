@@ -16,8 +16,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from gilt.model.duplicate import TransactionPair, DuplicateAssessment, DuplicateMatch
-from gilt.model.events import DuplicateSuggested, DuplicateConfirmed, DuplicateRejected
+from gilt.model.duplicate import DuplicateAssessment, DuplicateMatch, TransactionPair
+from gilt.model.events import DuplicateConfirmed, DuplicateRejected, DuplicateSuggested
 from gilt.services.duplicate_review_service import (
     DuplicateReviewService,
     UserDecision,

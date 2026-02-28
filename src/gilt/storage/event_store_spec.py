@@ -2,16 +2,16 @@
 Tests for event store.
 """
 
+import tempfile
 from decimal import Decimal
 from pathlib import Path
-import tempfile
 
 import pytest
 
 from gilt.model.events import (
-    TransactionImported,
     DuplicateSuggested,
     TransactionCategorized,
+    TransactionImported,
 )
 from gilt.storage.event_store import EventStore
 

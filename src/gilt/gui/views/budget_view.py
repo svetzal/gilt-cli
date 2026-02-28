@@ -6,27 +6,27 @@ Budget View - View for tracking budget vs actual spending
 Shows budget comparison with color-coded indicators and summary statistics.
 """
 
-from pathlib import Path
 from datetime import date
+from pathlib import Path
 
-from PySide6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QLabel,
-    QPushButton,
-    QTableWidget,
-    QTableWidgetItem,
-    QHeaderView,
-    QComboBox,
-    QSpinBox,
-    QApplication,
-)
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPalette
+from PySide6.QtWidgets import (
+    QApplication,
+    QComboBox,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QPushButton,
+    QSpinBox,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
 
-from gilt.services.budget_service import BudgetService
 from gilt.gui.theme import Theme
+from gilt.services.budget_service import BudgetService
 
 
 class BudgetView(QWidget):

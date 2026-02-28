@@ -12,12 +12,11 @@ Privacy:
 - No external network calls.
 """
 
-from pathlib import Path
 import json
 from datetime import datetime
+from pathlib import Path
 
 from gilt.model.duplicate import TransactionPair
-
 
 DEFAULT_PROMPT_TEMPLATE = """You are analyzing bank transactions to detect duplicates.
 

@@ -7,15 +7,15 @@ and that projections rebuilt from events match the original data.
 
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
-from decimal import Decimal
 import csv
+import tempfile
+from decimal import Decimal
+from pathlib import Path
 
 import pytest
 
 from gilt.cli.command import backfill_events
-from gilt.model.events import BudgetCreated, TransactionImported, TransactionCategorized
+from gilt.model.events import BudgetCreated, TransactionCategorized, TransactionImported
 from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace

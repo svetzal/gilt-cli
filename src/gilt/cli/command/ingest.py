@@ -1,20 +1,20 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
-from typing import List, Dict, Iterable, Tuple, Optional
 
-from gilt.storage.event_store import EventStore
-
-from .util import console
-from gilt.workspace import Workspace
 from gilt.ingest import load_accounts_config, normalize_file
 from gilt.model.ledger_io import load_ledger_csv
-from gilt.services.ingestion_service import IngestionService
 from gilt.services.event_sourcing_service import EventSourcingService
+from gilt.services.ingestion_service import IngestionService
+from gilt.storage.event_store import EventStore
 from gilt.transfer.linker import link_transfers
+from gilt.workspace import Workspace
+
+from .util import console
 
 
-def _print_plan(plan: Iterable[Tuple[Path, str | None]], total_files: int) -> None:
+def _print_plan(plan: Iterable[tuple[Path, str | None]], total_files: int) -> None:
     console.print("[bold]Ingestion/Normalization Plan (dry-run)[/]")
     console.print(f"Inputs matched: {total_files}")
     for p, acct_id in plan:
@@ -22,8 +22,8 @@ def _print_plan(plan: Iterable[Tuple[Path, str | None]], total_files: int) -> No
     console.print("No files were read. No outputs were written.")
 
 
-def _ledger_paths_to_load(output_dir: Path, accounts) -> List[Path]:
-    paths: List[Path] = []
+def _ledger_paths_to_load(output_dir: Path, accounts) -> list[Path]:
+    paths: list[Path] = []
     # Prefer configured accounts if available
     if accounts:
         for acct in accounts:
@@ -37,8 +37,8 @@ def _ledger_paths_to_load(output_dir: Path, accounts) -> List[Path]:
     return paths
 
 
-def _load_ledger_counts(paths: Iterable[Path]) -> Dict[str, int]:
-    counts: Dict[str, int] = {}
+def _load_ledger_counts(paths: Iterable[Path]) -> dict[str, int]:
+    counts: dict[str, int] = {}
     for lp in paths:
         try:
             text = lp.read_text(encoding="utf-8")
@@ -50,10 +50,10 @@ def _load_ledger_counts(paths: Iterable[Path]) -> Dict[str, int]:
 
 
 def _perform_normalization(
-    plan: Iterable[Tuple[Path, str | None]],
+    plan: Iterable[tuple[Path, str | None]],
     output_dir: Path,
-    event_store: Optional[EventStore] = None,
-) -> Tuple[int, int]:
+    event_store: EventStore | None = None,
+) -> tuple[int, int]:
     written = 0
     skipped = 0
     for p, acct_id in plan:

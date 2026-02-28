@@ -6,7 +6,6 @@ categorize new transactions based on their descriptions and amounts.
 
 from __future__ import annotations
 
-from typing import List, Optional, Tuple
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
@@ -54,7 +53,7 @@ class CategorizationClassifier:
             class_weight="balanced",  # Handle imbalanced categories
         )
 
-        self.category_names: List[str] = []
+        self.category_names: list[str] = []
         self.is_trained = False
         self.training_metrics: dict = {}
 
@@ -110,9 +109,9 @@ class CategorizationClassifier:
 
     def predict(
         self,
-        transaction_data: List[dict],
+        transaction_data: list[dict],
         confidence_threshold: float = 0.6,
-    ) -> List[Tuple[Optional[str], float]]:
+    ) -> list[tuple[str | None, float]]:
         """Predict categories for transactions.
 
         Args:
@@ -138,13 +137,10 @@ class CategorizationClassifier:
 
         # Convert to category names with confidence filtering
         results = []
-        for pred_idx, probs in zip(predictions, probabilities):
+        for pred_idx, probs in zip(predictions, probabilities, strict=False):
             confidence = float(np.max(probs))
 
-            if confidence >= confidence_threshold:
-                category = self.category_names[pred_idx]
-            else:
-                category = None
+            category = self.category_names[pred_idx] if confidence >= confidence_threshold else None
 
             results.append((category, confidence))
 
@@ -156,7 +152,7 @@ class CategorizationClassifier:
         amount: float,
         account: str,
         confidence_threshold: float = 0.6,
-    ) -> Tuple[Optional[str], float]:
+    ) -> tuple[str | None, float]:
         """Predict category for a single transaction.
 
         Args:
@@ -181,7 +177,7 @@ class CategorizationClassifier:
         results = self.predict(transaction_data, confidence_threshold)
         return results[0] if results else (None, 0.0)
 
-    def get_feature_importance(self, top_n: int = 20) -> List[Tuple[str, float]]:
+    def get_feature_importance(self, top_n: int = 20) -> list[tuple[str, float]]:
         """Get most important features for classification.
 
         Args:

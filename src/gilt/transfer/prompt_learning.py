@@ -15,15 +15,14 @@ Privacy:
 """
 
 from dataclasses import dataclass
-from typing import List, Optional
 
-from gilt.storage.event_store import EventStore
 from gilt.model.events import (
-    DuplicateSuggested,
     DuplicateConfirmed,
     DuplicateRejected,
+    DuplicateSuggested,
     PromptUpdated,
 )
+from gilt.storage.event_store import EventStore
 
 
 @dataclass
@@ -190,7 +189,7 @@ class PromptLearningService:
             evidence_count=total,
         )
 
-    def identify_learned_patterns(self) -> List[LearnedPattern]:
+    def identify_learned_patterns(self) -> list[LearnedPattern]:
         """Identify all learned patterns from feedback history.
 
         Returns:
@@ -213,7 +212,7 @@ class PromptLearningService:
 
         return patterns
 
-    def generate_prompt_update(self, current_version: str = "v1") -> Optional[PromptUpdated]:
+    def generate_prompt_update(self, current_version: str = "v1") -> PromptUpdated | None:
         """Generate a PromptUpdated event if enough learning has occurred.
 
         Args:
@@ -257,22 +256,22 @@ class PromptLearningService:
             },
         )
 
-    def _get_all_suggestions(self) -> List[DuplicateSuggested]:
+    def _get_all_suggestions(self) -> list[DuplicateSuggested]:
         """Get all DuplicateSuggested events."""
         events = self.event_store.get_events_by_type("DuplicateSuggested")
         return [e for e in events if isinstance(e, DuplicateSuggested)]
 
-    def _get_all_confirmations(self) -> List[DuplicateConfirmed]:
+    def _get_all_confirmations(self) -> list[DuplicateConfirmed]:
         """Get all DuplicateConfirmed events."""
         events = self.event_store.get_events_by_type("DuplicateConfirmed")
         return [e for e in events if isinstance(e, DuplicateConfirmed)]
 
-    def _get_all_rejections(self) -> List[DuplicateRejected]:
+    def _get_all_rejections(self) -> list[DuplicateRejected]:
         """Get all DuplicateRejected events."""
         events = self.event_store.get_events_by_type("DuplicateRejected")
         return [e for e in events if isinstance(e, DuplicateRejected)]
 
-    def _analyze_false_positives(self) -> List[LearnedPattern]:
+    def _analyze_false_positives(self) -> list[LearnedPattern]:
         """Analyze false positives to identify common mistakes.
 
         Returns:
@@ -316,7 +315,7 @@ class PromptLearningService:
 
         return patterns
 
-    def _analyze_true_positives(self) -> List[LearnedPattern]:
+    def _analyze_true_positives(self) -> list[LearnedPattern]:
         """Analyze true positives to reinforce good patterns.
 
         Returns:

@@ -8,12 +8,12 @@ Allows users to add or update notes on transactions.
 
 from PySide6.QtWidgets import (
     QDialog,
-    QVBoxLayout,
+    QDialogButtonBox,
     QHBoxLayout,
     QLabel,
-    QTextEdit,
     QPushButton,
-    QDialogButtonBox,
+    QTextEdit,
+    QVBoxLayout,
 )
 
 

@@ -14,7 +14,6 @@ from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
-from typing import Optional
 
 
 @dataclass
@@ -22,15 +21,15 @@ class ReceiptData:
     """Parsed receipt from a mailctl.receipt.v1 JSON sidecar file."""
 
     vendor: str
-    service: Optional[str]
+    service: str | None
     amount: Decimal
     currency: str
-    tax_amount: Optional[Decimal]
-    tax_type: Optional[str]
+    tax_amount: Decimal | None
+    tax_type: str | None
     receipt_date: date
-    invoice_number: Optional[str]
-    source_email: Optional[str]
-    receipt_file: Optional[str]
+    invoice_number: str | None
+    source_email: str | None
+    receipt_file: str | None
     source_path: Path  # path to the JSON file itself
 
     @classmethod
@@ -79,14 +78,14 @@ class MatchResult:
 
     receipt: ReceiptData
     status: str  # "matched", "ambiguous", "unmatched"
-    transaction_id: Optional[str] = None
+    transaction_id: str | None = None
     candidate_count: int = 0
-    current_description: Optional[str] = None
+    current_description: str | None = None
     candidates: list[dict] = field(default_factory=list)
-    match_confidence: Optional[str] = None  # "exact", "fx-adjusted", "pattern-assisted"
+    match_confidence: str | None = None  # "exact", "fx-adjusted", "pattern-assisted"
 
 
-def scan_receipt_files(source_dir: Path, year: Optional[int] = None) -> list[Path]:
+def scan_receipt_files(source_dir: Path, year: int | None = None) -> list[Path]:
     """Recursively find all JSON files in source_dir.
 
     Args:
@@ -168,10 +167,10 @@ _PATTERN_AMOUNT_PCT = Decimal("0.08")  # 8% tolerance for vendor-pattern matches
 def match_receipt_to_transactions(
     receipt: ReceiptData,
     transactions: list[dict],
-    account_id: Optional[str] = None,
+    account_id: str | None = None,
     amount_tolerance: Decimal = Decimal("0.02"),
     date_window_days: int = 3,
-    vendor_patterns: Optional[dict[str, list[str]]] = None,
+    vendor_patterns: dict[str, list[str]] | None = None,
 ) -> MatchResult:
     """Match a receipt to bank transactions using multi-strategy matching.
 
@@ -227,24 +226,21 @@ def match_receipt_to_transactions(
         )
 
         # Strategy 1: Exact match (vendor-filtered when patterns exist)
-        if amount_diff <= amount_tolerance and days_diff <= date_window_days:
-            if desc_matches_vendor:
-                exact_candidates.append(txn)
+        if amount_diff <= amount_tolerance and days_diff <= date_window_days and desc_matches_vendor:
+            exact_candidates.append(txn)
 
         # Strategy 2: FX-tolerant match (vendor-filtered when patterns exist)
         txn_currency = txn.get("currency", "CAD")
         if receipt.currency != txn_currency:
             pct_diff = amount_diff / receipt_amount if receipt_amount else Decimal("999")
-            if pct_diff <= _FX_AMOUNT_PCT and days_diff <= _FX_DATE_WINDOW:
-                if desc_matches_vendor:
-                    fx_candidates.append(txn)
+            if pct_diff <= _FX_AMOUNT_PCT and days_diff <= _FX_DATE_WINDOW and desc_matches_vendor:
+                fx_candidates.append(txn)
 
         # Strategy 3: Vendor-pattern match
-        if vendor_substrings:
-            if any(s.upper() in desc for s in vendor_substrings):
-                pct_diff = amount_diff / receipt_amount if receipt_amount else Decimal("999")
-                if pct_diff <= _PATTERN_AMOUNT_PCT and days_diff <= date_window_days:
-                    pattern_candidates.append(txn)
+        if vendor_substrings and any(s.upper() in desc for s in vendor_substrings):
+            pct_diff = amount_diff / receipt_amount if receipt_amount else Decimal("999")
+            if pct_diff <= _PATTERN_AMOUNT_PCT and days_diff <= date_window_days:
+                pattern_candidates.append(txn)
 
     # Return best strategy (highest confidence first)
     for candidates, confidence in [

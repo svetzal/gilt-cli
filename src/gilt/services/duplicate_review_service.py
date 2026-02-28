@@ -20,10 +20,9 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Optional
 
-from gilt.model.duplicate import TransactionPair, DuplicateAssessment, DuplicateMatch
-from gilt.model.events import DuplicateSuggested, DuplicateConfirmed, DuplicateRejected, Event
+from gilt.model.duplicate import DuplicateAssessment, DuplicateMatch, TransactionPair
+from gilt.model.events import DuplicateConfirmed, DuplicateRejected, DuplicateSuggested, Event
 from gilt.storage.event_store import EventStore
 
 
@@ -44,7 +43,7 @@ class UserDecision:
     """User's decision about a duplicate suggestion."""
 
     choice: str  # "1" (use latest), "2" (use original), "N" (reject)
-    rationale: Optional[str] = None
+    rationale: str | None = None
 
 
 @dataclass

@@ -2,29 +2,28 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
-
-from rich.table import Table
 from rich.prompt import Prompt
+from rich.table import Table
 
-from .util import console
+from gilt.ml.categorization_classifier import CategorizationClassifier
 from gilt.model.account import Transaction
-from gilt.workspace import Workspace
 from gilt.model.category_io import load_categories_config, parse_category_path
 from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
-from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.services.categorization_service import CategorizationService
-from gilt.ml.categorization_classifier import CategorizationClassifier
+from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.storage.projection import ProjectionBuilder
+from gilt.workspace import Workspace
+
+from .util import console
 
 
 def run(
     *,
-    account: Optional[str] = None,
+    account: str | None = None,
     confidence: float = 0.7,
     min_samples: int = 5,
     interactive: bool = False,
-    limit: Optional[int] = None,
+    limit: int | None = None,
     workspace: Workspace,
     write: bool = False,
 ) -> int:
@@ -136,8 +135,8 @@ def run(
     predictions = classifier.predict(transaction_data, confidence_threshold=confidence)
 
     # Filter to confident predictions - keep account_id and transaction_id for CSV write
-    confident_predictions: List[tuple[str, str, Transaction, str, float]] = []
-    for txn, (category, conf) in zip(uncategorized_txns, predictions):
+    confident_predictions: list[tuple[str, str, Transaction, str, float]] = []
+    for txn, (category, conf) in zip(uncategorized_txns, predictions, strict=False):
         if category:
             # Store: (account_id, transaction_id, Transaction, category, confidence)
             confident_predictions.append((txn.account_id, txn.transaction_id, txn, category, conf))
@@ -178,7 +177,7 @@ def run(
     )
 
     # Group by account ID (need to map to ledger files)
-    by_account: dict[str, List[tuple[str, str]]] = {}  # account_id -> [(txn_id, category)]
+    by_account: dict[str, list[tuple[str, str]]] = {}  # account_id -> [(txn_id, category)]
     for account_id, txn_id, _, category, _ in approved:
         if account_id not in by_account:
             by_account[account_id] = []
@@ -222,7 +221,7 @@ def run(
     return 0
 
 
-def _display_predictions(predictions: List[tuple[str, str, dict, str, float]]) -> None:
+def _display_predictions(predictions: list[tuple[str, str, dict, str, float]]) -> None:
     """Display predictions in a table.
 
     Args:
@@ -251,9 +250,9 @@ def _display_predictions(predictions: List[tuple[str, str, dict, str, float]]) -
 
 
 def _interactive_review(
-    predictions: List[tuple[str, str, Transaction, str, float]],
+    predictions: list[tuple[str, str, Transaction, str, float]],
     category_config,
-) -> List[tuple[str, str, Transaction, str, float]]:
+) -> list[tuple[str, str, Transaction, str, float]]:
     """Interactive review mode - approve, reject, or modify predictions.
 
     Args:
@@ -266,7 +265,7 @@ def _interactive_review(
     console.print("\n[bold]Interactive Review Mode[/bold]")
     console.print("[dim]For each prediction: (a)pprove, (r)eject, (m)odify, (q)uit[/dim]\n")
 
-    approved: List[tuple[str, str, Transaction, str, float]] = []
+    approved: list[tuple[str, str, Transaction, str, float]] = []
 
     for i, (account_id, txn_id, txn, category, conf) in enumerate(predictions, 1):
         # Display transaction

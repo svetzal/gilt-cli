@@ -7,18 +7,18 @@ Displays the raw bank description and, if receipt enrichment exists,
 vendor name, product/service, tax breakdown, receipt file path, etc.
 """
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog,
-    QVBoxLayout,
-    QFormLayout,
-    QLabel,
-    QGroupBox,
     QDialogButtonBox,
+    QFormLayout,
+    QGroupBox,
+    QLabel,
+    QVBoxLayout,
 )
-from PySide6.QtCore import Qt
 
-from gilt.model.account import TransactionGroup
 from gilt.gui.services.enrichment_service import EnrichmentData
+from gilt.model.account import TransactionGroup
 
 
 class TransactionDetailDialog(QDialog):

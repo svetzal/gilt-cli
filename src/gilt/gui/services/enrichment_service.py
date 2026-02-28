@@ -9,7 +9,6 @@ display-ready descriptions and detail data for the GUI.
 
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Optional
 
 from gilt.model.events import TransactionEnriched
 
@@ -19,15 +18,15 @@ class EnrichmentData:
     """Receipt enrichment data for a single transaction."""
 
     vendor: str
-    service: Optional[str] = None
-    invoice_number: Optional[str] = None
-    tax_amount: Optional[Decimal] = None
-    tax_type: Optional[str] = None
+    service: str | None = None
+    invoice_number: str | None = None
+    tax_amount: Decimal | None = None
+    tax_type: str | None = None
     currency: str = "CAD"
-    receipt_file: Optional[str] = None
+    receipt_file: str | None = None
     enrichment_source: str = ""
-    source_email: Optional[str] = None
-    match_confidence: Optional[str] = None
+    source_email: str | None = None
+    match_confidence: str | None = None
 
 
 class EnrichmentService:
@@ -49,11 +48,11 @@ class EnrichmentService:
                 match_confidence=event.match_confidence,
             )
 
-    def get_enrichment(self, transaction_id: str) -> Optional[EnrichmentData]:
+    def get_enrichment(self, transaction_id: str) -> EnrichmentData | None:
         """Get enrichment data for a transaction, or None if not enriched."""
         return self._index.get(transaction_id)
 
-    def get_display_description(self, transaction_id: str) -> Optional[str]:
+    def get_display_description(self, transaction_id: str) -> str | None:
         """Get enriched display description, or None if not enriched."""
         data = self._index.get(transaction_id)
         if data is None:

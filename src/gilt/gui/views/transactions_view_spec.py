@@ -2,12 +2,12 @@ import pytest
 
 pytest.importorskip("PySide6")
 
-from unittest.mock import Mock
 from datetime import date
+from unittest.mock import Mock
 
 from gilt.gui.views.transactions_view import IntelligenceWorker
 from gilt.model.account import Transaction, TransactionGroup
-from gilt.model.duplicate import DuplicateMatch, TransactionPair, DuplicateAssessment
+from gilt.model.duplicate import DuplicateAssessment, DuplicateMatch, TransactionPair
 from gilt.services.duplicate_service import DuplicateService
 from gilt.services.smart_category_service import SmartCategoryService
 

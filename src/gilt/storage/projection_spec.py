@@ -5,17 +5,17 @@ These tests verify that projections can be correctly built from events
 and that the rebuild process is idempotent and accurate.
 """
 
+import tempfile
 from decimal import Decimal
 from pathlib import Path
-import tempfile
 
 import pytest
 
 from gilt.model.events import (
-    TransactionImported,
-    TransactionDescriptionObserved,
     TransactionCategorized,
+    TransactionDescriptionObserved,
     TransactionEnriched,
+    TransactionImported,
 )
 from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder

@@ -1,22 +1,22 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict
 
 from rich.table import Table
 
-from .util import console
 from gilt.ingest import load_accounts_config
 from gilt.workspace import Workspace
 
+from .util import console
 
-def _collect_accounts(config_path: Path, data_dir: Path) -> Dict[str, str]:
+
+def _collect_accounts(config_path: Path, data_dir: Path) -> dict[str, str]:
     """Collect account_id -> description from config and existing ledgers.
 
     - Prefer description from config when available.
     - Include any unmanaged ledgers found under data_dir (fallback description to ID).
     """
-    id_to_desc: Dict[str, str] = {}
+    id_to_desc: dict[str, str] = {}
 
     # 1) Configured accounts (best-effort)
     try:

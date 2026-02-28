@@ -6,12 +6,12 @@ Transaction Table Widget - Enhanced table view for transactions
 Custom table widget with sorting, selection, and formatting capabilities.
 """
 
-from PySide6.QtWidgets import QTableView, QHeaderView, QMenu
-from PySide6.QtCore import Qt, Signal, QPoint
+from PySide6.QtCore import QPoint, Qt, Signal
+from PySide6.QtWidgets import QHeaderView, QMenu, QTableView
 
+from gilt.gui.delegates.category_delegate import CategoryDelegate
 from gilt.gui.models.transaction_model import TransactionTableModel
 from gilt.gui.models.transaction_proxy_model import TransactionSortFilterProxyModel
-from gilt.gui.delegates.category_delegate import CategoryDelegate
 from gilt.model.account import TransactionGroup
 
 

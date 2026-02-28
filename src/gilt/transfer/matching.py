@@ -8,10 +8,10 @@ Pure transfer matching logic (no CLI, no printing).
 - Privacy-safe: does not print raw descriptions; hashing is available via Txn.desc_hash8 if needed by callers.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
 
 import pandas as pd
 
@@ -73,15 +73,15 @@ class Match:
     credit: Txn
     score: float
     method: str
-    fee_txn_ids: List[str]
+    fee_txn_ids: list[str]
 
 
-def load_normalized(processed_dir: Path) -> List[Txn]:
+def load_normalized(processed_dir: Path) -> list[Txn]:
     """Load per-account ledger CSVs from processed_dir into Txn list.
 
     This expects the standardized processed schema columns to be present.
     """
-    txns: List[Txn] = []
+    txns: list[Txn] = []
     files = sorted(processed_dir.glob("*.csv"))
     for f in files:
         try:
@@ -145,8 +145,8 @@ def _date_proximity(a: datetime, b: datetime, window_days: int) -> float:
 
 def _find_nearby_fees(
     debit: Txn, all_txns: Sequence[Txn], fee_max: float, day_window: int
-) -> List[Txn]:
-    fees: List[Txn] = []
+) -> list[Txn]:
+    fees: list[Txn] = []
     start = debit.date - timedelta(days=day_window)
     end = debit.date + timedelta(days=day_window)
     for t in all_txns:
@@ -158,7 +158,7 @@ def _find_nearby_fees(
             continue
         if abs(t.amount) <= fee_max and t.has_desc_token(FEE_KEYWORDS):
             fees.append(t)
-    uniq: Dict[str, Txn] = {
+    uniq: dict[str, Txn] = {
         f.transaction_id: f for f in fees if f.transaction_id != debit.transaction_id
     }
     return list(uniq.values())
@@ -185,18 +185,14 @@ def _is_bank2_biz_loc_pair(a: str, b: str) -> bool:
 
 def _valid_sign_pair(d: Txn, o: Txn) -> bool:
     # Normally require opposite signs, but allow same-sign for special bank pair
-    if d.amount * o.amount < 0:
-        return True
-    if _is_bank2_biz_loc_pair(d.account_id, o.account_id):
-        return True
-    return False
+    return d.amount * o.amount < 0 or _is_bank2_biz_loc_pair(d.account_id, o.account_id)
 
 
 def _filter_candidate_others(
     d: Txn,
-    txns_by_ccy: Dict[str, List[Txn]],
+    txns_by_ccy: dict[str, list[Txn]],
     matched_other_ids: set[str],
-) -> List[Txn]:
+) -> list[Txn]:
     """Candidates in same currency, different account, not already matched, valid sign, not excluded."""
     return [
         o
@@ -217,9 +213,9 @@ def _select_best_match(
     epsilon_direct: float,
     epsilon_interac: float,
     window_days: int,
-) -> Optional[Tuple[Txn, float, str]]:
+) -> tuple[Txn, float, str] | None:
     """Return (credit, score, method) for best candidate using two-phase selection."""
-    best: Optional[Tuple[Txn, float, str]] = None
+    best: tuple[Txn, float, str] | None = None
     # Phase 1: same-day direct
     for c in candidates:
         if d.date != c.date:
@@ -246,7 +242,7 @@ def _select_best_match(
 def _try_match_for_debit(
     d: Txn,
     *,
-    txns_by_ccy: Dict[str, List[Txn]],
+    txns_by_ccy: dict[str, list[Txn]],
     matched_other_ids: set[str],
     all_txns: Sequence[Txn],
     epsilon_direct: float,
@@ -254,7 +250,7 @@ def _try_match_for_debit(
     window_days: int,
     fee_max_amount: float,
     fee_day_window: int,
-) -> Optional[Match]:
+) -> Match | None:
     if d.has_desc_token(EXCLUDE_FROM_PAIRING_TOKENS):
         return None
     cand_others = _filter_candidate_others(d, txns_by_ccy, matched_other_ids)
@@ -287,7 +283,7 @@ def compute_matches(
     epsilon_interac: float = 0.0,
     fee_max_amount: float = 3.00,
     fee_day_window: int = 1,
-) -> List[Match]:
+) -> list[Match]:
     """Compute likely transfer matches between accounts.
 
     Delegates candidate filtering, scoring, and fee attachment to small helpers
@@ -301,12 +297,12 @@ def compute_matches(
     _credits = [t for t in txns if t.is_credit()]  # kept for parity; not directly used
 
     # Group transactions by currency for efficient candidate retrieval
-    txns_by_ccy: Dict[str, List[Txn]] = {}
+    txns_by_ccy: dict[str, list[Txn]] = {}
     for t in txns:
         txns_by_ccy.setdefault(t.currency, []).append(t)
 
     matched_other_ids: set[str] = set()
-    matches: List[Match] = []
+    matches: list[Match] = []
 
     debits_sorted = sorted(debits, key=lambda t: (t.date, abs(t.amount)), reverse=True)
     used_debits: set[str] = set()

@@ -8,25 +8,25 @@ Provides category management, budget setting, and usage statistics.
 
 from pathlib import Path
 
+from PySide6.QtCore import Signal
+from PySide6.QtGui import QPalette
 from PySide6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
+    QApplication,
     QHBoxLayout,
+    QHeaderView,
+    QInputDialog,
     QLabel,
+    QMessageBox,
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
-    QHeaderView,
-    QMessageBox,
-    QInputDialog,
-    QApplication,
+    QVBoxLayout,
+    QWidget,
 )
-from PySide6.QtCore import Signal
-from PySide6.QtGui import QPalette
 
 from gilt.gui.services.category_service import CategoryService
-from gilt.model.category import BudgetPeriod
 from gilt.gui.theme import Theme
+from gilt.model.category import BudgetPeriod
 
 
 class CategoriesView(QWidget):

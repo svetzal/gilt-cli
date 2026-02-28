@@ -1,9 +1,8 @@
 from __future__ import annotations
-from typing import List, Tuple, Optional
 
-from PySide6.QtWidgets import QComboBox, QCompleter
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QStandardItemModel, QStandardItem, QBrush
+from PySide6.QtGui import QBrush, QStandardItem, QStandardItemModel
+from PySide6.QtWidgets import QComboBox, QCompleter
 
 from gilt.gui.theme import Theme
 
@@ -39,9 +38,9 @@ class SmartCategoryComboBox(QComboBox):
 
     def set_categories(
         self,
-        all_categories: List[str],
-        suggestions: Optional[List[Tuple[str, Optional[float]]]] = None,
-        placeholder: Optional[str] = None,
+        all_categories: list[str],
+        suggestions: list[tuple[str, float | None]] | None = None,
+        placeholder: str | None = None,
     ):
         """
         Populate the combo box.
@@ -71,10 +70,7 @@ class SmartCategoryComboBox(QComboBox):
             self._model.appendRow(header)
 
             for cat, conf in suggestions:
-                if conf is not None:
-                    text = f"{cat} ({conf:.0%})"
-                else:
-                    text = cat
+                text = f"{cat} ({conf:.0%})" if conf is not None else cat
 
                 item = QStandardItem(text)
                 item.setData(cat, Qt.ItemDataRole.UserRole)

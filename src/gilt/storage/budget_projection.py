@@ -17,16 +17,15 @@ Privacy: All processing is local-only. No network I/O.
 from __future__ import annotations
 
 import sqlite3
+from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Dict, List, Optional
-from datetime import datetime, date
 
 from gilt.model.events import (
-    Event,
     BudgetCreated,
-    BudgetUpdated,
     BudgetDeleted,
+    BudgetUpdated,
+    Event,
 )
 from gilt.storage.event_store import EventStore
 
@@ -42,7 +41,7 @@ class BudgetProjection:
         self,
         budget_id: str,
         category: str,
-        subcategory: Optional[str],
+        subcategory: str | None,
         amount: Decimal,
         period_type: str,
         start_date: str,
@@ -64,7 +63,7 @@ class BudgetProjection:
         self.updated_at = updated_at
         self.last_event_id = last_event_id
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert to dictionary for serialization."""
         return {
             "budget_id": self.budget_id,
@@ -228,7 +227,7 @@ class BudgetProjectionBuilder:
         finally:
             conn.close()
 
-    def _apply_events(self, conn: sqlite3.Connection, events: List[Event]) -> int:
+    def _apply_events(self, conn: sqlite3.Connection, events: list[Event]) -> int:
         """Apply a list of budget events to projections.
 
         Args:
@@ -444,7 +443,7 @@ class BudgetProjectionBuilder:
             ),
         )
 
-    def get_budget(self, budget_id: str) -> Optional[BudgetProjection]:
+    def get_budget(self, budget_id: str) -> BudgetProjection | None:
         """Retrieve a single budget projection.
 
         Args:
@@ -480,8 +479,8 @@ class BudgetProjectionBuilder:
             conn.close()
 
     def get_active_budgets(
-        self, category: Optional[str] = None, as_of_date: Optional[date] = None
-    ) -> List[BudgetProjection]:
+        self, category: str | None = None, as_of_date: date | None = None
+    ) -> list[BudgetProjection]:
         """Retrieve all active (non-deleted) budgets.
 
         Args:
@@ -538,8 +537,8 @@ class BudgetProjectionBuilder:
             conn.close()
 
     def get_budgets_at_date(
-        self, target_date: date, category: Optional[str] = None
-    ) -> List[BudgetProjection]:
+        self, target_date: date, category: str | None = None
+    ) -> list[BudgetProjection]:
         """Time-travel query: get budget state as it was on a specific date.
 
         This enables queries like "what was my transportation budget in October 2024?"
@@ -604,7 +603,7 @@ class BudgetProjectionBuilder:
         finally:
             conn.close()
 
-    def get_budget_history(self, budget_id: str) -> List[Dict]:
+    def get_budget_history(self, budget_id: str) -> list[dict]:
         """Get complete history of a budget's changes.
 
         Args:

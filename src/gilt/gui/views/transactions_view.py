@@ -6,38 +6,39 @@ Transactions View - Main view for browsing and filtering transactions
 Provides filter controls and transaction table for comprehensive transaction management.
 """
 
-from pathlib import Path
+import contextlib
 from datetime import date
+from pathlib import Path
 
+from PySide6.QtCore import QDate, QThread, Signal
 from PySide6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
+    QCheckBox,
+    QComboBox,
+    QDateEdit,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QPushButton,
-    QComboBox,
-    QDateEdit,
-    QCheckBox,
-    QGroupBox,
-    QStatusBar,
     QMessageBox,
+    QPushButton,
+    QStatusBar,
+    QVBoxLayout,
+    QWidget,
 )
-from PySide6.QtCore import QDate, Signal, QThread
 
-from gilt.gui.widgets.transaction_table import TransactionTableWidget
-from gilt.gui.services.transaction_service import TransactionService
+from gilt.gui.dialogs.categorize_dialog import CategorizeDialog
+from gilt.gui.dialogs.duplicate_resolution_dialog import DuplicateResolutionDialog
+from gilt.gui.dialogs.note_dialog import NoteDialog
+from gilt.gui.dialogs.settings_dialog import SettingsDialog
+from gilt.gui.dialogs.transaction_detail_dialog import TransactionDetailDialog
 from gilt.gui.services.enrichment_service import EnrichmentService
+from gilt.gui.services.transaction_service import TransactionService
+from gilt.gui.widgets.transaction_table import TransactionTableWidget
+from gilt.model.account import TransactionGroup
+from gilt.model.duplicate import DuplicateAssessment, DuplicateMatch, TransactionPair
+from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
 from gilt.services.duplicate_service import DuplicateService
 from gilt.services.smart_category_service import SmartCategoryService
-from gilt.gui.dialogs.note_dialog import NoteDialog
-from gilt.gui.dialogs.categorize_dialog import CategorizeDialog
-from gilt.gui.dialogs.settings_dialog import SettingsDialog
-from gilt.gui.dialogs.duplicate_resolution_dialog import DuplicateResolutionDialog
-from gilt.gui.dialogs.transaction_detail_dialog import TransactionDetailDialog
-from gilt.model.account import TransactionGroup
-from gilt.model.duplicate import TransactionPair, DuplicateAssessment, DuplicateMatch
-from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
 from gilt.storage.event_store import EventStore
 
 
@@ -122,8 +123,8 @@ class TransactionsView(QWidget):
         self._old_workers: list[IntelligenceWorker] = []
 
         # Initialize CategoryService
-        from gilt.gui.services.category_service import CategoryService
         from gilt.gui.dialogs.settings_dialog import SettingsDialog
+        from gilt.gui.services.category_service import CategoryService
 
         categories_config = SettingsDialog.get_categories_config()
         self.category_service = CategoryService(categories_config)
@@ -312,10 +313,8 @@ class TransactionsView(QWidget):
         if self.worker and self.worker.isRunning():
             self.worker.requestInterruption()
             # Disconnect signals to prevent stale updates
-            try:
+            with contextlib.suppress(RuntimeError):
                 self.worker.finished.disconnect(self._on_intelligence_scan_finished)
-            except RuntimeError:
-                pass
             # Keep reference to prevent GC while running
             self._old_workers.append(self.worker)
 
@@ -456,10 +455,7 @@ class TransactionsView(QWidget):
             )
             if cat:
                 parts = cat.split(":", 1)
-                if len(parts) == 2:
-                    suggestion = (parts[0], parts[1])
-                else:
-                    suggestion = (parts[0], None)
+                suggestion = (parts[0], parts[1]) if len(parts) == 2 else (parts[0], None)
 
         # Show categorize dialog
         dialog = CategorizeDialog(selected, categories_config, self, suggested_category=suggestion)

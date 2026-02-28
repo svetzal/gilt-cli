@@ -18,13 +18,13 @@ Privacy:
 
 
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
+from rich.table import Table
 
-from gilt.workspace import Workspace
-from gilt.transfer.prompt_learning import PromptLearningService
 from gilt.model.events import PromptUpdated
 from gilt.services.event_sourcing_service import EventSourcingService
+from gilt.transfer.prompt_learning import PromptLearningService
+from gilt.workspace import Workspace
 
 
 def run(

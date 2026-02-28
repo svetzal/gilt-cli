@@ -21,7 +21,6 @@ from __future__ import annotations
 import fnmatch
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 from gilt.model.account import Account
 
@@ -33,7 +32,7 @@ class IngestionPlan:
     Contains files matched to accounts, unmatched files, and totals.
     """
 
-    files: list[tuple[Path, Optional[str]]]  # [(file_path, account_id or None)]
+    files: list[tuple[Path, str | None]]  # [(file_path, account_id or None)]
     unmatched: list[Path]  # Files that couldn't be matched to any account
     total_files: int  # Total number of files discovered
 
@@ -87,7 +86,7 @@ class IngestionService:
                     seen.add(p)
         return sorted(inputs)
 
-    def match_file_to_account(self, file_path: Path) -> Optional[str]:
+    def match_file_to_account(self, file_path: Path) -> str | None:
         """Determine which account a file belongs to.
 
         Matches the filename against configured account source_patterns.
@@ -127,7 +126,7 @@ class IngestionService:
         """
         inputs = self.discover_inputs(ingest_dir)
 
-        files: list[tuple[Path, Optional[str]]] = []
+        files: list[tuple[Path, str | None]] = []
         unmatched: list[Path] = []
 
         for file_path in inputs:

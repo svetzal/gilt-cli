@@ -6,19 +6,19 @@ Preview Dialog - Base class for preview-before-commit dialogs
 Shows a table of changes before applying them, maintaining privacy and safety.
 """
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QCheckBox,
     QDialog,
-    QVBoxLayout,
+    QDialogButtonBox,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
+    QPushButton,
     QTableWidget,
     QTableWidgetItem,
-    QCheckBox,
-    QPushButton,
-    QDialogButtonBox,
-    QHeaderView,
+    QVBoxLayout,
 )
-from PySide6.QtCore import Qt
 
 from gilt.gui.theme import Theme
 

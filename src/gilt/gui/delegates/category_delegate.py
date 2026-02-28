@@ -1,17 +1,16 @@
 from __future__ import annotations
-from typing import List, Optional
 
+from PySide6.QtCore import QAbstractProxyModel, Qt
 from PySide6.QtWidgets import QStyledItemDelegate
-from PySide6.QtCore import Qt, QAbstractProxyModel
 
-from gilt.gui.widgets.smart_category_combo import SmartCategoryComboBox
 from gilt.gui.models.transaction_model import TransactionTableModel
+from gilt.gui.widgets.smart_category_combo import SmartCategoryComboBox
 
 
 class CategoryDelegate(QStyledItemDelegate):
     """Delegate for smart category selection in table."""
 
-    def __init__(self, parent=None, all_categories: Optional[List[str]] = None):
+    def __init__(self, parent=None, all_categories: list[str] | None = None):
         super().__init__(parent)
         self.all_categories = all_categories or []
 

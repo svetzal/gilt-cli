@@ -6,8 +6,8 @@ from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-import pytest
 import numpy as np
+import pytest
 
 from gilt.ml.categorization_training_builder import CategorizationTrainingBuilder
 from gilt.model.events import TransactionCategorized, TransactionImported

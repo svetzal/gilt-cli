@@ -10,8 +10,8 @@ All data processing remains local-only with no network I/O.
 import sys
 from pathlib import Path
 
-from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QPalette
+from PySide6.QtWidgets import QApplication
 
 from gilt.gui.main_window import MainWindow
 
@@ -58,7 +58,7 @@ def load_stylesheet(theme: str) -> str:
 
     if stylesheet_path.exists():
         try:
-            with open(stylesheet_path, "r", encoding="utf-8") as f:
+            with open(stylesheet_path, encoding="utf-8") as f:
                 return f.read()
         except Exception as e:
             print(f"Warning: Could not load {theme} stylesheet: {e}")

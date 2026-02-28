@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, field_serializer, field_validator
@@ -34,9 +34,9 @@ class Event(BaseModel):
     event_id: str = Field(default_factory=lambda: str(uuid4()))
     event_type: str
     event_timestamp: datetime = Field(default_factory=datetime.now)
-    aggregate_type: Optional[str] = None
-    aggregate_id: Optional[str] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    aggregate_type: str | None = None
+    aggregate_id: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
     @field_serializer("event_timestamp")
     def serialize_timestamp(self, value: datetime) -> str:
@@ -70,8 +70,8 @@ class TransactionImported(Event):
     raw_description: str
     amount: Decimal
     currency: str = "CAD"
-    raw_data: Dict[str, Any]  # Complete CSV row for reconstruction
-    aggregate_id: Optional[str] = None
+    raw_data: dict[str, Any]  # Complete CSV row for reconstruction
+    aggregate_id: str | None = None
 
     def __init__(self, **data):
         """Initialize and set aggregate_id to transaction_id."""
@@ -112,7 +112,7 @@ class TransactionDescriptionObserved(Event):
     source_file: str
     source_account: str
     amount: Decimal
-    aggregate_id: Optional[str] = None
+    aggregate_id: str | None = None
 
     def __init__(self, **data):
         """Initialize and set aggregate_id to original_transaction_id."""
@@ -157,8 +157,8 @@ class DuplicateSuggested(Event):
     reasoning: str
     model: str  # LLM model used
     prompt_version: str  # Version of prompt template
-    assessment: Dict[str, Any]  # Includes 'pair' with complete TransactionPair data
-    aggregate_id: Optional[str] = None
+    assessment: dict[str, Any]  # Includes 'pair' with complete TransactionPair data
+    aggregate_id: str | None = None
 
     def __init__(self, **data):
         """Initialize and set aggregate_id to combination of transaction IDs."""
@@ -183,9 +183,9 @@ class DuplicateConfirmed(Event):
     primary_transaction_id: str  # Keep this one
     duplicate_transaction_id: str  # Mark as duplicate
     canonical_description: str  # User's preferred description
-    user_rationale: Optional[str] = None
+    user_rationale: str | None = None
     llm_was_correct: bool
-    aggregate_id: Optional[str] = None
+    aggregate_id: str | None = None
 
     def __init__(self, **data):
         """Initialize and set aggregate_id to combination of transaction IDs."""
@@ -213,9 +213,9 @@ class DuplicateRejected(Event):
     suggestion_event_id: str
     transaction_id_1: str
     transaction_id_2: str
-    user_rationale: Optional[str] = None
+    user_rationale: str | None = None
     llm_was_correct: bool
-    aggregate_id: Optional[str] = None
+    aggregate_id: str | None = None
 
     def __init__(self, **data):
         """Initialize and set aggregate_id to combination of transaction IDs."""
@@ -238,13 +238,13 @@ class TransactionCategorized(Event):
 
     transaction_id: str
     category: str
-    subcategory: Optional[str] = None
+    subcategory: str | None = None
     source: str = Field(pattern="^(user|llm|rule)$")  # How was this categorized
-    confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
-    previous_category: Optional[str] = None
-    previous_subcategory: Optional[str] = None
-    rationale: Optional[str] = None
-    aggregate_id: Optional[str] = None
+    confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    previous_category: str | None = None
+    previous_subcategory: str | None = None
+    rationale: str | None = None
+    aggregate_id: str | None = None
 
     def __init__(self, **data):
         """Initialize and set aggregate_id to transaction_id."""
@@ -267,9 +267,9 @@ class CategorizationRuleCreated(Event):
     rule_type: str  # e.g., "description_pattern", "amount_range"
     pattern: str  # Regex or other matching pattern
     category: str
-    subcategory: Optional[str] = None
+    subcategory: str | None = None
     enabled: bool = True
-    aggregate_id: Optional[str] = None
+    aggregate_id: str | None = None
 
     def __init__(self, **data):
         """Initialize and set aggregate_id to rule_id."""
@@ -290,12 +290,12 @@ class BudgetCreated(Event):
 
     budget_id: str
     category: str
-    subcategory: Optional[str] = None
+    subcategory: str | None = None
     period_type: str  # e.g., "monthly", "quarterly", "annual"
     start_date: str  # ISO format
     amount: Decimal
     currency: str = "CAD"
-    aggregate_id: Optional[str] = None
+    aggregate_id: str | None = None
 
     def __init__(self, **data):
         """Initialize and set aggregate_id to budget_id."""
@@ -327,16 +327,16 @@ class BudgetUpdated(Event):
 
     budget_id: str
     category: str
-    subcategory: Optional[str] = None
-    new_amount: Optional[Decimal] = None
-    previous_amount: Optional[Decimal] = None
-    new_period_type: Optional[str] = None
-    previous_period_type: Optional[str] = None
-    new_start_date: Optional[str] = None  # ISO format
-    previous_start_date: Optional[str] = None
+    subcategory: str | None = None
+    new_amount: Decimal | None = None
+    previous_amount: Decimal | None = None
+    new_period_type: str | None = None
+    previous_period_type: str | None = None
+    new_start_date: str | None = None  # ISO format
+    previous_start_date: str | None = None
     currency: str = "CAD"
-    rationale: Optional[str] = None  # Why the change was made
-    aggregate_id: Optional[str] = None
+    rationale: str | None = None  # Why the change was made
+    aggregate_id: str | None = None
 
     def __init__(self, **data):
         """Initialize and set aggregate_id to budget_id."""
@@ -345,12 +345,12 @@ class BudgetUpdated(Event):
         super().__init__(**data)
 
     @field_serializer("new_amount", "previous_amount")
-    def serialize_amount(self, value: Optional[Decimal]) -> Optional[str]:
+    def serialize_amount(self, value: Decimal | None) -> str | None:
         return str(value) if value is not None else None
 
     @field_validator("new_amount", "previous_amount", mode="before")
     @classmethod
-    def parse_amount(cls, value: Any) -> Optional[Decimal]:
+    def parse_amount(cls, value: Any) -> Decimal | None:
         if value is None:
             return None
         if isinstance(value, str):
@@ -370,13 +370,13 @@ class BudgetDeleted(Event):
 
     budget_id: str
     category: str
-    subcategory: Optional[str] = None
+    subcategory: str | None = None
     final_amount: Decimal  # Last known amount before deletion
     final_period_type: str
     final_start_date: str  # ISO format
     currency: str = "CAD"
-    rationale: Optional[str] = None  # Why it was deleted
-    aggregate_id: Optional[str] = None
+    rationale: str | None = None  # Why it was deleted
+    aggregate_id: str | None = None
 
     def __init__(self, **data):
         """Initialize and set aggregate_id to budget_id."""
@@ -410,16 +410,16 @@ class TransactionEnriched(Event):
 
     transaction_id: str  # Links to existing transaction
     vendor: str  # Proper company name, e.g. 'Zoom Communications, Inc.'
-    service: Optional[str] = None  # Specific product/plan
-    invoice_number: Optional[str] = None
-    tax_amount: Optional[Decimal] = None
-    tax_type: Optional[str] = None  # e.g. 'HST', 'GST', None
+    service: str | None = None  # Specific product/plan
+    invoice_number: str | None = None
+    tax_amount: Decimal | None = None
+    tax_type: str | None = None  # e.g. 'HST', 'GST', None
     currency: str = "CAD"
-    receipt_file: Optional[str] = None  # Relative path to PDF
+    receipt_file: str | None = None  # Relative path to PDF
     enrichment_source: str  # Path to the JSON file that provided this data
-    source_email: Optional[str] = None  # Sender address from receipt email
-    match_confidence: Optional[str] = None  # "exact", "fx-adjusted", "pattern-assisted"
-    aggregate_id: Optional[str] = None
+    source_email: str | None = None  # Sender address from receipt email
+    match_confidence: str | None = None  # "exact", "fx-adjusted", "pattern-assisted"
+    aggregate_id: str | None = None
 
     def __init__(self, **data):
         """Initialize and set aggregate_id to transaction_id."""
@@ -428,12 +428,12 @@ class TransactionEnriched(Event):
         super().__init__(**data)
 
     @field_serializer("tax_amount")
-    def serialize_tax_amount(self, value: Optional[Decimal]) -> Optional[str]:
+    def serialize_tax_amount(self, value: Decimal | None) -> str | None:
         return str(value) if value is not None else None
 
     @field_validator("tax_amount", mode="before")
     @classmethod
-    def parse_tax_amount(cls, value: Any) -> Optional[Decimal]:
+    def parse_tax_amount(cls, value: Any) -> Decimal | None:
         if value is None:
             return None
         if isinstance(value, str):
@@ -452,10 +452,10 @@ class PromptUpdated(Event):
     aggregate_type: str = Field(default="prompt", frozen=True)
 
     prompt_version: str
-    previous_version: Optional[str] = None
-    learned_patterns: List[str]
-    accuracy_metrics: Dict[str, Any]
-    aggregate_id: Optional[str] = None
+    previous_version: str | None = None
+    learned_patterns: list[str]
+    accuracy_metrics: dict[str, Any]
+    aggregate_id: str | None = None
 
     def __init__(self, **data):
         """Initialize and set aggregate_id to prompt_version."""

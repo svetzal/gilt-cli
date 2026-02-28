@@ -17,14 +17,14 @@ Privacy:
 - No logging of raw data here; callers decide what to print.
 """
 
-from typing import Dict, Iterable, List, Optional, Tuple
 import csv
 import io
 import json
+from collections.abc import Iterable
 
 from pydantic import ValidationError
 
-from .account import Transaction, SplitLine, TransactionGroup
+from .account import SplitLine, Transaction, TransactionGroup
 
 # Row typing for flat CSV representation
 ROW_TYPE_PRIMARY = "primary"
@@ -33,7 +33,7 @@ ROW_TYPE_SPLIT = "split"
 # Columns for the flat ledger CSV. We union Transaction fields with split-only fields
 # and a couple of control columns (row_type, group_id, metadata_json).
 # Note: Keep order stable for deterministic outputs.
-LEDGER_COLUMNS: List[str] = [
+LEDGER_COLUMNS: list[str] = [
     # Control / linkage
     "row_type",  # "primary" or "split"; missing -> treat as primary (back-compat)
     "group_id",  # required for split rows; optional for primary (defaults to transaction_id)
@@ -65,7 +65,7 @@ def _to_str(v) -> str:
         return ""
     if isinstance(v, float):
         # Keep plain repr; formatting to 2dp is handled by CSV consumer if needed
-        return ("%f" % v).rstrip("0").rstrip(".") if not v.is_integer() else str(int(v))
+        return f"{v:f}".rstrip("0").rstrip(".") if not v.is_integer() else str(int(v))
     return str(v)
 
 
@@ -83,8 +83,8 @@ def _parse_metadata_field(s: str) -> dict:
 
 
 def _normalize_row(
-    r: dict, default_currency: Optional[str], legacy_mode: bool
-) -> Tuple[
+    r: dict, default_currency: str | None, legacy_mode: bool
+) -> tuple[
     str,
     str,
     str,
@@ -93,11 +93,11 @@ def _normalize_row(
     str,
     str,
     str,
-    Optional[str],
-    Optional[str],
-    Optional[str],
-    Optional[str],
-    Optional[str],
+    str | None,
+    str | None,
+    str | None,
+    str | None,
+    str | None,
     dict,
 ]:
     """Extract and normalize common fields from a CSV row.
@@ -146,11 +146,11 @@ def _build_primary_transaction(
     amount_str: str,
     currency: str,
     account_id: str,
-    counterparty: Optional[str],
-    category: Optional[str],
-    subcategory: Optional[str],
-    notes: Optional[str],
-    source_file: Optional[str],
+    counterparty: str | None,
+    category: str | None,
+    subcategory: str | None,
+    notes: str | None,
+    source_file: str | None,
     metadata: dict,
 ) -> Transaction:
     try:
@@ -170,7 +170,7 @@ def _build_primary_transaction(
             metadata=metadata,
         )
     except ValidationError as ve:
-        raise ValueError(f"Invalid primary transaction in group {group_id}: {ve}")
+        raise ValueError(f"Invalid primary transaction in group {group_id}: {ve}") from ve
 
 
 def _build_split_line(r: dict, amount_str: str) -> SplitLine:
@@ -256,7 +256,7 @@ def dump_ledger_csv(groups: Iterable[TransactionGroup]) -> str:
     return output.getvalue()
 
 
-def load_ledger_csv(text: str, *, default_currency: Optional[str] = None) -> List[TransactionGroup]:
+def load_ledger_csv(text: str, *, default_currency: str | None = None) -> list[TransactionGroup]:
     """Parse a flat ledger CSV string into TransactionGroup objects.
 
     - Accepts both the forward schema (row_type present) and legacy schema
@@ -273,7 +273,7 @@ def load_ledger_csv(text: str, *, default_currency: Optional[str] = None) -> Lis
     legacy_mode = (reader.fieldnames is not None) and ("row_type" not in reader.fieldnames)
 
     # Buckets per group_id
-    groups: Dict[str, Dict[str, object]] = {}
+    groups: dict[str, dict[str, object]] = {}
 
     for r in rows:
         (
@@ -320,17 +320,17 @@ def load_ledger_csv(text: str, *, default_currency: Optional[str] = None) -> Lis
             continue
 
     # Build TransactionGroup objects and validate
-    result: List[TransactionGroup] = []
+    result: list[TransactionGroup] = []
     for gid, parts in groups.items():
-        primary: Optional[Transaction] = parts.get("primary")  # type: ignore[assignment]
-        splits: List[SplitLine] = parts.get("splits") or []  # type: ignore[assignment]
+        primary: Transaction | None = parts.get("primary")  # type: ignore[assignment]
+        splits: list[SplitLine] = parts.get("splits") or []  # type: ignore[assignment]
         if primary is None:
             # Only splits without a primary -> skip as malformed
             continue
         try:
             tg = TransactionGroup(group_id=gid, primary=primary, splits=splits)
         except ValidationError as ve:
-            raise ValueError(f"Invalid TransactionGroup {gid}: {ve}")
+            raise ValueError(f"Invalid TransactionGroup {gid}: {ve}") from ve
         result.append(tg)
 
     # Deterministic order: by date, then account_id, then abs(amount), then group_id

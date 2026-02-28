@@ -8,8 +8,6 @@ user choices to train the model.
 
 from __future__ import annotations
 
-from typing import Optional, Tuple
-
 from gilt.ml.categorization_classifier import CategorizationClassifier
 from gilt.model.events import TransactionCategorized
 from gilt.storage.event_store import EventStore
@@ -33,7 +31,7 @@ class SmartCategoryService:
         description: str,
         amount: float,
         account: str,
-    ) -> Tuple[Optional[str], float]:
+    ) -> tuple[str | None, float]:
         """Predict category for a transaction.
 
         Args:
@@ -70,11 +68,11 @@ class SmartCategoryService:
         transaction_id: str,
         category: str,
         source: str = "user",
-        subcategory: Optional[str] = None,
-        confidence: Optional[float] = None,
-        previous_category: Optional[str] = None,
-        previous_subcategory: Optional[str] = None,
-        rationale: Optional[str] = None,
+        subcategory: str | None = None,
+        confidence: float | None = None,
+        previous_category: str | None = None,
+        previous_subcategory: str | None = None,
+        rationale: str | None = None,
     ) -> None:
         """Record a categorization decision.
 

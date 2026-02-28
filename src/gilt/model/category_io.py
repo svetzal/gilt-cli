@@ -12,7 +12,6 @@ Privacy
 """
 
 from pathlib import Path
-from typing import Optional
 
 try:
     import yaml
@@ -83,7 +82,7 @@ def save_categories_config(path: Path, config: CategoryConfig) -> None:
         )
 
 
-def parse_category_path(category_path: str) -> tuple[str, Optional[str]]:
+def parse_category_path(category_path: str) -> tuple[str, str | None]:
     """Parse a category path string into category and optional subcategory.
 
     Supports both formats:

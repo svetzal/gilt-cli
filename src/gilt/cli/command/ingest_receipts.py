@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Optional
 
 from rich.table import Table
 
@@ -52,8 +51,8 @@ def run(
     workspace: Workspace,
     source: Path,
     write: bool = False,
-    year: Optional[int] = None,
-    account: Optional[str] = None,
+    year: int | None = None,
+    account: str | None = None,
 ) -> int:
     """Run the ingest-receipts command.
 

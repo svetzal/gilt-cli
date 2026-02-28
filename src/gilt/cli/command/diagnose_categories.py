@@ -6,23 +6,23 @@ Diagnose category issues by finding categories in transactions that aren't in co
 
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, Set, Tuple
 
 from rich.table import Table
 
-from .util import console
 from gilt.model.category_io import load_categories_config
 from gilt.model.ledger_io import load_ledger_csv
 from gilt.workspace import Workspace
 
+from .util import console
 
-def _collect_used_categories(data_dir: Path) -> Dict[Tuple[str, str | None], int]:
+
+def _collect_used_categories(data_dir: Path) -> dict[tuple[str, str | None], int]:
     """Collect all categories used in ledger files with transaction counts.
 
     Returns:
         Dict mapping (category, subcategory) to transaction count
     """
-    used_categories: Dict[Tuple[str, str | None], int] = defaultdict(int)
+    used_categories: dict[tuple[str, str | None], int] = defaultdict(int)
 
     try:
         for ledger_path in sorted(data_dir.glob("*.csv")):
@@ -48,7 +48,7 @@ def _collect_used_categories(data_dir: Path) -> Dict[Tuple[str, str | None], int
     return dict(used_categories)
 
 
-def _get_defined_categories(config_path: Path) -> Set[Tuple[str, str | None]]:
+def _get_defined_categories(config_path: Path) -> set[tuple[str, str | None]]:
     """Get all valid category/subcategory combinations from config.
 
     Returns:

@@ -4,14 +4,13 @@ from __future__ import annotations
 Tests for uncategorized command.
 """
 
+from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from decimal import Decimal
-
 from gilt.cli.command.uncategorized import run
 from gilt.model.account import Transaction, TransactionGroup
-from gilt.model.events import TransactionImported, TransactionCategorized
+from gilt.model.events import TransactionCategorized, TransactionImported
 from gilt.model.ledger_io import dump_ledger_csv
 from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
@@ -269,8 +268,8 @@ class DescribeUncategorizedCommand:
             workspace = Workspace(root=Path(tmpdir))
 
             # Setup empty projections database in temp dir
-            from gilt.storage.projection import ProjectionBuilder
             from gilt.storage.event_store import EventStore
+            from gilt.storage.projection import ProjectionBuilder
 
             # Create empty event store and projections
             events_dir = data_dir / "events"

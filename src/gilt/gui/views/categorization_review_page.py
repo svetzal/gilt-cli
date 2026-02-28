@@ -1,31 +1,29 @@
 from __future__ import annotations
 
-from typing import List, Set
-
+from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtGui import QBrush
 from PySide6.QtWidgets import (
-    QWizardPage,
-    QVBoxLayout,
+    QCheckBox,
+    QComboBox,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
+    QProgressBar,
     QTableWidget,
     QTableWidgetItem,
-    QHeaderView,
-    QComboBox,
-    QProgressBar,
-    QCheckBox,
+    QVBoxLayout,
+    QWizardPage,
 )
-from PySide6.QtCore import Qt, Signal, QThread
-from PySide6.QtGui import QBrush
 
-from gilt.gui.services.import_service import (
-    ImportService,
-    ImportFileMapping,
-    CategorizationReviewItem,
-)
-from gilt.gui.services.category_service import CategoryService
 from gilt.gui.dialogs.settings_dialog import SettingsDialog
-from gilt.gui.widgets.smart_category_combo import SmartCategoryComboBox
+from gilt.gui.services.category_service import CategoryService
+from gilt.gui.services.import_service import (
+    CategorizationReviewItem,
+    ImportFileMapping,
+    ImportService,
+)
 from gilt.gui.theme import Theme
+from gilt.gui.widgets.smart_category_combo import SmartCategoryComboBox
 
 
 class CategorizationScanWorker(QThread):
@@ -36,7 +34,7 @@ class CategorizationScanWorker(QThread):
     error = Signal(str)
 
     def __init__(
-        self, service: ImportService, mappings: List[ImportFileMapping], exclude_ids: Set[str]
+        self, service: ImportService, mappings: list[ImportFileMapping], exclude_ids: set[str]
     ):
         super().__init__()
         self.service = service
@@ -74,9 +72,9 @@ class CategorizationReviewPage(QWizardPage):
     def __init__(self, service: ImportService):
         super().__init__()
         self.service = service
-        self.items: List[CategorizationReviewItem] = []
-        self.mappings: List[ImportFileMapping] = []
-        self.exclude_ids: Set[str] = set()
+        self.items: list[CategorizationReviewItem] = []
+        self.mappings: list[ImportFileMapping] = []
+        self.exclude_ids: set[str] = set()
 
         # Load categories for dropdowns
         accounts_config = SettingsDialog.get_accounts_config()
@@ -165,7 +163,7 @@ class CategorizationReviewPage(QWizardPage):
         self.worker.error.connect(self._on_scan_error)
         self.worker.start()
 
-    def _on_scan_finished(self, items: List[CategorizationReviewItem]):
+    def _on_scan_finished(self, items: list[CategorizationReviewItem]):
         """Handle scan completion."""
         self.progress_bar.setVisible(False)
         self.items = items
@@ -293,6 +291,6 @@ class CategorizationReviewPage(QWizardPage):
         # For now, just track it.
         pass
 
-    def get_categorization_decisions(self) -> List[CategorizationReviewItem]:
+    def get_categorization_decisions(self) -> list[CategorizationReviewItem]:
         """Get the final list of items with user decisions."""
         return self.items

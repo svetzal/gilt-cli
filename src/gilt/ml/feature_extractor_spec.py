@@ -7,6 +7,7 @@ pair scenarios including identical, similar, and different transactions.
 from __future__ import annotations
 
 from datetime import date
+
 import numpy as np
 
 from gilt.ml.feature_extractor import DuplicateFeatureExtractor

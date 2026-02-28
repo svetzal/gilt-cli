@@ -8,14 +8,14 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-from gilt.cli.command.report import run, _generate_markdown_report, _aggregate_spending
+from gilt.cli.command.report import _aggregate_spending, _generate_markdown_report, run
+from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.category import Budget, BudgetPeriod, Category, CategoryConfig, Subcategory
 from gilt.model.category_io import save_categories_config
-from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.ledger_io import dump_ledger_csv
-from gilt.storage.projection import ProjectionBuilder
 from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.storage.event_store import EventStore
+from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
 
@@ -36,9 +36,10 @@ def _build_projections_from_csvs(data_dir: Path, projections_path: Path):
     event_sourcing._event_store_path = store_path
 
     # Import transactions from CSV files into event store
-    from gilt.model.ledger_io import load_ledger_csv
-    from gilt.model.events import TransactionImported, TransactionCategorized
     from decimal import Decimal
+
+    from gilt.model.events import TransactionCategorized, TransactionImported
+    from gilt.model.ledger_io import load_ledger_csv
 
     store = EventStore(str(store_path))
     for csv_file in data_dir.glob("*.csv"):

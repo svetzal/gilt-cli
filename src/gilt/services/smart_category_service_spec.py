@@ -1,8 +1,9 @@
 from unittest.mock import Mock
-from gilt.services.smart_category_service import SmartCategoryService
+
 from gilt.ml.categorization_classifier import CategorizationClassifier
-from gilt.storage.event_store import EventStore
 from gilt.model.events import TransactionCategorized
+from gilt.services.smart_category_service import SmartCategoryService
+from gilt.storage.event_store import EventStore
 
 
 class DescribeSmartCategoryService:

@@ -17,24 +17,24 @@ All business logic is in EventMigrationService.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from .util import console
-from gilt.workspace import Workspace
 from gilt.model.category_io import load_categories_config
 from gilt.services.event_migration_service import EventMigrationService, MigrationStats
 from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.storage.budget_projection import BudgetProjectionBuilder
+from gilt.workspace import Workspace
+
+from .util import console
 
 
 def run(
     *,
     workspace: Workspace,
-    event_store_path: Optional[Path] = None,
-    projections_db_path: Optional[Path] = None,
-    budget_projections_db_path: Optional[Path] = None,
+    event_store_path: Path | None = None,
+    projections_db_path: Path | None = None,
+    budget_projections_db_path: Path | None = None,
     dry_run: bool = True,
 ) -> int:
     """Backfill events from existing ledgers and configuration.

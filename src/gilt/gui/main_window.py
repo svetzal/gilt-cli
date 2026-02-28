@@ -7,34 +7,34 @@ Provides navigation sidebar and content area for different views.
 """
 
 
+from PySide6.QtCore import QSize, Qt
+from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
-    QMainWindow,
-    QWidget,
     QHBoxLayout,
-    QVBoxLayout,
+    QLabel,
     QListWidget,
     QListWidgetItem,
+    QMainWindow,
     QStackedWidget,
-    QLabel,
+    QVBoxLayout,
+    QWidget,
 )
-from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QAction
 
-from gilt.gui.views.dashboard_view import DashboardView
-from gilt.gui.views.transactions_view import TransactionsView
-from gilt.gui.views.categories_view import CategoriesView
-from gilt.gui.views.budget_view import BudgetView
-from gilt.gui.views.import_wizard import ImportWizard
 from gilt.gui.dialogs.settings_dialog import SettingsDialog
 from gilt.gui.services.import_service import ImportService
+from gilt.gui.theme import Theme
+from gilt.gui.views.budget_view import BudgetView
+from gilt.gui.views.categories_view import CategoriesView
+from gilt.gui.views.dashboard_view import DashboardView
+from gilt.gui.views.import_wizard import ImportWizard
+from gilt.gui.views.transactions_view import TransactionsView
+from gilt.ml.categorization_classifier import CategorizationClassifier
+from gilt.services.duplicate_service import DuplicateService
 from gilt.services.event_sourcing_service import EventSourcingService
+from gilt.services.smart_category_service import SmartCategoryService
 from gilt.storage.event_store import EventStore
 from gilt.transfer.duplicate_detector import DuplicateDetector
-from gilt.services.duplicate_service import DuplicateService
-from gilt.services.smart_category_service import SmartCategoryService
-from gilt.ml.categorization_classifier import CategorizationClassifier
 from gilt.workspace import Workspace
-from gilt.gui.theme import Theme
 
 
 class MainWindow(QMainWindow):

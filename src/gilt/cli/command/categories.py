@@ -6,23 +6,23 @@ List all defined categories with usage statistics.
 
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, Tuple
 
 from rich.table import Table
 
-from .util import console
 from gilt.model.category_io import load_categories_config
 from gilt.model.ledger_io import load_ledger_csv
 from gilt.workspace import Workspace
 
+from .util import console
 
-def _count_category_usage(data_dir: Path) -> Dict[Tuple[str, str | None], Tuple[int, float]]:
+
+def _count_category_usage(data_dir: Path) -> dict[tuple[str, str | None], tuple[int, float]]:
     """Count usage of categories across all ledger files.
 
     Returns:
         Dict mapping (category, subcategory) to (transaction_count, total_amount)
     """
-    usage: Dict[Tuple[str, str | None], Tuple[int, float]] = defaultdict(lambda: (0, 0.0))
+    usage: dict[tuple[str, str | None], tuple[int, float]] = defaultdict(lambda: (0, 0.0))
 
     try:
         for ledger_path in sorted(data_dir.glob("*.csv")):
@@ -144,7 +144,7 @@ def run(
     # Show summary
     total_defined = len(category_config.categories)
     total_used = len(
-        [key for key in usage.keys() if key[0] in [c.name for c in category_config.categories]]
+        [key for key in usage if key[0] in [c.name for c in category_config.categories]]
     )
     console.print(f"\nTotal categories: {total_defined} | Used in transactions: {total_used}")
 

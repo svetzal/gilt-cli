@@ -1,25 +1,25 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Optional
 
 from rich.table import Table
 from rich.text import Text
 
+from gilt.ingest import load_accounts_config
 from gilt.model.account import Transaction
 from gilt.storage.projection import ProjectionBuilder
-from gilt.ingest import load_accounts_config
 from gilt.workspace import Workspace
+
 from .util import console, fmt_amount
 
 
 def run(
     *,
     account: str,
-    year: Optional[int] = None,
+    year: int | None = None,
     workspace: Workspace,
-    limit: Optional[int] = None,
-    default_currency: Optional[str] = None,
+    limit: int | None = None,
+    default_currency: str | None = None,
     include_duplicates: bool = False,
     raw: bool = False,
     compare: bool = False,

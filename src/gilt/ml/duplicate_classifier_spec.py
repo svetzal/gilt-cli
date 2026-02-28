@@ -7,6 +7,7 @@ on transaction pairs.
 from __future__ import annotations
 
 from datetime import date
+
 import pytest
 
 from gilt.model.duplicate import TransactionPair

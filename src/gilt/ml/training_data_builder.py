@@ -7,8 +7,6 @@ into training examples.
 
 from __future__ import annotations
 
-from typing import List, Tuple
-
 from gilt.model.duplicate import TransactionPair
 from gilt.model.events import DuplicateConfirmed, DuplicateRejected
 from gilt.storage.event_store import EventStore
@@ -25,14 +23,14 @@ class TrainingDataBuilder:
         """
         self.event_store = event_store
 
-    def load_from_events(self) -> Tuple[List[TransactionPair], List[bool]]:
+    def load_from_events(self) -> tuple[list[TransactionPair], list[bool]]:
         """Load training examples from DuplicateConfirmed/Rejected events.
 
         Returns:
             Tuple of (pairs, labels) where labels are True for duplicates
         """
-        pairs: List[TransactionPair] = []
-        labels: List[bool] = []
+        pairs: list[TransactionPair] = []
+        labels: list[bool] = []
 
         # First, build index of suggestion events by ID
         suggestion_events = self.event_store.get_events_by_type("DuplicateSuggested")

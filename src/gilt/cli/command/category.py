@@ -5,11 +5,9 @@ Manage categories (add, remove, set budget).
 """
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 
-from .util import console
 from gilt.model.category import BudgetPeriod
 from gilt.model.category_io import (
     load_categories_config,
@@ -21,6 +19,8 @@ from gilt.services.category_management_service import (
     CategoryManagementService,
 )
 from gilt.workspace import Workspace
+
+from .util import console
 
 
 def _load_all_transactions(data_dir: Path):
@@ -41,11 +41,11 @@ def _load_all_transactions(data_dir: Path):
 
 def run(
     *,
-    add: Optional[str] = None,
-    remove: Optional[str] = None,
-    set_budget: Optional[str] = None,
-    description: Optional[str] = None,
-    amount: Optional[float] = None,
+    add: str | None = None,
+    remove: str | None = None,
+    set_budget: str | None = None,
+    description: str | None = None,
+    amount: float | None = None,
     period: str = "monthly",
     force: bool = False,
     workspace: Workspace,
@@ -131,7 +131,7 @@ def run(
 def _handle_add(
     category_config,
     category_path: str,
-    description: Optional[str],
+    description: str | None,
     config_path: Path,
     write: bool,
 ) -> int:

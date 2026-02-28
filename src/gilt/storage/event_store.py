@@ -14,29 +14,29 @@ from __future__ import annotations
 import json
 import sqlite3
 from pathlib import Path
-from typing import Dict, List, Type, TypeVar
+from typing import TypeVar
 
 from gilt.model.events import (
-    Event,
-    TransactionImported,
-    TransactionDescriptionObserved,
-    DuplicateSuggested,
+    BudgetCreated,
+    BudgetDeleted,
+    BudgetUpdated,
+    CategorizationRuleCreated,
     DuplicateConfirmed,
     DuplicateRejected,
-    TransactionCategorized,
-    TransactionEnriched,
-    CategorizationRuleCreated,
-    BudgetCreated,
-    BudgetUpdated,
-    BudgetDeleted,
+    DuplicateSuggested,
+    Event,
     PromptUpdated,
+    TransactionCategorized,
+    TransactionDescriptionObserved,
+    TransactionEnriched,
+    TransactionImported,
 )
 
 # Type variable for generic event types
 TEvent = TypeVar("TEvent", bound=Event)
 
 # Map event types to classes for deserialization
-EVENT_TYPE_MAP: Dict[str, Type[Event]] = {
+EVENT_TYPE_MAP: dict[str, type[Event]] = {
     "TransactionImported": TransactionImported,
     "TransactionDescriptionObserved": TransactionDescriptionObserved,
     "DuplicateSuggested": DuplicateSuggested,
@@ -177,7 +177,7 @@ class EventStore:
         finally:
             conn.close()
 
-    def get_all_events(self) -> List[Event]:
+    def get_all_events(self) -> list[Event]:
         """Retrieve all events in sequence order.
 
         Returns:
@@ -202,7 +202,7 @@ class EventStore:
         finally:
             conn.close()
 
-    def get_events(self, aggregate_type: str, aggregate_id: str) -> List[Event]:
+    def get_events(self, aggregate_type: str, aggregate_id: str) -> list[Event]:
         """Retrieve all events for a specific aggregate.
 
         Args:
@@ -235,7 +235,7 @@ class EventStore:
         finally:
             conn.close()
 
-    def get_events_by_type(self, event_type: str) -> List[Event]:
+    def get_events_by_type(self, event_type: str) -> list[Event]:
         """Retrieve all events of a specific type.
 
         Args:
@@ -267,7 +267,7 @@ class EventStore:
         finally:
             conn.close()
 
-    def get_events_since(self, sequence_number: int) -> List[Event]:
+    def get_events_since(self, sequence_number: int) -> list[Event]:
         """Retrieve events after a specific sequence number.
 
         Useful for incremental projection updates.

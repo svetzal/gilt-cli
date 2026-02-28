@@ -6,27 +6,27 @@ Provides account detection, preview, duplicate checking, and import execution.
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Optional, List, Tuple, Dict, Any
 from dataclasses import dataclass
 from datetime import date, datetime
+from pathlib import Path
+from typing import Any
 
 import pandas as pd
 
-from gilt.model.account import Account, Transaction
-from gilt.model.ledger_io import load_ledger_csv
-from gilt.model.duplicate import DuplicateMatch, TransactionPair
-from gilt.services.duplicate_service import DuplicateService
-from gilt.services.smart_category_service import SmartCategoryService
-from gilt.services.event_sourcing_service import EventSourcingService
-from gilt.transfer.linker import link_transfers
 from gilt.ingest import (
-    load_accounts_config,
     infer_account_for_file,
-    plan_normalization,
+    load_accounts_config,
     normalize_file,
     parse_file,
+    plan_normalization,
 )
+from gilt.model.account import Account, Transaction
+from gilt.model.duplicate import DuplicateMatch, TransactionPair
+from gilt.model.ledger_io import load_ledger_csv
+from gilt.services.duplicate_service import DuplicateService
+from gilt.services.event_sourcing_service import EventSourcingService
+from gilt.services.smart_category_service import SmartCategoryService
+from gilt.transfer.linker import link_transfers
 
 
 @dataclass
@@ -44,10 +44,10 @@ class ImportFileMapping:
     """Mapping of a file to an account."""
 
     file_info: FileInfo
-    detected_account: Optional[Account]
-    selected_account_id: Optional[str]  # User can override
-    preview_rows: List[Dict[str, Any]]  # First few rows of parsed data
-    error: Optional[str] = None
+    detected_account: Account | None
+    selected_account_id: str | None  # User can override
+    preview_rows: list[dict[str, Any]]  # First few rows of parsed data
+    error: str | None = None
 
 
 @dataclass
@@ -58,8 +58,8 @@ class ImportResult:
     imported_count: int
     duplicate_count: int
     error_count: int
-    messages: List[str]
-    ledger_path: Optional[Path] = None
+    messages: list[str]
+    ledger_path: Path | None = None
 
 
 @dataclass
@@ -67,10 +67,10 @@ class CategorizationReviewItem:
     """Item for categorization review."""
 
     transaction: Transaction
-    predicted_category: Optional[str]
+    predicted_category: str | None
     confidence: float
-    assigned_category: Optional[str] = None
-    assigned_subcategory: Optional[str] = None
+    assigned_category: str | None = None
+    assigned_subcategory: str | None = None
 
 
 class ImportService:
@@ -80,9 +80,9 @@ class ImportService:
         self,
         data_dir: Path,
         accounts_config: Path,
-        duplicate_service: Optional[DuplicateService] = None,
-        event_sourcing_service: Optional[EventSourcingService] = None,
-        smart_category_service: Optional[SmartCategoryService] = None,
+        duplicate_service: DuplicateService | None = None,
+        event_sourcing_service: EventSourcingService | None = None,
+        smart_category_service: SmartCategoryService | None = None,
     ):
         """
         Initialize the import service.
@@ -99,9 +99,9 @@ class ImportService:
         self.duplicate_service = duplicate_service
         self.event_sourcing_service = event_sourcing_service
         self.smart_category_service = smart_category_service
-        self._accounts_cache: Optional[List[Account]] = None
+        self._accounts_cache: list[Account] | None = None
 
-    def get_accounts(self) -> List[Account]:
+    def get_accounts(self) -> list[Account]:
         """
         Get list of configured accounts.
 
@@ -136,7 +136,7 @@ class ImportService:
             modified_date=modified,
         )
 
-    def detect_account(self, file_path: Path) -> Optional[Account]:
+    def detect_account(self, file_path: Path) -> Account | None:
         """
         Detect which account a file belongs to based on source patterns.
 
@@ -150,8 +150,8 @@ class ImportService:
         return infer_account_for_file(accounts, file_path)
 
     def preview_file(
-        self, file_path: Path, account_id: Optional[str] = None, max_rows: int = 10
-    ) -> Tuple[List[Dict[str, Any]], Optional[str]]:
+        self, file_path: Path, account_id: str | None = None, max_rows: int = 10
+    ) -> tuple[list[dict[str, Any]], str | None]:
         """
         Preview the contents of a CSV file.
 
@@ -220,7 +220,7 @@ class ImportService:
         except Exception:
             return 0
 
-    def count_duplicates(self, file_path: Path, account_id: str) -> Tuple[int, int, Optional[str]]:
+    def count_duplicates(self, file_path: Path, account_id: str) -> tuple[int, int, str | None]:
         """
         Count how many transactions in the file are duplicates vs. new.
 
@@ -254,7 +254,7 @@ class ImportService:
         except Exception as e:
             return 0, 0, str(e)
 
-    def scan_file_for_duplicates(self, file_path: Path, account_id: str) -> List[DuplicateMatch]:
+    def scan_file_for_duplicates(self, file_path: Path, account_id: str) -> list[DuplicateMatch]:
         """
         Scan a file for potential duplicates against existing transactions.
 
@@ -345,8 +345,8 @@ class ImportService:
             return []
 
     def scan_file_for_categorization(
-        self, file_path: Path, account_id: str, exclude_ids: Optional[List[str]] = None
-    ) -> List[CategorizationReviewItem]:
+        self, file_path: Path, account_id: str, exclude_ids: list[str] | None = None
+    ) -> list[CategorizationReviewItem]:
         """
         Scan a file for transactions that need categorization.
 
@@ -419,8 +419,8 @@ class ImportService:
         account_id: str,
         write: bool = False,
         progress_callback=None,
-        exclude_ids: Optional[List[str]] = None,
-        categorization_map: Optional[Dict[str, str]] = None,
+        exclude_ids: list[str] | None = None,
+        categorization_map: dict[str, str] | None = None,
     ) -> ImportResult:
         """
         Import a CSV file into the specified account's ledger.
@@ -511,7 +511,7 @@ class ImportService:
                 messages=[str(e)],
             )
 
-    def plan_imports(self, file_paths: List[Path]) -> List[Tuple[Path, Optional[str]]]:
+    def plan_imports(self, file_paths: list[Path]) -> list[tuple[Path, str | None]]:
         """
         Plan which files would be imported to which accounts (dry-run).
 

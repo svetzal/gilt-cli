@@ -4,22 +4,22 @@ from __future__ import annotations
 Display uncategorized transactions.
 """
 
-from typing import Optional
 
 from rich.table import Table
 
-from .util import console
 from gilt.model.account import Transaction
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
+from .util import console
+
 
 def run(
     *,
-    account: Optional[str] = None,
-    year: Optional[int] = None,
-    limit: Optional[int] = None,
-    min_amount: Optional[float] = None,
+    account: str | None = None,
+    year: int | None = None,
+    limit: int | None = None,
+    min_amount: float | None = None,
     workspace: Workspace,
 ) -> int:
     """Display transactions without categories.

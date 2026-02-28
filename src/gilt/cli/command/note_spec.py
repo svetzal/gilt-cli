@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from pathlib import Path
 from datetime import date as dt_date
+from pathlib import Path
 
 from gilt.cli.command.note import run
 from gilt.model.account import Transaction, TransactionGroup

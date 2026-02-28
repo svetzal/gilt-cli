@@ -20,14 +20,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import List, Optional, Tuple
 
 from gilt.model.category import CategoryConfig
 from gilt.model.events import (
     BudgetCreated,
+    Event,
     TransactionCategorized,
     TransactionImported,
-    Event,
 )
 from gilt.storage.budget_projection import BudgetProjectionBuilder
 from gilt.storage.event_store import EventStore
@@ -49,7 +48,7 @@ class ValidationResult:
     """Result of projection validation against original data."""
 
     is_valid: bool
-    errors: List[str]
+    errors: list[str]
     transaction_count_match: bool
     budget_count_match: bool
     sample_transactions_match: bool
@@ -62,7 +61,7 @@ class EventMigrationService:
     All file paths and data structures passed as parameters.
     """
 
-    def generate_transaction_events(self, csv_path: Path) -> Tuple[List[Event], List[str]]:
+    def generate_transaction_events(self, csv_path: Path) -> tuple[list[Event], list[str]]:
         """Generate transaction events from a CSV ledger file.
 
         Parses CSV and creates:
@@ -75,11 +74,11 @@ class EventMigrationService:
         Returns:
             Tuple of (events list, errors list)
         """
-        events: List[Event] = []
-        errors: List[str] = []
+        events: list[Event] = []
+        errors: list[str] = []
 
         try:
-            with open(csv_path, "r", encoding="utf-8") as f:
+            with open(csv_path, encoding="utf-8") as f:
                 reader = csv.DictReader(f)
 
                 for row_num, row in enumerate(reader, start=2):  # Start at 2 (header = 1)
@@ -146,8 +145,8 @@ class EventMigrationService:
         return events, errors
 
     def generate_budget_events(
-        self, category_config: CategoryConfig, timestamp: Optional[datetime] = None
-    ) -> List[Event]:
+        self, category_config: CategoryConfig, timestamp: datetime | None = None
+    ) -> list[Event]:
         """Generate budget events from category configuration.
 
         Creates BudgetCreated event for each category with a budget.
@@ -159,7 +158,7 @@ class EventMigrationService:
         Returns:
             List of BudgetCreated events
         """
-        events: List[Event] = []
+        events: list[Event] = []
 
         # Use fixed timestamp for consistent historical migration
         if timestamp is None:
@@ -211,7 +210,7 @@ class EventMigrationService:
         Returns:
             ValidationResult with detailed comparison
         """
-        errors: List[str] = []
+        errors: list[str] = []
 
         # Count original transactions
         original_tx_count = self._count_original_transactions(original_data_dir)
@@ -310,7 +309,7 @@ class EventMigrationService:
 
         for ledger_path in data_dir.glob("*.csv"):
             try:
-                with open(ledger_path, "r", encoding="utf-8") as f:
+                with open(ledger_path, encoding="utf-8") as f:
                     reader = csv.DictReader(f)
                     for row in reader:
                         if row.get("row_type") == "primary" and row.get("transaction_id"):
@@ -326,7 +325,7 @@ class EventMigrationService:
         data_dir: Path,
         tx_builder: ProjectionBuilder,
         sample_size: int = 10,
-    ) -> List[str]:
+    ) -> list[str]:
         """Validate a sample of transactions match between original and projection.
 
         Args:
@@ -337,7 +336,7 @@ class EventMigrationService:
         Returns:
             List of validation error messages (empty if all valid)
         """
-        errors: List[str] = []
+        errors: list[str] = []
         validated = 0
 
         if not data_dir.exists() or not data_dir.is_dir():
@@ -348,7 +347,7 @@ class EventMigrationService:
                 break
 
             try:
-                with open(ledger_path, "r", encoding="utf-8") as f:
+                with open(ledger_path, encoding="utf-8") as f:
                     reader = csv.DictReader(f)
                     for row in reader:
                         if validated >= sample_size:

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 import pandas as pd
 
-from gilt.transfer.linker import link_transfers
 from gilt.model.ledger_io import load_ledger_csv
+from gilt.transfer.linker import link_transfers
 
 
 def _write_ledger(path: Path, rows: list[dict]):
