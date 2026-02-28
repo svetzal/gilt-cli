@@ -356,49 +356,52 @@ class EventMigrationService:
                         if row.get("row_type") != "primary" or not row.get("transaction_id"):
                             continue
 
-                        transaction_id = row["transaction_id"]
-                        projection = tx_builder.get_transaction(transaction_id)
-
-                        if not projection:
-                            errors.append(f"Transaction {transaction_id} not found in projection")
-                            continue
-
-                        # Validate key fields match
-                        if projection.get("transaction_date") != row.get("date"):
-                            errors.append(
-                                f"Transaction {transaction_id}: date mismatch "
-                                f"(original={row.get('date')}, "
-                                f"projection={projection.get('transaction_date')})"
-                            )
-
-                        # Compare amounts (handle float vs string)
-                        try:
-                            original_amount = float(row.get("amount", 0))
-                            projection_amount = float(projection.get("amount", 0))
-                            if abs(original_amount - projection_amount) > 0.001:
-                                errors.append(
-                                    f"Transaction {transaction_id}: amount mismatch "
-                                    f"(original={row.get('amount')}, "
-                                    f"projection={projection.get('amount')})"
-                                )
-                        except (ValueError, TypeError) as e:
-                            errors.append(
-                                f"Transaction {transaction_id}: amount comparison error - {e}"
-                            )
-
-                        # Compare categories (handle empty string vs None)
-                        original_category = row.get("category", "").strip() or None
-                        projection_category = projection.get("category")
-                        if original_category != projection_category:
-                            errors.append(
-                                f"Transaction {transaction_id}: category mismatch "
-                                f"(original={original_category}, "
-                                f"projection={projection_category})"
-                            )
-
+                        self._validate_single_transaction(row, tx_builder, errors)
                         validated += 1
 
             except Exception as e:
                 errors.append(f"Error validating {ledger_path.name}: {e}")
 
         return errors
+
+    @staticmethod
+    def _validate_single_transaction(
+        row: dict, tx_builder: ProjectionBuilder, errors: list[str]
+    ) -> None:
+        """Validate a single transaction against its projection."""
+        transaction_id = row["transaction_id"]
+        projection = tx_builder.get_transaction(transaction_id)
+
+        if not projection:
+            errors.append(f"Transaction {transaction_id} not found in projection")
+            return
+
+        if projection.get("transaction_date") != row.get("date"):
+            errors.append(
+                f"Transaction {transaction_id}: date mismatch "
+                f"(original={row.get('date')}, "
+                f"projection={projection.get('transaction_date')})"
+            )
+
+        try:
+            original_amount = float(row.get("amount", 0))
+            projection_amount = float(projection.get("amount", 0))
+            if abs(original_amount - projection_amount) > 0.001:
+                errors.append(
+                    f"Transaction {transaction_id}: amount mismatch "
+                    f"(original={row.get('amount')}, "
+                    f"projection={projection.get('amount')})"
+                )
+        except (ValueError, TypeError) as e:
+            errors.append(
+                f"Transaction {transaction_id}: amount comparison error - {e}"
+            )
+
+        original_category = row.get("category", "").strip() or None
+        projection_category = projection.get("category")
+        if original_category != projection_category:
+            errors.append(
+                f"Transaction {transaction_id}: category mismatch "
+                f"(original={original_category}, "
+                f"projection={projection_category})"
+            )

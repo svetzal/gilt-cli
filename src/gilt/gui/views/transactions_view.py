@@ -60,41 +60,46 @@ class IntelligenceWorker(QThread):
 
     def run(self):
         metadata = {}
-
-        # Flatten groups to transactions
         all_txns = [g.primary for g in self.transactions]
 
-        # 1. Scan for duplicates
-        if self.duplicate_service:
-            if self.isInterruptionRequested():
-                return
-            matches = self.duplicate_service.scan_transactions(all_txns)
-            for m in matches:
-                if self.isInterruptionRequested():
-                    return
-                # Mark both sides as risky
-                for tid in [m.pair.txn1_id, m.pair.txn2_id]:
-                    if tid not in metadata:
-                        metadata[tid] = {}
-                    metadata[tid]["risk"] = True
-                    metadata[tid]["duplicate_match"] = m
+        if self.duplicate_service and not self._scan_duplicates(all_txns, metadata):
+            return
 
-        # 2. Predict categories for uncategorized or low confidence items
-        if self.smart_category_service:
-            for txn in all_txns:
-                if self.isInterruptionRequested():
-                    return
-                if not txn.category:
-                    cat, conf = self.smart_category_service.predict_category(
-                        txn.description, txn.amount, txn.account_id
-                    )
-                    if txn.transaction_id not in metadata:
-                        metadata[txn.transaction_id] = {}
-                    metadata[txn.transaction_id]["confidence"] = conf
-                    metadata[txn.transaction_id]["predicted_category"] = cat
+        if self.smart_category_service and not self._predict_categories(all_txns, metadata):
+            return
 
         if not self.isInterruptionRequested():
             self.finished.emit(metadata)
+
+    def _scan_duplicates(self, all_txns, metadata: dict) -> bool:
+        """Scan for duplicates and populate metadata. Returns False if interrupted."""
+        if self.isInterruptionRequested():
+            return False
+        matches = self.duplicate_service.scan_transactions(all_txns)
+        for m in matches:
+            if self.isInterruptionRequested():
+                return False
+            for tid in [m.pair.txn1_id, m.pair.txn2_id]:
+                if tid not in metadata:
+                    metadata[tid] = {}
+                metadata[tid]["risk"] = True
+                metadata[tid]["duplicate_match"] = m
+        return True
+
+    def _predict_categories(self, all_txns, metadata: dict) -> bool:
+        """Predict categories for uncategorized transactions. Returns False if interrupted."""
+        for txn in all_txns:
+            if self.isInterruptionRequested():
+                return False
+            if not txn.category:
+                cat, conf = self.smart_category_service.predict_category(
+                    txn.description, txn.amount, txn.account_id
+                )
+                if txn.transaction_id not in metadata:
+                    metadata[txn.transaction_id] = {}
+                metadata[txn.transaction_id]["confidence"] = conf
+                metadata[txn.transaction_id]["predicted_category"] = cat
+        return True
 
 
 class TransactionsView(QWidget):

@@ -95,145 +95,159 @@ class TransactionTableModel(QAbstractTableModel):
         txn = group.primary
         col = index.column()
 
-        # Display role - what text to show
         if role == Qt.DisplayRole:
-            if col == self.COL_DATE:
-                return str(txn.date)
-            elif col == self.COL_ACCOUNT:
-                return txn.account_id
-            elif col == self.COL_DESCRIPTION:
-                if self._enrichment_service:
-                    enriched = self._enrichment_service.get_display_description(txn.transaction_id)
-                    if enriched:
-                        return enriched
-                return txn.description or ""
-            elif col == self.COL_AMOUNT:
-                return f"{txn.amount:.2f}"
-            elif col == self.COL_CURRENCY:
-                return txn.currency or "CAD"
-            elif col == self.COL_CATEGORY:
-                return txn.category or ""
-            elif col == self.COL_SUBCATEGORY:
-                return txn.subcategory or ""
-            elif col == self.COL_NOTES:
-                return txn.notes or ""
-            elif col == self.COL_TRANSFER:
-                # Check if transaction has transfer metadata
-                if txn.metadata and "transfer" in txn.metadata:
-                    transfer = txn.metadata["transfer"]
-                    transfer_role = transfer.get("role", "")
-                    method = transfer.get("method", "")
-                    return f"{transfer_role} ({method})" if transfer_role else ""
-                return ""
-            elif col == self.COL_RISK:
-                meta = self._metadata_cache.get(txn.transaction_id, {})
-                return "⚠️" if meta.get("risk") else ""
-            elif col == self.COL_CONFIDENCE:
-                meta = self._metadata_cache.get(txn.transaction_id, {})
-                conf = meta.get("confidence")
-                return f"{conf:.0%}" if conf is not None else ""
-
-        # Sort role - raw data for sorting
+            return self._display_data(txn, col)
         elif role == self.SortRole:
-            if col == self.COL_DATE:
-                return txn.date
-            elif col == self.COL_AMOUNT:
-                return txn.amount
-            elif col == self.COL_CONFIDENCE:
-                meta = self._metadata_cache.get(txn.transaction_id, {})
-                return meta.get("confidence", 0.0)
-            elif col == self.COL_RISK:
-                meta = self._metadata_cache.get(txn.transaction_id, {})
-                return 1 if meta.get("risk") else 0
-            else:
-                # Fallback to string representation for other columns
-                return self.data(index, Qt.DisplayRole)
-
-        # Text alignment
+            return self._sort_data(index, txn, col)
         elif role == Qt.TextAlignmentRole:
-            if col == self.COL_AMOUNT or col == self.COL_CONFIDENCE:
-                return Qt.AlignRight | Qt.AlignVCenter
-            elif col == self.COL_RISK:
-                return Qt.AlignCenter
-
-        # Tooltip role
+            return self._alignment_data(col)
         elif role == Qt.ToolTipRole:
-            if col == self.COL_RISK:
-                meta = self._metadata_cache.get(txn.transaction_id, {})
-                if meta.get("risk"):
-                    return "Potential duplicate detected"
-            elif (
-                col == self.COL_CONFIDENCE
-                or col == self.COL_CATEGORY
-                or col == self.COL_SUBCATEGORY
-            ):
-                meta = self._metadata_cache.get(txn.transaction_id, {})
-                conf = meta.get("confidence")
-                if conf is not None:
-                    return f"Categorization confidence: {conf:.1%}"
-
-        # Background color role for low confidence
+            return self._tooltip_data(txn, col)
         elif role == Qt.BackgroundRole:
-            if col == self.COL_CATEGORY or col == self.COL_SUBCATEGORY:
-                meta = self._metadata_cache.get(txn.transaction_id, {})
-                conf = meta.get("confidence")
-                if conf is not None and conf < 0.8:
-                    return Theme.color("warning_bg")
-            return None
-
-        # Foreground color (text color)
+            return self._background_data(txn, col)
         elif role == Qt.ForegroundRole:
-            if col == self.COL_CATEGORY or col == self.COL_SUBCATEGORY:
-                meta = self._metadata_cache.get(txn.transaction_id, {})
-                conf = meta.get("confidence")
-                if conf is not None and conf < 0.8:
-                    return Theme.color("warning_fg")
+            return self._foreground_data(txn, col)
 
-            if col == self.COL_DESCRIPTION and self._enrichment_service and self._enrichment_service.is_enriched(
-                txn.transaction_id
-            ):
-                return Theme.color("link_fg")
+        return None
 
-            if col == self.COL_AMOUNT:
-                if txn.amount < 0:
-                    return Theme.color("negative_fg")
-                elif txn.amount > 0:
-                    return Theme.color("positive_fg")
-                else:
-                    return Theme.color("neutral_fg")
-            elif col == self.COL_TRANSFER and txn.metadata and "transfer" in txn.metadata:
-                return Theme.color("link_fg")
+    def _display_data(self, txn, col):
+        if col == self.COL_DATE:
+            return str(txn.date)
+        elif col == self.COL_ACCOUNT:
+            return txn.account_id
+        elif col == self.COL_DESCRIPTION:
+            return self._display_description(txn)
+        elif col == self.COL_AMOUNT:
+            return f"{txn.amount:.2f}"
+        elif col == self.COL_CURRENCY:
+            return txn.currency or "CAD"
+        elif col == self.COL_CATEGORY:
+            return txn.category or ""
+        elif col == self.COL_SUBCATEGORY:
+            return txn.subcategory or ""
+        elif col == self.COL_NOTES:
+            return txn.notes or ""
+        return self._display_metadata_col(txn, col)
 
-        # Tooltip
-        elif role == Qt.ToolTipRole:
-            if col == self.COL_DATE:
-                return f"Transaction ID: {txn.transaction_id[:8]}"
-            elif col == self.COL_DESCRIPTION:
-                tooltip = txn.description or ""
-                if self._enrichment_service and self._enrichment_service.is_enriched(
-                    txn.transaction_id
-                ):
-                    enrichment = self._enrichment_service.get_enrichment(txn.transaction_id)
-                    tooltip = f"Bank: {txn.description}"
-                    tooltip += f"\nVendor: {enrichment.vendor}"
-                    if enrichment.service:
-                        tooltip += f"\nService: {enrichment.service}"
-                if txn.counterparty and txn.counterparty != txn.description:
-                    tooltip += f"\nCounterparty: {txn.counterparty}"
-                if txn.source_file:
-                    tooltip += f"\nSource: {txn.source_file}"
-                return tooltip
-            elif col == self.COL_TRANSFER and txn.metadata and "transfer" in txn.metadata:
+    def _display_description(self, txn):
+        if self._enrichment_service:
+            enriched = self._enrichment_service.get_display_description(txn.transaction_id)
+            if enriched:
+                return enriched
+        return txn.description or ""
+
+    def _display_metadata_col(self, txn, col):
+        if col == self.COL_TRANSFER:
+            if txn.metadata and "transfer" in txn.metadata:
                 transfer = txn.metadata["transfer"]
-                lines = []
-                if "role" in transfer:
-                    lines.append(f"Role: {transfer['role']}")
-                if "counterparty_account_id" in transfer:
-                    lines.append(f"Counterparty: {transfer['counterparty_account_id']}")
-                if "method" in transfer:
-                    lines.append(f"Method: {transfer['method']}")
-                return "\n".join(lines)
+                transfer_role = transfer.get("role", "")
+                method = transfer.get("method", "")
+                return f"{transfer_role} ({method})" if transfer_role else ""
+            return ""
+        elif col == self.COL_RISK:
+            meta = self._metadata_cache.get(txn.transaction_id, {})
+            return "⚠️" if meta.get("risk") else ""
+        elif col == self.COL_CONFIDENCE:
+            meta = self._metadata_cache.get(txn.transaction_id, {})
+            conf = meta.get("confidence")
+            return f"{conf:.0%}" if conf is not None else ""
+        return None
 
+    def _sort_data(self, index, txn, col):
+        if col == self.COL_DATE:
+            return txn.date
+        elif col == self.COL_AMOUNT:
+            return txn.amount
+        elif col == self.COL_CONFIDENCE:
+            meta = self._metadata_cache.get(txn.transaction_id, {})
+            return meta.get("confidence", 0.0)
+        elif col == self.COL_RISK:
+            meta = self._metadata_cache.get(txn.transaction_id, {})
+            return 1 if meta.get("risk") else 0
+        else:
+            return self.data(index, Qt.DisplayRole)
+
+    def _alignment_data(self, col):
+        if col == self.COL_AMOUNT or col == self.COL_CONFIDENCE:
+            return Qt.AlignRight | Qt.AlignVCenter
+        elif col == self.COL_RISK:
+            return Qt.AlignCenter
+        return None
+
+    def _tooltip_data(self, txn, col):
+        if col == self.COL_DATE:
+            return f"Transaction ID: {txn.transaction_id[:8]}"
+        elif col == self.COL_DESCRIPTION:
+            return self._description_tooltip(txn)
+        elif col == self.COL_RISK:
+            meta = self._metadata_cache.get(txn.transaction_id, {})
+            if meta.get("risk"):
+                return "Potential duplicate detected"
+        elif col in (self.COL_CONFIDENCE, self.COL_CATEGORY, self.COL_SUBCATEGORY):
+            meta = self._metadata_cache.get(txn.transaction_id, {})
+            conf = meta.get("confidence")
+            if conf is not None:
+                return f"Categorization confidence: {conf:.1%}"
+        elif col == self.COL_TRANSFER:
+            return self._transfer_tooltip(txn)
+        return None
+
+    def _description_tooltip(self, txn):
+        tooltip = txn.description or ""
+        if self._enrichment_service and self._enrichment_service.is_enriched(txn.transaction_id):
+            enrichment = self._enrichment_service.get_enrichment(txn.transaction_id)
+            tooltip = f"Bank: {txn.description}"
+            tooltip += f"\nVendor: {enrichment.vendor}"
+            if enrichment.service:
+                tooltip += f"\nService: {enrichment.service}"
+        if txn.counterparty and txn.counterparty != txn.description:
+            tooltip += f"\nCounterparty: {txn.counterparty}"
+        if txn.source_file:
+            tooltip += f"\nSource: {txn.source_file}"
+        return tooltip
+
+    def _transfer_tooltip(self, txn):
+        if not (txn.metadata and "transfer" in txn.metadata):
+            return None
+        transfer = txn.metadata["transfer"]
+        lines = []
+        if "role" in transfer:
+            lines.append(f"Role: {transfer['role']}")
+        if "counterparty_account_id" in transfer:
+            lines.append(f"Counterparty: {transfer['counterparty_account_id']}")
+        if "method" in transfer:
+            lines.append(f"Method: {transfer['method']}")
+        return "\n".join(lines)
+
+    def _background_data(self, txn, col):
+        if col == self.COL_CATEGORY or col == self.COL_SUBCATEGORY:
+            meta = self._metadata_cache.get(txn.transaction_id, {})
+            conf = meta.get("confidence")
+            if conf is not None and conf < 0.8:
+                return Theme.color("warning_bg")
+        return None
+
+    def _foreground_data(self, txn, col):
+        if col == self.COL_CATEGORY or col == self.COL_SUBCATEGORY:
+            meta = self._metadata_cache.get(txn.transaction_id, {})
+            conf = meta.get("confidence")
+            if conf is not None and conf < 0.8:
+                return Theme.color("warning_fg")
+
+        if col == self.COL_DESCRIPTION and self._enrichment_service and self._enrichment_service.is_enriched(
+            txn.transaction_id
+        ):
+            return Theme.color("link_fg")
+
+        if col == self.COL_AMOUNT:
+            if txn.amount < 0:
+                return Theme.color("negative_fg")
+            elif txn.amount > 0:
+                return Theme.color("positive_fg")
+            else:
+                return Theme.color("neutral_fg")
+        elif col == self.COL_TRANSFER and txn.metadata and "transfer" in txn.metadata:
+            return Theme.color("link_fg")
         return None
 
     def headerData(self, section, orientation, role=Qt.DisplayRole):

@@ -182,87 +182,70 @@ class CategorizationReviewPage(QWizardPage):
         self.table.setSortingEnabled(False)
 
         for row, item in enumerate(self.items):
-            # Date
-            self.table.setItem(row, 0, QTableWidgetItem(str(item.transaction.date)))
-
-            # Account
-            self.table.setItem(row, 1, QTableWidgetItem(item.transaction.account_id))
-
-            # Description
-            self.table.setItem(row, 2, QTableWidgetItem(item.transaction.description))
-
-            # Amount
-            amt_item = QTableWidgetItem(f"{item.transaction.amount:.2f}")
-            amt_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-            self.table.setItem(row, 3, amt_item)
-
-            # Category Dropdown
-            combo = SmartCategoryComboBox()
-
-            # Prepare suggestions
-            suggestions = []
-            if item.predicted_category:
-                suggestions.append((item.predicted_category, item.confidence))
-
-            # Prepare all categories
-            all_cats = []
-            for c in self.all_categories:
-                all_cats.append(c.name)
-                for sub in c.subcategories:
-                    all_cats.append(f"{c.name}: {sub.name}")
-
-            combo.set_categories(all_cats, suggestions, placeholder="-- Select --")
-
-            # Set current selection
-            current_val = item.assigned_category
-            if item.assigned_category and item.assigned_subcategory:
-                current_val = f"{item.assigned_category}: {item.assigned_subcategory}"
-
-            if current_val:
-                idx = combo.findData(current_val, Qt.ItemDataRole.UserRole)
-                if idx >= 0:
-                    combo.setCurrentIndex(idx)
-
-            combo.currentIndexChanged.connect(lambda idx, r=row: self._on_category_changed(r, idx))
-            self.table.setCellWidget(row, 4, combo)
-
-            # Confidence
-            conf_text = f"{item.confidence:.0%}"
-            conf_item = QTableWidgetItem(conf_text)
-
-            if item.confidence < 0.8:
-                conf_item.setBackground(Theme.color("warning_bg"))
-                conf_item.setForeground(Theme.color("warning_fg"))
-            else:
-                conf_item.setBackground(Theme.color("success_bg"))
-                conf_item.setForeground(Theme.color("success_fg"))
-
-            self.table.setItem(row, 5, conf_item)
-
-            # Confirm Checkbox
-            chk = QCheckBox()
-            chk.setChecked(item.assigned_category is not None)
-            chk.stateChanged.connect(lambda state, r=row: self._on_confirm_changed(r, state))
-            self.table.setCellWidget(row, 6, chk)
-
-            # Styling
-            if item.confidence < 0.8:
-                # Low confidence
-                bg_color = Theme.color("warning_bg")
-                fg_color = Theme.color("warning_fg")
-            else:
-                # High confidence
-                bg_color = Theme.color("success_bg")
-                fg_color = Theme.color("success_fg")
-
-            for col in range(7):
-                if col not in [4, 6]:  # Skip widget columns
-                    it = self.table.item(row, col)
-                    if it:
-                        it.setBackground(QBrush(bg_color))
-                        it.setForeground(QBrush(fg_color))
+            self._create_row_widgets(row, item)
 
         self.table.setSortingEnabled(True)
+
+    def _create_row_widgets(self, row: int, item: CategorizationReviewItem) -> None:
+        """Create all widgets and styling for a single table row."""
+        # Basic text cells
+        self.table.setItem(row, 0, QTableWidgetItem(str(item.transaction.date)))
+        self.table.setItem(row, 1, QTableWidgetItem(item.transaction.account_id))
+        self.table.setItem(row, 2, QTableWidgetItem(item.transaction.description))
+
+        amt_item = QTableWidgetItem(f"{item.transaction.amount:.2f}")
+        amt_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self.table.setItem(row, 3, amt_item)
+
+        # Category Dropdown
+        combo = SmartCategoryComboBox()
+        suggestions = []
+        if item.predicted_category:
+            suggestions.append((item.predicted_category, item.confidence))
+
+        all_cats = []
+        for c in self.all_categories:
+            all_cats.append(c.name)
+            for sub in c.subcategories:
+                all_cats.append(f"{c.name}: {sub.name}")
+
+        combo.set_categories(all_cats, suggestions, placeholder="-- Select --")
+
+        current_val = item.assigned_category
+        if item.assigned_category and item.assigned_subcategory:
+            current_val = f"{item.assigned_category}: {item.assigned_subcategory}"
+        if current_val:
+            idx = combo.findData(current_val, Qt.ItemDataRole.UserRole)
+            if idx >= 0:
+                combo.setCurrentIndex(idx)
+
+        combo.currentIndexChanged.connect(lambda idx, r=row: self._on_category_changed(r, idx))
+        self.table.setCellWidget(row, 4, combo)
+
+        # Confidence
+        is_low = item.confidence < 0.8
+        theme_prefix = "warning" if is_low else "success"
+        bg_color = Theme.color(f"{theme_prefix}_bg")
+        fg_color = Theme.color(f"{theme_prefix}_fg")
+
+        conf_item = QTableWidgetItem(f"{item.confidence:.0%}")
+        conf_item.setBackground(bg_color)
+        conf_item.setForeground(fg_color)
+        self.table.setItem(row, 5, conf_item)
+
+        # Confirm Checkbox
+        chk = QCheckBox()
+        chk.setChecked(item.assigned_category is not None)
+        chk.stateChanged.connect(lambda state, r=row: self._on_confirm_changed(r, state))
+        self.table.setCellWidget(row, 6, chk)
+
+        # Apply row styling to text cells
+        for col in range(7):
+            if col not in [4, 6]:  # Skip widget columns
+                it = self.table.item(row, col)
+                if it:
+                    it.setBackground(QBrush(bg_color))
+                    it.setForeground(QBrush(fg_color))
 
     def _on_category_changed(self, row: int, index: int):
         """Handle category selection change."""

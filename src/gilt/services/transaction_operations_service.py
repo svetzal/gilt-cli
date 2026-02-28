@@ -129,99 +129,65 @@ class TransactionOperationsService:
         else:
             return MatchResult(type="ambiguous", matches=matches)
 
+    @staticmethod
+    def _matches_description(
+        desc: str,
+        criteria: SearchCriteria,
+        compiled_pattern: re.Pattern | None,
+    ) -> bool:
+        """Check if a description matches the search criteria."""
+        if criteria.description is not None:
+            return desc == criteria.description.strip()
+        elif criteria.desc_prefix is not None:
+            return desc.lower().startswith(criteria.desc_prefix.strip().lower())
+        elif compiled_pattern is not None:
+            return bool(compiled_pattern.search(desc))
+        return False
+
     def find_by_criteria(
         self,
         criteria: SearchCriteria,
         groups: list[TransactionGroup],
     ) -> BatchPreview:
-        """
-        Find transactions matching search criteria.
-
-        Supports:
-        - Exact description match
-        - Description prefix match (case-insensitive)
-        - Regex pattern match
-        - Optional amount filter (signed or absolute)
-
-        Args:
-            criteria: Search criteria
-            groups: List of transaction groups to search
-
-        Returns:
-            BatchPreview with matched groups and metadata
-        """
-        matched: list[TransactionGroup] = []
-        used_sign_insensitive = False
-
-        # Compile regex pattern if provided
+        """Find transactions matching search criteria."""
         compiled_pattern: re.Pattern | None = None
         if criteria.pattern:
             try:
                 compiled_pattern = re.compile(criteria.pattern, re.IGNORECASE)
             except re.error:
-                # Invalid pattern - return empty matches with flag set
                 return BatchPreview(
-                    matched_groups=[],
-                    total_count=0,
-                    criteria=criteria,
-                    used_sign_insensitive=False,
-                    invalid_pattern=True,
+                    matched_groups=[], total_count=0, criteria=criteria,
+                    used_sign_insensitive=False, invalid_pattern=True,
                 )
 
-        # First pass: try exact amount match (signed)
+        # Collect description-matching groups in one pass
+        desc_matched: list[TransactionGroup] = []
         for group in groups:
-            txn = group.primary
-            desc = (txn.description or "").strip()
+            desc = (group.primary.description or "").strip()
+            if self._matches_description(desc, criteria, compiled_pattern):
+                desc_matched.append(group)
 
-            # Check description criteria
-            desc_matches = False
-            if criteria.description is not None:
-                desc_matches = desc == criteria.description.strip()
-            elif criteria.desc_prefix is not None:
-                desc_matches = desc.lower().startswith(criteria.desc_prefix.strip().lower())
-            elif compiled_pattern is not None:
-                desc_matches = bool(compiled_pattern.search(desc))
-            else:
-                # No description criteria - shouldn't happen but handle gracefully
-                continue
+        # Filter by amount (signed first, then absolute fallback)
+        if criteria.amount is None:
+            return BatchPreview(
+                matched_groups=desc_matched, total_count=len(desc_matched),
+                criteria=criteria, used_sign_insensitive=False,
+            )
 
-            if not desc_matches:
-                continue
+        signed = [g for g in desc_matched if abs(g.primary.amount - criteria.amount) < 0.01]
+        if signed:
+            return BatchPreview(
+                matched_groups=signed, total_count=len(signed),
+                criteria=criteria, used_sign_insensitive=False,
+            )
 
-            # Check amount criteria
-            if criteria.amount is None or abs(txn.amount - criteria.amount) < 0.01:
-                matched.append(group)
-
-        # Second pass: if amount specified but no signed matches, try absolute value
-        if criteria.amount is not None and len(matched) == 0:
-            for group in groups:
-                txn = group.primary
-                desc = (txn.description or "").strip()
-
-                # Check description criteria (same as above)
-                desc_matches = False
-                if criteria.description is not None:
-                    desc_matches = desc == criteria.description.strip()
-                elif criteria.desc_prefix is not None:
-                    desc_matches = desc.lower().startswith(criteria.desc_prefix.strip().lower())
-                elif compiled_pattern is not None:
-                    desc_matches = bool(compiled_pattern.search(desc))
-                else:
-                    continue
-
-                if not desc_matches:
-                    continue
-
-                # Check absolute amount
-                if abs(abs(txn.amount) - abs(criteria.amount)) < 0.01:
-                    matched.append(group)
-                    used_sign_insensitive = True
-
+        absolute = [
+            g for g in desc_matched
+            if abs(abs(g.primary.amount) - abs(criteria.amount)) < 0.01
+        ]
         return BatchPreview(
-            matched_groups=matched,
-            total_count=len(matched),
-            criteria=criteria,
-            used_sign_insensitive=used_sign_insensitive,
+            matched_groups=absolute, total_count=len(absolute),
+            criteria=criteria, used_sign_insensitive=bool(absolute),
         )
 
     def add_note(

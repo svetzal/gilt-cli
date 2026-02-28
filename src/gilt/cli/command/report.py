@@ -123,21 +123,40 @@ def _collect_transactions(
     return dict(result)
 
 
-def _generate_markdown_report(
-    category_config,
-    spending: dict[tuple[str, str | None], float],
-    transactions_by_category: dict[str, list[tuple]],
-    year: int | None,
-    month: int | None,
-) -> str:
-    """Generate markdown-formatted budget report.
+def _budget_for_period(cat_budget, month: int | None) -> float | None:
+    """Calculate budget amount adjusted for the report period."""
+    if not cat_budget:
+        return None
+    if month is not None:
+        if cat_budget.period == BudgetPeriod.monthly:
+            return cat_budget.amount
+        return cat_budget.amount / 12
+    if cat_budget.period == BudgetPeriod.yearly:
+        return cat_budget.amount
+    return cat_budget.amount * 12
 
-    Returns:
-        Markdown content as string
-    """
-    lines = []
 
-    # Build title
+def _actual_for_category(
+    cat_name: str, spending: dict[tuple[str, str | None], float],
+) -> tuple[float, dict[str, float]]:
+    """Aggregate actual spending and subcategory breakdown for a category."""
+    cat_actual = 0.0
+    subcat_actuals: dict[str, float] = {}
+    for (spent_cat, spent_subcat), amount in spending.items():
+        if spent_cat == cat_name:
+            cat_actual += amount
+            if spent_subcat:
+                subcat_actuals[spent_subcat] = subcat_actuals.get(spent_subcat, 0.0) + amount
+    return cat_actual, subcat_actuals
+
+
+def _esc_md(s: str) -> str:
+    """Escape pipe characters for markdown tables."""
+    return s.replace("|", "\\|")
+
+
+def _generate_report_header(year: int | None, month: int | None) -> list[str]:
+    """Generate report title and period header."""
     if year and month:
         title = f"Budget Report - {year}-{month:02d}"
         period_desc = f"{year}-{month:02d}"
@@ -148,54 +167,40 @@ def _generate_markdown_report(
         title = "Budget Report"
         period_desc = "All Time"
 
-    lines.append(f"# {title}\n")
-    lines.append(f"**Period:** {period_desc}\n")
-    lines.append(f"**Generated:** {date.today().isoformat()}\n")
-    lines.append("")
+    return [
+        f"# {title}\n",
+        f"**Period:** {period_desc}\n",
+        f"**Generated:** {date.today().isoformat()}\n",
+        "",
+    ]
 
-    # Summary table header
-    lines.append("## Budget Summary\n")
-    lines.append("| Category | Budget | Actual | Remaining | % Used |")
-    lines.append("|----------|--------|--------|-----------|--------|")
+
+def _generate_summary_section(
+    category_config, spending, month,
+) -> tuple[list[str], float, float, int]:
+    """Generate the budget summary table. Returns (lines, total_budgeted, total_actual, over_count)."""
+    lines = [
+        "## Budget Summary\n",
+        "| Category | Budget | Actual | Remaining | % Used |",
+        "|----------|--------|--------|-----------|--------|",
+    ]
 
     total_budgeted = 0.0
     total_actual = 0.0
     over_budget_count = 0
 
     for cat in category_config.categories:
-        # Calculate budget for period
-        budget_amount = None
-        if cat.budget:
-            if month is not None:
-                # Monthly report: use monthly budget or prorate yearly
-                if cat.budget.period == BudgetPeriod.monthly:
-                    budget_amount = cat.budget.amount
-                else:  # yearly
-                    budget_amount = cat.budget.amount / 12
-            else:
-                # Yearly report: use yearly budget or multiply monthly
-                if cat.budget.period == BudgetPeriod.yearly:
-                    budget_amount = cat.budget.amount
-                else:  # monthly
-                    budget_amount = cat.budget.amount * 12
+        budget_amount = _budget_for_period(cat.budget, month)
+        cat_actual, _ = _actual_for_category(cat.name, spending)
 
-        # Aggregate actual spending for this category
-        cat_actual = 0.0
-        for (spent_cat, _spent_subcat), amount in spending.items():
-            if spent_cat == cat.name:
-                cat_actual += amount
-
-        # Format budget amount
         budget_str = f"${budget_amount:,.2f}" if budget_amount else "—"
         actual_str = f"${cat_actual:,.2f}"
 
-        # Calculate remaining and percentage
         if budget_amount:
             remaining = budget_amount - cat_actual
             remaining_str = f"${remaining:,.2f}"
             pct_used = (cat_actual / budget_amount) * 100 if budget_amount > 0 else 0
             pct_str = f"{pct_used:.1f}%"
-
             total_budgeted += budget_amount
             if cat_actual > budget_amount:
                 over_budget_count += 1
@@ -204,10 +209,8 @@ def _generate_markdown_report(
             pct_str = "—"
 
         total_actual += cat_actual
-
         lines.append(f"| {cat.name} | {budget_str} | {actual_str} | {remaining_str} | {pct_str} |")
 
-    # Totals (no extra separator row; multiple header separators are invalid in Markdown tables)
     total_remaining = total_budgeted - total_actual
     total_pct = (total_actual / total_budgeted) * 100 if total_budgeted > 0 else 0
     lines.append(
@@ -215,94 +218,86 @@ def _generate_markdown_report(
     )
     lines.append("")
 
-    # Detailed breakdown by category
+    return lines, total_budgeted, total_actual, over_budget_count
+
+
+def _generate_category_detail(
+    cat, spending, transactions_by_category, month,
+) -> list[str]:
+    """Generate the detailed breakdown for a single category."""
+    budget_amount = _budget_for_period(cat.budget, month)
+    cat_actual, subcat_actuals = _actual_for_category(cat.name, spending)
+
+    if cat_actual == 0 and not budget_amount:
+        return []
+
+    lines = [f"### {cat.name}\n"]
+
+    if cat.description:
+        lines.append(f"*{cat.description}*\n")
+
+    if budget_amount:
+        remaining = budget_amount - cat_actual
+        pct_used = (cat_actual / budget_amount) * 100 if budget_amount > 0 else 0
+        status = (
+            "⚠️ OVER BUDGET" if remaining < 0
+            else "✓ On Track" if pct_used < 90
+            else "⚠️ Near Limit"
+        )
+        lines.append(f"- **Budget:** ${budget_amount:,.2f}")
+        lines.append(f"- **Actual:** ${cat_actual:,.2f}")
+        lines.append(f"- **Remaining:** ${remaining:,.2f}")
+        lines.append(f"- **% Used:** {pct_used:.1f}%")
+        lines.append(f"- **Status:** {status}")
+    else:
+        lines.append(f"- **Actual:** ${cat_actual:,.2f}")
+
+    if month is not None:
+        txns = transactions_by_category.get(cat.name, [])
+        if txns:
+            lines.append("")
+            lines.append("| Date | Description | Subcategory | Amount | Account |")
+            lines.append("|------|-------------|-------------|--------|---------|")
+            for d, desc, subc, amt, acct in txns:
+                lines.append(
+                    f"| {d} | {_esc_md(desc)} | {_esc_md(subc)} | ${amt:,.2f} | {_esc_md(acct)} |"
+                )
+    elif cat.subcategories and subcat_actuals:
+        lines.append("\n**Subcategories:**\n")
+        for subcat in cat.subcategories:
+            subcat_actual = subcat_actuals.get(subcat.name, 0.0)
+            if subcat_actual > 0:
+                pct_of_cat = (subcat_actual / cat_actual * 100) if cat_actual > 0 else 0
+                lines.append(
+                    f"- {subcat.name}: ${subcat_actual:,.2f} ({pct_of_cat:.1f}% of category)"
+                )
+
+    lines.append("")
+    return lines
+
+
+def _generate_markdown_report(
+    category_config,
+    spending: dict[tuple[str, str | None], float],
+    transactions_by_category: dict[str, list[tuple]],
+    year: int | None,
+    month: int | None,
+) -> str:
+    """Generate markdown-formatted budget report."""
+    lines = _generate_report_header(year, month)
+
+    summary_lines, total_budgeted, total_actual, over_budget_count = _generate_summary_section(
+        category_config, spending, month,
+    )
+    lines.extend(summary_lines)
+
     lines.append("## Detailed Breakdown\n")
-
     for cat in category_config.categories:
-        # Calculate budget for period
-        budget_amount = None
-        if cat.budget:
-            if month is not None:
-                if cat.budget.period == BudgetPeriod.monthly:
-                    budget_amount = cat.budget.amount
-                else:
-                    budget_amount = cat.budget.amount / 12
-            else:
-                if cat.budget.period == BudgetPeriod.yearly:
-                    budget_amount = cat.budget.amount
-                else:
-                    budget_amount = cat.budget.amount * 12
+        lines.extend(_generate_category_detail(cat, spending, transactions_by_category, month))
 
-        # Aggregate actual spending for this category and subcategories
-        cat_actual = 0.0
-        subcat_actuals: dict[str, float] = {}
+    total_remaining = total_budgeted - total_actual
+    total_pct = (total_actual / total_budgeted) * 100 if total_budgeted > 0 else 0
 
-        for (spent_cat, spent_subcat), amount in spending.items():
-            if spent_cat == cat.name:
-                cat_actual += amount
-                if spent_subcat:
-                    subcat_actuals[spent_subcat] = subcat_actuals.get(spent_subcat, 0.0) + amount
-
-        # Skip categories with no spending
-        if cat_actual == 0 and not budget_amount:
-            continue
-
-        lines.append(f"### {cat.name}\n")
-
-        if cat.description:
-            lines.append(f"*{cat.description}*\n")
-
-        # Category summary
-        if budget_amount:
-            remaining = budget_amount - cat_actual
-            pct_used = (cat_actual / budget_amount) * 100 if budget_amount > 0 else 0
-            status = (
-                "⚠️ OVER BUDGET"
-                if remaining < 0
-                else "✓ On Track"
-                if pct_used < 90
-                else "⚠️ Near Limit"
-            )
-
-            lines.append(f"- **Budget:** ${budget_amount:,.2f}")
-            lines.append(f"- **Actual:** ${cat_actual:,.2f}")
-            lines.append(f"- **Remaining:** ${remaining:,.2f}")
-            lines.append(f"- **% Used:** {pct_used:.1f}%")
-            lines.append(f"- **Status:** {status}")
-        else:
-            lines.append(f"- **Actual:** ${cat_actual:,.2f}")
-
-        # Detailed transaction table for monthly reports
-        if month is not None:
-            txns = transactions_by_category.get(cat.name, [])
-            if txns:
-
-                def _esc(s: str) -> str:
-                    # Escape pipe characters for markdown tables
-                    return s.replace("|", "\\|")
-
-                lines.append("")
-                lines.append("| Date | Description | Subcategory | Amount | Account |")
-                lines.append("|------|-------------|-------------|--------|---------|")
-                for d, desc, subc, amt, acct in txns:
-                    lines.append(
-                        f"| {d} | {_esc(desc)} | {_esc(subc)} | ${amt:,.2f} | {_esc(acct)} |"
-                    )
-        else:
-            # Yearly or all-time: keep subcategory breakdown when available
-            if cat.subcategories and subcat_actuals:
-                lines.append("\n**Subcategories:**\n")
-                for subcat in cat.subcategories:
-                    subcat_actual = subcat_actuals.get(subcat.name, 0.0)
-                    if subcat_actual > 0:
-                        pct_of_cat = (subcat_actual / cat_actual * 100) if cat_actual > 0 else 0
-                        lines.append(
-                            f"- {subcat.name}: ${subcat_actual:,.2f} ({pct_of_cat:.1f}% of category)"
-                        )
-
-        lines.append("")
-
-    # Summary footer
     lines.append("---\n")
     lines.append("## Summary\n")
     lines.append(f"- **Total Budgeted:** ${total_budgeted:,.2f}")
@@ -371,110 +366,26 @@ def _convert_to_docx(markdown_path: Path, docx_path: Path) -> bool:
         return False
 
 
-def run(
-    *,
-    year: int | None = None,
-    month: int | None = None,
-    output: Path | None = None,
-    workspace: Workspace,
-    write: bool = False,
-) -> int:
-    """Generate budget report as markdown and Word document.
-
-    Creates a budget report comparing actual spending vs budgeted amounts,
-    exports to markdown, and converts to Word format (.docx) using pandoc.
-
-    Args:
-        year: Filter by year (default: current year)
-        month: Filter by month (1-12, requires year)
-        output: Output file path (without extension, default: reports/budget_report_YYYY[-MM])
-        workspace: Workspace for resolving data paths
-        write: Actually write files (default: dry-run)
-
-    Returns:
-        Exit code (0 on success, 1 on error)
-    """
-    # Default to current year if not specified
-    if year is None and month is None:
-        year = date.today().year
-
-    # Validate month requires year
-    if month is not None and year is None:
-        console.print("[red]Error:[/] --month requires --year")
-        return 1
-
-    if month is not None and (month < 1 or month > 12):
-        console.print("[red]Error:[/] --month must be between 1 and 12")
-        return 1
-
-    # Check pandoc availability
-    if not _check_pandoc():
-        console.print(
-            "[yellow]Warning:[/] pandoc not found. Install pandoc to generate .docx files."
-        )
-        console.print("  macOS: brew install pandoc")
-        console.print("  Linux: apt-get install pandoc or yum install pandoc")
-        console.print("  Windows: https://pandoc.org/installing.html")
-        console.print("\nContinuing with markdown generation only...")
-        has_pandoc = False
-    else:
-        has_pandoc = True
-
-    # Load categories
-    category_config = load_categories_config(workspace.categories_config)
-
-    if not category_config.categories:
-        console.print("[yellow]No categories defined.[/] Create config/categories.yml first")
-        return 0
-
-    # Aggregate spending and collect transactions (for monthly per-category tables)
-    spending = _aggregate_spending(
-        workspace.ledger_data_dir, year, month, workspace.projections_path
-    )
-    transactions_by_category = _collect_transactions(
-        workspace.ledger_data_dir, year, month, workspace.projections_path
-    )
-
-    # Generate markdown report
-    markdown_content = _generate_markdown_report(
-        category_config,
-        spending,
-        transactions_by_category,
-        year,
-        month,
-    )
-
-    # Determine output paths
+def _resolve_output_paths(
+    output: Path | None, workspace: Workspace, year: int | None, month: int | None,
+) -> tuple[Path, Path]:
+    """Resolve markdown and docx output paths."""
     if output is None:
-        reports_dir = workspace.reports_dir
         if year and month:
             base_name = f"budget_report_{year}_{month:02d}"
         elif year:
             base_name = f"budget_report_{year}"
         else:
             base_name = "budget_report"
-        output = reports_dir / base_name
+        output = workspace.reports_dir / base_name
+    return output.with_suffix(".md"), output.with_suffix(".docx")
 
-    markdown_path = output.with_suffix(".md")
-    docx_path = output.with_suffix(".docx")
 
-    # Dry-run vs actual write
-    if not write:
-        console.print("[yellow]DRY RUN[/] (use --write to persist)")
-        console.print(f"\nWould write markdown to: [cyan]{markdown_path}[/]")
-        if has_pandoc:
-            console.print(f"Would write Word doc to: [cyan]{docx_path}[/]")
-        console.print("\n[dim]--- Preview (first 500 chars) ---[/]")
-        console.print(
-            markdown_content[:500] + "..." if len(markdown_content) > 500 else markdown_content
-        )
-        console.print("[dim]--- End preview ---[/]")
-        return 0
-
-    # Create reports directory if needed
-    output.parent.mkdir(parents=True, exist_ok=True)
-
-    # Write markdown file
+def _write_report_files(
+    markdown_content: str, markdown_path: Path, docx_path: Path, has_pandoc: bool,
+) -> int:
+    """Write markdown and optionally convert to docx. Returns exit code."""
+    markdown_path.parent.mkdir(parents=True, exist_ok=True)
     try:
         markdown_path.write_text(markdown_content, encoding="utf-8")
         console.print(f"[green]✓[/] Written markdown report: [cyan]{markdown_path}[/]")
@@ -482,7 +393,6 @@ def run(
         console.print(f"[red]Error writing markdown file:[/] {e}")
         return 1
 
-    # Convert to docx if pandoc is available
     if has_pandoc:
         if _convert_to_docx(markdown_path, docx_path):
             console.print(f"[green]✓[/] Written Word document: [cyan]{docx_path}[/]")
@@ -491,3 +401,55 @@ def run(
             return 1
 
     return 0
+
+
+def run(
+    *,
+    year: int | None = None,
+    month: int | None = None,
+    output: Path | None = None,
+    workspace: Workspace,
+    write: bool = False,
+) -> int:
+    """Generate budget report as markdown and Word document."""
+    if year is None and month is None:
+        year = date.today().year
+
+    if month is not None and year is None:
+        console.print("[red]Error:[/] --month requires --year")
+        return 1
+
+    if month is not None and (month < 1 or month > 12):
+        console.print("[red]Error:[/] --month must be between 1 and 12")
+        return 1
+
+    has_pandoc = _check_pandoc()
+    if not has_pandoc:
+        console.print("[yellow]Warning:[/] pandoc not found. Install pandoc to generate .docx files.")
+        console.print("  macOS: brew install pandoc")
+        console.print("  Linux: apt-get install pandoc or yum install pandoc")
+        console.print("\nContinuing with markdown generation only...")
+
+    category_config = load_categories_config(workspace.categories_config)
+    if not category_config.categories:
+        console.print("[yellow]No categories defined.[/] Create config/categories.yml first")
+        return 0
+
+    spending = _aggregate_spending(workspace.ledger_data_dir, year, month, workspace.projections_path)
+    transactions_by_category = _collect_transactions(workspace.ledger_data_dir, year, month, workspace.projections_path)
+
+    markdown_content = _generate_markdown_report(category_config, spending, transactions_by_category, year, month)
+
+    markdown_path, docx_path = _resolve_output_paths(output, workspace, year, month)
+
+    if not write:
+        console.print("[yellow]DRY RUN[/] (use --write to persist)")
+        console.print(f"\nWould write markdown to: [cyan]{markdown_path}[/]")
+        if has_pandoc:
+            console.print(f"Would write Word doc to: [cyan]{docx_path}[/]")
+        console.print("\n[dim]--- Preview (first 500 chars) ---[/]")
+        console.print(markdown_content[:500] + "..." if len(markdown_content) > 500 else markdown_content)
+        console.print("[dim]--- End preview ---[/]")
+        return 0
+
+    return _write_report_files(markdown_content, markdown_path, docx_path, has_pandoc)

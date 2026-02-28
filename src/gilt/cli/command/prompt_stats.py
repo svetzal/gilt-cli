@@ -136,36 +136,42 @@ def run(
             console.print("[yellow]No new patterns learned - update not generated[/yellow]")
             console.print("[dim]More feedback needed to identify new patterns.[/dim]")
 
-    # Show prompt version history
-    prompt_events = event_store.get_events_by_type("PromptUpdated")
-    if prompt_events:
-        console.print()
-        console.print("[cyan]Prompt Version History:[/cyan]")
-
-        history_table = Table(show_header=True)
-        history_table.add_column("Version", style="cyan")
-        history_table.add_column("Accuracy", style="green", justify="right")
-        history_table.add_column("Patterns Learned", style="yellow", justify="right")
-        history_table.add_column("Timestamp", style="dim")
-
-        for event in prompt_events:
-            if not isinstance(event, PromptUpdated):
-                continue
-
-            accuracy = event.accuracy_metrics.get("accuracy", 0.0)
-            patterns_count = len(event.learned_patterns)
-            timestamp = event.event_timestamp.strftime("%Y-%m-%d %H:%M")
-
-            history_table.add_row(
-                event.prompt_version,
-                f"{accuracy:.1%}",
-                str(patterns_count),
-                timestamp,
-            )
-
-        console.print(history_table)
+    _display_prompt_history(console, event_store)
 
     return 0
+
+
+def _display_prompt_history(console: Console, event_store) -> None:
+    """Display prompt version history table."""
+    prompt_events = event_store.get_events_by_type("PromptUpdated")
+    if not prompt_events:
+        return
+
+    console.print()
+    console.print("[cyan]Prompt Version History:[/cyan]")
+
+    history_table = Table(show_header=True)
+    history_table.add_column("Version", style="cyan")
+    history_table.add_column("Accuracy", style="green", justify="right")
+    history_table.add_column("Patterns Learned", style="yellow", justify="right")
+    history_table.add_column("Timestamp", style="dim")
+
+    for event in prompt_events:
+        if not isinstance(event, PromptUpdated):
+            continue
+
+        accuracy = event.accuracy_metrics.get("accuracy", 0.0)
+        patterns_count = len(event.learned_patterns)
+        timestamp = event.event_timestamp.strftime("%Y-%m-%d %H:%M")
+
+        history_table.add_row(
+            event.prompt_version,
+            f"{accuracy:.1%}",
+            str(patterns_count),
+            timestamp,
+        )
+
+    console.print(history_table)
 
 
 __all__ = ["run"]

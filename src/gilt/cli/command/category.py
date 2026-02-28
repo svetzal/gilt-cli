@@ -177,6 +177,29 @@ def _handle_add(
     return 0
 
 
+def _confirm_removal(plan, write: bool) -> int | None:
+    """Handle confirmation when removal is blocked. Returns exit code or None to proceed."""
+    if not write:
+        for warning in plan.warnings:
+            console.print(f"[yellow]Warning:[/] {warning}")
+        console.print("[dim]Use --force to confirm removal (dry-run)[/]")
+        return 1
+
+    import sys
+
+    if sys.stdin.isatty():
+        for warning in plan.warnings:
+            console.print(f"[yellow]Warning:[/] {warning}")
+        confirm = typer.confirm(
+            "Remove anyway? This will NOT remove the category from existing transactions"
+        )
+        if not confirm:
+            console.print("Cancelled")
+            return 0
+
+    return None
+
+
 def _handle_remove(
     category_config,
     category_path: str,
@@ -215,26 +238,9 @@ def _handle_remove(
 
     # Check if removal is blocked
     if not plan.can_remove:
-        if not write:
-            # Dry-run mode: show what force would do
-            for warning in plan.warnings:
-                console.print(f"[yellow]Warning:[/] {warning}")
-            console.print("[dim]Use --force to confirm removal (dry-run)[/]")
-            return 1
-
-        # Write mode: ask for confirmation if interactive
-        import sys
-
-        if sys.stdin.isatty():
-            for warning in plan.warnings:
-                console.print(f"[yellow]Warning:[/] {warning}")
-            confirm = typer.confirm(
-                "Remove anyway? This will NOT remove the category from existing transactions"
-            )
-            if not confirm:
-                console.print("Cancelled")
-                return 0
-        # Non-interactive environment (e.g., tests): proceed with removal
+        result = _confirm_removal(plan, write)
+        if result is not None:
+            return result
 
     if not write:
         console.print("[dim]Dry-run: use --write to persist changes[/]")

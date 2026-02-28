@@ -68,6 +68,122 @@ def _display_matches(
         console.print(f"[dim]... and {len(groups) - 50} more[/]")
 
 
+def _find_single_transaction(
+    service: TransactionOperationsService,
+    txid: str,
+    groups: list[TransactionGroup],
+) -> list[TransactionGroup] | int:
+    """Find a single transaction by ID prefix. Returns matches or exit code."""
+    prefix = txid.strip().lower()
+    if len(prefix) < 8:
+        console.print(
+            f"[red]Error:[/red] Transaction ID prefix must be at least 8 characters. Got: {len(prefix)}"
+        )
+        return 2
+
+    result = service.find_by_id_prefix(prefix, groups)
+
+    if result.type == "not_found":
+        console.print(f"[yellow]No transaction found matching ID prefix[/] [bold]{prefix}[/]")
+        return 1
+
+    if result.type == "ambiguous":
+        sample = []
+        for g in result.matches[:5]:
+            t = g.primary
+            sample.append(
+                f"{t.date} id={t.transaction_id[:8]} amt={t.amount} desc='{(t.description or '').strip()}'"
+            )
+        console.print(
+            f"[yellow]Ambiguous prefix[/] [bold]{prefix}[/]: matches {len(result.matches)} transactions. "
+            + (" Examples: " + "; ".join(sample) if sample else "")
+        )
+        console.print("Refine --txid with more characters to disambiguate.")
+        return 2
+
+    console.print(f"Will set note for transaction {result.transaction.primary.transaction_id[:8]}")
+    return [result.transaction]
+
+
+def _find_batch_transactions(
+    service: TransactionOperationsService,
+    groups: list[TransactionGroup],
+    account: str,
+    description: str | None,
+    desc_prefix: str | None,
+    pattern: str | None,
+    amount: float | None,
+) -> list[TransactionGroup] | int:
+    """Find transactions by batch criteria. Returns matches or exit code."""
+    if not any([description, desc_prefix, pattern]):
+        console.print(
+            "[red]Error:[/red] Must specify either --txid/-t for single mode, "
+            "or one of --description/-d, --desc-prefix/-p, --pattern for batch mode."
+        )
+        return 1
+
+    if pattern:
+        import re
+        try:
+            re.compile(pattern)
+        except re.error as e:
+            console.print(f"[red]Invalid regex pattern:[/red] {e}")
+            return 2
+
+    criteria = SearchCriteria(description=description, desc_prefix=desc_prefix, pattern=pattern, amount=amount)
+    preview = service.find_by_criteria(criteria, groups)
+
+    if not preview.matched_groups:
+        console.print("[yellow]No transactions matched the specified criteria.[/yellow]")
+        return 1
+
+    if preview.used_sign_insensitive:
+        console.print(
+            "[dim]Note: matched by absolute amount since no signed matches were found. "
+            "Ledger stores debits as negative amounts.[/dim]"
+        )
+
+    criteria_parts = []
+    if description:
+        criteria_parts.append(f"description='{description}'")
+    if desc_prefix:
+        criteria_parts.append(f"description_prefix='{desc_prefix}'")
+    if pattern:
+        criteria_parts.append(f"pattern='{pattern}'")
+    if amount is not None:
+        criteria_parts.append(f"amount={amount}")
+
+    console.print(
+        f"Will set note for {len(preview.matched_groups)} transactions in {account} "
+        f"matching {' and '.join(criteria_parts)}."
+    )
+    return preview.matched_groups
+
+
+def _apply_and_write_notes(
+    service: TransactionOperationsService,
+    groups: list[TransactionGroup],
+    groups_to_update: list[TransactionGroup],
+    note_text: str,
+    ledger_path,
+) -> None:
+    """Apply notes and write back to CSV."""
+    updated_ids = {g.primary.transaction_id for g in groups_to_update}
+    updated_groups = []
+    for group in groups:
+        if group.primary.transaction_id in updated_ids:
+            updated_groups.append(service.add_note(group, note_text))
+        else:
+            updated_groups.append(group)
+
+    csv_text = dump_ledger_csv(updated_groups)
+    ledger_path.write_text(csv_text, encoding="utf-8")
+
+    console.print(
+        f"[green]Saved notes to ledger successfully.[/] Applied to {len(groups_to_update)} transaction(s)."
+    )
+
+
 def run(
     *,
     account: str,
@@ -81,14 +197,7 @@ def run(
     workspace: Workspace,
     write: bool = False,
 ) -> int:
-    """Attach or update notes on transactions in the account ledger.
-
-    Modes:
-    - Single: specify --txid/-t (TxnID8 prefix) to update a single transaction.
-    - Batch: specify --description/-d, --desc-prefix/-p, or --pattern (and optionally --amount/-m) to update all matching rows.
-
-    Returns an exit code (0 success; non-zero for errors). Dry-run when write=False.
-    """
+    """Attach or update notes on transactions in the account ledger."""
     data_dir = workspace.ledger_data_dir
     ledger_path = data_dir / f"{account}.csv"
 
@@ -96,7 +205,6 @@ def run(
         console.print(f"[red]Error:[/red] Ledger not found: {ledger_path}")
         return 1
 
-    # Load ledger
     text = ledger_path.read_text(encoding="utf-8")
     try:
         groups = load_ledger_csv(text)
@@ -108,113 +216,23 @@ def run(
         console.print(f"[yellow]No transactions found in ledger:[/] {ledger_path}")
         return 1
 
-    # Initialize service
     service = TransactionOperationsService()
 
-    # Single mode: match by transaction ID prefix
     if txid:
-        prefix = (txid or "").strip().lower()
-        if len(prefix) < 8:
-            console.print(
-                f"[red]Error:[/red] Transaction ID prefix must be at least 8 characters. Got: {len(prefix)}"
-            )
-            return 2  # Input validation error
-
-        result = service.find_by_id_prefix(prefix, groups)
-
-        if result.type == "not_found":
-            console.print(f"[yellow]No transaction found matching ID prefix[/] [bold]{prefix}[/]")
-            return 1
-
-        if result.type == "ambiguous":
-            # Ambiguous - multiple matches
-            sample = []
-            for g in result.matches[:5]:
-                t = g.primary
-                sample.append(
-                    f"{t.date} id={t.transaction_id[:8]} amt={t.amount} desc='{(t.description or '').strip()}'"
-                )
-            console.print(
-                f"[yellow]Ambiguous prefix[/] [bold]{prefix}[/]: matches {len(result.matches)} transactions. "
-                + (" Examples: " + "; ".join(sample) if sample else "")
-            )
-            console.print("Refine --txid with more characters to disambiguate.")
-            return 2  # Input validation error (ambiguous prefix)
-
-        # Single match
-        groups_to_update = [result.transaction]
-        console.print(
-            f"Will set note for transaction {result.transaction.primary.transaction_id[:8]}"
-        )
-
-    # Batch mode: match by description/pattern/amount
+        result = _find_single_transaction(service, txid, groups)
     else:
-        if not any([description, desc_prefix, pattern]):
-            console.print(
-                "[red]Error:[/red] Must specify either --txid/-t for single mode, or one of --description/-d, --desc-prefix/-p, --pattern for batch mode."
-            )
-            return 1
+        result = _find_batch_transactions(service, groups, account, description, desc_prefix, pattern, amount)
 
-        # Build search criteria
-        criteria = SearchCriteria(
-            description=description,
-            desc_prefix=desc_prefix,
-            pattern=pattern,
-            amount=amount,
-        )
+    if isinstance(result, int):
+        return result
+    groups_to_update = result
 
-        # Validate regex pattern if specified
-        if pattern:
-            import re
+    _display_matches(account, groups_to_update, note_text, desc_prefix=desc_prefix if desc_prefix else None)
 
-            try:
-                re.compile(pattern)
-            except re.error as e:
-                console.print(f"[red]Invalid regex pattern:[/red] {e}")
-                return 2  # Input validation error
-
-        preview = service.find_by_criteria(criteria, groups)
-
-        if not preview.matched_groups:
-            console.print("[yellow]No transactions matched the specified criteria.[/yellow]")
-            return 1
-
-        groups_to_update = preview.matched_groups
-
-        # Display warning if absolute amount matching was used
-        if preview.used_sign_insensitive:
-            console.print(
-                "[dim]Note: matched by absolute amount since no signed matches were found. "
-                "Ledger stores debits as negative amounts.[/dim]"
-            )
-
-        # Print summary with contextual criteria info
-        criteria_parts = []
-        if description:
-            criteria_parts.append(f"description='{description}'")
-        if desc_prefix:
-            criteria_parts.append(f"description_prefix='{desc_prefix}'")
-        if pattern:
-            criteria_parts.append(f"pattern='{pattern}'")
-        if amount is not None:
-            criteria_parts.append(f"amount={amount}")
-
-        criteria_display = " and ".join(criteria_parts)
-        console.print(
-            f"Will set note for {len(groups_to_update)} transactions in {account} matching {criteria_display}."
-        )
-
-    # Display preview
-    _display_matches(
-        account, groups_to_update, note_text, desc_prefix=desc_prefix if desc_prefix else None
-    )
-
-    # Dry-run or write
     if not write:
         console.print("\n[dim]Dry-run: no changes written. Use --write to persist.[/]")
         return 0
 
-    # Confirm if not assumed
     if not assume_yes:
         console.print("\n[yellow]Warning:[/yellow] This will update notes in the ledger CSV.")
         response = input("Proceed? (y/N): ").strip().lower()
@@ -222,23 +240,5 @@ def run(
             console.print("[dim]Aborted.[/]")
             return 0
 
-    # Apply notes using service
-    updated_groups = []
-    updated_ids = {g.primary.transaction_id for g in groups_to_update}
-
-    for group in groups:
-        if group.primary.transaction_id in updated_ids:
-            # Apply note
-            updated_group = service.add_note(group, note_text)
-            updated_groups.append(updated_group)
-        else:
-            updated_groups.append(group)
-
-    # Write back
-    csv_text = dump_ledger_csv(updated_groups)
-    ledger_path.write_text(csv_text, encoding="utf-8")
-
-    console.print(
-        f"[green]Saved notes to ledger successfully.[/] Applied to {len(groups_to_update)} transaction(s)."
-    )
+    _apply_and_write_notes(service, groups, groups_to_update, note_text, ledger_path)
     return 0
