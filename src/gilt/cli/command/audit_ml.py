@@ -13,6 +13,7 @@ from typing import Optional
 from rich.console import Console
 from rich.table import Table
 
+from gilt.config import DEFAULT_OLLAMA_MODEL
 from gilt.workspace import Workspace
 from gilt.transfer.duplicate_detector import DuplicateDetector
 from gilt.ml.duplicate_classifier import DuplicateClassifier
@@ -179,7 +180,7 @@ def show_predictions(
 
     # Initialize detector with ML
     detector = DuplicateDetector(
-        model="qwen3:30b",
+        model=DEFAULT_OLLAMA_MODEL,
         event_store_path=workspace.event_store_path,
         use_ml=True,
     )

@@ -111,7 +111,7 @@ class DescribeDuplicateDetectorAdaptivePrompts:
 
         assert detector.prompt_version == "v1"
         assert detector.learned_patterns == []
-        assert detector.model == "qwen3:30b"
+        assert detector.model == "qwen3.5:27b"
 
     def it_should_handle_multiple_prompt_versions_sequentially(self):
         """DuplicateDetector should correctly load the last version when multiple exist."""

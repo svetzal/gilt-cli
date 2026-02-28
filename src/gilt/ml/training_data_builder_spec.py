@@ -48,7 +48,7 @@ class DescribeTrainingDataBuilder:
             transaction_id_2=sample_pair.txn2_id,
             confidence=0.95,
             reasoning="Same transaction",
-            model="qwen3:30b",
+            model="qwen3.5:27b",
             prompt_version="v1",
             assessment={
                 "is_duplicate": True,
@@ -93,7 +93,7 @@ class DescribeTrainingDataBuilder:
             transaction_id_2=sample_pair.txn2_id,
             confidence=0.85,
             reasoning="Might be same",
-            model="qwen3:30b",
+            model="qwen3.5:27b",
             prompt_version="v1",
             assessment={
                 "is_duplicate": True,
@@ -131,7 +131,7 @@ class DescribeTrainingDataBuilder:
             transaction_id_2=sample_pair.txn2_id,
             confidence=0.95,
             reasoning="Same",
-            model="qwen3:30b",
+            model="qwen3.5:27b",
             prompt_version="v1",
             assessment={
                 "is_duplicate": True,
@@ -161,7 +161,7 @@ class DescribeTrainingDataBuilder:
             transaction_id_2=different_pair.txn2_id,
             confidence=0.70,
             reasoning="Maybe same",
-            model="qwen3:30b",
+            model="qwen3.5:27b",
             prompt_version="v1",
             assessment={
                 "is_duplicate": True,
@@ -230,7 +230,7 @@ class DescribeTrainingDataBuilder:
                 transaction_id_2=f"txn{i}b",
                 confidence=0.90,
                 reasoning="Test",
-                model="qwen3:30b",
+                model="qwen3.5:27b",
                 prompt_version="v1",
                 assessment={
                     "is_duplicate": True,

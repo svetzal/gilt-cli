@@ -9,3 +9,5 @@ See gilt.workspace for details on how paths are resolved:
   2. GILT_DATA environment variable
   3. Current working directory
 """
+
+DEFAULT_OLLAMA_MODEL = "qwen3.5:27b"

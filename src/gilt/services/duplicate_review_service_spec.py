@@ -74,7 +74,7 @@ class DescribeSuggestionEventCreation(DescribeDuplicateReviewService):
         self, service, mock_event_store, sample_pair, sample_assessment
     ):
         """Should create DuplicateSuggested event with correct fields."""
-        model = "qwen3:30b"
+        model = "qwen3.5:27b"
         prompt_version = "v2.1"
 
         event, event_id = service.create_suggestion_event(
@@ -121,7 +121,7 @@ class DescribeSuggestionEventCreation(DescribeDuplicateReviewService):
         event, _ = service.create_suggestion_event(
             pair=sample_pair,
             assessment=sample_assessment,
-            model="qwen3:30b",
+            model="qwen3.5:27b",
             prompt_version="v2.1",
         )
 

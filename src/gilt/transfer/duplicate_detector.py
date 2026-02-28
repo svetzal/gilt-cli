@@ -24,6 +24,7 @@ from gilt.model.duplicate import (
     DuplicateMatch,
     TransactionPair,
 )
+from gilt.config import DEFAULT_OLLAMA_MODEL
 from gilt.model.events import PromptUpdated
 from gilt.storage.event_store import EventStore
 from gilt.transfer.prompt_manager import PromptManager
@@ -34,7 +35,7 @@ class DuplicateDetector:
 
     def __init__(
         self,
-        model: str = "qwen3:30b",
+        model: str = DEFAULT_OLLAMA_MODEL,
         data_dir: Optional[Path] = None,
         event_store_path: Optional[Path] = None,
         use_ml: bool = True,

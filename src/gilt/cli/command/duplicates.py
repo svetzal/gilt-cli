@@ -48,6 +48,7 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 
+from gilt.config import DEFAULT_OLLAMA_MODEL
 from gilt.workspace import Workspace
 from gilt.transfer.duplicate_detector import DuplicateDetector
 from gilt.services.duplicate_review_service import (
@@ -59,7 +60,7 @@ from gilt.services.event_sourcing_service import EventSourcingService
 
 def run(
     workspace: Workspace,
-    model: str = "qwen3:30b",
+    model: str = DEFAULT_OLLAMA_MODEL,
     max_days_apart: int = 1,
     amount_tolerance: float = 0.001,
     min_confidence: float = 0.0,

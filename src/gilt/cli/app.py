@@ -14,6 +14,7 @@ from typing import Optional
 
 import typer
 
+from gilt.config import DEFAULT_OLLAMA_MODEL
 from gilt.workspace import Workspace
 
 HELP_WRITE = "Persist changes (default: dry-run)"
@@ -612,7 +613,7 @@ def mark_duplicate(
 def duplicates(
     ctx: typer.Context,
     model: str = typer.Option(
-        "qwen3:30b", "--model", help="Ollama model for LLM duplicate detection"
+        DEFAULT_OLLAMA_MODEL, "--model", help="Ollama model for LLM duplicate detection"
     ),
     max_days_apart: int = typer.Option(
         1, "--max-days", help="Maximum days between potential duplicates"
@@ -640,7 +641,7 @@ def duplicates(
       gilt duplicates --llm
       gilt duplicates --interactive
       gilt duplicates -i --min-confidence 0.7
-      gilt duplicates --llm --model qwen3:30b
+      gilt duplicates --llm --model qwen3.5:27b
 
     Note: LLM mode requires Ollama with specified model installed locally.
     """
