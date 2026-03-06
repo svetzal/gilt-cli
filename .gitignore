@@ -47,3 +47,5 @@ site/
 
 # User config (created via `gilt init`)
 config/
+
+.et_env
