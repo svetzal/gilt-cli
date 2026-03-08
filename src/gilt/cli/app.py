@@ -539,6 +539,9 @@ def ingest_receipts(
     account: str | None = typer.Option(
         None, "--account", "-a", help="Limit matching to this account"
     ),
+    interactive: bool = typer.Option(
+        False, "--interactive", "-i", help="Interactively resolve ambiguous matches"
+    ),
 ):
     """Ingest receipt JSON sidecar files and enrich matching bank transactions.
 
@@ -549,6 +552,7 @@ def ingest_receipts(
       gilt ingest-receipts --source ~/receipts
       gilt ingest-receipts --source ~/receipts --year 2025 --write
       gilt ingest-receipts --source ~/receipts --account MYBANK_CC --write
+      gilt ingest-receipts --source ~/receipts --interactive --write
 
     Safety: dry-run by default. Use --write to persist enrichment events.
     """
@@ -560,6 +564,7 @@ def ingest_receipts(
         write=write,
         year=year,
         account=account,
+        interactive=interactive,
     )
     raise typer.Exit(code=code)
 
