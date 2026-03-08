@@ -29,9 +29,14 @@ from PySide6.QtWidgets import (
 from gilt.gui.dialogs.categorize_dialog import CategorizeDialog
 from gilt.gui.dialogs.duplicate_resolution_dialog import DuplicateResolutionDialog
 from gilt.gui.dialogs.note_dialog import NoteDialog
+from gilt.gui.dialogs.receipt_match_dialog import (
+    BatchReceiptMatchDialog,
+    ReceiptMatchDialog,
+)
 from gilt.gui.dialogs.settings_dialog import SettingsDialog
 from gilt.gui.services.enrichment_service import EnrichmentService
 from gilt.gui.services.intelligence_cache import IntelligenceCache
+from gilt.gui.services.receipt_match_service import ReceiptMatchService
 from gilt.gui.services.transaction_service import TransactionService
 from gilt.gui.widgets.transaction_detail_panel import TransactionDetailPanel
 from gilt.gui.widgets.transaction_table import TransactionTableWidget
@@ -325,6 +330,9 @@ class TransactionsView(QWidget):
         self.rescan_btn = QPushButton("Rescan Intelligence")
         row3.addWidget(self.rescan_btn)
 
+        self.match_receipts_btn = QPushButton("Match Receipts")
+        row3.addWidget(self.match_receipts_btn)
+
         row3.addStretch()
         layout.addLayout(row3)
 
@@ -396,6 +404,9 @@ class TransactionsView(QWidget):
         self.table.note_requested.connect(self._on_note_requested)
         self.table.duplicate_resolution_requested.connect(self._on_resolve_duplicate_requested)
         self.table.manual_merge_requested.connect(self._on_manual_merge_requested)
+        self.table.receipt_match_requested.connect(self._on_receipt_match_requested)
+        self.detail_panel.receipt_match_requested.connect(self._on_receipt_match_requested)
+        self.match_receipts_btn.clicked.connect(self._on_batch_receipt_match)
 
     def reload_transactions(self):
         """Reload all transactions from disk."""
@@ -859,6 +870,115 @@ class TransactionsView(QWidget):
 
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to merge transactions:\n{str(e)}")
+
+    def _get_receipt_match_service(self) -> ReceiptMatchService | None:
+        """Create a ReceiptMatchService if event_store and receipts_dir are available."""
+        if not self.event_store:
+            return None
+        receipts_dir = SettingsDialog.get_receipts_dir()
+        if not receipts_dir.is_dir():
+            QMessageBox.warning(
+                self,
+                "Receipts Directory",
+                f"Receipts directory not found: {receipts_dir}\n\n"
+                "Configure it in Settings > Paths.",
+            )
+            return None
+        return ReceiptMatchService(receipts_dir, self.event_store)
+
+    def _on_receipt_match_requested(self):
+        """Handle receipt match request for a single selected transaction."""
+        selected = self.table.get_selected_transactions()
+        if len(selected) != 1:
+            return
+
+        svc = self._get_receipt_match_service()
+        if not svc:
+            return
+
+        txn = selected[0].primary
+        candidates = svc.find_candidates_for_transaction(
+            txn_id=txn.transaction_id,
+            txn_amount=txn.amount,
+            txn_date=txn.date,
+            txn_description=txn.description or "",
+            txn_account_id=txn.account_id,
+            txn_currency=txn.currency or "CAD",
+        )
+
+        dialog = ReceiptMatchDialog(
+            transaction_id=txn.transaction_id,
+            transaction_desc=txn.description or "",
+            transaction_amount=txn.amount,
+            transaction_date=str(txn.date),
+            candidates=candidates,
+            parent=self,
+        )
+
+        if dialog.exec():
+            receipt = dialog.get_selected_receipt()
+            if receipt:
+                svc.apply_match(receipt, txn.transaction_id)
+                self._load_enrichment()
+                self.reload_transactions()
+                QMessageBox.information(self, "Success", "Receipt matched successfully.")
+
+    def _on_batch_receipt_match(self):
+        """Handle batch receipt matching for unenriched transactions."""
+        svc = self._get_receipt_match_service()
+        if not svc:
+            return
+
+        # Filter to unenriched transactions
+        unenriched = [
+            g for g in self._all_transactions
+            if not (self.enrichment_service and self.enrichment_service.is_enriched(
+                g.primary.transaction_id
+            ))
+        ]
+
+        if not unenriched:
+            QMessageBox.information(
+                self, "No Transactions", "All transactions already have receipt enrichment."
+            )
+            return
+
+        self.status_message.emit(f"Matching receipts against {len(unenriched)} transactions...")
+
+        result = svc.run_batch_matching(unenriched)
+
+        if not result.matched and not result.ambiguous:
+            QMessageBox.information(
+                self,
+                "No Matches",
+                f"No receipt matches found.\n"
+                f"Unmatched receipts: {len(result.unmatched)}",
+            )
+            return
+
+        dialog = BatchReceiptMatchDialog(
+            matched=result.matched,
+            ambiguous=result.ambiguous,
+            unmatched=result.unmatched,
+            parent=self,
+        )
+
+        if dialog.exec():
+            resolved = dialog.get_resolved_matches()
+            written = 0
+            for match in resolved:
+                confidence = match.match_confidence or "exact"
+                svc.apply_match(match.receipt, match.transaction_id, confidence)
+                written += 1
+
+            if written:
+                self._load_enrichment()
+                self.reload_transactions()
+                QMessageBox.information(
+                    self, "Success", f"{written} receipt(s) matched successfully."
+                )
+
+        self.status_message.emit("Receipt matching complete.")
 
     def _on_selection_changed(self):
         """Update the detail panel when the table selection changes."""

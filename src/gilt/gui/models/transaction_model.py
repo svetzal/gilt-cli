@@ -135,7 +135,7 @@ class TransactionTableModel(QAbstractTableModel):
         if self._enrichment_service:
             enriched = self._enrichment_service.get_display_description(txn.transaction_id)
             if enriched:
-                return enriched
+                return f"\U0001f9fe {enriched}"
         return txn.description or ""
 
     def _display_metadata_col(self, txn, col):

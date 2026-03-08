@@ -27,6 +27,7 @@ class TransactionTableWidget(QTableView):
     note_requested = Signal()  # User wants to add/edit note on selected transaction
     duplicate_resolution_requested = Signal()  # User wants to resolve duplicate
     manual_merge_requested = Signal()  # User wants to merge two selected transactions
+    receipt_match_requested = Signal()  # User wants to match a receipt to this transaction
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -159,6 +160,15 @@ class TransactionTableWidget(QTableView):
         if len(selected) == 1:
             note_action = menu.addAction("Edit Note...")
             note_action.triggered.connect(self.note_requested.emit)
+
+            # Match receipt (only for unenriched transactions)
+
+            enrichment_svc = self._model._enrichment_service
+            txn_id = selected[0].primary.transaction_id
+            is_enriched = enrichment_svc and enrichment_svc.is_enriched(txn_id)
+            receipt_action = menu.addAction("Match Receipt...")
+            receipt_action.setEnabled(not is_enriched)
+            receipt_action.triggered.connect(self.receipt_match_requested.emit)
 
             # Check for duplicate risk
             txn = selected[0].primary
