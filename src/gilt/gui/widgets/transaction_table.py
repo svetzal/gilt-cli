@@ -23,6 +23,7 @@ class TransactionTableWidget(QTableView):
 
     # Signals for context menu actions
     categorize_requested = Signal()  # User wants to categorize selected transactions
+    apply_prediction_requested = Signal(object, str)  # (TransactionGroup, predicted_category)
     note_requested = Signal()  # User wants to add/edit note on selected transaction
     duplicate_resolution_requested = Signal()  # User wants to resolve duplicate
     manual_merge_requested = Signal()  # User wants to merge two selected transactions
@@ -60,8 +61,7 @@ class TransactionTableWidget(QTableView):
         header.resizeSection(TransactionTableModel.COL_DESCRIPTION, 300)
         header.resizeSection(TransactionTableModel.COL_AMOUNT, 100)
         header.resizeSection(TransactionTableModel.COL_CURRENCY, 80)
-        header.resizeSection(TransactionTableModel.COL_CATEGORY, 120)
-        header.resizeSection(TransactionTableModel.COL_SUBCATEGORY, 120)
+        header.resizeSection(TransactionTableModel.COL_CATEGORY, 200)
         header.resizeSection(TransactionTableModel.COL_NOTES, 200)
         header.resizeSection(TransactionTableModel.COL_TRANSFER, 100)
         header.resizeSection(TransactionTableModel.COL_RISK, 50)
@@ -86,17 +86,14 @@ class TransactionTableWidget(QTableView):
         source_index = self._proxy.mapToSource(index)
         return self._model.get_transaction(source_index.row())
 
-    def update_transactions(self, transactions: list[TransactionGroup]):
-        """
-        Update the table with new transaction data.
-
-        Args:
-            transactions: List of transaction groups to display
-        """
+    def set_all_transactions(self, transactions: list[TransactionGroup]):
+        """Set the full transaction list (source model). Filtering is via proxy."""
         self._model.update_transactions(transactions)
-
-        # Reset sorting to default (date descending)
         self.sortByColumn(TransactionTableModel.COL_DATE, Qt.SortOrder.DescendingOrder)
+
+    def set_filters(self, **kwargs):
+        """Update filter criteria on the proxy model."""
+        self._proxy.set_filters(**kwargs)
 
     def get_selected_transactions(self) -> list[TransactionGroup]:
         """
@@ -107,7 +104,6 @@ class TransactionTableWidget(QTableView):
         """
         selected = []
         for index in self.selectionModel().selectedRows():
-            # Map proxy index to source model index
             source_index = self._proxy.mapToSource(index)
             txn = self._model.get_transaction(source_index.row())
             if txn:
@@ -138,6 +134,22 @@ class TransactionTableWidget(QTableView):
             return
 
         menu = QMenu(self)
+
+        # Apply predicted category (single uncategorized transaction with prediction)
+        if len(selected) == 1:
+            txn = selected[0].primary
+            if not txn.category:
+                meta = self._model.get_metadata(txn.transaction_id)
+                predicted = meta.get("predicted_category")
+                if predicted:
+                    group = selected[0]
+                    apply_action = menu.addAction(f"Apply: {predicted}")
+                    apply_action.triggered.connect(
+                        lambda checked, g=group, p=predicted: (
+                            self.apply_prediction_requested.emit(g, p)
+                        )
+                    )
+                    menu.addSeparator()
 
         # Categorize action
         categorize_action = menu.addAction("Categorize...")

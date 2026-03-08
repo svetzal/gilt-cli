@@ -27,7 +27,6 @@ class TransactionTableModel(QAbstractTableModel):
         "Amount",
         "Currency",
         "Category",
-        "Subcategory",
         "Notes",
         "Transfer",
         "Risk",
@@ -41,11 +40,10 @@ class TransactionTableModel(QAbstractTableModel):
     COL_AMOUNT = 3
     COL_CURRENCY = 4
     COL_CATEGORY = 5
-    COL_SUBCATEGORY = 6
-    COL_NOTES = 7
-    COL_TRANSFER = 8
-    COL_RISK = 9
-    COL_CONFIDENCE = 10
+    COL_NOTES = 6
+    COL_TRANSFER = 7
+    COL_RISK = 8
+    COL_CONFIDENCE = 9
 
     # Custom roles
     SortRole = Qt.ItemDataRole.UserRole + 1
@@ -64,7 +62,11 @@ class TransactionTableModel(QAbstractTableModel):
     def update_metadata(self, metadata: dict[str, dict]):
         """Update metadata cache and refresh view."""
         self._metadata_cache.update(metadata)
-        # Emit dataChanged for all rows (simplest, though could be optimized)
+        self.layoutChanged.emit()
+
+    def clear_metadata(self):
+        """Clear all metadata and refresh view."""
+        self._metadata_cache.clear()
         self.layoutChanged.emit()
 
     def get_metadata(self, transaction_id: str) -> dict:
@@ -122,9 +124,9 @@ class TransactionTableModel(QAbstractTableModel):
         elif col == self.COL_CURRENCY:
             return txn.currency or "CAD"
         elif col == self.COL_CATEGORY:
+            if txn.category and txn.subcategory:
+                return f"{txn.category}: {txn.subcategory}"
             return txn.category or ""
-        elif col == self.COL_SUBCATEGORY:
-            return txn.subcategory or ""
         elif col == self.COL_NOTES:
             return txn.notes or ""
         return self._display_metadata_col(txn, col)
@@ -183,7 +185,7 @@ class TransactionTableModel(QAbstractTableModel):
             meta = self._metadata_cache.get(txn.transaction_id, {})
             if meta.get("risk"):
                 return "Potential duplicate detected"
-        elif col in (self.COL_CONFIDENCE, self.COL_CATEGORY, self.COL_SUBCATEGORY):
+        elif col in (self.COL_CONFIDENCE, self.COL_CATEGORY):
             meta = self._metadata_cache.get(txn.transaction_id, {})
             conf = meta.get("confidence")
             if conf is not None:
@@ -220,7 +222,7 @@ class TransactionTableModel(QAbstractTableModel):
         return "\n".join(lines)
 
     def _background_data(self, txn, col):
-        if col == self.COL_CATEGORY or col == self.COL_SUBCATEGORY:
+        if col == self.COL_CATEGORY:
             meta = self._metadata_cache.get(txn.transaction_id, {})
             conf = meta.get("confidence")
             if conf is not None and conf < 0.8:
@@ -228,7 +230,7 @@ class TransactionTableModel(QAbstractTableModel):
         return None
 
     def _foreground_data(self, txn, col):
-        if col == self.COL_CATEGORY or col == self.COL_SUBCATEGORY:
+        if col == self.COL_CATEGORY:
             meta = self._metadata_cache.get(txn.transaction_id, {})
             conf = meta.get("confidence")
             if conf is not None and conf < 0.8:
@@ -296,12 +298,7 @@ class TransactionTableModel(QAbstractTableModel):
                 txn.category = new_category
                 txn.subcategory = new_subcategory
 
-                # Emit dataChanged for both Category and Subcategory columns
                 self.dataChanged.emit(index, index, [Qt.DisplayRole, Qt.EditRole])
-
-                # Also update subcategory column
-                subcat_index = index.sibling(index.row(), self.COL_SUBCATEGORY)
-                self.dataChanged.emit(subcat_index, subcat_index, [Qt.DisplayRole])
 
                 # Notify listeners (View) to persist changes
                 self.transaction_updated.emit(group)

@@ -22,7 +22,6 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QSplitter,
-    QStatusBar,
     QVBoxLayout,
     QWidget,
 )
@@ -32,6 +31,7 @@ from gilt.gui.dialogs.duplicate_resolution_dialog import DuplicateResolutionDial
 from gilt.gui.dialogs.note_dialog import NoteDialog
 from gilt.gui.dialogs.settings_dialog import SettingsDialog
 from gilt.gui.services.enrichment_service import EnrichmentService
+from gilt.gui.services.intelligence_cache import IntelligenceCache
 from gilt.gui.services.transaction_service import TransactionService
 from gilt.gui.widgets.transaction_detail_panel import TransactionDetailPanel
 from gilt.gui.widgets.transaction_table import TransactionTableWidget
@@ -47,6 +47,8 @@ class IntelligenceWorker(QThread):
     """Worker thread for background intelligence scanning."""
 
     finished = Signal(dict)  # metadata dict
+    error = Signal(str)  # error message
+    status = Signal(str)  # progress status
 
     def __init__(
         self,
@@ -60,17 +62,24 @@ class IntelligenceWorker(QThread):
         self.smart_category_service = smart_category_service
 
     def run(self):
-        metadata = {}
-        all_txns = [g.primary for g in self.transactions]
+        try:
+            metadata = {}
+            all_txns = [g.primary for g in self.transactions]
 
-        if self.duplicate_service and not self._scan_duplicates(all_txns, metadata):
-            return
+            if self.duplicate_service:
+                self.status.emit("Scanning for duplicates...")
+                if not self._scan_duplicates(all_txns, metadata):
+                    return
 
-        if self.smart_category_service and not self._predict_categories(all_txns, metadata):
-            return
+            if self.smart_category_service:
+                self.status.emit("Predicting categories...")
+                if not self._predict_categories(all_txns, metadata):
+                    return
 
-        if not self.isInterruptionRequested():
-            self.finished.emit(metadata)
+            if not self.isInterruptionRequested():
+                self.finished.emit(metadata)
+        except Exception as e:
+            self.error.emit(f"Intelligence scan failed: {e}")
 
     def _scan_duplicates(self, all_txns, metadata: dict) -> bool:
         """Scan for duplicates and populate metadata. Returns False if interrupted."""
@@ -108,6 +117,7 @@ class TransactionsView(QWidget):
 
     # Signal emitted when transactions are loaded
     transactions_loaded = Signal(int)  # count
+    status_message = Signal(str)  # for main window status bar
 
     def __init__(
         self,
@@ -115,6 +125,7 @@ class TransactionsView(QWidget):
         duplicate_service: DuplicateService = None,
         smart_category_service: SmartCategoryService = None,
         event_store: EventStore = None,
+        cache_path: Path | None = None,
         parent=None,
     ):
         super().__init__(parent)
@@ -127,6 +138,11 @@ class TransactionsView(QWidget):
         self._all_transactions: list[TransactionGroup] = []
         self.worker: IntelligenceWorker | None = None
         self._old_workers: list[IntelligenceWorker] = []
+
+        # Intelligence cache
+        if cache_path is None:
+            cache_path = data_dir.parent / "private" / "intelligence_cache.json"
+        self._intelligence_cache = IntelligenceCache(cache_path)
 
         # Initialize CategoryService
         from gilt.gui.dialogs.settings_dialog import SettingsDialog
@@ -156,11 +172,11 @@ class TransactionsView(QWidget):
         """Initialize the user interface."""
         layout = QVBoxLayout(self)
 
-        # Filter controls
+        # Filter controls (fixed size, no vertical stretch)
         filter_group = self._create_filter_controls()
-        layout.addWidget(filter_group)
+        layout.addWidget(filter_group, 0)
 
-        # Splitter: table on left, detail panel on right
+        # Splitter: table on left, detail panel on right (expands to fill)
         self._splitter = QSplitter(Qt.Orientation.Horizontal, self)
 
         # Transaction table
@@ -176,11 +192,7 @@ class TransactionsView(QWidget):
         self._splitter.setStretchFactor(0, 3)
         self._splitter.setStretchFactor(1, 1)
 
-        layout.addWidget(self._splitter)
-
-        # Status bar at bottom
-        self.status_bar = QStatusBar(self)
-        layout.addWidget(self.status_bar)
+        layout.addWidget(self._splitter, 1)
 
         self._update_status()
 
@@ -204,7 +216,7 @@ class TransactionsView(QWidget):
         group = QGroupBox("Filters")
         layout = QVBoxLayout(group)
 
-        # First row: Account, Date Range
+        # First row: Account, Date Range preset, custom dates
         row1 = QHBoxLayout()
 
         # Account filter
@@ -215,18 +227,35 @@ class TransactionsView(QWidget):
 
         row1.addSpacing(20)
 
-        # Date range
-        row1.addWidget(QLabel("From:"))
+        # Date range preset
+        row1.addWidget(QLabel("Period:"))
+        self.date_range_combo = QComboBox()
+        self.date_range_combo.addItems([
+            "This Month",
+            "Last Month",
+            "This Year",
+            "Last Year",
+            "All",
+            "Custom",
+        ])
+        row1.addWidget(self.date_range_combo)
+
+        # Custom date range (hidden unless "Custom" selected)
+        self._from_label = QLabel("From:")
+        row1.addWidget(self._from_label)
         self.start_date_edit = QDateEdit()
         self.start_date_edit.setCalendarPopup(True)
         self.start_date_edit.setDate(QDate.currentDate().addMonths(-1))
         row1.addWidget(self.start_date_edit)
 
-        row1.addWidget(QLabel("To:"))
+        self._to_label = QLabel("To:")
+        row1.addWidget(self._to_label)
         self.end_date_edit = QDateEdit()
         self.end_date_edit.setCalendarPopup(True)
         self.end_date_edit.setDate(QDate.currentDate())
         row1.addWidget(self.end_date_edit)
+
+        self._set_custom_dates_visible(False)
 
         row1.addStretch()
         layout.addLayout(row1)
@@ -255,14 +284,16 @@ class TransactionsView(QWidget):
         row2.addWidget(self.uncategorized_check)
 
         row2.addStretch()
+
+        # Status label
+        self.status_label = QLabel()
+        self.status_label.setStyleSheet("color: gray;")
+        row2.addWidget(self.status_label)
+
         layout.addLayout(row2)
 
-        # Third row: Action buttons
+        # Third row: utility buttons
         row3 = QHBoxLayout()
-
-        self.apply_btn = QPushButton("Apply Filters")
-        self.apply_btn.setDefault(True)
-        row3.addWidget(self.apply_btn)
 
         self.clear_btn = QPushButton("Clear Filters")
         row3.addWidget(self.clear_btn)
@@ -270,19 +301,69 @@ class TransactionsView(QWidget):
         self.reload_btn = QPushButton("Reload from Disk")
         row3.addWidget(self.reload_btn)
 
+        self.rescan_btn = QPushButton("Rescan Intelligence")
+        row3.addWidget(self.rescan_btn)
+
         row3.addStretch()
         layout.addLayout(row3)
 
         return group
 
+    def _set_custom_dates_visible(self, visible: bool):
+        """Show or hide the custom date range pickers."""
+        self._from_label.setVisible(visible)
+        self.start_date_edit.setVisible(visible)
+        self._to_label.setVisible(visible)
+        self.end_date_edit.setVisible(visible)
+
+    def _on_date_range_changed(self, index: int):
+        """Handle date range preset change."""
+        preset = self.date_range_combo.currentText()
+        today = QDate.currentDate()
+
+        if preset == "Custom":
+            self._set_custom_dates_visible(True)
+            return
+
+        self._set_custom_dates_visible(False)
+
+        if preset == "This Month":
+            start = QDate(today.year(), today.month(), 1)
+            end = today
+        elif preset == "Last Month":
+            first_of_month = QDate(today.year(), today.month(), 1)
+            end = first_of_month.addDays(-1)
+            start = QDate(end.year(), end.month(), 1)
+        elif preset == "This Year":
+            start = QDate(today.year(), 1, 1)
+            end = today
+        elif preset == "Last Year":
+            start = QDate(today.year() - 1, 1, 1)
+            end = QDate(today.year() - 1, 12, 31)
+        elif preset == "All":
+            self.apply_filters()
+            return
+        else:
+            return
+
+        self.start_date_edit.setDate(start)
+        self.end_date_edit.setDate(end)
+        self.apply_filters()
+
     def _connect_signals(self):
         """Connect signals to slots."""
-        self.apply_btn.clicked.connect(self.apply_filters)
         self.clear_btn.clicked.connect(self.clear_filters)
         self.reload_btn.clicked.connect(self.reload_transactions)
+        self.rescan_btn.clicked.connect(self._rescan_intelligence)
 
-        # Apply filters on Enter in search box
-        self.search_edit.returnPressed.connect(self.apply_filters)
+        # Auto-apply filters on any change
+        self.account_combo.currentIndexChanged.connect(self.apply_filters)
+        self.date_range_combo.currentIndexChanged.connect(self._on_date_range_changed)
+        self.start_date_edit.dateChanged.connect(self.apply_filters)
+        self.end_date_edit.dateChanged.connect(self.apply_filters)
+        self.category_combo.currentIndexChanged.connect(self.apply_filters)
+        self.uncategorized_check.stateChanged.connect(self.apply_filters)
+        self.search_edit.textChanged.connect(self.apply_filters)
 
         # Update status and detail panel when selection changes
         self.table.selection_changed.connect(self._update_status)
@@ -290,6 +371,7 @@ class TransactionsView(QWidget):
 
         # Context menu actions
         self.table.categorize_requested.connect(self._on_categorize_requested)
+        self.table.apply_prediction_requested.connect(self._on_apply_prediction)
         self.table.note_requested.connect(self._on_note_requested)
         self.table.duplicate_resolution_requested.connect(self._on_resolve_duplicate_requested)
         self.table.manual_merge_requested.connect(self._on_manual_merge_requested)
@@ -304,16 +386,15 @@ class TransactionsView(QWidget):
         # Clear cache
         self.service.clear_cache()
 
-        # Load all transactions
+        # Load all transactions into the stable source model
         self._all_transactions = self.service.load_all_transactions()
+        self.table.set_all_transactions(self._all_transactions)
 
-        # Update account combo
+        # Update filter combos
         self._update_account_combo()
-
-        # Update category combo
         self._update_category_combo()
 
-        # Apply current filters
+        # Apply current filter criteria to proxy
         self.apply_filters()
 
         # Emit signal
@@ -327,29 +408,59 @@ class TransactionsView(QWidget):
         if not self.duplicate_service and not self.smart_category_service:
             return
 
+        # Load cached results immediately
+        cached = self._intelligence_cache.get_all()
+        if cached:
+            self.table._model.update_metadata(cached)
+
+        # Determine which transactions still need scanning
+        all_ids = [g.primary.transaction_id for g in self._all_transactions]
+        uncached_ids = self._intelligence_cache.uncached_transaction_ids(all_ids)
+
+        if not uncached_ids:
+            self.status_message.emit("Intelligence scan: all cached")
+            return
+
+        uncached_txns = [g for g in self._all_transactions
+                         if g.primary.transaction_id in uncached_ids]
+
         # Handle existing worker
         if self.worker and self.worker.isRunning():
             self.worker.requestInterruption()
-            # Disconnect signals to prevent stale updates
             with contextlib.suppress(RuntimeError):
                 self.worker.finished.disconnect(self._on_intelligence_scan_finished)
-            # Keep reference to prevent GC while running
             self._old_workers.append(self.worker)
 
         # Clean up finished old workers
         self._old_workers = [w for w in self._old_workers if w.isRunning()]
 
+        self.status_message.emit(
+            f"Scanning {len(uncached_txns)} of {len(all_ids)} transactions..."
+        )
         self.worker = IntelligenceWorker(
-            self._all_transactions, self.duplicate_service, self.smart_category_service
+            uncached_txns, self.duplicate_service, self.smart_category_service
         )
         self.worker.finished.connect(self._on_intelligence_scan_finished)
+        self.worker.error.connect(self._on_intelligence_scan_error)
+        self.worker.status.connect(self.status_message.emit)
         self.worker.start()
 
     def _on_intelligence_scan_finished(self, metadata: dict):
         """Handle completion of intelligence scan."""
-        # Update model with new metadata
+        self._intelligence_cache.update(metadata)
         self.table._model.update_metadata(metadata)
         self._update_status()
+        self.status_message.emit("Intelligence scan complete")
+
+    def _on_intelligence_scan_error(self, message: str):
+        """Handle error from intelligence scan."""
+        self.status_message.emit(message)
+
+    def _rescan_intelligence(self):
+        """Clear the intelligence cache and rescan all transactions."""
+        self._intelligence_cache.clear()
+        self.table._model.clear_metadata()
+        self._start_intelligence_scan()
 
     def _update_account_combo(self):
         """Update the account combo box with available accounts."""
@@ -386,17 +497,20 @@ class TransactionsView(QWidget):
                 self.category_combo.setCurrentIndex(index)
 
     def apply_filters(self):
-        """Apply current filter settings to the transaction list."""
-        # Get filter values
+        """Apply current filter criteria to the proxy model."""
         account_filter = None
         if self.account_combo.currentData():
             account_filter = [self.account_combo.currentData()]
 
-        start_qdate = self.start_date_edit.date()
-        start_date = date(start_qdate.year(), start_qdate.month(), start_qdate.day())
+        if self.date_range_combo.currentText() == "All":
+            start_date = None
+            end_date = None
+        else:
+            start_qdate = self.start_date_edit.date()
+            start_date = date(start_qdate.year(), start_qdate.month(), start_qdate.day())
 
-        end_qdate = self.end_date_edit.date()
-        end_date = date(end_qdate.year(), end_qdate.month(), end_qdate.day())
+            end_qdate = self.end_date_edit.date()
+            end_date = date(end_qdate.year(), end_qdate.month(), end_qdate.day())
 
         category_filter = None
         if self.category_combo.currentData():
@@ -404,35 +518,24 @@ class TransactionsView(QWidget):
 
         search_text = self.search_edit.text().strip() or None
 
-        uncategorized_only = self.uncategorized_check.isChecked()
-
-        # Apply filters using service
-        filtered = self.service.filter_transactions(
-            self._all_transactions,
+        self.table.set_filters(
             account_filter=account_filter,
             start_date=start_date,
             end_date=end_date,
             category_filter=category_filter,
             search_text=search_text,
-            uncategorized_only=uncategorized_only,
+            uncategorized_only=self.uncategorized_check.isChecked(),
         )
 
-        # Update table
-        self.table.update_transactions(filtered)
-
-        # Update status
         self._update_status()
 
     def clear_filters(self):
         """Clear all filter settings."""
         self.account_combo.setCurrentIndex(0)
-        self.start_date_edit.setDate(QDate.currentDate().addMonths(-1))
-        self.end_date_edit.setDate(QDate.currentDate())
+        self.date_range_combo.setCurrentIndex(0)  # "This Month"
         self.category_combo.setCurrentIndex(0)
         self.search_edit.clear()
         self.uncategorized_check.setChecked(False)
-
-        self.apply_filters()
 
     def _update_status(self):
         """Update status bar with current state."""
@@ -449,11 +552,18 @@ class TransactionsView(QWidget):
         if selected > 0:
             status_text += f" | {selected} selected"
 
-        self.status_bar.showMessage(status_text)
+        self.status_label.setText(status_text)
 
     def get_selected_transactions(self) -> list[TransactionGroup]:
         """Get currently selected transactions."""
         return self.table.get_selected_transactions()
+
+    def _on_apply_prediction(self, transaction: TransactionGroup, predicted: str):
+        """Apply a predicted category directly to a transaction."""
+        parts = predicted.split(":", 1)
+        category = parts[0].strip()
+        subcategory = parts[1].strip() if len(parts) == 2 else None
+        self._apply_categorization([transaction], category, subcategory)
 
     def _on_categorize_requested(self):
         """Handle categorize request from context menu."""
@@ -529,14 +639,6 @@ class TransactionsView(QWidget):
 
             # Reload transactions
             self.reload_transactions()
-
-            # Show success message
-            QMessageBox.information(
-                self,
-                "Success",
-                f"Categorized {len(transactions)} transaction(s) as '{category}"
-                + (f":{subcategory}'" if subcategory else "'"),
-            )
 
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to categorize transactions:\n{str(e)}")

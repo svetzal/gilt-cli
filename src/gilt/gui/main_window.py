@@ -216,6 +216,9 @@ class MainWindow(QMainWindow):
             event_store=self.event_store,
             parent=self,
         )
+        self.transactions_view.status_message.connect(
+            lambda msg: self.statusBar().showMessage(msg, 5000)
+        )
         self.content_stack.addWidget(self.transactions_view)
 
         # Categories view (index 2)
