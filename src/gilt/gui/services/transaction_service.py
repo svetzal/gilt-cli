@@ -12,31 +12,58 @@ from pathlib import Path
 
 from gilt.model.account import TransactionGroup
 from gilt.model.ledger_io import load_ledger_csv
+from gilt.storage.projection import ProjectionBuilder
 
 
 class TransactionService:
     """Service for managing transaction data operations."""
 
-    def __init__(self, data_dir: Path):
+    def __init__(self, data_dir: Path, projections_db_path: Path | None = None):
         """
         Initialize transaction service.
 
         Args:
             data_dir: Path to directory containing ledger CSV files
+            projections_db_path: Path to projections SQLite database.
+                Defaults to data_dir.parent / 'projections.db'.
         """
         self.data_dir = Path(data_dir)
+        if projections_db_path is None:
+            self.projections_db_path = self.data_dir.parent / "projections.db"
+        else:
+            self.projections_db_path = Path(projections_db_path)
         self._cache: dict[str, list[TransactionGroup]] = {}
 
-    def load_all_transactions(self, default_currency: str = "CAD") -> list[TransactionGroup]:
+    def load_all_transactions(
+        self, include_duplicates: bool = False
+    ) -> list[TransactionGroup]:
         """
-        Load transactions from all ledger files in data directory.
+        Load all transactions from the projections database.
+
+        Falls back to CSV files if the projections database does not exist.
 
         Args:
-            default_currency: Fallback currency for legacy rows
+            include_duplicates: Whether to include duplicate-flagged transactions
 
         Returns:
             List of all transaction groups across all accounts
         """
+        if self.projections_db_path.exists():
+            return self._load_from_projections(include_duplicates)
+        return self._load_from_csv()
+
+    def _load_from_projections(
+        self, include_duplicates: bool = False
+    ) -> list[TransactionGroup]:
+        """Load transactions from the projections database."""
+        projection_builder = ProjectionBuilder(self.projections_db_path)
+        rows = projection_builder.get_all_transactions(
+            include_duplicates=include_duplicates
+        )
+        return [TransactionGroup.from_projection_row(row) for row in rows]
+
+    def _load_from_csv(self, default_currency: str = "CAD") -> list[TransactionGroup]:
+        """Load transactions from CSV ledger files (fallback)."""
         all_transactions: list[TransactionGroup] = []
 
         if not self.data_dir.exists():
@@ -48,7 +75,6 @@ class TransactionService:
                 groups = load_ledger_csv(text, default_currency=default_currency)
                 all_transactions.extend(groups)
             except Exception as e:
-                # Log error but continue with other files
                 print(f"Error loading {ledger_file.name}: {e}")
                 continue
 
@@ -86,11 +112,26 @@ class TransactionService:
 
     def get_available_accounts(self) -> list[str]:
         """
-        Get list of available account IDs from ledger files.
+        Get list of available account IDs.
+
+        Uses projections database if available, falls back to ledger file names.
 
         Returns:
-            List of account IDs (without .csv extension)
+            Sorted list of account IDs
         """
+        if self.projections_db_path.exists():
+            import sqlite3
+
+            conn = sqlite3.connect(self.projections_db_path)
+            try:
+                cursor = conn.execute(
+                    "SELECT DISTINCT account_id FROM transaction_projections "
+                    "WHERE is_duplicate = 0 ORDER BY account_id"
+                )
+                return [row[0] for row in cursor.fetchall()]
+            finally:
+                conn.close()
+
         if not self.data_dir.exists():
             return []
 

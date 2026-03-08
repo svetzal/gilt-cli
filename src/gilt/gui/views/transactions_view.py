@@ -217,13 +217,13 @@ class TransactionsView(QWidget):
     ):
         super().__init__(parent)
 
-        self.service = TransactionService(data_dir)
+        # Projections DB is sibling to accounts dir (data/projections.db)
+        self.projections_path = data_dir.parent / "projections.db"
+        self.service = TransactionService(data_dir, projections_db_path=self.projections_path)
         self.duplicate_service = duplicate_service
         self.smart_category_service = smart_category_service
         self.event_store = event_store
         self.enrichment_service: EnrichmentService | None = None
-        # Projections DB is sibling to accounts dir (data/projections.db)
-        self.projections_path = data_dir.parent / "projections.db"
         self._all_transactions: list[TransactionGroup] = []
         self.worker: IntelligenceWorker | None = None
         self._old_workers: list[IntelligenceWorker] = []
