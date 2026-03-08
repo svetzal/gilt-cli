@@ -116,6 +116,13 @@ class ImportService:
         """Clear cached accounts (force reload on next access)."""
         self._accounts_cache = None
 
+    def _amount_sign_for(self, account_id: str) -> str:
+        """Get the amount_sign import hint for an account."""
+        for acct in self.get_accounts():
+            if acct.account_id == account_id and acct.import_hints:
+                return acct.import_hints.amount_sign or "expenses_negative"
+        return "expenses_negative"
+
     def get_file_info(self, file_path: Path) -> FileInfo:
         """
         Get information about a file.
@@ -270,7 +277,7 @@ class ImportService:
 
         try:
             # 1. Parse file to transactions
-            df = parse_file(file_path, account_id)
+            df = parse_file(file_path, account_id, self._amount_sign_for(account_id))
             new_transactions = []
             for _, row in df.iterrows():
                 # Build metadata with source_file info
@@ -363,7 +370,7 @@ class ImportService:
 
         try:
             # 1. Parse file to transactions
-            df = parse_file(file_path, account_id)
+            df = parse_file(file_path, account_id, self._amount_sign_for(account_id))
             items = []
 
             exclude_set = set(exclude_ids) if exclude_ids else set()
@@ -463,6 +470,7 @@ class ImportService:
                     event_store=event_store,
                     exclude_ids=exclude_ids,
                     categorization_map=categorization_map,
+                    amount_sign=self._amount_sign_for(account_id),
                 )
                 messages.append(f"Normalized {file_path.name} to {ledger_path}")
 

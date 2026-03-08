@@ -135,7 +135,9 @@ def plan_normalization(
     return plan
 
 
-def parse_file(input_path: Path, account_id: str) -> pd.DataFrame:
+def parse_file(
+    input_path: Path, account_id: str, amount_sign: str = "expenses_negative"
+) -> pd.DataFrame:
     """Parse a CSV file into a normalized DataFrame of transactions.
 
     - Reads only the specified CSV locally using pandas.
@@ -266,6 +268,10 @@ def parse_file(input_path: Path, account_id: str) -> pd.DataFrame:
     amt_str = amt_str.str.replace(r"^\((.*)\)$", r"-\1", regex=True)
     out["amount"] = pd.to_numeric(amt_str, errors="coerce")
 
+    # Apply amount sign convention: negate if bank reports expenses as positive
+    if amount_sign == "expenses_positive":
+        out["amount"] = -out["amount"]
+
     if cur_col:
         out["currency"] = df[cur_col].astype(str).replace("", "CAD")
     else:
@@ -302,6 +308,7 @@ def normalize_file(
     event_store: Optional["EventStore"] = None,
     exclude_ids: Optional[List[str]] = None,
     categorization_map: Optional[Dict[str, str]] = None,
+    amount_sign: str = "expenses_negative",
 ) -> Path:
     """Normalize a single CSV into the standardized schema and write to output_dir as a ledger.
 
@@ -315,7 +322,7 @@ def normalize_file(
     from gilt.model.events import TransactionImported
 
     # Parse file into normalized DataFrame
-    out = parse_file(input_path, account_id)
+    out = parse_file(input_path, account_id, amount_sign=amount_sign)
 
     # Filter out excluded IDs (e.g. confirmed duplicates)
     if exclude_ids:

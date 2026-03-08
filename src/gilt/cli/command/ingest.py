@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from pathlib import Path
 
 from gilt.ingest import load_accounts_config, normalize_file
+from gilt.model.account import Account
 from gilt.model.ledger_io import load_ledger_csv
 from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.services.ingestion_service import IngestionService
@@ -49,10 +50,19 @@ def _load_ledger_counts(paths: Iterable[Path]) -> dict[str, int]:
     return counts
 
 
+def _amount_sign_for(account_id: str, accounts: Sequence[Account]) -> str:
+    """Look up the amount_sign import hint for an account."""
+    for acct in accounts:
+        if acct.account_id == account_id and acct.import_hints:
+            return acct.import_hints.amount_sign or "expenses_negative"
+    return "expenses_negative"
+
+
 def _perform_normalization(
     plan: Iterable[tuple[Path, str | None]],
     output_dir: Path,
     event_store: EventStore | None = None,
+    accounts: Sequence[Account] = (),
 ) -> tuple[int, int]:
     written = 0
     skipped = 0
@@ -65,7 +75,11 @@ def _perform_normalization(
             skipped += 1
             continue
         try:
-            out_path = normalize_file(p, acct_id, output_dir, event_store=event_store)
+            out_path = normalize_file(
+                p, acct_id, output_dir,
+                event_store=event_store,
+                amount_sign=_amount_sign_for(acct_id, accounts),
+            )
             console.print(f"[green][ok][/green] Wrote {out_path}")
             written += 1
         except Exception as e:
@@ -136,7 +150,7 @@ def run(
 
     # 2) Perform normalization/writes with event store
     written, skipped = _perform_normalization(
-        ingestion_plan.files, output_dir, event_store=event_store
+        ingestion_plan.files, output_dir, event_store=event_store, accounts=accounts
     )
 
     # 3) Reload ledgers after ingest to ensure serialization back to disk
