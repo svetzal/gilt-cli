@@ -87,9 +87,7 @@ class ImportWorker(QThread):
                 file_progress_end = int(((i + 1) / len(self.mappings)) * 100)
 
                 def progress_callback(pct, _start=file_progress_start, _end=file_progress_end):
-                    overall = _start + int(
-                        (pct / 100) * (_end - _start)
-                    )
+                    overall = _start + int((pct / 100) * (_end - _start))
                     self.progress.emit(overall)
 
                 result = self.service.import_file(

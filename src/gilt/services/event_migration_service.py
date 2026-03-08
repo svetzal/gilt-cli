@@ -393,9 +393,7 @@ class EventMigrationService:
                     f"projection={projection.get('amount')})"
                 )
         except (ValueError, TypeError) as e:
-            errors.append(
-                f"Transaction {transaction_id}: amount comparison error - {e}"
-            )
+            errors.append(f"Transaction {transaction_id}: amount comparison error - {e}")
 
         original_category = row.get("category", "").strip() or None
         projection_category = projection.get("category")

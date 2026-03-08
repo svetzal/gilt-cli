@@ -64,9 +64,12 @@ def _ensure_transfer_metadata(group: TransactionGroup, payload: dict) -> bool:
     meta = group.primary.metadata or {}
     existing = meta.get("transfer")
     # If existing matches the same counterparty txn id, consider idempotent
-    if isinstance(existing, dict) and existing.get("counterparty_transaction_id") == payload.get(
-        "counterparty_transaction_id"
-    ) and existing.get("role") == payload.get("role"):
+    if (
+        isinstance(existing, dict)
+        and existing.get("counterparty_transaction_id")
+        == payload.get("counterparty_transaction_id")
+        and existing.get("role") == payload.get("role")
+    ):
         # Update score/method if changed (non-destructive)
         changed = False
         for k in ("score", "method", "fee_txn_ids"):

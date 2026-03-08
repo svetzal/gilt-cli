@@ -10,7 +10,7 @@ import contextlib
 from datetime import date
 from pathlib import Path
 
-from PySide6.QtCore import QDate, QThread, Signal
+from PySide6.QtCore import QDate, Qt, QThread, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QSplitter,
     QStatusBar,
     QVBoxLayout,
     QWidget,
@@ -30,9 +31,9 @@ from gilt.gui.dialogs.categorize_dialog import CategorizeDialog
 from gilt.gui.dialogs.duplicate_resolution_dialog import DuplicateResolutionDialog
 from gilt.gui.dialogs.note_dialog import NoteDialog
 from gilt.gui.dialogs.settings_dialog import SettingsDialog
-from gilt.gui.dialogs.transaction_detail_dialog import TransactionDetailDialog
 from gilt.gui.services.enrichment_service import EnrichmentService
 from gilt.gui.services.transaction_service import TransactionService
+from gilt.gui.widgets.transaction_detail_panel import TransactionDetailPanel
 from gilt.gui.widgets.transaction_table import TransactionTableWidget
 from gilt.model.account import TransactionGroup
 from gilt.model.duplicate import DuplicateAssessment, DuplicateMatch, TransactionPair
@@ -159,9 +160,23 @@ class TransactionsView(QWidget):
         filter_group = self._create_filter_controls()
         layout.addWidget(filter_group)
 
+        # Splitter: table on left, detail panel on right
+        self._splitter = QSplitter(Qt.Orientation.Horizontal, self)
+
         # Transaction table
         self.table = TransactionTableWidget(self)
-        layout.addWidget(self.table)
+        self._splitter.addWidget(self.table)
+
+        # Detail panel (hidden by default)
+        self.detail_panel = TransactionDetailPanel(self)
+        self._splitter.addWidget(self.detail_panel)
+        self.detail_panel.setVisible(False)
+
+        # Give the table most of the space
+        self._splitter.setStretchFactor(0, 3)
+        self._splitter.setStretchFactor(1, 1)
+
+        layout.addWidget(self._splitter)
 
         # Status bar at bottom
         self.status_bar = QStatusBar(self)
@@ -269,17 +284,15 @@ class TransactionsView(QWidget):
         # Apply filters on Enter in search box
         self.search_edit.returnPressed.connect(self.apply_filters)
 
-        # Update status when selection changes
+        # Update status and detail panel when selection changes
         self.table.selection_changed.connect(self._update_status)
+        self.table.selection_changed.connect(self._on_selection_changed)
 
         # Context menu actions
         self.table.categorize_requested.connect(self._on_categorize_requested)
         self.table.note_requested.connect(self._on_note_requested)
         self.table.duplicate_resolution_requested.connect(self._on_resolve_duplicate_requested)
         self.table.manual_merge_requested.connect(self._on_manual_merge_requested)
-
-        # Double-click for detail view
-        self.table.detail_requested.connect(self._on_detail_requested)
 
     def reload_transactions(self):
         """Reload all transactions from disk."""
@@ -709,13 +722,22 @@ class TransactionsView(QWidget):
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to merge transactions:\n{str(e)}")
 
-    def _on_detail_requested(self, transaction: TransactionGroup):
-        """Handle double-click to show transaction detail dialog."""
+    def _on_selection_changed(self):
+        """Update the detail panel when the table selection changes."""
+        if not self.detail_panel.isVisible():
+            return
+        txn = self.table.get_current_transaction()
         enrichment = None
-        if self.enrichment_service:
-            enrichment = self.enrichment_service.get_enrichment(transaction.primary.transaction_id)
-        dialog = TransactionDetailDialog(transaction, enrichment, self)
-        dialog.exec()
+        if txn and self.enrichment_service:
+            enrichment = self.enrichment_service.get_enrichment(txn.primary.transaction_id)
+        self.detail_panel.update_transaction(txn, enrichment)
+
+    def toggle_detail_panel(self):
+        """Toggle the detail panel visibility."""
+        visible = not self.detail_panel.isVisible()
+        self.detail_panel.setVisible(visible)
+        if visible:
+            self._on_selection_changed()
 
     def _on_transaction_updated(self, group: TransactionGroup):
         """Handle transaction update from table (inline edit)."""

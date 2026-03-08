@@ -58,7 +58,9 @@ def _validate_mode_selection(
 ) -> tuple[bool, bool] | None:
     """Validate exactly one mode is selected. Returns (single_mode, ok) or None on error."""
     single_mode = bool((txid or "").strip())
-    modes_selected = sum([single_mode, description is not None, desc_prefix is not None, pattern is not None])
+    modes_selected = sum(
+        [single_mode, description is not None, desc_prefix is not None, pattern is not None]
+    )
     if modes_selected != 1:
         console.print(
             "[red]Error:[/] Specify exactly one of --txid, "
@@ -309,7 +311,9 @@ def run(
         Exit code (0 success, 1 error)
     """
     service, categorization_service = _init_services(
-        workspace, service, categorization_service,
+        workspace,
+        service,
+        categorization_service,
     )
 
     category, subcategory = _parse_and_validate_category(category, subcategory)
@@ -353,13 +357,21 @@ def run(
         return 0
 
     if single_mode and len(all_matches) > 1:
-        console.print(f"[yellow]Ambiguous --txid '{txid}':[/] matches {len(all_matches)} transactions")
+        console.print(
+            f"[yellow]Ambiguous --txid '{txid}':[/] matches {len(all_matches)} transactions"
+        )
         console.print("Refine with more characters or specify --account")
         return 1
 
     return _confirm_and_apply(
-        all_matches, category, subcategory, single_mode, assume_yes, write,
-        workspace, categorization_service,
+        all_matches,
+        category,
+        subcategory,
+        single_mode,
+        assume_yes,
+        write,
+        workspace,
+        categorization_service,
     )
 
 

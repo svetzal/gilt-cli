@@ -79,7 +79,7 @@ of the current implementation and how to inspect it.
 
 ## Problem Statement
 
-The current duplicate detection system uses a 30B parameter LLM (`qwen3:30b`) which is:
+The current duplicate detection system uses a 30B parameter LLM (`qwen3.5:27b`) which is:
 - **Extremely slow**: Each pair comparison requires a full LLM inference
 - **Resource intensive**: Requires significant GPU/CPU resources
 - **Overkill**: Binary classification doesn't need natural language generation

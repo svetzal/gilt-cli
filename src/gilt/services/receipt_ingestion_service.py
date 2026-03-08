@@ -226,7 +226,11 @@ def match_receipt_to_transactions(
         )
 
         # Strategy 1: Exact match (vendor-filtered when patterns exist)
-        if amount_diff <= amount_tolerance and days_diff <= date_window_days and desc_matches_vendor:
+        if (
+            amount_diff <= amount_tolerance
+            and days_diff <= date_window_days
+            and desc_matches_vendor
+        ):
             exact_candidates.append(txn)
 
         # Strategy 2: FX-tolerant match (vendor-filtered when patterns exist)

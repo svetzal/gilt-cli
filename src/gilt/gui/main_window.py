@@ -279,6 +279,12 @@ class MainWindow(QMainWindow):
         refresh_action.triggered.connect(self._refresh_current_view)
         view_menu.addAction(refresh_action)
 
+        self.toggle_detail_action = QAction("Transaction &Details", self)
+        self.toggle_detail_action.setShortcut("Ctrl+D")
+        self.toggle_detail_action.setCheckable(True)
+        self.toggle_detail_action.triggered.connect(self.transactions_view.toggle_detail_panel)
+        view_menu.addAction(self.toggle_detail_action)
+
         # Help menu
         help_menu = menubar.addMenu("&Help")
 

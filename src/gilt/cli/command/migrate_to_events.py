@@ -65,7 +65,9 @@ def _check_preconditions(
         event_count = event_store.get_latest_sequence_number()
 
         if event_count > 0 and not force:
-            console.print(f"[yellow]Warning:[/yellow] Event store already exists with {event_count} events")
+            console.print(
+                f"[yellow]Warning:[/yellow] Event store already exists with {event_count} events"
+            )
             console.print(f"[dim]{effective_event_store_path}[/dim]")
             console.print()
             console.print("Options:")
@@ -74,7 +76,9 @@ def _check_preconditions(
             console.print("  3. Use 'gilt rebuild-projections' to rebuild from existing events")
             return 1
         elif event_count > 0 and force:
-            console.print(f"[yellow]![/yellow] Overwriting existing event store ({event_count} events) due to --force")
+            console.print(
+                f"[yellow]![/yellow] Overwriting existing event store ({event_count} events) due to --force"
+            )
             effective_event_store_path.unlink()
             if effective_projections_db_path.exists():
                 effective_projections_db_path.unlink()
@@ -143,7 +147,9 @@ def _build_projections(
     try:
         tx_builder = es_service.get_projection_builder()
         tx_count = tx_builder.rebuild_from_scratch(event_store)
-        console.print(f"[green]✓[/green] Built transaction projections ({tx_count} events processed)")
+        console.print(
+            f"[green]✓[/green] Built transaction projections ({tx_count} events processed)"
+        )
     except Exception as e:
         console.print(f"[red]Error building transaction projections: {e}[/]")
         return 1
@@ -153,7 +159,9 @@ def _build_projections(
         try:
             budget_builder = BudgetProjectionBuilder(effective_budget_projections_db_path)
             budget_count = budget_builder.rebuild_from_scratch(event_store)
-            console.print(f"[green]✓[/green] Built budget projections ({budget_count} events processed)")
+            console.print(
+                f"[green]✓[/green] Built budget projections ({budget_count} events processed)"
+            )
         except Exception as e:
             console.print(f"[red]Error building budget projections: {e}[/]")
             return 1
@@ -178,12 +186,18 @@ def _validate_migration(
 
         if has_categories:
             config = load_categories_config(categories_config)
-            result = service.validate_migration(event_store, data_dir, config, tx_builder, budget_builder)
+            result = service.validate_migration(
+                event_store, data_dir, config, tx_builder, budget_builder
+            )
         else:
             from gilt.services.event_migration_service import ValidationResult
+
             result = ValidationResult(
-                is_valid=True, errors=[], transaction_count_match=True,
-                budget_count_match=True, sample_transactions_match=True,
+                is_valid=True,
+                errors=[],
+                transaction_count_match=True,
+                budget_count_match=True,
+                sample_transactions_match=True,
             )
 
         if result.transaction_count_match:
@@ -218,7 +232,9 @@ def run(
     categories_config = workspace.categories_config
     effective_event_store_path = event_store_path or workspace.event_store_path
     effective_projections_db_path = projections_db_path or workspace.projections_path
-    effective_budget_projections_db_path = budget_projections_db_path or workspace.budget_projections_path
+    effective_budget_projections_db_path = (
+        budget_projections_db_path or workspace.budget_projections_path
+    )
 
     console.print("[bold cyan]Migrating to Event Sourcing Architecture[/]")
     console.print()
@@ -230,9 +246,13 @@ def run(
     )
 
     preconditions = _check_preconditions(
-        data_dir, categories_config, es_service,
-        effective_event_store_path, effective_projections_db_path,
-        effective_budget_projections_db_path, force,
+        data_dir,
+        categories_config,
+        es_service,
+        effective_event_store_path,
+        effective_projections_db_path,
+        effective_budget_projections_db_path,
+        force,
     )
     if isinstance(preconditions, int):
         return preconditions
@@ -253,16 +273,26 @@ def run(
         return 0
 
     transaction_events, budget_events, errors = _backfill_events(
-        ledger_files, has_categories, categories_config, es_service,
+        ledger_files,
+        has_categories,
+        categories_config,
+        es_service,
     )
 
-    projections_result = _build_projections(es_service, has_categories, effective_budget_projections_db_path)
+    projections_result = _build_projections(
+        es_service, has_categories, effective_budget_projections_db_path
+    )
     if isinstance(projections_result, int):
         return projections_result
     tx_builder, budget_builder = projections_result
 
     validation_code = _validate_migration(
-        es_service, data_dir, has_categories, categories_config, tx_builder, budget_builder,
+        es_service,
+        data_dir,
+        has_categories,
+        categories_config,
+        tx_builder,
+        budget_builder,
     )
     if validation_code != 0:
         return validation_code

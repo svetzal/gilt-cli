@@ -356,8 +356,8 @@ curl -fsSL https://ollama.ai/install.sh | sh
 
 ```bash
 # Recommended models (choose one)
-ollama pull qwen3:30b       # Best performance (recommended)
-ollama pull qwen3:8b        # Smaller, good balance
+ollama pull qwen3.5:27b     # Best performance (recommended)
+ollama pull qwen3:8b        # Smaller, good balance (older)
 ollama pull llama3.2:3b     # Smallest, fastest
 
 # Verify
@@ -465,7 +465,7 @@ accounts:
 ollama list
 
 # Pull recommended model
-ollama pull qwen3:30b
+ollama pull qwen3.5:27b
 
 # Or configure different model in code
 # (see developer documentation)

@@ -1,56 +1,80 @@
 from __future__ import annotations
 
 """
-Transaction Detail Dialog - Shows full transaction details on double-click.
+Transaction Detail Panel - Inline panel showing transaction details.
 
-Displays the raw bank description and, if receipt enrichment exists,
-vendor name, product/service, tax breakdown, receipt file path, etc.
+Displays transaction information in a side panel within the transactions view,
+replacing the modal dialog approach. Updates automatically when selection changes.
 """
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QDialog,
-    QDialogButtonBox,
     QFormLayout,
     QGroupBox,
     QLabel,
+    QScrollArea,
     QVBoxLayout,
+    QWidget,
 )
 
 from gilt.gui.services.enrichment_service import EnrichmentData
 from gilt.model.account import TransactionGroup
 
 
-class TransactionDetailDialog(QDialog):
-    """Dialog showing full transaction details including enrichment data."""
+class TransactionDetailPanel(QScrollArea):
+    """Scrollable side panel that shows details for the selected transaction."""
 
-    def __init__(
-        self,
-        transaction: TransactionGroup,
-        enrichment: EnrichmentData | None = None,
-        parent=None,
-    ):
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Transaction Details")
-        self.setMinimumWidth(500)
-        self.setModal(True)
-        self._init_ui(transaction, enrichment)
+        self.setWidgetResizable(True)
+        self.setMinimumWidth(280)
 
-    def _init_ui(self, transaction: TransactionGroup, enrichment: EnrichmentData | None):
-        layout = QVBoxLayout(self)
+        self._container = QWidget()
+        self._layout = QVBoxLayout(self._container)
+        self._layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.setWidget(self._container)
+
+        self._show_placeholder()
+
+    def update_transaction(
+        self,
+        transaction: TransactionGroup | None,
+        enrichment: EnrichmentData | None = None,
+    ):
+        """Update the panel to show details for the given transaction."""
+        self._clear()
+
+        if transaction is None:
+            self._show_placeholder()
+            return
+
         txn = transaction.primary
 
-        layout.addWidget(self._build_basics_section(txn))
+        self._layout.addWidget(self._build_basics_section(txn))
 
         if enrichment:
-            layout.addWidget(self._build_enrichment_section(enrichment, txn.currency))
+            self._layout.addWidget(self._build_enrichment_section(enrichment, txn.currency))
 
         if txn.metadata and "transfer" in txn.metadata:
-            layout.addWidget(self._build_transfer_section(txn.metadata["transfer"]))
+            self._layout.addWidget(self._build_transfer_section(txn.metadata["transfer"]))
 
-        buttons = QDialogButtonBox(QDialogButtonBox.Close)
-        buttons.rejected.connect(self.reject)
-        layout.addWidget(buttons)
+        self._layout.addStretch()
+
+    def _clear(self):
+        """Remove all widgets from the layout."""
+        while self._layout.count():
+            item = self._layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+    def _show_placeholder(self):
+        """Show placeholder text when no transaction is selected."""
+        label = QLabel("Select a transaction to view details")
+        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        label.setWordWrap(True)
+        label.setStyleSheet("color: gray; padding: 20px;")
+        self._layout.addWidget(label)
+        self._layout.addStretch()
 
     def _build_basics_section(self, txn) -> QGroupBox:
         """Build the transaction basics group box."""
@@ -115,6 +139,6 @@ class TransactionDetailDialog(QDialog):
     def _label(self, text: str) -> QLabel:
         """Create a selectable label for form values."""
         label = QLabel(text)
-        label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         label.setWordWrap(True)
         return label

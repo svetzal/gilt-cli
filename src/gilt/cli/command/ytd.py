@@ -29,7 +29,9 @@ def _load_and_filter_transactions(
         return 1
 
     projection_builder = ProjectionBuilder(projections_path)
-    all_transactions = projection_builder.get_all_transactions(include_duplicates=include_duplicates)
+    all_transactions = projection_builder.get_all_transactions(
+        include_duplicates=include_duplicates
+    )
 
     primaries = []
     for row in all_transactions:
@@ -114,8 +116,12 @@ def _add_table_row(table: Table, t: Transaction, compare: bool, raw: bool) -> No
 
 
 def _add_footer_rows(
-    table: Table, acct_nature: str, compare: bool,
-    credits_amount: float, debits_amount: float, total_amount: float,
+    table: Table,
+    acct_nature: str,
+    compare: bool,
+    credits_amount: float,
+    debits_amount: float,
+    total_amount: float,
 ) -> None:
     """Add totals footer rows to the table."""
     label_pos = "Credits" if acct_nature == "asset" else "Charges"
@@ -124,9 +130,15 @@ def _add_footer_rows(
 
     if compare:
         table.add_row("", "", "", "", Text(""), "", "", "")
-        table.add_row("", "", Text(label_pos, style="bold"), "", fmt_amount(credits_amount), "", "", "")
-        table.add_row("", "", Text(label_neg, style="bold"), "", fmt_amount(debits_amount), "", "", "")
-        table.add_row("", "", Text(net_label, style="bold"), "", fmt_amount(total_amount), "", "", "")
+        table.add_row(
+            "", "", Text(label_pos, style="bold"), "", fmt_amount(credits_amount), "", "", ""
+        )
+        table.add_row(
+            "", "", Text(label_neg, style="bold"), "", fmt_amount(debits_amount), "", "", ""
+        )
+        table.add_row(
+            "", "", Text(net_label, style="bold"), "", fmt_amount(total_amount), "", "", ""
+        )
     else:
         table.add_row("", "", Text(""), "", "", "")
         table.add_row("", Text(label_pos, style="bold"), fmt_amount(credits_amount), "", "", "")
@@ -158,19 +170,25 @@ def run(
     except Exception:
         pass
 
-    result = _load_and_filter_transactions(workspace, account, the_year, include_duplicates, limit, compare)
+    result = _load_and_filter_transactions(
+        workspace, account, the_year, include_duplicates, limit, compare
+    )
     if isinstance(result, int):
         return result
     primaries = result
 
     if not primaries:
         kind = "enriched " if compare else ""
-        console.print(f"[yellow]No {kind}transactions for account[/] [bold]{account}[/] in {the_year}.")
+        console.print(
+            f"[yellow]No {kind}transactions for account[/] [bold]{account}[/] in {the_year}."
+        )
         return 0
 
     nature_label = "Asset" if acct_nature == "asset" else "Liability"
     title_suffix = " — Enrichment Compare" if compare else ""
-    table = Table(title=f"{account} — YTD {the_year} ({nature_label}){title_suffix}", show_lines=False)
+    table = Table(
+        title=f"{account} — YTD {the_year} ({nature_label}){title_suffix}", show_lines=False
+    )
     table.add_column("Date", style="cyan", no_wrap=True)
     if compare:
         table.add_column("Bank Description", style="white")

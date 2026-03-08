@@ -8,7 +8,6 @@ Provides visibility into:
 - Past user decisions that shaped the model
 """
 
-
 from rich.console import Console
 from rich.table import Table
 

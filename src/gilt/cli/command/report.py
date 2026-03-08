@@ -137,7 +137,8 @@ def _budget_for_period(cat_budget, month: int | None) -> float | None:
 
 
 def _actual_for_category(
-    cat_name: str, spending: dict[tuple[str, str | None], float],
+    cat_name: str,
+    spending: dict[tuple[str, str | None], float],
 ) -> tuple[float, dict[str, float]]:
     """Aggregate actual spending and subcategory breakdown for a category."""
     cat_actual = 0.0
@@ -176,7 +177,9 @@ def _generate_report_header(year: int | None, month: int | None) -> list[str]:
 
 
 def _generate_summary_section(
-    category_config, spending, month,
+    category_config,
+    spending,
+    month,
 ) -> tuple[list[str], float, float, int]:
     """Generate the budget summary table. Returns (lines, total_budgeted, total_actual, over_count)."""
     lines = [
@@ -222,7 +225,10 @@ def _generate_summary_section(
 
 
 def _generate_category_detail(
-    cat, spending, transactions_by_category, month,
+    cat,
+    spending,
+    transactions_by_category,
+    month,
 ) -> list[str]:
     """Generate the detailed breakdown for a single category."""
     budget_amount = _budget_for_period(cat.budget, month)
@@ -240,9 +246,7 @@ def _generate_category_detail(
         remaining = budget_amount - cat_actual
         pct_used = (cat_actual / budget_amount) * 100 if budget_amount > 0 else 0
         status = (
-            "⚠️ OVER BUDGET" if remaining < 0
-            else "✓ On Track" if pct_used < 90
-            else "⚠️ Near Limit"
+            "⚠️ OVER BUDGET" if remaining < 0 else "✓ On Track" if pct_used < 90 else "⚠️ Near Limit"
         )
         lines.append(f"- **Budget:** ${budget_amount:,.2f}")
         lines.append(f"- **Actual:** ${cat_actual:,.2f}")
@@ -287,7 +291,9 @@ def _generate_markdown_report(
     lines = _generate_report_header(year, month)
 
     summary_lines, total_budgeted, total_actual, over_budget_count = _generate_summary_section(
-        category_config, spending, month,
+        category_config,
+        spending,
+        month,
     )
     lines.extend(summary_lines)
 
@@ -367,7 +373,10 @@ def _convert_to_docx(markdown_path: Path, docx_path: Path) -> bool:
 
 
 def _resolve_output_paths(
-    output: Path | None, workspace: Workspace, year: int | None, month: int | None,
+    output: Path | None,
+    workspace: Workspace,
+    year: int | None,
+    month: int | None,
 ) -> tuple[Path, Path]:
     """Resolve markdown and docx output paths."""
     if output is None:
@@ -382,7 +391,10 @@ def _resolve_output_paths(
 
 
 def _write_report_files(
-    markdown_content: str, markdown_path: Path, docx_path: Path, has_pandoc: bool,
+    markdown_content: str,
+    markdown_path: Path,
+    docx_path: Path,
+    has_pandoc: bool,
 ) -> int:
     """Write markdown and optionally convert to docx. Returns exit code."""
     markdown_path.parent.mkdir(parents=True, exist_ok=True)
@@ -425,7 +437,9 @@ def run(
 
     has_pandoc = _check_pandoc()
     if not has_pandoc:
-        console.print("[yellow]Warning:[/] pandoc not found. Install pandoc to generate .docx files.")
+        console.print(
+            "[yellow]Warning:[/] pandoc not found. Install pandoc to generate .docx files."
+        )
         console.print("  macOS: brew install pandoc")
         console.print("  Linux: apt-get install pandoc or yum install pandoc")
         console.print("\nContinuing with markdown generation only...")
@@ -435,10 +449,16 @@ def run(
         console.print("[yellow]No categories defined.[/] Create config/categories.yml first")
         return 0
 
-    spending = _aggregate_spending(workspace.ledger_data_dir, year, month, workspace.projections_path)
-    transactions_by_category = _collect_transactions(workspace.ledger_data_dir, year, month, workspace.projections_path)
+    spending = _aggregate_spending(
+        workspace.ledger_data_dir, year, month, workspace.projections_path
+    )
+    transactions_by_category = _collect_transactions(
+        workspace.ledger_data_dir, year, month, workspace.projections_path
+    )
 
-    markdown_content = _generate_markdown_report(category_config, spending, transactions_by_category, year, month)
+    markdown_content = _generate_markdown_report(
+        category_config, spending, transactions_by_category, year, month
+    )
 
     markdown_path, docx_path = _resolve_output_paths(output, workspace, year, month)
 
@@ -448,7 +468,9 @@ def run(
         if has_pandoc:
             console.print(f"Would write Word doc to: [cyan]{docx_path}[/]")
         console.print("\n[dim]--- Preview (first 500 chars) ---[/]")
-        console.print(markdown_content[:500] + "..." if len(markdown_content) > 500 else markdown_content)
+        console.print(
+            markdown_content[:500] + "..." if len(markdown_content) > 500 else markdown_content
+        )
         console.print("[dim]--- End preview ---[/]")
         return 0
 

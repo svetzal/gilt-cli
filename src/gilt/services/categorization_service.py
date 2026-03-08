@@ -104,9 +104,7 @@ class CategorizationService:
         self._transaction_service = transaction_service or TransactionOperationsService()
         self._event_store = event_store
 
-    def validate_category(
-        self, category: str, subcategory: str | None = None
-    ) -> ValidationResult:
+    def validate_category(self, category: str, subcategory: str | None = None) -> ValidationResult:
         """
         Validate that a category (and optional subcategory) exists in config.
 

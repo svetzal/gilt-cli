@@ -47,7 +47,10 @@ from .util import console
 
 
 def _parse_and_match_receipts(
-    json_paths, ingested_invoices, all_transactions, account,
+    json_paths,
+    ingested_invoices,
+    all_transactions,
+    account,
 ) -> tuple[list[MatchResult], int, int]:
     """Parse receipt files and match to transactions. Returns (results, skipped_ingested, skipped_errors)."""
     results: list[MatchResult] = []
@@ -72,7 +75,10 @@ def _parse_and_match_receipts(
             continue
 
         result = match_receipt_to_transactions(
-            receipt, all_transactions, account_id=account, vendor_patterns=_DEFAULT_VENDOR_PATTERNS,
+            receipt,
+            all_transactions,
+            account_id=account,
+            vendor_patterns=_DEFAULT_VENDOR_PATTERNS,
         )
         results.append(result)
 
@@ -110,8 +116,12 @@ def _display_results_table(results: list[MatchResult]) -> None:
             details = ""
 
         table.add_row(
-            receipt.vendor, amount_str, str(receipt.receipt_date),
-            receipt.invoice_number or "", status, details,
+            receipt.vendor,
+            amount_str,
+            str(receipt.receipt_date),
+            receipt.invoice_number or "",
+            status,
+            details,
         )
 
     console.print(table)
@@ -147,7 +157,10 @@ def run(
     all_transactions = projection_builder.get_all_transactions(include_duplicates=False)
 
     results, skipped_already_ingested, skipped_parse_errors = _parse_and_match_receipts(
-        json_paths, ingested_invoices, all_transactions, account,
+        json_paths,
+        ingested_invoices,
+        all_transactions,
+        account,
     )
 
     matched = [r for r in results if r.status == "matched"]
@@ -161,11 +174,16 @@ def run(
         for r in matched:
             receipt = r.receipt
             event = TransactionEnriched(
-                transaction_id=r.transaction_id, vendor=receipt.vendor,
-                service=receipt.service, invoice_number=receipt.invoice_number,
-                tax_amount=receipt.tax_amount, tax_type=receipt.tax_type,
-                currency=receipt.currency, receipt_file=receipt.receipt_file,
-                enrichment_source=str(receipt.source_path), source_email=receipt.source_email,
+                transaction_id=r.transaction_id,
+                vendor=receipt.vendor,
+                service=receipt.service,
+                invoice_number=receipt.invoice_number,
+                tax_amount=receipt.tax_amount,
+                tax_type=receipt.tax_type,
+                currency=receipt.currency,
+                receipt_file=receipt.receipt_file,
+                enrichment_source=str(receipt.source_path),
+                source_email=receipt.source_email,
                 match_confidence=r.match_confidence,
             )
             store.append_event(event)

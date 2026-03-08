@@ -77,7 +77,9 @@ def _setup_event_sourcing(console, workspace):
             console.print("[bold]To migrate your existing data to event sourcing:[/]")
             console.print("  gilt migrate-to-events --write")
             console.print()
-            console.print("[dim]This will create the event store and projections from your CSV files.[/dim]")
+            console.print(
+                "[dim]This will create the event store and projections from your CSV files.[/dim]"
+            )
         else:
             console.print(f"[red]Error:[/red] No data found in {data_dir}")
             console.print()
@@ -110,7 +112,9 @@ def _setup_event_sourcing(console, workspace):
 
 def _analyze_candidates(console, detector, candidates, detection_method):
     """Analyze candidate pairs with progress bar. Returns sorted matches."""
-    console.print(f"[yellow]Analyzing {len(candidates)} candidates with {detection_method}...[/yellow]")
+    console.print(
+        f"[yellow]Analyzing {len(candidates)} candidates with {detection_method}...[/yellow]"
+    )
 
     matches = []
     with Progress(
@@ -125,6 +129,7 @@ def _analyze_candidates(console, detector, candidates, detection_method):
         for pair in candidates:
             assessment = detector.assess_duplicate(pair)
             from gilt.model.duplicate import DuplicateMatch
+
             matches.append(DuplicateMatch(pair=pair, assessment=assessment))
             progress.update(task, advance=1)
 
@@ -133,8 +138,16 @@ def _analyze_candidates(console, detector, candidates, detection_method):
 
 
 def _display_and_review_match(
-    console, i, total, match, review_service, detector, projection_builder, event_store,
-    suggestion_event_id, feedback,
+    console,
+    i,
+    total,
+    match,
+    review_service,
+    detector,
+    projection_builder,
+    event_store,
+    suggestion_event_id,
+    feedback,
 ):
     """Display a single match and handle interactive review. Returns updated feedback list."""
     pair = match.pair
@@ -142,7 +155,8 @@ def _display_and_review_match(
 
     table = Table(
         title=f"Match {i}/{total} - Confidence: {match.confidence_pct:.1f}%",
-        show_header=True, show_lines=True,
+        show_header=True,
+        show_lines=True,
     )
     table.add_column("Field", style="cyan")
     table.add_column("Latest (1)", style="magenta")
@@ -172,19 +186,30 @@ def _display_and_review_match(
     console.print("  N) No, these are separate transactions")
     console.print()
 
-    choice = Prompt.ask("Choice [1/2/N]", choices=["1", "2", "n", "N"], default=smart_default.default_choice, show_choices=False)
+    choice = Prompt.ask(
+        "Choice [1/2/N]",
+        choices=["1", "2", "n", "N"],
+        default=smart_default.default_choice,
+        show_choices=False,
+    )
     rationale = Prompt.ask("Rationale (optional)", default="")
 
     decision = UserDecision(choice=choice, rationale=rationale if rationale else None)
     event, action = review_service.process_user_decision(
-        decision=decision, pair=pair, assessment=assessment, suggestion_id=suggestion_event_id,
+        decision=decision,
+        pair=pair,
+        assessment=assessment,
+        suggestion_id=suggestion_event_id,
     )
     feedback.append((decision, event, action))
 
     if action == "confirmed":
         from gilt.model.events import DuplicateConfirmed
+
         assert isinstance(event, DuplicateConfirmed)
-        console.print(f"[green]✓ Duplicate confirmed (using: {event.canonical_description})[/green]")
+        console.print(
+            f"[green]✓ Duplicate confirmed (using: {event.canonical_description})[/green]"
+        )
     else:
         console.print("[green]✓ Rejection recorded[/green]")
 
@@ -195,13 +220,17 @@ def _display_and_review_match(
 
     if detector.prompt_manager:
         detector.prompt_manager.add_feedback(
-            pair=pair, llm_said_duplicate=assessment.is_duplicate,
+            pair=pair,
+            llm_said_duplicate=assessment.is_duplicate,
             llm_confidence=assessment.confidence,
-            user_confirmed=(choice.upper() != "N"), llm_reasoning=assessment.reasoning,
+            user_confirmed=(choice.upper() != "N"),
+            llm_reasoning=assessment.reasoning,
         )
 
 
-def _display_summary(console, filtered_matches, feedback, use_llm, detector, interactive, review_service):
+def _display_summary(
+    console, filtered_matches, feedback, use_llm, detector, interactive, review_service
+):
     """Display final summary."""
     summary = review_service.build_summary(matches=filtered_matches, feedback=feedback)
 
@@ -211,7 +240,9 @@ def _display_summary(console, filtered_matches, feedback, use_llm, detector, int
 
     method_name = "ML" if (not use_llm and detector._ml_classifier) else "LLM"
     console.print(f"  {method_name} predicted duplicates: {summary.llm_predicted_duplicates}")
-    console.print(f"  {method_name} predicted not duplicates: {summary.llm_predicted_not_duplicates}")
+    console.print(
+        f"  {method_name} predicted not duplicates: {summary.llm_predicted_not_duplicates}"
+    )
 
     if interactive and summary.feedback_count > 0:
         console.print()
@@ -235,8 +266,15 @@ def _display_summary(console, filtered_matches, feedback, use_llm, detector, int
 
 
 def _print_detection_info(
-    console, data_dir, detection_method, use_llm, model, detector,
-    max_days_apart, amount_tolerance, interactive,
+    console,
+    data_dir,
+    detection_method,
+    use_llm,
+    model,
+    detector,
+    max_days_apart,
+    amount_tolerance,
+    interactive,
 ):
     """Print detection configuration banner."""
     console.print(f"[cyan]Scanning for duplicates in:[/cyan] {data_dir}")
@@ -246,13 +284,17 @@ def _print_detection_info(
         console.print(f"[dim]LLM model:[/dim] {model}")
         console.print(f"[dim]Prompt version:[/dim] {detector.prompt_version}")
         if detector.learned_patterns:
-            console.print(f"[dim]Learned patterns:[/dim] {len(detector.learned_patterns)} patterns loaded")
+            console.print(
+                f"[dim]Learned patterns:[/dim] {len(detector.learned_patterns)} patterns loaded"
+            )
     else:
         console.print("[dim]ML model:[/dim] Trained on user feedback")
     console.print(f"[dim]Max days apart:[/dim] {max_days_apart}")
     console.print(f"[dim]Amount tolerance:[/dim] {amount_tolerance}")
     if interactive:
-        console.print("[yellow]Interactive mode:[/yellow] enabled (will emit events for your decisions)")
+        console.print(
+            "[yellow]Interactive mode:[/yellow] enabled (will emit events for your decisions)"
+        )
     console.print()
 
 
@@ -277,14 +319,23 @@ def run(
     review_service = DuplicateReviewService(event_store=event_store)
 
     detector = DuplicateDetector(
-        model=model, data_dir=data_dir if interactive else None,
-        event_store_path=workspace.event_store_path, use_ml=not use_llm,
+        model=model,
+        data_dir=data_dir if interactive else None,
+        event_store_path=workspace.event_store_path,
+        use_ml=not use_llm,
     )
 
     detection_method = "LLM" if use_llm else ("ML" if detector._ml_classifier else "LLM (fallback)")
     _print_detection_info(
-        console, data_dir, detection_method, use_llm, model, detector,
-        max_days_apart, amount_tolerance, interactive,
+        console,
+        data_dir,
+        detection_method,
+        use_llm,
+        model,
+        detector,
+        max_days_apart,
+        amount_tolerance,
+        interactive,
     )
 
     console.print("[yellow]Loading transactions from projections...[/yellow]")
@@ -293,7 +344,9 @@ def run(
 
     console.print("[yellow]Finding candidate pairs...[/yellow]")
     candidates = detector.find_potential_duplicates(
-        transactions, max_days_apart=max_days_apart, amount_tolerance=amount_tolerance,
+        transactions,
+        max_days_apart=max_days_apart,
+        amount_tolerance=amount_tolerance,
     )
     console.print(f"[green]Found {len(candidates)} candidate pairs[/green]")
 
@@ -323,25 +376,40 @@ def run(
 
         txn1 = projection_builder.get_transaction(pair.txn1_id)
         txn2 = projection_builder.get_transaction(pair.txn2_id)
-        if (txn1 and txn1.get("is_duplicate", 0) == 1) or (txn2 and txn2.get("is_duplicate", 0) == 1):
+        if (txn1 and txn1.get("is_duplicate", 0) == 1) or (
+            txn2 and txn2.get("is_duplicate", 0) == 1
+        ):
             skipped_count += 1
             continue
 
         _, event_id = review_service.create_suggestion_event(
-            pair=pair, assessment=match.assessment, model=model, prompt_version=detector.prompt_version,
+            pair=pair,
+            assessment=match.assessment,
+            model=model,
+            prompt_version=detector.prompt_version,
         )
 
         if not interactive:
             # Display non-interactive match info
-            console.print(f"[bold]Match {i}/{len(filtered_matches)}[/] - Confidence: {match.confidence_pct:.1f}%")
+            console.print(
+                f"[bold]Match {i}/{len(filtered_matches)}[/] - Confidence: {match.confidence_pct:.1f}%"
+            )
             console.print(f"  {pair.txn2_id[:8]} vs {pair.txn1_id[:8]}: {pair.txn2_description}")
             console.print(f"  [dim]{match.assessment.reasoning}[/dim]")
             console.print()
         else:
             try:
                 _display_and_review_match(
-                    console, i, len(filtered_matches), match, review_service, detector,
-                    projection_builder, event_store, event_id, feedback,
+                    console,
+                    i,
+                    len(filtered_matches),
+                    match,
+                    review_service,
+                    detector,
+                    projection_builder,
+                    event_store,
+                    event_id,
+                    feedback,
                 )
             except KeyboardInterrupt:
                 console.print("\n[yellow]Interrupted by user[/yellow]")
@@ -353,9 +421,13 @@ def run(
 
     if skipped_count > 0:
         console.print()
-        console.print(f"[dim]Skipped {skipped_count} pair(s) already processed in this session[/dim]")
+        console.print(
+            f"[dim]Skipped {skipped_count} pair(s) already processed in this session[/dim]"
+        )
 
-    _display_summary(console, filtered_matches, feedback, use_llm, detector, interactive, review_service)
+    _display_summary(
+        console, filtered_matches, feedback, use_llm, detector, interactive, review_service
+    )
 
     return 0
 

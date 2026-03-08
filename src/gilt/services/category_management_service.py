@@ -113,7 +113,9 @@ class CategoryManagementService:
         matching_ids: list[str] = []
 
         for group in transaction_groups:
-            if group.primary.category == category and (subcategory is None or group.primary.subcategory == subcategory):
+            if group.primary.category == category and (
+                subcategory is None or group.primary.subcategory == subcategory
+            ):
                 matching_ids.append(group.primary.transaction_id)
 
         return CategoryUsage(

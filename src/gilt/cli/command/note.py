@@ -124,13 +124,16 @@ def _find_batch_transactions(
 
     if pattern:
         import re
+
         try:
             re.compile(pattern)
         except re.error as e:
             console.print(f"[red]Invalid regex pattern:[/red] {e}")
             return 2
 
-    criteria = SearchCriteria(description=description, desc_prefix=desc_prefix, pattern=pattern, amount=amount)
+    criteria = SearchCriteria(
+        description=description, desc_prefix=desc_prefix, pattern=pattern, amount=amount
+    )
     preview = service.find_by_criteria(criteria, groups)
 
     if not preview.matched_groups:
@@ -221,13 +224,17 @@ def run(
     if txid:
         result = _find_single_transaction(service, txid, groups)
     else:
-        result = _find_batch_transactions(service, groups, account, description, desc_prefix, pattern, amount)
+        result = _find_batch_transactions(
+            service, groups, account, description, desc_prefix, pattern, amount
+        )
 
     if isinstance(result, int):
         return result
     groups_to_update = result
 
-    _display_matches(account, groups_to_update, note_text, desc_prefix=desc_prefix if desc_prefix else None)
+    _display_matches(
+        account, groups_to_update, note_text, desc_prefix=desc_prefix if desc_prefix else None
+    )
 
     if not write:
         console.print("\n[dim]Dry-run: no changes written. Use --write to persist.[/]")

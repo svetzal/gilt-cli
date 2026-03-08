@@ -198,7 +198,7 @@ Scan ledgers for duplicate transactions using ML or LLM analysis.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `--model` | String | `qwen3:30b` | Ollama model for LLM mode |
+| `--model` | String | `qwen3.5:27b` | Ollama model for LLM mode |
 | `--max-days` | Int | `1` | Maximum days between potential duplicates |
 | `--amount-tolerance` | Float | `0.001` | Acceptable difference in amounts |
 | `--min-confidence` | Float | `0.0` | Minimum confidence threshold (0.0-1.0) |
@@ -210,7 +210,7 @@ By default uses ML. Falls back to LLM if insufficient training data. LLM mode re
 ```bash
 uv run gilt duplicates
 uv run gilt duplicates --interactive
-uv run gilt duplicates --llm --model qwen3:30b
+uv run gilt duplicates --llm --model qwen3.5:27b
 uv run gilt duplicates -i --min-confidence 0.7
 ```
 

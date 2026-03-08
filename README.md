@@ -766,7 +766,7 @@ For duplicate detection features, install Ollama and a compatible model:
 brew install ollama  # macOS
 
 # Pull a recommended model
-ollama pull qwen3:30b
+ollama pull qwen3.5:27b
 
 # Verify it's working
 ollama list

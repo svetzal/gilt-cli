@@ -143,7 +143,7 @@ class DescribeMarkDuplicate:
                 duplicate_txid="def98765",
                 workspace=workspace,
                 write=True,
-                )
+            )
 
         assert result == 0
 
@@ -243,7 +243,7 @@ class DescribeMarkDuplicate:
                 duplicate_txid="def98765",  # 8 chars
                 workspace=workspace,
                 write=True,
-                )
+            )
 
         assert result == 0
 

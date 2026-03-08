@@ -64,7 +64,8 @@ def _load_uncategorized(workspace, account, limit):
     all_transactions = projection_builder.get_all_transactions(include_duplicates=False)
 
     uncategorized_rows = [
-        row for row in all_transactions
+        row
+        for row in all_transactions
         if row.get("category") is None and (account is None or row.get("account_id") == account)
     ]
 
@@ -143,8 +144,13 @@ def run(
     projection_builder, uncategorized_txns = load_result
 
     transaction_data = [
-        {"transaction_id": t.transaction_id, "description": t.description,
-         "amount": t.amount, "account": t.account_id, "date": str(t.date)}
+        {
+            "transaction_id": t.transaction_id,
+            "description": t.description,
+            "amount": t.amount,
+            "account": t.account_id,
+            "date": str(t.date),
+        }
         for t in uncategorized_txns
     ]
 
@@ -157,7 +163,9 @@ def run(
             confident_predictions.append((txn.account_id, txn.transaction_id, txn, category, conf))
 
     if not confident_predictions:
-        console.print(f"[yellow]No predictions above {confidence:.1%} confidence threshold[/yellow]")
+        console.print(
+            f"[yellow]No predictions above {confidence:.1%} confidence threshold[/yellow]"
+        )
         console.print("\nTry:")
         console.print("  - Lowering threshold: [cyan]--confidence 0.5[/cyan]")
         console.print("  - Categorizing more transactions to improve training")
@@ -234,9 +242,7 @@ def _handle_modify_choice(category_config, default_category: str) -> str | None:
         return None
 
     if subcat_name:
-        subcat_obj = next(
-            (s for s in (cat_obj.subcategories or []) if s.name == subcat_name), None
-        )
+        subcat_obj = next((s for s in (cat_obj.subcategories or []) if s.name == subcat_name), None)
         if not subcat_obj:
             console.print(f"[red]Invalid subcategory: {subcat_name}[/red]")
             return None

@@ -234,8 +234,10 @@ class TransactionTableModel(QAbstractTableModel):
             if conf is not None and conf < 0.8:
                 return Theme.color("warning_fg")
 
-        if col == self.COL_DESCRIPTION and self._enrichment_service and self._enrichment_service.is_enriched(
-            txn.transaction_id
+        if (
+            col == self.COL_DESCRIPTION
+            and self._enrichment_service
+            and self._enrichment_service.is_enriched(txn.transaction_id)
         ):
             return Theme.color("link_fg")
 

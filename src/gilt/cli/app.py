@@ -86,9 +86,7 @@ def category(
         None, "--add", help="Add a new category (supports 'Category:Subcategory')"
     ),
     remove: str | None = typer.Option(None, "--remove", help="Remove a category"),
-    set_budget: str | None = typer.Option(
-        None, "--set-budget", help="Set budget for a category"
-    ),
+    set_budget: str | None = typer.Option(None, "--set-budget", help="Set budget for a category"),
     description: str | None = typer.Option(
         None, "--description", help="Description for new category"
     ),

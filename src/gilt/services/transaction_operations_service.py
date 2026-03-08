@@ -156,8 +156,11 @@ class TransactionOperationsService:
                 compiled_pattern = re.compile(criteria.pattern, re.IGNORECASE)
             except re.error:
                 return BatchPreview(
-                    matched_groups=[], total_count=0, criteria=criteria,
-                    used_sign_insensitive=False, invalid_pattern=True,
+                    matched_groups=[],
+                    total_count=0,
+                    criteria=criteria,
+                    used_sign_insensitive=False,
+                    invalid_pattern=True,
                 )
 
         # Collect description-matching groups in one pass
@@ -170,24 +173,29 @@ class TransactionOperationsService:
         # Filter by amount (signed first, then absolute fallback)
         if criteria.amount is None:
             return BatchPreview(
-                matched_groups=desc_matched, total_count=len(desc_matched),
-                criteria=criteria, used_sign_insensitive=False,
+                matched_groups=desc_matched,
+                total_count=len(desc_matched),
+                criteria=criteria,
+                used_sign_insensitive=False,
             )
 
         signed = [g for g in desc_matched if abs(g.primary.amount - criteria.amount) < 0.01]
         if signed:
             return BatchPreview(
-                matched_groups=signed, total_count=len(signed),
-                criteria=criteria, used_sign_insensitive=False,
+                matched_groups=signed,
+                total_count=len(signed),
+                criteria=criteria,
+                used_sign_insensitive=False,
             )
 
         absolute = [
-            g for g in desc_matched
-            if abs(abs(g.primary.amount) - abs(criteria.amount)) < 0.01
+            g for g in desc_matched if abs(abs(g.primary.amount) - abs(criteria.amount)) < 0.01
         ]
         return BatchPreview(
-            matched_groups=absolute, total_count=len(absolute),
-            criteria=criteria, used_sign_insensitive=bool(absolute),
+            matched_groups=absolute,
+            total_count=len(absolute),
+            criteria=criteria,
+            used_sign_insensitive=bool(absolute),
         )
 
     def add_note(
