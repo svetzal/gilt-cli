@@ -49,6 +49,7 @@ class IntelligenceWorker(QThread):
     finished = Signal(dict)  # metadata dict
     error = Signal(str)  # error message
     status = Signal(str)  # progress status
+    progress = Signal(int, int)  # current, total
 
     def __init__(
         self,
@@ -66,14 +67,25 @@ class IntelligenceWorker(QThread):
             metadata = {}
             all_txns = [g.primary for g in self.transactions]
 
+            # Calculate total work units: 1 for dup scan + 1 per uncategorized txn
+            uncategorized = [t for t in all_txns if not t.category]
+            total_units = 0
+            if self.duplicate_service:
+                total_units += 1
+            if self.smart_category_service:
+                total_units += len(uncategorized)
+            completed = 0
+
             if self.duplicate_service:
                 self.status.emit("Scanning for duplicates...")
                 if not self._scan_duplicates(all_txns, metadata):
                     return
+                completed += 1
+                self.progress.emit(completed, total_units)
 
             if self.smart_category_service:
                 self.status.emit("Predicting categories...")
-                if not self._predict_categories(all_txns, metadata):
+                if not self._predict_categories(all_txns, metadata, completed, total_units):
                     return
 
             if not self.isInterruptionRequested():
@@ -96,7 +108,9 @@ class IntelligenceWorker(QThread):
                 metadata[tid]["duplicate_match"] = m
         return True
 
-    def _predict_categories(self, all_txns, metadata: dict) -> bool:
+    def _predict_categories(
+        self, all_txns, metadata: dict, completed: int = 0, total_units: int = 0
+    ) -> bool:
         """Predict categories for uncategorized transactions. Returns False if interrupted."""
         for txn in all_txns:
             if self.isInterruptionRequested():
@@ -109,6 +123,8 @@ class IntelligenceWorker(QThread):
                     metadata[txn.transaction_id] = {}
                 metadata[txn.transaction_id]["confidence"] = conf
                 metadata[txn.transaction_id]["predicted_category"] = cat
+                completed += 1
+                self.progress.emit(completed, total_units)
         return True
 
 
@@ -118,6 +134,11 @@ class TransactionsView(QWidget):
     # Signal emitted when transactions are loaded
     transactions_loaded = Signal(int)  # count
     status_message = Signal(str)  # for main window status bar
+
+    # Relay signals for background task progress
+    scan_started = Signal(str, int)  # description, total
+    scan_progress = Signal(int, int)  # current, total
+    scan_finished = Signal()
 
     def __init__(
         self,
@@ -434,15 +455,28 @@ class TransactionsView(QWidget):
         # Clean up finished old workers
         self._old_workers = [w for w in self._old_workers if w.isRunning()]
 
+        # Calculate total work units for progress
+        uncategorized_count = sum(
+            1 for g in uncached_txns if not g.primary.category
+        )
+        total_units = 0
+        if self.duplicate_service:
+            total_units += 1
+        if self.smart_category_service:
+            total_units += uncategorized_count
+
         self.status_message.emit(
             f"Scanning {len(uncached_txns)} of {len(all_ids)} transactions..."
         )
+        self.scan_started.emit("Scanning...", total_units)
+
         self.worker = IntelligenceWorker(
             uncached_txns, self.duplicate_service, self.smart_category_service
         )
         self.worker.finished.connect(self._on_intelligence_scan_finished)
         self.worker.error.connect(self._on_intelligence_scan_error)
         self.worker.status.connect(self.status_message.emit)
+        self.worker.progress.connect(self.scan_progress.emit)
         self.worker.start()
 
     def _on_intelligence_scan_finished(self, metadata: dict):
@@ -451,10 +485,12 @@ class TransactionsView(QWidget):
         self.table._model.update_metadata(metadata)
         self._update_status()
         self.status_message.emit("Intelligence scan complete")
+        self.scan_finished.emit()
 
     def _on_intelligence_scan_error(self, message: str):
         """Handle error from intelligence scan."""
         self.status_message.emit(message)
+        self.scan_finished.emit()
 
     def _rescan_intelligence(self):
         """Clear the intelligence cache and rescan all transactions."""

@@ -28,6 +28,7 @@ from gilt.gui.views.categories_view import CategoriesView
 from gilt.gui.views.dashboard_view import DashboardView
 from gilt.gui.views.import_wizard import ImportWizard
 from gilt.gui.views.transactions_view import TransactionsView
+from gilt.gui.widgets.background_task_widget import BackgroundTaskWidget
 from gilt.ml.categorization_classifier import CategorizationClassifier
 from gilt.services.duplicate_service import DuplicateService
 from gilt.services.event_sourcing_service import EventSourcingService
@@ -318,7 +319,14 @@ class MainWindow(QMainWindow):
 
     def _create_status_bar(self):
         """Create the status bar."""
+        self._task_widget = BackgroundTaskWidget()
+        self.statusBar().addPermanentWidget(self._task_widget)
         self.statusBar().showMessage("Ready")
+
+        # Connect background task progress from transactions view
+        self.transactions_view.scan_started.connect(self._task_widget.start_task)
+        self.transactions_view.scan_progress.connect(self._task_widget.update_progress)
+        self.transactions_view.scan_finished.connect(self._task_widget.finish_task)
 
     def _show_import_wizard(self):
         """Show the import wizard."""
