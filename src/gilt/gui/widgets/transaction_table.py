@@ -68,6 +68,9 @@ class TransactionTableWidget(QTableView):
         header.resizeSection(TransactionTableModel.COL_RISK, 50)
         header.resizeSection(TransactionTableModel.COL_CONFIDENCE, 60)
 
+        # Default sort order (user can change by clicking headers)
+        self.sortByColumn(TransactionTableModel.COL_DATE, Qt.SortOrder.DescendingOrder)
+
         # Connect signals
         self.selectionModel().selectionChanged.connect(self._on_selection_changed)
 
@@ -88,9 +91,8 @@ class TransactionTableWidget(QTableView):
         return self._model.get_transaction(source_index.row())
 
     def set_all_transactions(self, transactions: list[TransactionGroup]):
-        """Set the full transaction list (source model). Filtering is via proxy."""
+        """Set the full transaction list (source model). Preserves current sort order."""
         self._model.update_transactions(transactions)
-        self.sortByColumn(TransactionTableModel.COL_DATE, Qt.SortOrder.DescendingOrder)
 
     def set_filters(self, **kwargs):
         """Update filter criteria on the proxy model."""

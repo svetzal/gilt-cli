@@ -7,13 +7,17 @@ Displays transaction information in a side panel within the transactions view,
 replacing the modal dialog approach. Updates automatically when selection changes.
 """
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtWidgets import (
+    QApplication,
     QFormLayout,
     QGroupBox,
+    QHBoxLayout,
     QLabel,
     QPushButton,
     QScrollArea,
+    QStyle,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -98,10 +102,11 @@ class TransactionDetailPanel(QScrollArea):
         """Build the transaction basics group box."""
         group = QGroupBox("Transaction")
         form = QFormLayout(group)
+        form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapAllRows)
         form.addRow("Transaction ID:", self._label(txn.transaction_id))
         form.addRow("Date:", self._label(str(txn.date)))
         form.addRow("Account:", self._label(txn.account_id))
-        form.addRow("Description:", self._label(txn.description or ""))
+        form.addRow("Description:", self._copyable_label(txn.description or ""))
         form.addRow("Amount:", self._label(f"{txn.amount:.2f} {txn.currency or 'CAD'}"))
         if txn.category:
             cat_text = txn.category
@@ -210,6 +215,28 @@ class TransactionDetailPanel(QScrollArea):
         if "method" in transfer:
             form.addRow("Method:", self._label(transfer["method"]))
         return group
+
+    def _copyable_label(self, text: str) -> QWidget:
+        """Create a label with a copy-to-clipboard button beside it."""
+        container = QWidget()
+        layout = QHBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+
+        label = self._label(text)
+        layout.addWidget(label, 1)
+
+        copy_btn = QToolButton()
+        copy_btn.setIcon(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_FileIcon)
+        )
+        copy_btn.setToolTip("Copy to clipboard")
+        copy_btn.setIconSize(QSize(14, 14))
+        copy_btn.setFixedSize(QSize(20, 20))
+        copy_btn.clicked.connect(lambda: QApplication.clipboard().setText(text))
+        layout.addWidget(copy_btn, 0, Qt.AlignmentFlag.AlignTop)
+
+        return container
 
     def _label(self, text: str) -> QLabel:
         """Create a selectable label for form values."""
