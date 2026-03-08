@@ -7,11 +7,12 @@ Displays transaction information in a side panel within the transactions view,
 replacing the modal dialog approach. Updates automatically when selection changes.
 """
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFormLayout,
     QGroupBox,
     QLabel,
+    QPushButton,
     QScrollArea,
     QVBoxLayout,
     QWidget,
@@ -23,6 +24,8 @@ from gilt.model.account import TransactionGroup
 
 class TransactionDetailPanel(QScrollArea):
     """Scrollable side panel that shows details for the selected transaction."""
+
+    receipt_match_requested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -54,6 +57,10 @@ class TransactionDetailPanel(QScrollArea):
 
         if enrichment:
             self._layout.addWidget(self._build_enrichment_section(enrichment, txn.currency))
+        else:
+            match_btn = QPushButton("Match Receipt...")
+            match_btn.clicked.connect(self.receipt_match_requested.emit)
+            self._layout.addWidget(match_btn)
 
         if txn.metadata and "transfer" in txn.metadata:
             self._layout.addWidget(self._build_transfer_section(txn.metadata["transfer"]))

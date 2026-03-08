@@ -122,6 +122,16 @@ class SettingsDialog(QDialog):
         categories_config_layout.addWidget(browse_categories_btn)
         layout.addRow("Categories Config:", categories_config_layout)
 
+        # Receipts directory
+        self.receipts_dir_edit = QLineEdit()
+        self.receipts_dir_edit.setReadOnly(True)
+        receipts_dir_layout = QHBoxLayout()
+        receipts_dir_layout.addWidget(self.receipts_dir_edit)
+        browse_receipts_btn = QPushButton("Browse...")
+        browse_receipts_btn.clicked.connect(self._browse_receipts_dir)
+        receipts_dir_layout.addWidget(browse_receipts_btn)
+        layout.addRow("Receipts Directory:", receipts_dir_layout)
+
         # Info label
         info = QLabel(
             "These paths determine where the application looks for "
@@ -146,6 +156,13 @@ class SettingsDialog(QDialog):
         directory = QFileDialog.getExistingDirectory(self, "Select Ingest Directory", current)
         if directory:
             self.ingest_dir_edit.setText(directory)
+
+    def _browse_receipts_dir(self):
+        """Browse for receipts directory."""
+        current = self.receipts_dir_edit.text() or str(Path.cwd() / "receipts")
+        directory = QFileDialog.getExistingDirectory(self, "Select Receipts Directory", current)
+        if directory:
+            self.receipts_dir_edit.setText(directory)
 
     def _browse_accounts_config(self):
         """Browse for accounts config file."""
@@ -185,6 +202,9 @@ class SettingsDialog(QDialog):
         self.categories_config_edit.setText(
             self.settings.value("paths/categories_config", "config/categories.yml")
         )
+        self.receipts_dir_edit.setText(
+            self.settings.value("paths/receipts_dir", "receipts")
+        )
 
     def accept(self):
         """Save settings and close dialog."""
@@ -196,6 +216,7 @@ class SettingsDialog(QDialog):
         self.settings.setValue("paths/ingest_dir", self.ingest_dir_edit.text())
         self.settings.setValue("paths/accounts_config", self.accounts_config_edit.text())
         self.settings.setValue("paths/categories_config", self.categories_config_edit.text())
+        self.settings.setValue("paths/receipts_dir", self.receipts_dir_edit.text())
 
         super().accept()
 
@@ -252,6 +273,18 @@ class SettingsDialog(QDialog):
             return root / "config" / "categories.yml"
         settings = QSettings()
         return Path(settings.value("paths/categories_config", "config/categories.yml"))
+
+    @staticmethod
+    def get_receipts_dir() -> Path:
+        """Get the configured receipts directory.
+
+        Resolution: GILT_DATA env var → QSettings → relative default.
+        """
+        root = SettingsDialog._gilt_data_root()
+        if root is not None:
+            return root / "receipts"
+        settings = QSettings()
+        return Path(settings.value("paths/receipts_dir", "receipts"))
 
     @staticmethod
     def get_default_currency() -> str:
