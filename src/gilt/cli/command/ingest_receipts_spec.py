@@ -6,6 +6,7 @@ import json
 from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 from gilt.cli.command.ingest_receipts import run
 from gilt.model.events import TransactionImported
@@ -245,6 +246,154 @@ class DescribeIngestReceiptsCommand:
 
             # In write mode, ambiguous receipts should not create events
             rc = run(workspace=ws, source=source, write=True)
+            assert rc == 0
+            enrichment_events = store.get_events_by_type("TransactionEnriched")
+            assert len(enrichment_events) == 0
+
+    def it_should_not_prompt_for_ambiguous_without_interactive(self):
+        with TemporaryDirectory() as tmpdir:
+            ws = _setup_workspace(Path(tmpdir))
+            store = EventStore(str(ws.event_store_path))
+            builder = ProjectionBuilder(ws.projections_path)
+
+            _add_transaction(
+                store, builder,
+                transaction_id="aaaa111111111111",
+                description="ACME PURCHASE 1",
+            )
+            _add_transaction(
+                store, builder,
+                transaction_id="bbbb222222222222",
+                description="ACME PURCHASE 2",
+            )
+
+            source = Path(tmpdir) / "receipts"
+            source.mkdir()
+            _write_receipt(source / "acme.json")
+
+            # Without --interactive, ambiguous results are just reported (no prompt)
+            rc = run(workspace=ws, source=source, write=True, interactive=False)
+            assert rc == 0
+            enrichment_events = store.get_events_by_type("TransactionEnriched")
+            assert len(enrichment_events) == 0
+
+    def it_should_resolve_ambiguous_when_user_selects_candidate(self):
+        with TemporaryDirectory() as tmpdir:
+            ws = _setup_workspace(Path(tmpdir))
+            store = EventStore(str(ws.event_store_path))
+            builder = ProjectionBuilder(ws.projections_path)
+
+            _add_transaction(
+                store, builder,
+                transaction_id="aaaa111111111111",
+                description="ACME PURCHASE 1",
+            )
+            _add_transaction(
+                store, builder,
+                transaction_id="bbbb222222222222",
+                description="ACME PURCHASE 2",
+            )
+
+            source = Path(tmpdir) / "receipts"
+            source.mkdir()
+            _write_receipt(source / "acme.json")
+
+            # User selects candidate 1
+            with patch("gilt.cli.command.ingest_receipts.Prompt.ask", return_value="1"):
+                rc = run(workspace=ws, source=source, write=True, interactive=True)
+
+            assert rc == 0
+            enrichment_events = store.get_events_by_type("TransactionEnriched")
+            assert len(enrichment_events) == 1
+            event = enrichment_events[0]
+            assert event.transaction_id == "aaaa111111111111"
+            assert event.match_confidence == "user-selected"
+            assert event.vendor == "Acme Corp"
+
+    def it_should_select_second_candidate_when_user_picks_two(self):
+        with TemporaryDirectory() as tmpdir:
+            ws = _setup_workspace(Path(tmpdir))
+            store = EventStore(str(ws.event_store_path))
+            builder = ProjectionBuilder(ws.projections_path)
+
+            _add_transaction(
+                store, builder,
+                transaction_id="aaaa111111111111",
+                description="ACME PURCHASE 1",
+            )
+            _add_transaction(
+                store, builder,
+                transaction_id="bbbb222222222222",
+                description="ACME PURCHASE 2",
+            )
+
+            source = Path(tmpdir) / "receipts"
+            source.mkdir()
+            _write_receipt(source / "acme.json")
+
+            # User selects candidate 2
+            with patch("gilt.cli.command.ingest_receipts.Prompt.ask", return_value="2"):
+                rc = run(workspace=ws, source=source, write=True, interactive=True)
+
+            assert rc == 0
+            enrichment_events = store.get_events_by_type("TransactionEnriched")
+            assert len(enrichment_events) == 1
+            assert enrichment_events[0].transaction_id == "bbbb222222222222"
+
+    def it_should_skip_ambiguous_when_user_presses_s(self):
+        with TemporaryDirectory() as tmpdir:
+            ws = _setup_workspace(Path(tmpdir))
+            store = EventStore(str(ws.event_store_path))
+            builder = ProjectionBuilder(ws.projections_path)
+
+            _add_transaction(
+                store, builder,
+                transaction_id="aaaa111111111111",
+                description="ACME PURCHASE 1",
+            )
+            _add_transaction(
+                store, builder,
+                transaction_id="bbbb222222222222",
+                description="ACME PURCHASE 2",
+            )
+
+            source = Path(tmpdir) / "receipts"
+            source.mkdir()
+            _write_receipt(source / "acme.json")
+
+            # User skips
+            with patch("gilt.cli.command.ingest_receipts.Prompt.ask", return_value="s"):
+                rc = run(workspace=ws, source=source, write=True, interactive=True)
+
+            assert rc == 0
+            enrichment_events = store.get_events_by_type("TransactionEnriched")
+            assert len(enrichment_events) == 0
+
+    def it_should_not_persist_interactive_selection_in_dry_run(self):
+        with TemporaryDirectory() as tmpdir:
+            ws = _setup_workspace(Path(tmpdir))
+            store = EventStore(str(ws.event_store_path))
+            builder = ProjectionBuilder(ws.projections_path)
+
+            _add_transaction(
+                store, builder,
+                transaction_id="aaaa111111111111",
+                description="ACME PURCHASE 1",
+            )
+            _add_transaction(
+                store, builder,
+                transaction_id="bbbb222222222222",
+                description="ACME PURCHASE 2",
+            )
+
+            source = Path(tmpdir) / "receipts"
+            source.mkdir()
+            _write_receipt(source / "acme.json")
+
+            # Interactive + dry-run: user selects but nothing is written
+            with patch("gilt.cli.command.ingest_receipts.Prompt.ask", return_value="1"):
+                rc = run(workspace=ws, source=source, write=False, interactive=True)
+
             assert rc == 0
             enrichment_events = store.get_events_by_type("TransactionEnriched")
             assert len(enrichment_events) == 0

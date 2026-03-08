@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from rich.prompt import Prompt
 from rich.table import Table
 
 from gilt.services.receipt_ingestion_service import (
@@ -127,6 +128,61 @@ def _display_results_table(results: list[MatchResult]) -> None:
     console.print(table)
 
 
+def _resolve_ambiguous_interactively(ambiguous: list[MatchResult]) -> list[MatchResult]:
+    """Prompt the user to disambiguate ambiguous matches. Returns resolved items."""
+    resolved: list[MatchResult] = []
+
+    for r in ambiguous:
+        receipt = r.receipt
+        tax_str = f" + ${receipt.tax_amount:.2f} {receipt.tax_type}" if receipt.tax_amount else ""
+        subtotal = receipt.amount
+        total = subtotal + receipt.tax_amount if receipt.tax_amount else subtotal
+
+        console.print("\n[bold]Ambiguous receipt:[/bold]")
+        console.print(f"  Vendor: {receipt.vendor}")
+        if receipt.service:
+            console.print(f"  Service: {receipt.service}")
+        console.print(f"  Amount: ${subtotal:.2f}{tax_str} = ${total:.2f}")
+        console.print(f"  Date: {receipt.receipt_date}")
+        if receipt.invoice_number:
+            console.print(f"  Invoice: {receipt.invoice_number}")
+        console.print()
+
+        for i, candidate in enumerate(r.candidates, 1):
+            txid = candidate["transaction_id"][:8]
+            txn_date = candidate.get("transaction_date", "")
+            txn_amount = candidate.get("amount", "")
+            desc = candidate.get("canonical_description", "")
+            acct = candidate.get("account_id", "")
+            console.print(f"  {i}) {txid}  {txn_date}  ${txn_amount}  {desc}  [{acct}]")
+
+        console.print()
+        valid_choices = [str(i) for i in range(1, len(r.candidates) + 1)] + ["s", "S"]
+        choice = Prompt.ask(
+            f"Select [1-{len(r.candidates)}/s to skip]",
+            choices=valid_choices,
+            show_choices=False,
+        )
+
+        if choice.lower() == "s":
+            continue
+
+        selected = r.candidates[int(choice) - 1]
+        resolved.append(
+            MatchResult(
+                receipt=receipt,
+                status="matched",
+                transaction_id=selected["transaction_id"],
+                candidate_count=r.candidate_count,
+                current_description=selected.get("canonical_description", ""),
+                candidates=r.candidates,
+                match_confidence="user-selected",
+            )
+        )
+
+    return resolved
+
+
 def run(
     *,
     workspace: Workspace,
@@ -134,6 +190,7 @@ def run(
     write: bool = False,
     year: int | None = None,
     account: str | None = None,
+    interactive: bool = False,
 ) -> int:
     """Run the ingest-receipts command."""
     from gilt.model.events import TransactionEnriched
@@ -168,6 +225,11 @@ def run(
     unmatched = [r for r in results if r.status == "unmatched"]
 
     _display_results_table(results)
+
+    if interactive and ambiguous:
+        resolved = _resolve_ambiguous_interactively(ambiguous)
+        matched.extend(resolved)
+        ambiguous = [r for r in ambiguous if r not in resolved]
 
     written = 0
     if write and matched:
