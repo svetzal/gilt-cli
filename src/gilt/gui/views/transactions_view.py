@@ -247,6 +247,17 @@ class TransactionsView(QWidget):
         # Load initial data
         self.reload_transactions()
 
+    def _sync_projections(self):
+        """Incrementally rebuild projections DB from new events."""
+        if not self.event_store or not self.projections_path:
+            return
+        try:
+            from gilt.storage.projection import ProjectionBuilder
+            builder = ProjectionBuilder(self.projections_path)
+            builder.rebuild_incremental(self.event_store)
+        except Exception:
+            pass  # Best-effort; view will still work from stale data
+
     def _load_enrichment(self):
         """Load enrichment data from event store."""
         if not self.event_store:
@@ -786,6 +797,9 @@ class TransactionsView(QWidget):
                         previous_subcategory=txn.subcategory,
                     )
 
+            # Sync projections DB so reload sees the updated data
+            self._sync_projections()
+
             # Reload transactions
             self.reload_transactions(restore_transaction_id=restore_transaction_id)
 
@@ -1143,6 +1157,7 @@ class TransactionsView(QWidget):
                     subcategory=txn.subcategory,
                     source="user",
                 )
+            self._sync_projections()
         else:
             QMessageBox.critical(self, "Error", "Failed to update transaction.")
             self.reload_transactions()
