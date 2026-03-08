@@ -111,6 +111,18 @@ class TransactionTableWidget(QTableView):
                 selected.append(txn)
         return selected
 
+    def select_transaction_by_id(self, transaction_id: str) -> bool:
+        """Select the row matching the given transaction ID. Returns True if found."""
+        for row in range(self._proxy.rowCount()):
+            proxy_index = self._proxy.index(row, 0)
+            source_index = self._proxy.mapToSource(proxy_index)
+            txn = self._model.get_transaction(source_index.row())
+            if txn and txn.primary.transaction_id == transaction_id:
+                self.setCurrentIndex(proxy_index)
+                self.scrollTo(proxy_index)
+                return True
+        return False
+
     def clear(self):
         """Clear all transactions from the table."""
         self._model.clear()

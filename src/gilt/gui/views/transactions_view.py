@@ -469,10 +469,16 @@ class TransactionsView(QWidget):
         self.table.manual_merge_requested.connect(self._on_manual_merge_requested)
         self.table.receipt_match_requested.connect(self._on_receipt_match_requested)
         self.detail_panel.receipt_match_requested.connect(self._on_receipt_match_requested)
+        self.detail_panel.apply_prediction_requested.connect(self._on_apply_prediction)
+        self.detail_panel.apply_receipt_requested.connect(self._on_apply_receipt_from_panel)
         self.match_receipts_btn.clicked.connect(self._on_batch_receipt_match)
 
-    def reload_transactions(self):
-        """Reload all transactions from disk."""
+    def reload_transactions(self, restore_transaction_id: str | None = None):
+        """Reload all transactions from disk.
+
+        Args:
+            restore_transaction_id: If provided, re-select this transaction after reload.
+        """
         # Refresh enrichment data
         self._load_enrichment()
         if self.enrichment_service:
@@ -480,6 +486,11 @@ class TransactionsView(QWidget):
 
         # Clear cache
         self.service.clear_cache()
+
+        # Reset the view before swapping model data. QAbstractItemView.reset()
+        # clears internal current-index, selection, scroll, and editor state so
+        # no stale QModelIndex survives into the new data.
+        self.table.reset()
 
         # Load all transactions into the stable source model
         self._all_transactions = self.service.load_all_transactions()
@@ -491,6 +502,10 @@ class TransactionsView(QWidget):
 
         # Apply current filter criteria to proxy
         self.apply_filters()
+
+        # Restore selection if requested
+        if restore_transaction_id:
+            self.table.select_transaction_by_id(restore_transaction_id)
 
         # Emit signal
         self.transactions_loaded.emit(len(self._all_transactions))
@@ -676,7 +691,11 @@ class TransactionsView(QWidget):
         parts = predicted.split(":", 1)
         category = parts[0].strip()
         subcategory = parts[1].strip() if len(parts) == 2 else None
-        self._apply_categorization([transaction], category, subcategory)
+        self._apply_categorization(
+            [transaction], category, subcategory,
+            source="llm",
+            restore_transaction_id=transaction.primary.transaction_id,
+        )
 
     def _on_categorize_requested(self):
         """Handle categorize request from context menu."""
@@ -712,6 +731,8 @@ class TransactionsView(QWidget):
         transactions: list[TransactionGroup],
         category: str,
         subcategory: str | None,
+        source: str = "user",
+        restore_transaction_id: str | None = None,
     ):
         """
         Apply categorization to transactions and save to disk.
@@ -720,6 +741,8 @@ class TransactionsView(QWidget):
             transactions: List of transactions to categorize
             category: Category name
             subcategory: Optional subcategory name
+            source: Who assigned it ("user", "llm", "rule")
+            restore_transaction_id: If set, re-select this transaction after reload.
         """
         try:
             # Group transactions by account
@@ -750,8 +773,21 @@ class TransactionsView(QWidget):
                 updated_csv = dump_ledger_csv(groups)
                 ledger_path.write_text(updated_csv, encoding="utf-8")
 
+            # Record categorization events for ML training
+            if self.smart_category_service:
+                for txn_group in transactions:
+                    txn = txn_group.primary
+                    self.smart_category_service.record_categorization(
+                        transaction_id=txn.transaction_id,
+                        category=category,
+                        subcategory=subcategory,
+                        source=source,
+                        previous_category=txn.category,
+                        previous_subcategory=txn.subcategory,
+                    )
+
             # Reload transactions
-            self.reload_transactions()
+            self.reload_transactions(restore_transaction_id=restore_transaction_id)
 
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to categorize transactions:\n{str(e)}")
@@ -1052,9 +1088,41 @@ class TransactionsView(QWidget):
             return
         txn = self.table.get_current_transaction()
         enrichment = None
-        if txn and self.enrichment_service:
-            enrichment = self.enrichment_service.get_enrichment(txn.primary.transaction_id)
-        self.detail_panel.update_transaction(txn, enrichment)
+        metadata = None
+        receipt_candidates = None
+        if txn:
+            if self.enrichment_service:
+                enrichment = self.enrichment_service.get_enrichment(txn.primary.transaction_id)
+            metadata = self.table._model.get_metadata(txn.primary.transaction_id)
+            if not enrichment:
+                receipt_candidates = self._find_receipt_candidates(txn)
+        self.detail_panel.update_transaction(txn, enrichment, metadata, receipt_candidates)
+
+    def _find_receipt_candidates(self, txn_group: TransactionGroup) -> list:
+        """Find receipt candidates for a transaction."""
+        svc = self._get_receipt_match_service()
+        if not svc:
+            return []
+        txn = txn_group.primary
+        return svc.find_candidates_for_transaction(
+            txn_id=txn.transaction_id,
+            txn_amount=txn.amount,
+            txn_date=txn.date,
+            txn_description=txn.description or "",
+            txn_account_id=txn.account_id,
+            txn_currency=txn.currency or "CAD",
+        )
+
+    def _on_apply_receipt_from_panel(self, receipt, transaction_id: str):
+        """Apply a receipt match selected from the detail panel."""
+        svc = self._get_receipt_match_service()
+        if not svc:
+            return
+        try:
+            svc.apply_match(receipt, transaction_id)
+            self.reload_transactions(restore_transaction_id=transaction_id)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to apply receipt match:\n{str(e)}")
 
     def toggle_detail_panel(self):
         """Toggle the detail panel visibility."""
@@ -1066,7 +1134,15 @@ class TransactionsView(QWidget):
     def _on_transaction_updated(self, group: TransactionGroup):
         """Handle transaction update from table (inline edit)."""
         if self.service.update_transaction(group):
-            pass
+            # Record categorization event for ML training
+            txn = group.primary
+            if self.smart_category_service and txn.category:
+                self.smart_category_service.record_categorization(
+                    transaction_id=txn.transaction_id,
+                    category=txn.category,
+                    subcategory=txn.subcategory,
+                    source="user",
+                )
         else:
             QMessageBox.critical(self, "Error", "Failed to update transaction.")
             self.reload_transactions()

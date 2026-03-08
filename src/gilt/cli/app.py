@@ -526,6 +526,37 @@ def ingest(
     raise typer.Exit(code=code)
 
 
+@app.command()
+def reingest(
+    ctx: typer.Context,
+    account: str = typer.Option(
+        ..., "--account", "-a", help="Account ID to reingest (e.g., MYBANK_CC)"
+    ),
+    write: bool = typer.Option(False, "--write", help=HELP_WRITE),
+):
+    """Purge and re-ingest all transactions for a single account.
+
+    Removes the account's ledger CSV, purges related events and projections,
+    clears cached intelligence, then re-runs ingestion from the original
+    source files. Use this after changing import_hints (e.g., amount_sign)
+    or when an account's data needs a clean slate without affecting other accounts.
+
+    Examples:
+      gilt reingest --account MYBANK_CC
+      gilt reingest -a MYBANK_CC --write
+
+    Safety: dry-run by default. Use --write to execute.
+    """
+    from gilt.cli.command import reingest as cmd_reingest
+
+    code = cmd_reingest.run(
+        account=account,
+        workspace=_ws(ctx),
+        write=write,
+    )
+    raise typer.Exit(code=code)
+
+
 @app.command(name="ingest-receipts")
 def ingest_receipts(
     ctx: typer.Context,

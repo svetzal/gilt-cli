@@ -20,12 +20,15 @@ from PySide6.QtWidgets import (
 
 from gilt.gui.services.enrichment_service import EnrichmentData
 from gilt.model.account import TransactionGroup
+from gilt.services.receipt_ingestion_service import ReceiptData
 
 
 class TransactionDetailPanel(QScrollArea):
     """Scrollable side panel that shows details for the selected transaction."""
 
     receipt_match_requested = Signal()
+    apply_receipt_requested = Signal(object, str)  # ReceiptData, transaction_id
+    apply_prediction_requested = Signal(object, str)  # TransactionGroup, predicted category
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -43,6 +46,8 @@ class TransactionDetailPanel(QScrollArea):
         self,
         transaction: TransactionGroup | None,
         enrichment: EnrichmentData | None = None,
+        metadata: dict | None = None,
+        receipt_candidates: list[ReceiptData] | None = None,
     ):
         """Update the panel to show details for the given transaction."""
         self._clear()
@@ -55,12 +60,18 @@ class TransactionDetailPanel(QScrollArea):
 
         self._layout.addWidget(self._build_basics_section(txn))
 
+        # Show predicted category with apply button if available
+        if metadata and metadata.get("predicted_category") and not txn.category:
+            self._layout.addWidget(
+                self._build_prediction_section(transaction, metadata)
+            )
+
         if enrichment:
             self._layout.addWidget(self._build_enrichment_section(enrichment, txn.currency))
         else:
-            match_btn = QPushButton("Match Receipt...")
-            match_btn.clicked.connect(self.receipt_match_requested.emit)
-            self._layout.addWidget(match_btn)
+            self._layout.addWidget(
+                self._build_receipt_candidates_section(txn.transaction_id, receipt_candidates)
+            )
 
         if txn.metadata and "transfer" in txn.metadata:
             self._layout.addWidget(self._build_transfer_section(txn.metadata["transfer"]))
@@ -103,6 +114,63 @@ class TransactionDetailPanel(QScrollArea):
             form.addRow("Notes:", self._label(txn.notes))
         if txn.source_file:
             form.addRow("Source file:", self._label(txn.source_file))
+        return group
+
+    def _build_prediction_section(
+        self, transaction: TransactionGroup, metadata: dict
+    ) -> QGroupBox:
+        """Build the category prediction group box with apply button."""
+        group = QGroupBox("Category Suggestion")
+        layout = QVBoxLayout(group)
+
+        predicted = metadata["predicted_category"]
+        confidence = metadata.get("confidence", 0.0)
+
+        layout.addWidget(self._label(f"{predicted}"))
+        layout.addWidget(self._label(f"Confidence: {confidence:.0%}"))
+
+        apply_btn = QPushButton(f"Apply: {predicted}")
+        apply_btn.clicked.connect(
+            lambda: self.apply_prediction_requested.emit(transaction, predicted)
+        )
+        layout.addWidget(apply_btn)
+
+        return group
+
+    def _build_receipt_candidates_section(
+        self, transaction_id: str, candidates: list[ReceiptData] | None
+    ) -> QGroupBox:
+        """Build the receipt matching group box with candidate buttons."""
+        group = QGroupBox("Receipt Matching")
+        layout = QVBoxLayout(group)
+
+        if candidates is None:
+            layout.addWidget(self._label("Loading..."))
+            return group
+
+        if not candidates:
+            layout.addWidget(self._label("No matching receipts found"))
+            return group
+
+        for receipt in candidates:
+            desc = receipt.vendor
+            if receipt.service:
+                desc += f" — {receipt.service}"
+            desc += f"\n{receipt.amount} {receipt.currency}"
+            if receipt.receipt_date:
+                desc += f" ({receipt.receipt_date})"
+
+            btn = QPushButton(f"Apply: {receipt.vendor}")
+            btn.setToolTip(desc)
+            # Capture receipt in closure
+            btn.clicked.connect(
+                lambda checked=False, r=receipt: self.apply_receipt_requested.emit(
+                    r, transaction_id
+                )
+            )
+            layout.addWidget(self._label(desc))
+            layout.addWidget(btn)
+
         return group
 
     def _build_enrichment_section(
