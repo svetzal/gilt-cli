@@ -716,6 +716,14 @@ class ImportWizard(QWizard):
         self.setPage(PAGE_OPTIONS, OptionsPage())
         self.setPage(PAGE_EXECUTE, ExecutePage())
 
+    def reject(self):
+        """Handle wizard cancellation — stop any running worker before closing."""
+        execute_page = self.page(PAGE_EXECUTE)
+        if isinstance(execute_page, ExecutePage) and execute_page.worker and execute_page.worker.isRunning():
+            execute_page.worker.requestInterruption()
+            execute_page.worker.wait(2000)
+        super().reject()
+
     def accept(self):
         """Handle wizard acceptance."""
         execute_page = self.page(PAGE_EXECUTE)

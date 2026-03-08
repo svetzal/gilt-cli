@@ -164,8 +164,8 @@ class IntelligenceWorker(QThread):
                 metadata[tid]["confidence"] = m.rule.confidence
                 metadata[tid]["prediction_source"] = "rule"
                 rule_matched_ids.add(tid)
-        except Exception:
-            pass  # Rule inference is best-effort; fall through to ML
+        except Exception as e:
+            self.status.emit(f"Rule inference skipped: {e}")
         return True
 
     def _predict_categories(
@@ -256,7 +256,7 @@ class TransactionsView(QWidget):
             builder = ProjectionBuilder(self.projections_path)
             builder.rebuild_incremental(self.event_store)
         except Exception:
-            pass  # Best-effort; view will still work from stale data
+            self.status_message.emit("Warning: projections sync failed — view may be stale")
 
     def _load_enrichment(self):
         """Load enrichment data from event store."""
@@ -552,8 +552,14 @@ class TransactionsView(QWidget):
                 self.worker.finished.disconnect(self._on_intelligence_scan_finished)
             self._old_workers.append(self.worker)
 
-        # Clean up finished old workers
-        self._old_workers = [w for w in self._old_workers if w.isRunning()]
+        # Clean up finished old workers — join stopped threads to release OS resources
+        still_running = []
+        for w in self._old_workers:
+            if w.isRunning():
+                still_running.append(w)
+            else:
+                w.wait(0)  # ensure OS thread is fully joined
+        self._old_workers = still_running
 
         # Calculate total work units for progress
         uncategorized_count = sum(
@@ -858,6 +864,9 @@ class TransactionsView(QWidget):
             updated_csv = dump_ledger_csv(groups)
             ledger_path.write_text(updated_csv, encoding="utf-8")
 
+            # Sync projections DB so reload sees the updated data
+            self._sync_projections()
+
             # Reload transactions
             self.reload_transactions()
 
@@ -911,6 +920,9 @@ class TransactionsView(QWidget):
                         )
                 else:
                     QMessageBox.information(self, "Success", "Marked as not a duplicate.")
+
+                # Sync projections DB so reload sees the updated data
+                self._sync_projections()
 
                 # Reload to refresh view and clear warnings
                 self.reload_transactions()
@@ -980,6 +992,9 @@ class TransactionsView(QWidget):
                     QMessageBox.warning(
                         self, "Warning", "Merged but failed to remove duplicate transaction file."
                     )
+
+                # Sync projections DB so reload sees the updated data
+                self._sync_projections()
 
                 # Reload to refresh view
                 self.reload_transactions()

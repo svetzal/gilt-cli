@@ -151,6 +151,15 @@ class CategorizationReviewPage(QWizardPage):
 
         self._start_scan()
 
+    def cleanupPage(self):
+        """Stop worker if running when user navigates back or cancels wizard."""
+        if hasattr(self, "worker") and self.worker and self.worker.isRunning():
+            self.worker.finished.disconnect(self._on_scan_finished)
+            self.worker.error.disconnect(self._on_scan_error)
+            self.worker.requestInterruption()
+            self.worker.wait(2000)
+        super().cleanupPage()
+
     def _start_scan(self):
         """Start scanning for categorization."""
         self.table.setRowCount(0)

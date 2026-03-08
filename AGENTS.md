@@ -127,6 +127,31 @@ GUI business logic lives in `src/gilt/gui/services/`:
 
 Services are UI-agnostic and testable independently (functional core). Views/dialogs handle I/O (imperative shell). Dependencies are explicit through injection.
 
+### GUI Mutation Pattern (The Dual-Write Rule)
+
+Every GUI mutation that writes to CSV must follow this three-step sequence in order:
+
+1. **Write to CSV** (and optionally record event to event store)
+2. **Call `self._sync_projections()`** — rebuilds projections DB from new events so the read layer is consistent
+3. **Call `self.reload_transactions()`** — reloads the view from the now-consistent projections DB
+
+Skipping step 2 means the view reloads stale data and the user sees no change until the next restart.
+
+**Reference implementation**: `_apply_categorization` in `src/gilt/gui/views/transactions_view.py`.
+
+### QThread Worker Lifecycle
+
+Improper worker lifecycle causes segfaults when a worker emits signals to a widget that Qt has already destroyed. Follow these rules without exception:
+
+- Always declare the worker attribute with a `None` default: `self.worker: WorkerType | None = None`
+- Always implement `cleanupPage()` on `QWizardPage` subclasses that start workers; or override `reject()`/`closeEvent()` on dialogs that start workers
+- Before requesting interruption, **disconnect all signals** from the worker to prevent callbacks firing on destroyed objects
+- After `requestInterruption()`, call `worker.wait(2000)` to block until the OS thread exits (or times out)
+- Never use `except Exception: pass` in worker `run()` methods — emit the `error` signal instead so failures are visible
+- When filtering `_old_workers`, call `w.wait(0)` on stopped workers before discarding to fully join the OS thread
+
+**Reference implementation**: `_start_intelligence_scan` and worker interrupt handling in `src/gilt/gui/views/transactions_view.py`; `cleanupPage` in `src/gilt/gui/views/categorization_review_page.py`; `ImportWizard.reject` in `src/gilt/gui/views/import_wizard.py`.
+
 ## Common Tasks
 
 ### Adding a CLI Command
