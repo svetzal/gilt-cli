@@ -5,9 +5,13 @@ from pathlib import Path
 
 from gilt.ingest import load_accounts_config, normalize_file
 from gilt.model.account import Account
-from gilt.model.ledger_io import load_ledger_csv
+from gilt.model.category_io import load_categories_config
+from gilt.model.events import TransactionCategorized
+from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
+from gilt.services.categorization_service import CategorizationService
 from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.services.ingestion_service import IngestionService
+from gilt.services.rule_inference_service import RuleInferenceService
 from gilt.storage.event_store import EventStore
 from gilt.transfer.linker import link_transfers
 from gilt.workspace import Workspace
@@ -108,6 +112,65 @@ def _link_transfers_and_report(output_dir: Path) -> int:
     return modified
 
 
+def _auto_categorize_via_rules(workspace, all_transactions, event_store, projection_builder):
+    """Apply inferred rules to uncategorized transactions after ingest."""
+    service = RuleInferenceService(workspace.projections_path)
+    rules = service.infer_rules(min_evidence=3, min_confidence=0.9)
+    if not rules:
+        return
+
+    matches = service.apply_rules(all_transactions, rules)
+    if not matches:
+        return
+
+    console.print("[bold]Auto-categorizing via inferred rules[/]")
+
+    # Load category config for validation
+    category_config = load_categories_config(workspace.categories_config)
+
+    # Emit events and update CSVs
+    by_account: dict[str, list] = {}
+    for m in matches:
+        event = TransactionCategorized(
+            transaction_id=m.transaction["transaction_id"],
+            category=m.rule.category,
+            subcategory=m.rule.subcategory,
+            source="rule",
+            confidence=m.rule.confidence,
+        )
+        event_store.append_event(event)
+        acct = m.transaction.get("account_id", "")
+        by_account.setdefault(acct, []).append(m)
+
+    for account_id, acct_matches in by_account.items():
+        ledger_path = workspace.ledger_data_dir / f"{account_id}.csv"
+        if not ledger_path.exists():
+            continue
+
+        text = ledger_path.read_text(encoding="utf-8")
+        groups = load_ledger_csv(text, default_currency="CAD")
+
+        updates = {}
+        for m in acct_matches:
+            updates[m.transaction["transaction_id"]] = (m.rule.category, m.rule.subcategory)
+
+        cat_svc = CategorizationService(category_config)
+        for i, g in enumerate(groups):
+            if g.primary.transaction_id in updates:
+                cat_name, subcat_name = updates[g.primary.transaction_id]
+                result = cat_svc.apply_categorization([g], cat_name, subcat_name)
+                groups[i] = result.updated_transactions[0]
+
+        updated_csv = dump_ledger_csv(groups)
+        ledger_path.write_text(updated_csv, encoding="utf-8")
+
+    # Rebuild projections to include new categorization events
+    projection_builder.rebuild_incremental(event_store)
+    console.print(
+        f"[green][ok][/green] Auto-categorized {len(matches)} transaction(s) via rules"
+    )
+
+
 def run(
     *,
     workspace: Workspace,
@@ -176,6 +239,9 @@ def run(
     # Show projection stats
     transactions = projection_builder.get_all_transactions(include_duplicates=False)
     console.print(f"[dim]Projections: {len(transactions)} total transactions[/dim]")
+
+    # 6) Auto-categorize new transactions using inferred rules
+    _auto_categorize_via_rules(workspace, transactions, event_store, projection_builder)
 
     # Report event store stats
     latest_seq = event_store.get_latest_sequence_number()

@@ -44,6 +44,7 @@ from gilt.model.account import TransactionGroup
 from gilt.model.duplicate import DuplicateAssessment, DuplicateMatch, TransactionPair
 from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
 from gilt.services.duplicate_service import DuplicateService
+from gilt.services.rule_inference_service import RuleInferenceService
 from gilt.services.smart_category_service import SmartCategoryService
 from gilt.storage.event_store import EventStore
 
@@ -61,21 +62,25 @@ class IntelligenceWorker(QThread):
         transactions: list[TransactionGroup],
         duplicate_service: DuplicateService,
         smart_category_service: SmartCategoryService,
+        projections_path: Path | None = None,
     ):
         super().__init__()
         self.transactions = transactions
         self.duplicate_service = duplicate_service
         self.smart_category_service = smart_category_service
+        self.projections_path = projections_path
 
     def run(self):
         try:
             metadata = {}
             all_txns = [g.primary for g in self.transactions]
 
-            # Calculate total work units: 1 for dup scan + 1 per uncategorized txn
+            # Calculate total work units: 1 for dup scan + 1 for rules + 1 per uncategorized txn
             uncategorized = [t for t in all_txns if not t.category]
             total_units = 0
             if self.duplicate_service:
+                total_units += 1
+            if self.projections_path:
                 total_units += 1
             if self.smart_category_service:
                 total_units += len(uncategorized)
@@ -88,9 +93,20 @@ class IntelligenceWorker(QThread):
                 completed += 1
                 self.progress.emit(completed, total_units)
 
+            # Run rule inference before ML predictions
+            rule_matched_ids: set[str] = set()
+            if self.projections_path and self.projections_path.exists():
+                self.status.emit("Applying inferred rules...")
+                if not self._apply_inferred_rules(all_txns, metadata, rule_matched_ids):
+                    return
+                completed += 1
+                self.progress.emit(completed, total_units)
+
             if self.smart_category_service:
                 self.status.emit("Predicting categories...")
-                if not self._predict_categories(all_txns, metadata, completed, total_units):
+                if not self._predict_categories(
+                    all_txns, metadata, completed, total_units, rule_matched_ids
+                ):
                     return
 
             if not self.isInterruptionRequested():
@@ -113,14 +129,59 @@ class IntelligenceWorker(QThread):
                 metadata[tid]["duplicate_match"] = m
         return True
 
+    def _apply_inferred_rules(
+        self, all_txns, metadata: dict, rule_matched_ids: set[str]
+    ) -> bool:
+        """Apply inferred rules to uncategorized transactions. Returns False if interrupted."""
+        if self.isInterruptionRequested():
+            return False
+        try:
+            service = RuleInferenceService(self.projections_path)
+            rules = service.infer_rules(min_evidence=3, min_confidence=0.9)
+            if not rules:
+                return True
+
+            txn_dicts = [
+                {
+                    "transaction_id": t.transaction_id,
+                    "canonical_description": t.description,
+                    "category": t.category,
+                    "account_id": t.account_id,
+                }
+                for t in all_txns
+            ]
+            matches = service.apply_rules(txn_dicts, rules)
+            for m in matches:
+                if self.isInterruptionRequested():
+                    return False
+                tid = m.transaction["transaction_id"]
+                if tid not in metadata:
+                    metadata[tid] = {}
+                cat_display = m.rule.category
+                if m.rule.subcategory:
+                    cat_display = f"{m.rule.category}:{m.rule.subcategory}"
+                metadata[tid]["predicted_category"] = cat_display
+                metadata[tid]["confidence"] = m.rule.confidence
+                metadata[tid]["prediction_source"] = "rule"
+                rule_matched_ids.add(tid)
+        except Exception:
+            pass  # Rule inference is best-effort; fall through to ML
+        return True
+
     def _predict_categories(
-        self, all_txns, metadata: dict, completed: int = 0, total_units: int = 0
+        self,
+        all_txns,
+        metadata: dict,
+        completed: int = 0,
+        total_units: int = 0,
+        rule_matched_ids: set[str] | None = None,
     ) -> bool:
         """Predict categories for uncategorized transactions. Returns False if interrupted."""
+        skip_ids = rule_matched_ids or set()
         for txn in all_txns:
             if self.isInterruptionRequested():
                 return False
-            if not txn.category:
+            if not txn.category and txn.transaction_id not in skip_ids:
                 cat, conf = self.smart_category_service.predict_category(
                     txn.description, txn.amount, txn.account_id
                 )
@@ -161,6 +222,8 @@ class TransactionsView(QWidget):
         self.smart_category_service = smart_category_service
         self.event_store = event_store
         self.enrichment_service: EnrichmentService | None = None
+        # Projections DB is sibling to accounts dir (data/projections.db)
+        self.projections_path = data_dir.parent / "projections.db"
         self._all_transactions: list[TransactionGroup] = []
         self.worker: IntelligenceWorker | None = None
         self._old_workers: list[IntelligenceWorker] = []
@@ -482,7 +545,10 @@ class TransactionsView(QWidget):
         self.scan_started.emit("Scanning...", total_units)
 
         self.worker = IntelligenceWorker(
-            uncached_txns, self.duplicate_service, self.smart_category_service
+            uncached_txns,
+            self.duplicate_service,
+            self.smart_category_service,
+            projections_path=getattr(self, "projections_path", None),
         )
         self.worker.finished.connect(self._on_intelligence_scan_finished)
         self.worker.error.connect(self._on_intelligence_scan_error)

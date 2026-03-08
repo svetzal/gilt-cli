@@ -725,6 +725,46 @@ def prompt_stats(
     raise typer.Exit(code=code)
 
 
+@app.command(name="infer-rules")
+def infer_rules(
+    ctx: typer.Context,
+    apply: bool = typer.Option(False, "--apply", help="Apply rules to uncategorized transactions"),
+    write: bool = typer.Option(False, "--write", help=HELP_WRITE),
+    min_evidence: int = typer.Option(
+        3, "--min-evidence", min=1, help="Minimum categorizations to infer a rule"
+    ),
+    min_confidence: float = typer.Option(
+        0.9, "--min-confidence", min=0.0, max=1.0, help="Minimum consistency to infer a rule"
+    ),
+    export: str | None = typer.Option(None, "--export", help="Export rules to JSON file"),
+):
+    """Infer categorization rules from transaction history.
+
+    Scans categorization history for descriptions consistently categorized the
+    same way. Use --apply to match rules against uncategorized transactions.
+
+    Examples:
+      gilt infer-rules
+      gilt infer-rules --apply
+      gilt infer-rules --apply --write
+      gilt infer-rules --min-evidence 5 --min-confidence 0.95
+      gilt infer-rules --export rules.json
+
+    Safety: dry-run by default. Use --apply --write to persist changes.
+    """
+    from gilt.cli.command import infer_rules as cmd_infer_rules
+
+    code = cmd_infer_rules.run(
+        workspace=_ws(ctx),
+        apply=apply,
+        write=write,
+        min_evidence=min_evidence,
+        min_confidence=min_confidence,
+        export=export,
+    )
+    raise typer.Exit(code=code)
+
+
 @app.command(name="rebuild-projections")
 def rebuild_projections(
     ctx: typer.Context,

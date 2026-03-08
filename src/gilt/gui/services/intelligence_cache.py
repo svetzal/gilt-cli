@@ -23,6 +23,8 @@ def _serialize_entry(entry: dict) -> dict:
         out["confidence"] = entry["confidence"]
     if "predicted_category" in entry:
         out["predicted_category"] = entry["predicted_category"]
+    if "prediction_source" in entry:
+        out["prediction_source"] = entry["prediction_source"]
     if "duplicate_match" in entry:
         out["duplicate_match"] = entry["duplicate_match"].model_dump(mode="json")
     return out
@@ -37,6 +39,8 @@ def _deserialize_entry(raw: dict) -> dict:
         out["confidence"] = raw["confidence"]
     if "predicted_category" in raw:
         out["predicted_category"] = raw["predicted_category"]
+    if "prediction_source" in raw:
+        out["prediction_source"] = raw["prediction_source"]
     if "duplicate_match" in raw:
         out["duplicate_match"] = DuplicateMatch.model_validate(raw["duplicate_match"])
     return out

@@ -1,4 +1,8 @@
-"""Auto-categorize transactions using ML classifier."""
+"""Auto-categorize transactions using rule inference and ML classifier.
+
+Rules are tried first (deterministic, based on user history). ML is used
+as a fallback for transactions that don't match any inferred rule.
+"""
 
 from __future__ import annotations
 
@@ -11,6 +15,7 @@ from gilt.model.category_io import load_categories_config, parse_category_path
 from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
 from gilt.services.categorization_service import CategorizationService
 from gilt.services.event_sourcing_service import EventSourcingService
+from gilt.services.rule_inference_service import RuleInferenceService
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
@@ -120,6 +125,59 @@ def _write_categorizations(approved, workspace, category_config, event_store, pr
     console.print(f"[green]✓[/green] Categorized {len(approved)} transaction(s)")
 
 
+def _apply_rules_first(workspace, uncategorized_txns):
+    """Try rule inference on uncategorized transactions.
+
+    Returns (rule_approved, remaining_txns) where rule_approved is a list of
+    (account_id, txn_id, txn, category_path, confidence) tuples and
+    remaining_txns are transactions not matched by any rule.
+    """
+    if not workspace.projections_path.exists():
+        return [], uncategorized_txns
+
+    service = RuleInferenceService(workspace.projections_path)
+    rules = service.infer_rules(min_evidence=3, min_confidence=0.9)
+
+    if not rules:
+        return [], uncategorized_txns
+
+    # Build projection-style dicts for apply_rules
+    txn_dicts = [
+        {
+            "transaction_id": t.transaction_id,
+            "canonical_description": t.description,
+            "category": t.category,
+            "account_id": t.account_id,
+            "transaction_date": str(t.date),
+            "amount": t.amount,
+        }
+        for t in uncategorized_txns
+    ]
+
+    matches = service.apply_rules(txn_dicts, rules)
+    matched_ids = {m.transaction["transaction_id"] for m in matches}
+
+    rule_approved: list[tuple[str, str, Transaction, str, float]] = []
+    txn_by_id = {t.transaction_id: t for t in uncategorized_txns}
+    for m in matches:
+        txn = txn_by_id[m.transaction["transaction_id"]]
+        cat_path = m.rule.category
+        if m.rule.subcategory:
+            cat_path = f"{m.rule.category}:{m.rule.subcategory}"
+        rule_approved.append(
+            (txn.account_id, txn.transaction_id, txn, cat_path, m.rule.confidence)
+        )
+
+    remaining = [t for t in uncategorized_txns if t.transaction_id not in matched_ids]
+
+    if rule_approved:
+        console.print(
+            f"[green]{len(rule_approved)}[/green] transaction(s) matched by inferred rules"
+        )
+
+    return rule_approved, remaining
+
+
 def run(
     *,
     account: str | None = None,
@@ -130,7 +188,7 @@ def run(
     workspace: Workspace,
     write: bool = False,
 ) -> int:
-    """Auto-categorize uncategorized transactions using ML classifier."""
+    """Auto-categorize uncategorized transactions using rules then ML."""
     train_result = _train_classifier(workspace, min_samples)
     if isinstance(train_result, int):
         return train_result
@@ -143,26 +201,39 @@ def run(
         return load_result
     projection_builder, uncategorized_txns = load_result
 
-    transaction_data = [
-        {
-            "transaction_id": t.transaction_id,
-            "description": t.description,
-            "amount": t.amount,
-            "account": t.account_id,
-            "date": str(t.date),
-        }
-        for t in uncategorized_txns
-    ]
+    # Phase 1: Apply inferred rules (deterministic, high confidence)
+    rule_approved, remaining_txns = _apply_rules_first(workspace, uncategorized_txns)
 
-    console.print(f"\n[dim]Predicting categories (threshold: {confidence:.1%})...[/dim]")
-    predictions = classifier.predict(transaction_data, confidence_threshold=confidence)
+    # Phase 2: ML predictions for remaining uncategorized
+    ml_predictions: list[tuple[str, str, Transaction, str, float]] = []
+    if remaining_txns:
+        transaction_data = [
+            {
+                "transaction_id": t.transaction_id,
+                "description": t.description,
+                "amount": t.amount,
+                "account": t.account_id,
+                "date": str(t.date),
+            }
+            for t in remaining_txns
+        ]
 
-    confident_predictions: list[tuple[str, str, Transaction, str, float]] = []
-    for txn, (category, conf) in zip(uncategorized_txns, predictions, strict=False):
-        if category:
-            confident_predictions.append((txn.account_id, txn.transaction_id, txn, category, conf))
+        console.print(f"\n[dim]Predicting categories (threshold: {confidence:.1%})...[/dim]")
+        predictions = classifier.predict(transaction_data, confidence_threshold=confidence)
 
-    if not confident_predictions:
+        for txn, (category, conf) in zip(remaining_txns, predictions, strict=False):
+            if category:
+                ml_predictions.append(
+                    (txn.account_id, txn.transaction_id, txn, category, conf)
+                )
+
+        if ml_predictions:
+            console.print(f"[green]{len(ml_predictions)}[/green] ML predictions")
+
+    # Combine results
+    all_predictions = rule_approved + ml_predictions
+
+    if not all_predictions:
         console.print(
             f"[yellow]No predictions above {confidence:.1%} confidence threshold[/yellow]"
         )
@@ -171,13 +242,11 @@ def run(
         console.print("  - Categorizing more transactions to improve training")
         return 0
 
-    console.print(f"[green]{len(confident_predictions)}[/green] confident predictions")
-
     if interactive:
-        approved = _interactive_review(confident_predictions, category_config)
+        approved = _interactive_review(all_predictions, category_config)
     else:
-        approved = confident_predictions
-        _display_predictions(confident_predictions)
+        approved = all_predictions
+        _display_predictions(all_predictions)
 
     if not approved:
         console.print("\n[yellow]No predictions approved[/yellow]")
