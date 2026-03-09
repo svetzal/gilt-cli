@@ -244,8 +244,35 @@ class TransactionsView(QWidget):
         self._init_ui()
         self._connect_signals()
 
+        # Stop background workers cleanly when the application exits
+        from PySide6.QtWidgets import QApplication
+        app = QApplication.instance()
+        if app:
+            app.aboutToQuit.connect(self._stop_workers)
+
         # Load initial data
         self.reload_transactions()
+
+    def _disconnect_all_worker_signals(self, worker: IntelligenceWorker) -> None:
+        """Disconnect all signals from a worker to prevent callbacks on dead slots."""
+        for sig in (worker.finished, worker.error, worker.status, worker.progress):
+            with contextlib.suppress(RuntimeError):
+                sig.disconnect()
+
+    def _stop_workers(self) -> None:
+        """Interrupt and join all intelligence workers before the app exits."""
+        if self.worker and self.worker.isRunning():
+            self._disconnect_all_worker_signals(self.worker)
+            self.worker.requestInterruption()
+            self.worker.wait(3000)
+        self.worker = None
+        for w in self._old_workers:
+            if w.isRunning():
+                w.requestInterruption()
+                w.wait(2000)
+            else:
+                w.wait(0)
+        self._old_workers.clear()
 
     def _sync_projections(self):
         """Incrementally rebuild projections DB from new events."""
@@ -545,12 +572,15 @@ class TransactionsView(QWidget):
         uncached_txns = [g for g in self._all_transactions
                          if g.primary.transaction_id in uncached_ids]
 
-        # Handle existing worker
-        if self.worker and self.worker.isRunning():
-            self.worker.requestInterruption()
-            with contextlib.suppress(RuntimeError):
-                self.worker.finished.disconnect(self._on_intelligence_scan_finished)
-            self._old_workers.append(self.worker)
+        # Handle existing worker — disconnect all signals regardless of running state
+        if self.worker:
+            if self.worker.isRunning():
+                self.worker.requestInterruption()
+                self._old_workers.append(self.worker)
+            else:
+                self.worker.wait(0)  # join finished OS thread
+            self._disconnect_all_worker_signals(self.worker)
+            self.worker = None
 
         # Clean up finished old workers — join stopped threads to release OS resources
         still_running = []
@@ -716,32 +746,35 @@ class TransactionsView(QWidget):
 
     def _on_categorize_requested(self):
         """Handle categorize request from context menu."""
-        selected = self.table.get_selected_transactions()
-        if not selected:
-            return
+        try:
+            selected = self.table.get_selected_transactions()
+            if not selected:
+                return
 
-        # Get categories config path
-        categories_config = SettingsDialog.get_categories_config()
+            # Get categories config path
+            categories_config = SettingsDialog.get_categories_config()
 
-        # Get suggestion if available
-        suggestion = None
-        if self.smart_category_service and len(selected) > 0:
-            txn = selected[0].primary
-            cat, _ = self.smart_category_service.predict_category(
-                txn.description, txn.amount, txn.account_id
-            )
-            if cat:
-                parts = cat.split(":", 1)
-                suggestion = (parts[0], parts[1]) if len(parts) == 2 else (parts[0], None)
+            # Get suggestion if available
+            suggestion = None
+            if self.smart_category_service and len(selected) > 0:
+                txn = selected[0].primary
+                cat, _ = self.smart_category_service.predict_category(
+                    txn.description, txn.amount, txn.account_id
+                )
+                if cat:
+                    parts = cat.split(":", 1)
+                    suggestion = (parts[0], parts[1]) if len(parts) == 2 else (parts[0], None)
 
-        # Show categorize dialog
-        dialog = CategorizeDialog(selected, categories_config, self, suggested_category=suggestion)
-        if dialog.exec():
-            # Get selected category
-            category, subcategory = dialog.get_selected_category()
+            # Show categorize dialog
+            dialog = CategorizeDialog(selected, categories_config, self, suggested_category=suggestion)
+            if dialog.exec():
+                # Get selected category
+                category, subcategory = dialog.get_selected_category()
 
-            # Apply categorization
-            self._apply_categorization(selected, category, subcategory)
+                # Apply categorization
+                self._apply_categorization(selected, category, subcategory)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to open categorize dialog:\n{e}")
 
     def _apply_categorization(
         self,

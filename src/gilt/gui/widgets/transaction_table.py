@@ -168,12 +168,12 @@ class TransactionTableWidget(QTableView):
 
         # Categorize action
         categorize_action = menu.addAction("Categorize...")
-        categorize_action.triggered.connect(self.categorize_requested.emit)
+        categorize_action.triggered.connect(lambda: self.categorize_requested.emit())
 
         # Note action (only for single selection)
         if len(selected) == 1:
             note_action = menu.addAction("Edit Note...")
-            note_action.triggered.connect(self.note_requested.emit)
+            note_action.triggered.connect(lambda: self.note_requested.emit())
 
             # Match receipt (only for unenriched transactions)
 
@@ -182,7 +182,7 @@ class TransactionTableWidget(QTableView):
             is_enriched = enrichment_svc and enrichment_svc.is_enriched(txn_id)
             receipt_action = menu.addAction("Match Receipt...")
             receipt_action.setEnabled(not is_enriched)
-            receipt_action.triggered.connect(self.receipt_match_requested.emit)
+            receipt_action.triggered.connect(lambda: self.receipt_match_requested.emit())
 
             # Check for duplicate risk
             txn = selected[0].primary
@@ -190,13 +190,13 @@ class TransactionTableWidget(QTableView):
             if meta.get("risk"):
                 menu.addSeparator()
                 resolve_action = menu.addAction("Resolve Duplicate...")
-                resolve_action.triggered.connect(self.duplicate_resolution_requested.emit)
+                resolve_action.triggered.connect(lambda: self.duplicate_resolution_requested.emit())
 
         # Manual merge action (for exactly two selections)
         if len(selected) == 2:
             menu.addSeparator()
             merge_action = menu.addAction("Mark as Duplicate...")
-            merge_action.triggered.connect(self.manual_merge_requested.emit)
+            merge_action.triggered.connect(lambda: self.manual_merge_requested.emit())
 
         menu.addSeparator()
 
