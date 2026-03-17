@@ -238,6 +238,19 @@ When writing new tests, docs, or CLI examples, use these conventions:
 
 Any relaxation of privacy rules or external integrations must be documented here first.
 
+## Skill Distribution
+
+The gilt skill for Claude Code is distributed alongside the CLI package.
+
+- **Source of truth**: `skills/gilt/` directory in the repo (no version in frontmatter)
+- **Install locally**: `gilt skill-init` — copies to `.claude/skills/gilt/` in CWD
+- **Install globally**: `gilt skill-init --global` — copies to `~/.claude/skills/gilt/`
+- **Force overwrite**: `gilt skill-init --force` — bypasses version guard
+- **Version stamping**: `gilt-version: <VERSION>` is added to SKILL.md frontmatter at install time from the package version
+- **Version guard**: Refuses to overwrite if the installed version is newer than the running binary (prevents downgrade). `--force` bypasses this.
+
+**Pre-release checklist addition**: After bumping version in `pyproject.toml`, verify `gilt skill-init` stamps the correct version.
+
 ## Anti-Patterns
 
 - **No real financial data in tracked files** — no real bank names, account IDs, merchant names, employer names, budget amounts, or locations in source, tests, or docs

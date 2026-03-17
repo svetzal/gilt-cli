@@ -44,6 +44,36 @@ def _ws(ctx: typer.Context) -> Workspace:
     return ctx.obj["workspace"]
 
 
+@app.command(name="skill-init")
+def skill_init(
+    ctx: typer.Context,
+    global_install: bool = typer.Option(
+        False, "--global", help="Install to ~/.claude/skills/gilt/ (global)"
+    ),
+    force: bool = typer.Option(False, "--force", help="Bypass version guard"),
+):
+    """Install gilt skill files for Claude Code.
+
+    Copies the gilt skill definition and command reference to .claude/skills/gilt/
+    in the current directory (or globally with --global). Stamps the package version
+    into the installed SKILL.md frontmatter.
+
+    A version guard prevents overwriting a newer installed version unless --force is used.
+
+    Examples:
+      gilt skill-init
+      gilt skill-init --global
+      gilt skill-init --force
+    """
+    from gilt.cli.command import skill_init as cmd_skill_init
+
+    code = cmd_skill_init.run(
+        global_install=global_install,
+        force=force,
+    )
+    raise typer.Exit(code=code)
+
+
 @app.command()
 def init(ctx: typer.Context):
     """Initialize a new workspace with required directories and starter config.
