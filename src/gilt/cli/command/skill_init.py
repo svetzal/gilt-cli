@@ -37,7 +37,7 @@ def _stamp_version(text: str, pkg_version: str) -> str:
         return text
     frontmatter = match.group(1)
     closing = match.group(2)
-    rest = text[match.end():]
+    rest = text[match.end() :]
     return f"{frontmatter}gilt-version: {pkg_version}\n{closing}{rest}"
 
 
@@ -72,7 +72,9 @@ def _install_file(
         # Version guard: only applies to stamped files (SKILL.md)
         if stamp and not force:
             installed_version = _parse_frontmatter_version(existing_text)
-            if installed_version is not None and _version_tuple(installed_version) > _version_tuple(pkg_version):
+            if installed_version is not None and _version_tuple(installed_version) > _version_tuple(
+                pkg_version
+            ):
                 return "skipped"
 
         # Check if content is identical

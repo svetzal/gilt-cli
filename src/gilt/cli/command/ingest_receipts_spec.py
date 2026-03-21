@@ -257,12 +257,14 @@ class DescribeIngestReceiptsCommand:
             builder = ProjectionBuilder(ws.projections_path)
 
             _add_transaction(
-                store, builder,
+                store,
+                builder,
                 transaction_id="aaaa111111111111",
                 description="ACME PURCHASE 1",
             )
             _add_transaction(
-                store, builder,
+                store,
+                builder,
                 transaction_id="bbbb222222222222",
                 description="ACME PURCHASE 2",
             )
@@ -284,12 +286,14 @@ class DescribeIngestReceiptsCommand:
             builder = ProjectionBuilder(ws.projections_path)
 
             _add_transaction(
-                store, builder,
+                store,
+                builder,
                 transaction_id="aaaa111111111111",
                 description="ACME PURCHASE 1",
             )
             _add_transaction(
-                store, builder,
+                store,
+                builder,
                 transaction_id="bbbb222222222222",
                 description="ACME PURCHASE 2",
             )
@@ -317,12 +321,14 @@ class DescribeIngestReceiptsCommand:
             builder = ProjectionBuilder(ws.projections_path)
 
             _add_transaction(
-                store, builder,
+                store,
+                builder,
                 transaction_id="aaaa111111111111",
                 description="ACME PURCHASE 1",
             )
             _add_transaction(
-                store, builder,
+                store,
+                builder,
                 transaction_id="bbbb222222222222",
                 description="ACME PURCHASE 2",
             )
@@ -347,12 +353,14 @@ class DescribeIngestReceiptsCommand:
             builder = ProjectionBuilder(ws.projections_path)
 
             _add_transaction(
-                store, builder,
+                store,
+                builder,
                 transaction_id="aaaa111111111111",
                 description="ACME PURCHASE 1",
             )
             _add_transaction(
-                store, builder,
+                store,
+                builder,
                 transaction_id="bbbb222222222222",
                 description="ACME PURCHASE 2",
             )
@@ -376,12 +384,14 @@ class DescribeIngestReceiptsCommand:
             builder = ProjectionBuilder(ws.projections_path)
 
             _add_transaction(
-                store, builder,
+                store,
+                builder,
                 transaction_id="aaaa111111111111",
                 description="ACME PURCHASE 1",
             )
             _add_transaction(
-                store, builder,
+                store,
+                builder,
                 transaction_id="bbbb222222222222",
                 description="ACME PURCHASE 2",
             )

@@ -129,9 +129,7 @@ class IntelligenceWorker(QThread):
                 metadata[tid]["duplicate_match"] = m
         return True
 
-    def _apply_inferred_rules(
-        self, all_txns, metadata: dict, rule_matched_ids: set[str]
-    ) -> bool:
+    def _apply_inferred_rules(self, all_txns, metadata: dict, rule_matched_ids: set[str]) -> bool:
         """Apply inferred rules to uncategorized transactions. Returns False if interrupted."""
         if self.isInterruptionRequested():
             return False
@@ -246,6 +244,7 @@ class TransactionsView(QWidget):
 
         # Stop background workers cleanly when the application exits
         from PySide6.QtWidgets import QApplication
+
         app = QApplication.instance()
         if app:
             app.aboutToQuit.connect(self._stop_workers)
@@ -280,6 +279,7 @@ class TransactionsView(QWidget):
             return
         try:
             from gilt.storage.projection import ProjectionBuilder
+
             builder = ProjectionBuilder(self.projections_path)
             builder.rebuild_incremental(self.event_store)
         except Exception:
@@ -357,14 +357,16 @@ class TransactionsView(QWidget):
         # Date range preset
         row1.addWidget(QLabel("Period:"))
         self.date_range_combo = QComboBox()
-        self.date_range_combo.addItems([
-            "This Month",
-            "Last Month",
-            "This Year",
-            "Last Year",
-            "All",
-            "Custom",
-        ])
+        self.date_range_combo.addItems(
+            [
+                "This Month",
+                "Last Month",
+                "This Year",
+                "Last Year",
+                "All",
+                "Custom",
+            ]
+        )
         row1.addWidget(self.date_range_combo)
 
         # Custom date range (hidden unless "Custom" selected)
@@ -569,8 +571,9 @@ class TransactionsView(QWidget):
             self.status_message.emit("Intelligence scan: all cached")
             return
 
-        uncached_txns = [g for g in self._all_transactions
-                         if g.primary.transaction_id in uncached_ids]
+        uncached_txns = [
+            g for g in self._all_transactions if g.primary.transaction_id in uncached_ids
+        ]
 
         # Handle existing worker — disconnect all signals regardless of running state
         if self.worker:
@@ -592,18 +595,14 @@ class TransactionsView(QWidget):
         self._old_workers = still_running
 
         # Calculate total work units for progress
-        uncategorized_count = sum(
-            1 for g in uncached_txns if not g.primary.category
-        )
+        uncategorized_count = sum(1 for g in uncached_txns if not g.primary.category)
         total_units = 0
         if self.duplicate_service:
             total_units += 1
         if self.smart_category_service:
             total_units += uncategorized_count
 
-        self.status_message.emit(
-            f"Scanning {len(uncached_txns)} of {len(all_ids)} transactions..."
-        )
+        self.status_message.emit(f"Scanning {len(uncached_txns)} of {len(all_ids)} transactions...")
         self.scan_started.emit("Scanning...", total_units)
 
         self.worker = IntelligenceWorker(
@@ -739,7 +738,9 @@ class TransactionsView(QWidget):
         category = parts[0].strip()
         subcategory = parts[1].strip() if len(parts) == 2 else None
         self._apply_categorization(
-            [transaction], category, subcategory,
+            [transaction],
+            category,
+            subcategory,
             source="llm",
             restore_transaction_id=transaction.primary.transaction_id,
         )
@@ -766,7 +767,9 @@ class TransactionsView(QWidget):
                     suggestion = (parts[0], parts[1]) if len(parts) == 2 else (parts[0], None)
 
             # Show categorize dialog
-            dialog = CategorizeDialog(selected, categories_config, self, suggested_category=suggestion)
+            dialog = CategorizeDialog(
+                selected, categories_config, self, suggested_category=suggestion
+            )
             if dialog.exec():
                 # Get selected category
                 category, subcategory = dialog.get_selected_category()
@@ -1095,10 +1098,12 @@ class TransactionsView(QWidget):
 
         # Filter to unenriched transactions
         unenriched = [
-            g for g in self._all_transactions
-            if not (self.enrichment_service and self.enrichment_service.is_enriched(
-                g.primary.transaction_id
-            ))
+            g
+            for g in self._all_transactions
+            if not (
+                self.enrichment_service
+                and self.enrichment_service.is_enriched(g.primary.transaction_id)
+            )
         ]
 
         if not unenriched:
@@ -1115,8 +1120,7 @@ class TransactionsView(QWidget):
             QMessageBox.information(
                 self,
                 "No Matches",
-                f"No receipt matches found.\n"
-                f"Unmatched receipts: {len(result.unmatched)}",
+                f"No receipt matches found.\nUnmatched receipts: {len(result.unmatched)}",
             )
             return
 

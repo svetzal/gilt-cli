@@ -34,9 +34,7 @@ class TransactionService:
             self.projections_db_path = Path(projections_db_path)
         self._cache: dict[str, list[TransactionGroup]] = {}
 
-    def load_all_transactions(
-        self, include_duplicates: bool = False
-    ) -> list[TransactionGroup]:
+    def load_all_transactions(self, include_duplicates: bool = False) -> list[TransactionGroup]:
         """
         Load all transactions from the projections database.
 
@@ -52,14 +50,10 @@ class TransactionService:
             return self._load_from_projections(include_duplicates)
         return self._load_from_csv()
 
-    def _load_from_projections(
-        self, include_duplicates: bool = False
-    ) -> list[TransactionGroup]:
+    def _load_from_projections(self, include_duplicates: bool = False) -> list[TransactionGroup]:
         """Load transactions from the projections database."""
         projection_builder = ProjectionBuilder(self.projections_db_path)
-        rows = projection_builder.get_all_transactions(
-            include_duplicates=include_duplicates
-        )
+        rows = projection_builder.get_all_transactions(include_duplicates=include_duplicates)
         return [TransactionGroup.from_projection_row(row) for row in rows]
 
     def _load_from_csv(self, default_currency: str = "CAD") -> list[TransactionGroup]:

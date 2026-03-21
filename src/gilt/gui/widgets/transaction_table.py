@@ -160,8 +160,8 @@ class TransactionTableWidget(QTableView):
                     group = selected[0]
                     apply_action = menu.addAction(f"Apply: {predicted}")
                     apply_action.triggered.connect(
-                        lambda checked, g=group, p=predicted: (
-                            self.apply_prediction_requested.emit(g, p)
+                        lambda checked, g=group, p=predicted: self.apply_prediction_requested.emit(
+                            g, p
                         )
                     )
                     menu.addSeparator()

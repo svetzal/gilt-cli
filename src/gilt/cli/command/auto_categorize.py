@@ -164,9 +164,7 @@ def _apply_rules_first(workspace, uncategorized_txns):
         cat_path = m.rule.category
         if m.rule.subcategory:
             cat_path = f"{m.rule.category}:{m.rule.subcategory}"
-        rule_approved.append(
-            (txn.account_id, txn.transaction_id, txn, cat_path, m.rule.confidence)
-        )
+        rule_approved.append((txn.account_id, txn.transaction_id, txn, cat_path, m.rule.confidence))
 
     remaining = [t for t in uncategorized_txns if t.transaction_id not in matched_ids]
 
@@ -223,9 +221,7 @@ def run(
 
         for txn, (category, conf) in zip(remaining_txns, predictions, strict=False):
             if category:
-                ml_predictions.append(
-                    (txn.account_id, txn.transaction_id, txn, category, conf)
-                )
+                ml_predictions.append((txn.account_id, txn.transaction_id, txn, category, conf))
 
         if ml_predictions:
             console.print(f"[green]{len(ml_predictions)}[/green] ML predictions")

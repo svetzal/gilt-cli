@@ -71,9 +71,7 @@ class DescribeTransactionServiceProjectionLoading:
 
     @pytest.fixture
     def service(self, data_dir, temp_dir):
-        return TransactionService(
-            data_dir, projections_db_path=temp_dir / "projections.db"
-        )
+        return TransactionService(data_dir, projections_db_path=temp_dir / "projections.db")
 
     def it_should_load_transactions_from_projections(
         self, event_store, projection_builder, service
@@ -88,9 +86,7 @@ class DescribeTransactionServiceProjectionLoading:
         ids = {g.primary.transaction_id for g in groups}
         assert ids == {"txn001", "txn002"}
 
-    def it_should_exclude_duplicates_by_default(
-        self, event_store, projection_builder, service
-    ):
+    def it_should_exclude_duplicates_by_default(self, event_store, projection_builder, service):
         _import_transaction(event_store, "txn001", description="ACME CORP")
         _import_transaction(event_store, "txn002", description="ACME CORP UPDATED")
         event_store.append_event(
@@ -109,9 +105,7 @@ class DescribeTransactionServiceProjectionLoading:
         assert len(groups) == 1
         assert groups[0].primary.transaction_id == "txn001"
 
-    def it_should_include_duplicates_when_requested(
-        self, event_store, projection_builder, service
-    ):
+    def it_should_include_duplicates_when_requested(self, event_store, projection_builder, service):
         _import_transaction(event_store, "txn001", description="ACME CORP")
         _import_transaction(event_store, "txn002", description="ACME CORP UPDATED")
         event_store.append_event(
@@ -129,9 +123,7 @@ class DescribeTransactionServiceProjectionLoading:
 
         assert len(groups) == 2
 
-    def it_should_map_projection_fields_correctly(
-        self, event_store, projection_builder, service
-    ):
+    def it_should_map_projection_fields_correctly(self, event_store, projection_builder, service):
         _import_transaction(
             event_store,
             "txn001",
@@ -200,18 +192,12 @@ class DescribeTransactionServiceProjectionLoading:
     def it_should_filter_transactions_with_projection_sourced_data(
         self, event_store, projection_builder, service
     ):
-        _import_transaction(
-            event_store, "txn001", account="MYBANK_CHQ", description="ACME CORP"
-        )
-        _import_transaction(
-            event_store, "txn002", account="MYBANK_CC", description="SAMPLE STORE"
-        )
+        _import_transaction(event_store, "txn001", account="MYBANK_CHQ", description="ACME CORP")
+        _import_transaction(event_store, "txn002", account="MYBANK_CC", description="SAMPLE STORE")
         projection_builder.rebuild_from_scratch(event_store)
 
         groups = service.load_all_transactions()
-        filtered = service.filter_transactions(
-            groups, account_filter=["MYBANK_CHQ"]
-        )
+        filtered = service.filter_transactions(groups, account_filter=["MYBANK_CHQ"])
 
         assert len(filtered) == 1
         assert filtered[0].primary.account_id == "MYBANK_CHQ"
@@ -219,12 +205,8 @@ class DescribeTransactionServiceProjectionLoading:
     def it_should_filter_by_search_text_with_projection_data(
         self, event_store, projection_builder, service
     ):
-        _import_transaction(
-            event_store, "txn001", description="ACME CORP PAYMENT"
-        )
-        _import_transaction(
-            event_store, "txn002", description="SAMPLE STORE PURCHASE"
-        )
+        _import_transaction(event_store, "txn001", description="ACME CORP PAYMENT")
+        _import_transaction(event_store, "txn002", description="SAMPLE STORE PURCHASE")
         projection_builder.rebuild_from_scratch(event_store)
 
         groups = service.load_all_transactions()

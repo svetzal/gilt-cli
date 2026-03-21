@@ -80,7 +80,9 @@ def _perform_normalization(
             continue
         try:
             out_path = normalize_file(
-                p, acct_id, output_dir,
+                p,
+                acct_id,
+                output_dir,
                 event_store=event_store,
                 amount_sign=_amount_sign_for(acct_id, accounts),
             )
@@ -166,9 +168,7 @@ def _auto_categorize_via_rules(workspace, all_transactions, event_store, project
 
     # Rebuild projections to include new categorization events
     projection_builder.rebuild_incremental(event_store)
-    console.print(
-        f"[green][ok][/green] Auto-categorized {len(matches)} transaction(s) via rules"
-    )
+    console.print(f"[green][ok][/green] Auto-categorized {len(matches)} transaction(s) via rules")
 
 
 def run(

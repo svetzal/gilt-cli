@@ -181,9 +181,7 @@ def run(
     _display_matches(matches)
 
     if not write:
-        console.print(
-            f"\n[dim]Dry-run: {len(matches)} transaction(s) would be categorized[/dim]"
-        )
+        console.print(f"\n[dim]Dry-run: {len(matches)} transaction(s) would be categorized[/dim]")
         console.print("[dim]Use --write to persist changes[/dim]")
         return 0
 

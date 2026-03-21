@@ -66,9 +66,7 @@ class TransactionDetailPanel(QScrollArea):
 
         # Show predicted category with apply button if available
         if metadata and metadata.get("predicted_category") and not txn.category:
-            self._layout.addWidget(
-                self._build_prediction_section(transaction, metadata)
-            )
+            self._layout.addWidget(self._build_prediction_section(transaction, metadata))
 
         if enrichment:
             self._layout.addWidget(self._build_enrichment_section(enrichment, txn.currency))
@@ -121,9 +119,7 @@ class TransactionDetailPanel(QScrollArea):
             form.addRow("Source file:", self._label(txn.source_file))
         return group
 
-    def _build_prediction_section(
-        self, transaction: TransactionGroup, metadata: dict
-    ) -> QGroupBox:
+    def _build_prediction_section(self, transaction: TransactionGroup, metadata: dict) -> QGroupBox:
         """Build the category prediction group box with apply button."""
         group = QGroupBox("Category Suggestion")
         layout = QVBoxLayout(group)
@@ -227,9 +223,7 @@ class TransactionDetailPanel(QScrollArea):
         layout.addWidget(label, 1)
 
         copy_btn = QToolButton()
-        copy_btn.setIcon(
-            self.style().standardIcon(QStyle.StandardPixmap.SP_FileIcon)
-        )
+        copy_btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_FileIcon))
         copy_btn.setToolTip("Copy to clipboard")
         copy_btn.setIconSize(QSize(14, 14))
         copy_btn.setFixedSize(QSize(20, 20))

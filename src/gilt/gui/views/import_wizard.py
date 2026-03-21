@@ -719,7 +719,11 @@ class ImportWizard(QWizard):
     def reject(self):
         """Handle wizard cancellation — stop any running worker before closing."""
         execute_page = self.page(PAGE_EXECUTE)
-        if isinstance(execute_page, ExecutePage) and execute_page.worker and execute_page.worker.isRunning():
+        if (
+            isinstance(execute_page, ExecutePage)
+            and execute_page.worker
+            and execute_page.worker.isRunning()
+        ):
             execute_page.worker.requestInterruption()
             execute_page.worker.wait(2000)
         super().reject()

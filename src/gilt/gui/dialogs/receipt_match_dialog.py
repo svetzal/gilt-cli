@@ -313,8 +313,7 @@ class BatchReceiptMatchDialog(QDialog):
         self._done_btn.setVisible(True)
 
         summary = QLabel(
-            f"Resolved: {len(self._resolved)} receipt(s) matched.\n"
-            f"Click Done to apply."
+            f"Resolved: {len(self._resolved)} receipt(s) matched.\nClick Done to apply."
         )
         summary.setStyleSheet("font-size: 14px; padding: 20px;")
         self._content_layout.addWidget(summary)

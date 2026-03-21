@@ -21,16 +21,10 @@ from gilt.workspace import Workspace
 from .util import console
 
 
-def _collect_transaction_ids_for_account(
-    event_store: EventStore, account_id: str
-) -> set[str]:
+def _collect_transaction_ids_for_account(event_store: EventStore, account_id: str) -> set[str]:
     """Find all transaction IDs imported for a given account."""
     events = event_store.get_events_by_type("TransactionImported")
-    return {
-        e.transaction_id
-        for e in events
-        if getattr(e, "source_account", None) == account_id
-    }
+    return {e.transaction_id for e in events if getattr(e, "source_account", None) == account_id}
 
 
 def _collect_event_ids_to_purge(
@@ -53,9 +47,14 @@ def _collect_event_ids_to_purge(
             continue
 
         # Duplicate events reference two transaction IDs
-        for attr in ("transaction_id_1", "transaction_id_2",
-                     "primary_transaction_id", "duplicate_transaction_id",
-                     "original_transaction_id", "new_transaction_id"):
+        for attr in (
+            "transaction_id_1",
+            "transaction_id_2",
+            "primary_transaction_id",
+            "duplicate_transaction_id",
+            "original_transaction_id",
+            "new_transaction_id",
+        ):
             ref_id = getattr(evt, attr, None)
             if ref_id and ref_id in txn_ids:
                 event_ids.add(evt.event_id)
@@ -72,12 +71,8 @@ def _purge_events(event_store: EventStore, event_ids: set[str]) -> int:
     try:
         placeholders = ",".join("?" for _ in event_ids)
         ids = list(event_ids)
-        conn.execute(
-            f"DELETE FROM event_sequence WHERE event_id IN ({placeholders})", ids
-        )
-        conn.execute(
-            f"DELETE FROM events WHERE event_id IN ({placeholders})", ids
-        )
+        conn.execute(f"DELETE FROM event_sequence WHERE event_id IN ({placeholders})", ids)
+        conn.execute(f"DELETE FROM events WHERE event_id IN ({placeholders})", ids)
         conn.commit()
         return len(event_ids)
     finally:
@@ -212,7 +207,9 @@ def run(
     for p, acct_id in account_files:
         try:
             out_path = normalize_file(
-                p, acct_id, output_dir,
+                p,
+                acct_id,
+                output_dir,
                 event_store=event_store,
                 amount_sign=amount_sign,
             )

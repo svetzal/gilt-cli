@@ -202,9 +202,7 @@ class SettingsDialog(QDialog):
         self.categories_config_edit.setText(
             self.settings.value("paths/categories_config", "config/categories.yml")
         )
-        self.receipts_dir_edit.setText(
-            self.settings.value("paths/receipts_dir", "receipts")
-        )
+        self.receipts_dir_edit.setText(self.settings.value("paths/receipts_dir", "receipts"))
 
     def accept(self):
         """Save settings and close dialog."""
