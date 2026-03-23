@@ -44,7 +44,7 @@ _DEFAULT_VENDOR_PATTERNS: dict[str, list[str]] = {
     "best buy": ["BEST BUY"],
 }
 
-from .util import console
+from .util import console, fmt_amount_str, print_dry_run_message
 
 
 def _parse_and_match_receipts(
@@ -101,7 +101,7 @@ def _display_results_table(results: list[MatchResult]) -> None:
 
     for r in results:
         receipt = r.receipt
-        amount_str = f"${receipt.amount:,.2f}"
+        amount_str = fmt_amount_str(receipt.amount)
         confidence = r.match_confidence or ""
 
         if r.status == "matched":
@@ -263,6 +263,6 @@ def run(
         console.print(f"\n[green]{written} TransactionEnriched event(s) written.[/green]")
         console.print("[dim]Tip: Run 'gilt rebuild-projections' to update projections.[/dim]")
     elif not write and matched:
-        console.print(f"\n[dim]Dry-run: use --write to persist {len(matched)} enrichment(s)[/dim]")
+        print_dry_run_message(detail=f"{len(matched)} enrichment(s)")
 
     return 0

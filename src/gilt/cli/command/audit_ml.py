@@ -8,6 +8,8 @@ Provides visibility into:
 - Past user decisions that shaped the model
 """
 
+from __future__ import annotations
+
 from rich.console import Console
 from rich.table import Table
 
@@ -17,6 +19,8 @@ from gilt.ml.training_data_builder import TrainingDataBuilder
 from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.transfer.duplicate_detector import DuplicateDetector
 from gilt.workspace import Workspace
+
+from .util import console, fmt_amount_str
 
 
 def run(
@@ -36,8 +40,6 @@ def run(
     Returns:
         Exit code (0 = success)
     """
-    console = Console()
-
     # Initialize services
     es_service = EventSourcingService(workspace=workspace)
 
@@ -134,7 +136,9 @@ def show_training_data(
 
             table.add_row("Description", pair.txn1_description, pair.txn2_description)
             table.add_row("Date", str(pair.txn1_date), str(pair.txn2_date))
-            table.add_row("Amount", f"${pair.txn1_amount:.2f}", f"${pair.txn2_amount:.2f}")
+            table.add_row(
+                "Amount", fmt_amount_str(pair.txn1_amount), fmt_amount_str(pair.txn2_amount)
+            )
             table.add_row("Account", pair.txn1_account, pair.txn2_account)
 
             console.print(f"\n[dim]Example {i + 1}[/dim]")
@@ -155,7 +159,9 @@ def show_training_data(
 
             table.add_row("Description", pair.txn1_description, pair.txn2_description)
             table.add_row("Date", str(pair.txn1_date), str(pair.txn2_date))
-            table.add_row("Amount", f"${pair.txn1_amount:.2f}", f"${pair.txn2_amount:.2f}")
+            table.add_row(
+                "Amount", fmt_amount_str(pair.txn1_amount), fmt_amount_str(pair.txn2_amount)
+            )
             table.add_row("Account", pair.txn1_account, pair.txn2_account)
 
             console.print(f"\n[dim]Example {i + 1}[/dim]")

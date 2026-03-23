@@ -26,6 +26,8 @@ from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.transfer.prompt_learning import PromptLearningService
 from gilt.workspace import Workspace
 
+from .util import console
+
 
 def run(
     workspace: Workspace,
@@ -40,7 +42,6 @@ def run(
     Returns:
         Exit code (0 = success)
     """
-    console = Console()
     data_dir = workspace.ledger_data_dir
 
     if not data_dir.exists():

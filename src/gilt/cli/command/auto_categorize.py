@@ -19,7 +19,7 @@ from gilt.services.rule_inference_service import RuleInferenceService
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
-from .util import console
+from .util import console, fmt_amount_str, print_dry_run_message
 
 
 def _train_classifier(workspace, min_samples):
@@ -249,8 +249,7 @@ def run(
         return 0
 
     if not write:
-        console.print(f"\n[dim]Dry-run: {len(approved)} transaction(s) would be categorized[/dim]")
-        console.print("[dim]Use --write to persist changes[/dim]")
+        print_dry_run_message(detail=f"{len(approved)} transaction(s)")
         return 0
 
     _write_categorizations(approved, workspace, category_config, event_store, projection_builder)
@@ -276,7 +275,7 @@ def _display_predictions(predictions: list[tuple[str, str, dict, str, float]]) -
             account_id,
             str(txn.date),
             txn.description[:50],
-            f"${txn.amount:,.2f}",
+            fmt_amount_str(txn.amount),
             category,
             f"{conf:.1%}",
         )

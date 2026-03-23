@@ -11,7 +11,7 @@ from rich.table import Table
 from gilt.services.budget_service import BudgetItem, BudgetService
 from gilt.workspace import Workspace
 
-from .util import console
+from .util import console, fmt_amount_str
 
 
 def run(
@@ -134,14 +134,14 @@ def _add_budget_row_from_item(table: Table, item: BudgetItem) -> None:
     subcategory_name = f"  {item.subcategory_name}" if item.subcategory_name else ""
 
     # Format budget
-    budget_str = f"${item.budget_amount:,.2f}" if item.budget_amount else "—"
+    budget_str = fmt_amount_str(item.budget_amount) if item.budget_amount else "—"
 
     # Format actual
     if item.actual_amount > 0:
         if item.is_category_header:
-            actual_str = f"[bold]${item.actual_amount:,.2f}[/]"
+            actual_str = f"[bold]{fmt_amount_str(item.actual_amount)}[/]"
         else:
-            actual_str = f"${item.actual_amount:,.2f}"
+            actual_str = fmt_amount_str(item.actual_amount)
     else:
         actual_str = "—"
 

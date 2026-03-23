@@ -14,7 +14,7 @@ from gilt.services.rule_inference_service import RuleInferenceService
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
-from .util import console
+from .util import console, fmt_amount_str, print_dry_run_message
 
 
 def _display_rules(rules):
@@ -60,7 +60,7 @@ def _display_matches(matches):
             txn.get("transaction_date", ""),
             txn.get("account_id", ""),
             (txn.get("canonical_description") or "")[:50],
-            f"${txn.get('amount', 0):,.2f}",
+            fmt_amount_str(txn.get("amount", 0)),
             cat_display,
             f"{m.rule.evidence_count}/{m.rule.total_count}",
         )
@@ -181,8 +181,7 @@ def run(
     _display_matches(matches)
 
     if not write:
-        console.print(f"\n[dim]Dry-run: {len(matches)} transaction(s) would be categorized[/dim]")
-        console.print("[dim]Use --write to persist changes[/dim]")
+        print_dry_run_message(detail=f"{len(matches)} transaction(s)")
         return 0
 
     # Write mode

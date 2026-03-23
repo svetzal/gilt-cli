@@ -36,7 +36,6 @@ logging.getLogger("mojentic").setLevel(logging.WARNING)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
-from rich.console import Console
 from rich.progress import (
     BarColumn,
     Progress,
@@ -56,6 +55,8 @@ from gilt.services.duplicate_review_service import (
 from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.transfer.duplicate_detector import DuplicateDetector
 from gilt.workspace import Workspace
+
+from .util import console
 
 
 def _setup_event_sourcing(console, workspace):
@@ -308,7 +309,6 @@ def run(
     use_llm: bool = False,
 ) -> int:
     """Scan projections for duplicate transactions using ML or LLM analysis with event sourcing."""
-    console = Console()
     data_dir = workspace.ledger_data_dir
 
     setup_result = _setup_event_sourcing(console, workspace)

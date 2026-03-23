@@ -11,6 +11,12 @@ from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt, Signal
 from gilt.gui.services.enrichment_service import EnrichmentService
 from gilt.gui.theme import Theme
 from gilt.model.account import TransactionGroup
+from gilt.transfer import (
+    TRANSFER_COUNTERPARTY_ACCOUNT_ID,
+    TRANSFER_META_KEY,
+    TRANSFER_METHOD,
+    TRANSFER_ROLE,
+)
 
 
 class TransactionTableModel(QAbstractTableModel):
@@ -140,10 +146,10 @@ class TransactionTableModel(QAbstractTableModel):
 
     def _display_metadata_col(self, txn, col):
         if col == self.COL_TRANSFER:
-            if txn.metadata and "transfer" in txn.metadata:
-                transfer = txn.metadata["transfer"]
-                transfer_role = transfer.get("role", "")
-                method = transfer.get("method", "")
+            if txn.metadata and TRANSFER_META_KEY in txn.metadata:
+                transfer = txn.metadata[TRANSFER_META_KEY]
+                transfer_role = transfer.get(TRANSFER_ROLE, "")
+                method = transfer.get(TRANSFER_METHOD, "")
                 return f"{transfer_role} ({method})" if transfer_role else ""
             return ""
         elif col == self.COL_RISK:
@@ -209,16 +215,16 @@ class TransactionTableModel(QAbstractTableModel):
         return tooltip
 
     def _transfer_tooltip(self, txn):
-        if not (txn.metadata and "transfer" in txn.metadata):
+        if not (txn.metadata and TRANSFER_META_KEY in txn.metadata):
             return None
-        transfer = txn.metadata["transfer"]
+        transfer = txn.metadata[TRANSFER_META_KEY]
         lines = []
-        if "role" in transfer:
-            lines.append(f"Role: {transfer['role']}")
-        if "counterparty_account_id" in transfer:
-            lines.append(f"Counterparty: {transfer['counterparty_account_id']}")
-        if "method" in transfer:
-            lines.append(f"Method: {transfer['method']}")
+        if TRANSFER_ROLE in transfer:
+            lines.append(f"Role: {transfer[TRANSFER_ROLE]}")
+        if TRANSFER_COUNTERPARTY_ACCOUNT_ID in transfer:
+            lines.append(f"Counterparty: {transfer[TRANSFER_COUNTERPARTY_ACCOUNT_ID]}")
+        if TRANSFER_METHOD in transfer:
+            lines.append(f"Method: {transfer[TRANSFER_METHOD]}")
         return "\n".join(lines)
 
     def _background_data(self, txn, col):
@@ -250,7 +256,7 @@ class TransactionTableModel(QAbstractTableModel):
                 return Theme.color("positive_fg")
             else:
                 return Theme.color("neutral_fg")
-        elif col == self.COL_TRANSFER and txn.metadata and "transfer" in txn.metadata:
+        elif col == self.COL_TRANSFER and txn.metadata and TRANSFER_META_KEY in txn.metadata:
             return Theme.color("link_fg")
         return None
 

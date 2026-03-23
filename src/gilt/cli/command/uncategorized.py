@@ -11,7 +11,7 @@ from gilt.model.account import Transaction
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
-from .util import console
+from .util import console, fmt_amount_str
 
 
 def run(
@@ -110,7 +110,7 @@ def run(
             txn.transaction_id[:8],
             str(txn.date),
             (txn.description or "")[:50],
-            f"${txn.amount:,.2f}",
+            fmt_amount_str(txn.amount),
             (txn.notes or "")[:30],
         )
 

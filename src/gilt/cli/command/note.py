@@ -12,7 +12,7 @@ from gilt.services.transaction_operations_service import (
 )
 from gilt.workspace import Workspace
 
-from .util import console
+from .util import console, print_dry_run_message
 
 
 def _highlight_prefix(desc: str, prefix: str, style: str = "bold yellow") -> str:
@@ -237,7 +237,7 @@ def run(
     )
 
     if not write:
-        console.print("\n[dim]Dry-run: no changes written. Use --write to persist.[/]")
+        print_dry_run_message()
         return 0
 
     if not assume_yes:

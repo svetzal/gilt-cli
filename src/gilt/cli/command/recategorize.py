@@ -13,7 +13,7 @@ from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
-from .util import console
+from .util import console, fmt_amount_str, print_dry_run_message
 
 """
 Rename categories across all ledger files.
@@ -99,7 +99,7 @@ def run(
     _display_matches(all_matches, from_category, to_category)
 
     if not write:
-        console.print("[dim]Dry-run: use --write to persist changes[/]")
+        print_dry_run_message()
         return 0
 
     # Confirm
@@ -144,7 +144,7 @@ def _display_matches(
             t.transaction_id[:8],
             str(t.date),
             (t.description or "")[:40],
-            f"${t.amount:,.2f}",
+            fmt_amount_str(t.amount),
             current_cat,
             new_cat,
         )

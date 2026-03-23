@@ -18,7 +18,7 @@ from gilt.storage.event_store import EventStore
 from gilt.transfer.linker import link_transfers
 from gilt.workspace import Workspace
 
-from .util import console
+from .util import console, print_dry_run_message
 
 
 def _collect_transaction_ids_for_account(event_store: EventStore, account_id: str) -> set[str]:
@@ -181,7 +181,7 @@ def run(
     console.print(f"  Transactions to purge: {len(txn_ids)}")
 
     if not write:
-        console.print("\n[dim]Dry-run. Use --write to execute.[/]")
+        print_dry_run_message()
         return 0
 
     # 1. Delete ledger CSV

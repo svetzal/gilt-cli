@@ -21,15 +21,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from rich.console import Console
-
 from gilt.model.category_io import load_categories_config
 from gilt.services.event_migration_service import EventMigrationService
 from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.storage.budget_projection import BudgetProjectionBuilder
 from gilt.workspace import Workspace
 
-console = Console()
+from .util import console
 
 
 def _check_preconditions(

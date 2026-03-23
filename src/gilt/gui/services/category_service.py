@@ -9,12 +9,14 @@ All operations remain local-only with no network I/O.
 
 from pathlib import Path
 
-from gilt.model.category import Budget, BudgetPeriod, Category, CategoryConfig, Subcategory
+from gilt.model.category import Budget, BudgetPeriod, Category, CategoryConfig
 from gilt.model.category_io import (
     load_categories_config,
     parse_category_path,
     save_categories_config,
 )
+from gilt.services.categorization_service import CategorizationService
+from gilt.services.category_management_service import CategoryManagementService
 
 
 class CategoryService:
@@ -104,26 +106,18 @@ class CategoryService:
             ValueError: If category already exists or name is invalid
         """
         config = self.load_categories()
+        mgmt = CategoryManagementService(config)
+        result = mgmt.add_category(name, subcategory=None, description=description)
+        if not result.success:
+            raise ValueError(
+                result.errors[0] if result.errors else f"Failed to add category '{name}'"
+            )
 
-        # Check if already exists
-        if config.find_category(name):
-            raise ValueError(f"Category '{name}' already exists")
-
-        # Create budget if amount provided
-        budget = None
+        category = config.find_category(name)
         if budget_amount is not None:
-            budget = Budget(amount=budget_amount, period=budget_period)
-
-        # Create category
-        category = Category(
-            name=name,
-            description=description,
-            budget=budget,
-            tax_deductible=tax_deductible,
-        )
-
-        # Add to config
-        config.categories.append(category)
+            category.budget = Budget(amount=budget_amount, period=budget_period)
+        if tax_deductible:
+            category.tax_deductible = tax_deductible
 
         return category
 
@@ -138,14 +132,8 @@ class CategoryService:
             True if removed, False if not found
         """
         config = self.load_categories()
-
-        # Find and remove
-        for i, cat in enumerate(config.categories):
-            if cat.name == name:
-                config.categories.pop(i)
-                return True
-
-        return False
+        mgmt = CategoryManagementService(config)
+        return mgmt.remove_category(name)
 
     def update_category(
         self,
@@ -213,19 +201,20 @@ class CategoryService:
         Raises:
             ValueError: If subcategory already exists
         """
-        category = self.find_category(category_name)
-        if not category:
+        config = self.load_categories()
+        if not config.find_category(category_name):
             return False
 
-        # Check if subcategory already exists
-        if category.has_subcategory(subcategory_name):
-            raise ValueError(
-                f"Subcategory '{subcategory_name}' already exists in '{category_name}'"
-            )
-
-        # Create and add subcategory
-        subcategory = Subcategory(name=subcategory_name, description=description)
-        category.subcategories.append(subcategory)
+        mgmt = CategoryManagementService(config)
+        result = mgmt.add_category(
+            category_name, subcategory=subcategory_name, description=description
+        )
+        if not result.success:
+            if result.already_exists:
+                raise ValueError(
+                    f"Subcategory '{subcategory_name}' already exists in '{category_name}'"
+                )
+            return False
 
         return True
 
@@ -240,17 +229,9 @@ class CategoryService:
         Returns:
             True if removed, False if not found
         """
-        category = self.find_category(category_name)
-        if not category:
-            return False
-
-        # Find and remove
-        for i, subcat in enumerate(category.subcategories):
-            if subcat.name == subcategory_name:
-                category.subcategories.pop(i)
-                return True
-
-        return False
+        config = self.load_categories()
+        mgmt = CategoryManagementService(config)
+        return mgmt.remove_category(category_name, subcategory=subcategory_name)
 
     def validate_category_path(self, category: str, subcategory: str | None = None) -> bool:
         """
@@ -264,7 +245,8 @@ class CategoryService:
             True if valid, False otherwise
         """
         config = self.load_categories()
-        return config.validate_category_path(category, subcategory)
+        svc = CategorizationService(config)
+        return svc.validate_category(category, subcategory).is_valid
 
     def parse_category_string(self, category_str: str) -> tuple[str, str | None]:
         """
@@ -289,19 +271,19 @@ class CategoryService:
         Returns:
             Dict with 'count', 'total_amount', 'last_used'
         """
-        count = 0
-        total_amount = 0.0
-        last_used = None
+        config = self.load_categories()
+        mgmt = CategoryManagementService(config)
+        usage = mgmt.count_usage(category_name, None, transactions)
 
-        for group in transactions:
-            if group.primary.category == category_name:
-                count += 1
-                total_amount += abs(group.primary.amount)
-                if last_used is None or group.primary.date > last_used:
-                    last_used = group.primary.date
+        # Build a lookup of transaction_id -> TransactionGroup for matched IDs
+        txn_map = {g.primary.transaction_id: g for g in transactions}
+        matched = [txn_map[tid] for tid in usage.transaction_ids if tid in txn_map]
+
+        total_amount = sum(abs(g.primary.amount) for g in matched)
+        last_used = max((g.primary.date for g in matched), default=None)
 
         return {
-            "count": count,
+            "count": usage.transaction_count,
             "total_amount": total_amount,
             "last_used": last_used,
         }

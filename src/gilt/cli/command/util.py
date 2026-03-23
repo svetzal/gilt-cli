@@ -21,3 +21,17 @@ def fmt_amount(amt: float) -> Text:
     elif amt > 0:
         return Text(s, style="bold green")
     return Text(s)
+
+
+def fmt_amount_str(amt: float, *, prefix: str = "$") -> str:
+    """Format an amount as a plain string with dollar sign and thousands separator."""
+    return f"{prefix}{amt:,.2f}"
+
+
+def print_dry_run_message(*, detail: str | None = None) -> None:
+    """Print the standard dry-run warning. Call when write=False."""
+    if detail:
+        msg = f"Dry-run: use --write to persist {detail}"
+    else:
+        msg = "Dry-run: use --write to persist changes"
+    console.print(f"[dim]{msg}[/dim]")

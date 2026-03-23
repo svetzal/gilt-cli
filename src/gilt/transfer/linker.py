@@ -25,6 +25,18 @@ from pathlib import Path
 
 from gilt.model.account import TransactionGroup
 from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
+from gilt.transfer._constants import (
+    ROLE_CREDIT,
+    ROLE_DEBIT,
+    TRANSFER_AMOUNT,
+    TRANSFER_COUNTERPARTY_ACCOUNT_ID,
+    TRANSFER_COUNTERPARTY_TRANSACTION_ID,
+    TRANSFER_FEE_TXN_IDS,
+    TRANSFER_META_KEY,
+    TRANSFER_METHOD,
+    TRANSFER_ROLE,
+    TRANSFER_SCORE,
+)
 
 # We reuse the matching logic from the matching module (no CLI deps)
 from gilt.transfer.matching import Match, compute_matches
@@ -62,27 +74,27 @@ def _ensure_transfer_metadata(group: TransactionGroup, payload: dict) -> bool:
     Returns True if metadata was modified, False otherwise.
     """
     meta = group.primary.metadata or {}
-    existing = meta.get("transfer")
+    existing = meta.get(TRANSFER_META_KEY)
     # If existing matches the same counterparty txn id, consider idempotent
     if (
         isinstance(existing, dict)
-        and existing.get("counterparty_transaction_id")
-        == payload.get("counterparty_transaction_id")
-        and existing.get("role") == payload.get("role")
+        and existing.get(TRANSFER_COUNTERPARTY_TRANSACTION_ID)
+        == payload.get(TRANSFER_COUNTERPARTY_TRANSACTION_ID)
+        and existing.get(TRANSFER_ROLE) == payload.get(TRANSFER_ROLE)
     ):
         # Update score/method if changed (non-destructive)
         changed = False
-        for k in ("score", "method", "fee_txn_ids"):
+        for k in (TRANSFER_SCORE, TRANSFER_METHOD, TRANSFER_FEE_TXN_IDS):
             if payload.get(k) is not None and existing.get(k) != payload.get(k):
                 existing[k] = payload.get(k)
                 changed = True
         # Write back only if changed
         if changed:
-            meta["transfer"] = existing
+            meta[TRANSFER_META_KEY] = existing
             group.primary.metadata = meta
         return changed
     # Otherwise set fresh
-    meta["transfer"] = payload
+    meta[TRANSFER_META_KEY] = payload
     group.primary.metadata = meta
     return True
 
@@ -133,22 +145,22 @@ def link_transfers(
 
         # Build payloads
         debit_payload = {
-            "role": "debit",
-            "counterparty_account_id": c.account_id,
-            "counterparty_transaction_id": c.transaction_id,
-            "amount": abs(d.amount),
-            "method": m.method,
-            "score": m.score,
-            "fee_txn_ids": list(m.fee_txn_ids or []),
+            TRANSFER_ROLE: ROLE_DEBIT,
+            TRANSFER_COUNTERPARTY_ACCOUNT_ID: c.account_id,
+            TRANSFER_COUNTERPARTY_TRANSACTION_ID: c.transaction_id,
+            TRANSFER_AMOUNT: abs(d.amount),
+            TRANSFER_METHOD: m.method,
+            TRANSFER_SCORE: m.score,
+            TRANSFER_FEE_TXN_IDS: list(m.fee_txn_ids or []),
         }
         credit_payload = {
-            "role": "credit",  # counterpart to the initiating debit is always the receiving side for this pair
-            "counterparty_account_id": d.account_id,
-            "counterparty_transaction_id": d.transaction_id,
-            "amount": abs(d.amount),
-            "method": m.method,
-            "score": m.score,
-            "fee_txn_ids": [],  # fees only attached on debit side for now
+            TRANSFER_ROLE: ROLE_CREDIT,  # counterpart to the initiating debit is always the receiving side for this pair
+            TRANSFER_COUNTERPARTY_ACCOUNT_ID: d.account_id,
+            TRANSFER_COUNTERPARTY_TRANSACTION_ID: d.transaction_id,
+            TRANSFER_AMOUNT: abs(d.amount),
+            TRANSFER_METHOD: m.method,
+            TRANSFER_SCORE: m.score,
+            TRANSFER_FEE_TXN_IDS: [],  # fees only attached on debit side for now
         }
 
         if _ensure_transfer_metadata(d_group, debit_payload):

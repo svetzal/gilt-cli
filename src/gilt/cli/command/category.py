@@ -20,7 +20,7 @@ from gilt.services.category_management_service import (
 )
 from gilt.workspace import Workspace
 
-from .util import console
+from .util import console, fmt_amount_str, print_dry_run_message
 
 
 def _load_all_transactions(data_dir: Path):
@@ -168,7 +168,7 @@ def _handle_add(
         console.print(f"  Description: {description}")
 
     if not write:
-        console.print("[dim]Dry-run: use --write to persist changes[/]")
+        print_dry_run_message()
         return 0
 
     # Save config
@@ -243,7 +243,7 @@ def _handle_remove(
             return result
 
     if not write:
-        console.print("[dim]Dry-run: use --write to persist changes[/]")
+        print_dry_run_message()
         return 0
 
     # Perform the removal
@@ -284,15 +284,15 @@ def _handle_set_budget(
 
     # Display what will be set
     console.print(f"[bold]Setting budget for:[/] {cat_name}")
-    console.print(f"  Amount: ${amount:,.2f}/{period.value}")
+    console.print(f"  Amount: {fmt_amount_str(amount)}/{period.value}")
     if result.previous_budget:
         console.print(
-            f"  Previous: ${result.previous_budget.amount:,.2f}/"
+            f"  Previous: {fmt_amount_str(result.previous_budget.amount)}/"
             f"{result.previous_budget.period.value}"
         )
 
     if not write:
-        console.print("[dim]Dry-run: use --write to persist changes[/]")
+        print_dry_run_message()
         return 0
 
     # Save config (budget already set by service)

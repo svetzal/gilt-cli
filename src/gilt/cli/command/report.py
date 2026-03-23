@@ -18,7 +18,7 @@ from gilt.model.category_io import load_categories_config
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
-from .util import console
+from .util import console, fmt_amount_str, print_dry_run_message
 
 
 def _aggregate_spending(
@@ -196,12 +196,12 @@ def _generate_summary_section(
         budget_amount = _budget_for_period(cat.budget, month)
         cat_actual, _ = _actual_for_category(cat.name, spending)
 
-        budget_str = f"${budget_amount:,.2f}" if budget_amount else "—"
-        actual_str = f"${cat_actual:,.2f}"
+        budget_str = fmt_amount_str(budget_amount) if budget_amount else "—"
+        actual_str = fmt_amount_str(cat_actual)
 
         if budget_amount:
             remaining = budget_amount - cat_actual
-            remaining_str = f"${remaining:,.2f}"
+            remaining_str = fmt_amount_str(remaining)
             pct_used = (cat_actual / budget_amount) * 100 if budget_amount > 0 else 0
             pct_str = f"{pct_used:.1f}%"
             total_budgeted += budget_amount
@@ -463,7 +463,7 @@ def run(
     markdown_path, docx_path = _resolve_output_paths(output, workspace, year, month)
 
     if not write:
-        console.print("[yellow]DRY RUN[/] (use --write to persist)")
+        print_dry_run_message()
         console.print(f"\nWould write markdown to: [cyan]{markdown_path}[/]")
         if has_pandoc:
             console.print(f"Would write Word doc to: [cyan]{docx_path}[/]")

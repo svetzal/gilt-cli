@@ -20,6 +20,8 @@ from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
+from .util import console
+
 
 def _find_transaction_by_prefix(
     projection_builder: ProjectionBuilder,
@@ -142,8 +144,6 @@ def run(
         # Confirm and persist
         gilt mark-duplicate --primary a1b2c3d4 --duplicate e5f6g7h8 --write
     """
-    console = Console()
-
     if not workspace.ledger_data_dir.exists():
         console.print(f"[red]Error:[/red] Data directory not found: {workspace.ledger_data_dir}")
         return 1

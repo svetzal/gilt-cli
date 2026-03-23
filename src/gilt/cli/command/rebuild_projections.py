@@ -16,13 +16,12 @@ Options:
 
 from pathlib import Path
 
-from rich.console import Console
 from rich.table import Table
 
 from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.workspace import Workspace
 
-console = Console()
+from .util import console
 
 
 def run(

@@ -8,6 +8,13 @@ from rich.text import Text
 from gilt.ingest import load_accounts_config
 from gilt.model.account import Transaction
 from gilt.storage.projection import ProjectionBuilder
+from gilt.transfer import (
+    ROLE_CREDIT,
+    ROLE_DEBIT,
+    TRANSFER_COUNTERPARTY_ACCOUNT_ID,
+    TRANSFER_META_KEY,
+    TRANSFER_ROLE,
+)
 from gilt.workspace import Workspace
 
 from .util import console, fmt_amount
@@ -64,15 +71,15 @@ def _build_display_notes(t: Transaction) -> str:
         note_parts.append(f"[yellow]{cat_display}[/yellow]")
 
     try:
-        transfer = t.metadata.get("transfer")
+        transfer = t.metadata.get(TRANSFER_META_KEY)
         if isinstance(transfer, dict):
-            role = transfer.get("role")
-            cp_id = transfer.get("counterparty_account_id")
+            role = transfer.get(TRANSFER_ROLE)
+            cp_id = transfer.get(TRANSFER_COUNTERPARTY_ACCOUNT_ID)
             if cp_id:
                 cp_label = str(cp_id)
-                if role == "debit":
+                if role == ROLE_DEBIT:
                     note_parts.append(f"Transfer to {cp_label}")
-                elif role == "credit":
+                elif role == ROLE_CREDIT:
                     note_parts.append(f"Transfer from {cp_label}")
                 else:
                     note_parts.append(f"Transfer {cp_label}")

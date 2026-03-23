@@ -13,7 +13,7 @@ from gilt.model.category_io import load_categories_config
 from gilt.model.ledger_io import load_ledger_csv
 from gilt.workspace import Workspace
 
-from .util import console
+from .util import console, fmt_amount_str
 
 
 def _count_category_usage(data_dir: Path) -> dict[tuple[str, str | None], tuple[int, float]]:
@@ -102,7 +102,7 @@ def run(
                 cat.description or "",
                 budget_str,
                 str(count) if count > 0 else "—",
-                f"${total:,.2f}" if count > 0 else "—",
+                fmt_amount_str(total) if count > 0 else "—",
             )
         else:
             # Parent category row (summary for all subcategories)
@@ -136,7 +136,7 @@ def run(
                     subcat.description or "",
                     "",
                     str(sub_count) if sub_count > 0 else "—",
-                    f"${sub_total:,.2f}" if sub_count > 0 else "—",
+                    fmt_amount_str(sub_total) if sub_count > 0 else "—",
                 )
 
     console.print(table)

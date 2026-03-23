@@ -25,6 +25,12 @@ from PySide6.QtWidgets import (
 from gilt.gui.services.enrichment_service import EnrichmentData
 from gilt.model.account import TransactionGroup
 from gilt.services.receipt_ingestion_service import ReceiptData
+from gilt.transfer import (
+    TRANSFER_COUNTERPARTY_ACCOUNT_ID,
+    TRANSFER_META_KEY,
+    TRANSFER_METHOD,
+    TRANSFER_ROLE,
+)
 
 
 class TransactionDetailPanel(QScrollArea):
@@ -75,8 +81,8 @@ class TransactionDetailPanel(QScrollArea):
                 self._build_receipt_candidates_section(txn.transaction_id, receipt_candidates)
             )
 
-        if txn.metadata and "transfer" in txn.metadata:
-            self._layout.addWidget(self._build_transfer_section(txn.metadata["transfer"]))
+        if txn.metadata and TRANSFER_META_KEY in txn.metadata:
+            self._layout.addWidget(self._build_transfer_section(txn.metadata[TRANSFER_META_KEY]))
 
         self._layout.addStretch()
 
@@ -204,12 +210,14 @@ class TransactionDetailPanel(QScrollArea):
         """Build the transfer link group box."""
         group = QGroupBox("Transfer Link")
         form = QFormLayout(group)
-        if "role" in transfer:
-            form.addRow("Role:", self._label(transfer["role"]))
-        if "counterparty_account_id" in transfer:
-            form.addRow("Counterparty account:", self._label(transfer["counterparty_account_id"]))
-        if "method" in transfer:
-            form.addRow("Method:", self._label(transfer["method"]))
+        if TRANSFER_ROLE in transfer:
+            form.addRow("Role:", self._label(transfer[TRANSFER_ROLE]))
+        if TRANSFER_COUNTERPARTY_ACCOUNT_ID in transfer:
+            form.addRow(
+                "Counterparty account:", self._label(transfer[TRANSFER_COUNTERPARTY_ACCOUNT_ID])
+            )
+        if TRANSFER_METHOD in transfer:
+            form.addRow("Method:", self._label(transfer[TRANSFER_METHOD]))
         return group
 
     def _copyable_label(self, text: str) -> QWidget:
