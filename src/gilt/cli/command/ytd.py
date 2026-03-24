@@ -7,28 +7,18 @@ from rich.text import Text
 
 from gilt.ingest import load_accounts_config
 from gilt.model.account import Transaction
+from gilt.services.transaction_query_service import TransactionQueryService
 from gilt.storage.projection import ProjectionBuilder
-from gilt.transfer import (
-    ROLE_CREDIT,
-    ROLE_DEBIT,
-    TRANSFER_COUNTERPARTY_ACCOUNT_ID,
-    TRANSFER_META_KEY,
-    TRANSFER_ROLE,
-)
 from gilt.workspace import Workspace
 
 from .util import console, fmt_amount
 
 
-def _load_and_filter_transactions(
+def _load_all_transactions(
     workspace: Workspace,
-    account: str,
-    the_year: int,
     include_duplicates: bool,
-    limit: int | None,
-    compare: bool,
 ) -> list[Transaction] | int:
-    """Load, filter, and sort transactions. Returns list or exit code on error."""
+    """Load all transactions from the projections database. Returns list or exit code."""
     projections_path = workspace.projections_path
     if not projections_path.exists():
         console.print(f"[red]Error:[/red] Projections database not found: {projections_path}")
@@ -36,60 +26,24 @@ def _load_and_filter_transactions(
         return 1
 
     projection_builder = ProjectionBuilder(projections_path)
-    all_transactions = projection_builder.get_all_transactions(
-        include_duplicates=include_duplicates
-    )
-
-    primaries = []
-    for row in all_transactions:
-        if row["account_id"] != account:
-            continue
-        txn = Transaction.from_projection_row(row)
-        if txn.date.year != the_year:
-            continue
-        primaries.append(txn)
-
-    primaries.sort(key=lambda t: (t.date, t.transaction_id))
-
-    if limit is not None:
-        primaries = primaries[:limit]
-
-    if compare:
-        primaries = [t for t in primaries if t.vendor]
-
-    return primaries
+    rows = projection_builder.get_all_transactions(include_duplicates=include_duplicates)
+    return [Transaction.from_projection_row(row) for row in rows]
 
 
 def _build_display_notes(t: Transaction) -> str:
-    """Build combined notes string from category, transfer, and user notes."""
-    note_parts = []
+    """Build Rich-markup notes string from category, transfer, and user notes."""
+    service = TransactionQueryService()
+    plain = service.build_display_notes(t)
 
+    # Re-apply Rich markup to the category portion only
     if t.category:
         cat_display = t.category
         if t.subcategory:
             cat_display += f":{t.subcategory}"
-        note_parts.append(f"[yellow]{cat_display}[/yellow]")
+        plain_rest = plain[len(cat_display) :]
+        return f"[yellow]{cat_display}[/yellow]{plain_rest}"
 
-    try:
-        transfer = t.metadata.get(TRANSFER_META_KEY)
-        if isinstance(transfer, dict):
-            role = transfer.get(TRANSFER_ROLE)
-            cp_id = transfer.get(TRANSFER_COUNTERPARTY_ACCOUNT_ID)
-            if cp_id:
-                cp_label = str(cp_id)
-                if role == ROLE_DEBIT:
-                    note_parts.append(f"Transfer to {cp_label}")
-                elif role == ROLE_CREDIT:
-                    note_parts.append(f"Transfer from {cp_label}")
-                else:
-                    note_parts.append(f"Transfer {cp_label}")
-    except Exception:
-        pass
-
-    if t.notes:
-        note_parts.append(t.notes)
-
-    return " | ".join(note_parts) if note_parts else ""
+    return plain
 
 
 def _add_table_row(table: Table, t: Transaction, compare: bool, raw: bool) -> None:
@@ -177,12 +131,17 @@ def run(
     except Exception:
         pass
 
-    result = _load_and_filter_transactions(
-        workspace, account, the_year, include_duplicates, limit, compare
+    load_result = _load_all_transactions(workspace, include_duplicates)
+    if isinstance(load_result, int):
+        return load_result
+
+    query_service = TransactionQueryService()
+    primaries = query_service.filter_transactions(
+        load_result, account_id=account, year=the_year, limit=limit
     )
-    if isinstance(result, int):
-        return result
-    primaries = result
+
+    if compare:
+        primaries = [t for t in primaries if t.vendor]
 
     if not primaries:
         kind = "enriched " if compare else ""
@@ -208,19 +167,12 @@ def run(
     table.add_column("TxnID8", style="dim", no_wrap=True)
     table.add_column("Notes", style="dim")
 
-    total_amount = 0.0
-    credits_amount = 0.0
-    debits_amount = 0.0
+    totals = query_service.calculate_totals(primaries)
 
     for t in primaries:
-        total_amount += t.amount
-        if t.amount > 0:
-            credits_amount += t.amount
-        else:
-            debits_amount += t.amount
         _add_table_row(table, t, compare, raw)
 
-    _add_footer_rows(table, acct_nature, compare, credits_amount, debits_amount, total_amount)
+    _add_footer_rows(table, acct_nature, compare, totals.credits, totals.debits, totals.net)
 
     console.print(table)
     return 0

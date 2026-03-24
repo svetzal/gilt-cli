@@ -114,23 +114,27 @@ def _link_transfers_and_report(output_dir: Path) -> int:
     return modified
 
 
-def _auto_categorize_via_rules(workspace, all_transactions, event_store, projection_builder):
-    """Apply inferred rules to uncategorized transactions after ingest."""
+def _plan_auto_categorizations(workspace, all_transactions):
+    """Find uncategorized transactions that match inferred rules. No I/O.
+
+    Returns a list of RuleMatch objects (empty list when nothing to do).
+    """
     service = RuleInferenceService(workspace.projections_path)
     rules = service.infer_rules(min_evidence=3, min_confidence=0.9)
     if not rules:
-        return
+        return []
+    return service.apply_rules(all_transactions, rules)
 
-    matches = service.apply_rules(all_transactions, rules)
+
+def _apply_auto_categorizations(matches, workspace, event_store, projection_builder):
+    """Emit categorization events, update CSVs, and rebuild projections."""
     if not matches:
         return
 
     console.print("[bold]Auto-categorizing via inferred rules[/]")
 
-    # Load category config for validation
     category_config = load_categories_config(workspace.categories_config)
 
-    # Emit events and update CSVs
     by_account: dict[str, list] = {}
     for m in matches:
         event = TransactionCategorized(
@@ -166,7 +170,6 @@ def _auto_categorize_via_rules(workspace, all_transactions, event_store, project
         updated_csv = dump_ledger_csv(groups)
         ledger_path.write_text(updated_csv, encoding="utf-8")
 
-    # Rebuild projections to include new categorization events
     projection_builder.rebuild_incremental(event_store)
     console.print(f"[green][ok][/green] Auto-categorized {len(matches)} transaction(s) via rules")
 
@@ -241,7 +244,8 @@ def run(
     console.print(f"[dim]Projections: {len(transactions)} total transactions[/dim]")
 
     # 6) Auto-categorize new transactions using inferred rules
-    _auto_categorize_via_rules(workspace, transactions, event_store, projection_builder)
+    matches = _plan_auto_categorizations(workspace, transactions)
+    _apply_auto_categorizations(matches, workspace, event_store, projection_builder)
 
     # Report event store stats
     latest_seq = event_store.get_latest_sequence_number()
