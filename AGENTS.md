@@ -2,6 +2,8 @@
 
 Local-only, privacy-first personal finance tool. All processing runs on the user's machine — no network I/O, no external APIs, no cloud services.
 
+See [CHARTER.md](CHARTER.md) for the project's purpose, vision, and guiding constraints. Read the charter before assessing priorities or proposing new directions — it defines what Gilt is for and what it will not compromise on.
+
 ## Engineering Principles
 
 Apply these Simple Design Heuristics in priority order:
