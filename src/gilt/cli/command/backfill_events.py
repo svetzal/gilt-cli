@@ -166,7 +166,8 @@ def _backfill_transactions(
         for ledger_path in ledger_files:
             try:
                 # Use service to generate events
-                events, errors = service.generate_transaction_events(ledger_path)
+                csv_text = ledger_path.read_text(encoding="utf-8")
+                events, errors = service.generate_transaction_events(csv_text, ledger_path.name)
 
                 # Update statistics
                 for event in events:
@@ -281,7 +282,10 @@ def _validate_projections(
 
     # Use service to validate
     console.print("\n  Running validation checks...")
-    result = service.validate_migration(event_store, data_dir, config, tx_builder, budget_builder)
+    ledger_texts = {p.name: p.read_text(encoding="utf-8") for p in sorted(data_dir.glob("*.csv"))}
+    result = service.validate_migration(
+        event_store, ledger_texts, config, tx_builder, budget_builder
+    )
 
     # Display results
     if result.transaction_count_match:

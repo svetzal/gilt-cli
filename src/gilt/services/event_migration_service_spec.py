@@ -14,7 +14,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
@@ -59,44 +58,16 @@ jkl012,2025-01-18,Duplicate transaction,-100.00,CAD,CHQ,,,,,,duplicate
 """
 
 
-@pytest.fixture
-def sample_csv_file(tmp_path: Path, sample_csv_content: str) -> Path:
-    """Create temporary CSV file with sample content."""
-    csv_path = tmp_path / "test_ledger.csv"
-    csv_path.write_text(sample_csv_content)
-    return csv_path
-
-
-@pytest.fixture
-def empty_csv_file(tmp_path: Path) -> Path:
-    """Create empty CSV file with only headers."""
-    csv_path = tmp_path / "empty_ledger.csv"
-    csv_path.write_text("transaction_id,date,description,amount,currency,account_id,row_type\n")
-    return csv_path
-
-
-@pytest.fixture
-def malformed_csv_file(tmp_path: Path) -> Path:
-    """Create CSV file with malformed data."""
-    csv_path = tmp_path / "malformed_ledger.csv"
-    content = """transaction_id,date,description,amount,currency,account_id,row_type
-abc123,2025-01-15,Test,not_a_number,CAD,CHQ,primary
-def456,2025-01-16,Test,-100.00,CAD,MC,primary
-"""
-    csv_path.write_text(content)
-    return csv_path
-
-
 class DescribeGenerateTransactionEvents:
     """Tests for generate_transaction_events() method."""
 
-    def it_should_generate_events_from_valid_csv(self, sample_csv_file: Path):
+    def it_should_generate_events_from_valid_csv(self, sample_csv_content: str):
         """Should generate TransactionImported and TransactionCategorized events."""
         # Arrange
         service = EventMigrationService()
 
         # Act
-        events, errors = service.generate_transaction_events(sample_csv_file)
+        events, errors = service.generate_transaction_events(sample_csv_content, "test_ledger.csv")
 
         # Assert
         assert len(errors) == 0
@@ -125,13 +96,13 @@ class DescribeGenerateTransactionEvents:
         assert isinstance(uncategorized_event, TransactionImported)
         assert uncategorized_event.transaction_id == "ghi789"
 
-    def it_should_skip_non_primary_transactions(self, sample_csv_file: Path):
+    def it_should_skip_non_primary_transactions(self, sample_csv_content: str):
         """Should skip transactions with row_type != 'primary'."""
         # Arrange
         service = EventMigrationService()
 
         # Act
-        events, errors = service.generate_transaction_events(sample_csv_file)
+        events, errors = service.generate_transaction_events(sample_csv_content, "test_ledger.csv")
 
         # Assert
         # Should not include jkl012 (duplicate row_type)
@@ -139,43 +110,46 @@ class DescribeGenerateTransactionEvents:
         assert "jkl012" not in transaction_ids
         assert len(transaction_ids) == 3  # Only primary transactions
 
-    def it_should_handle_empty_csv(self, empty_csv_file: Path):
+    def it_should_handle_empty_csv(self):
         """Should handle CSV with no data rows."""
         # Arrange
         service = EventMigrationService()
+        empty_csv = "transaction_id,date,description,amount,currency,account_id,row_type\n"
 
         # Act
-        events, errors = service.generate_transaction_events(empty_csv_file)
+        events, errors = service.generate_transaction_events(empty_csv, "empty_ledger.csv")
 
         # Assert
         assert len(events) == 0
         assert len(errors) == 0
 
-    def it_should_report_error_for_missing_transaction_id(self, tmp_path: Path):
+    def it_should_report_error_for_missing_transaction_id(self):
         """Should report error when transaction_id is missing."""
         # Arrange
         service = EventMigrationService()
-        csv_path = tmp_path / "no_id.csv"
         content = """transaction_id,date,description,amount,currency,account_id,row_type
 ,2025-01-15,Missing ID,-100.00,CAD,CHQ,primary
 """
-        csv_path.write_text(content)
 
         # Act
-        events, errors = service.generate_transaction_events(csv_path)
+        events, errors = service.generate_transaction_events(content, "no_id.csv")
 
         # Assert
         assert len(events) == 0
         assert len(errors) == 1
         assert "Missing transaction_id" in errors[0]
 
-    def it_should_report_error_for_invalid_amount(self, malformed_csv_file: Path):
+    def it_should_report_error_for_invalid_amount(self):
         """Should report error when amount is not a valid number."""
         # Arrange
         service = EventMigrationService()
+        content = """transaction_id,date,description,amount,currency,account_id,row_type
+abc123,2025-01-15,Test,not_a_number,CAD,CHQ,primary
+def456,2025-01-16,Test,-100.00,CAD,MC,primary
+"""
 
         # Act
-        events, errors = service.generate_transaction_events(malformed_csv_file)
+        events, errors = service.generate_transaction_events(content, "malformed_ledger.csv")
 
         # Assert
         assert len(errors) >= 1
@@ -183,27 +157,13 @@ class DescribeGenerateTransactionEvents:
         # Should still process valid second row
         assert len(events) == 1  # Only def456
 
-    def it_should_handle_nonexistent_file(self, tmp_path: Path):
-        """Should handle file not found gracefully."""
-        # Arrange
-        service = EventMigrationService()
-        nonexistent = tmp_path / "nonexistent.csv"
-
-        # Act
-        events, errors = service.generate_transaction_events(nonexistent)
-
-        # Assert
-        assert len(events) == 0
-        assert len(errors) == 1
-        assert "not found" in errors[0].lower()
-
-    def it_should_infer_timestamp_from_source_file(self, sample_csv_file: Path):
+    def it_should_infer_timestamp_from_source_file(self, sample_csv_content: str):
         """Should infer import timestamp from source filename."""
         # Arrange
         service = EventMigrationService()
 
         # Act
-        events, errors = service.generate_transaction_events(sample_csv_file)
+        events, errors = service.generate_transaction_events(sample_csv_content, "test_ledger.csv")
 
         # Assert
         tx_imported = events[0]
@@ -214,18 +174,16 @@ class DescribeGenerateTransactionEvents:
         assert tx_imported.event_timestamp.day == 13
         assert tx_imported.event_timestamp.hour == 12  # Noon default
 
-    def it_should_fallback_to_transaction_date_for_timestamp(self, tmp_path: Path):
+    def it_should_fallback_to_transaction_date_for_timestamp(self):
         """Should use transaction date when source filename has no date."""
         # Arrange
         service = EventMigrationService()
-        csv_path = tmp_path / "no-date-in-filename.csv"
         content = """transaction_id,date,description,amount,currency,account_id,source_file,row_type
 abc123,2025-02-20,Test,-100.00,CAD,CHQ,import.csv,primary
 """
-        csv_path.write_text(content)
 
         # Act
-        events, errors = service.generate_transaction_events(csv_path)
+        events, errors = service.generate_transaction_events(content, "no-date-in-filename.csv")
 
         # Assert
         tx_imported = events[0]
@@ -235,18 +193,16 @@ abc123,2025-02-20,Test,-100.00,CAD,CHQ,import.csv,primary
         assert tx_imported.event_timestamp.month == 2
         assert tx_imported.event_timestamp.day == 20
 
-    def it_should_handle_missing_optional_fields(self, tmp_path: Path):
+    def it_should_handle_missing_optional_fields(self):
         """Should handle transactions with missing optional fields."""
         # Arrange
         service = EventMigrationService()
-        csv_path = tmp_path / "minimal.csv"
         content = """transaction_id,date,description,amount,account_id,row_type
 abc123,2025-01-15,Test,-100.00,CHQ,primary
 """
-        csv_path.write_text(content)
 
         # Act
-        events, errors = service.generate_transaction_events(csv_path)
+        events, errors = service.generate_transaction_events(content, "minimal.csv")
 
         # Assert
         assert len(errors) == 0
@@ -256,31 +212,29 @@ abc123,2025-01-15,Test,-100.00,CHQ,primary
         assert tx.currency == "CAD"  # Default
         assert tx.source_file == "minimal.csv"  # Filename fallback
 
-    def it_should_handle_empty_string_category(self, tmp_path: Path):
+    def it_should_handle_empty_string_category(self):
         """Should not create TransactionCategorized for empty category."""
         # Arrange
         service = EventMigrationService()
-        csv_path = tmp_path / "empty_cat.csv"
         content = """transaction_id,date,description,amount,currency,account_id,category,subcategory,row_type
 abc123,2025-01-15,Test,-100.00,CAD,CHQ,,,primary
 """
-        csv_path.write_text(content)
 
         # Act
-        events, errors = service.generate_transaction_events(csv_path)
+        events, errors = service.generate_transaction_events(content, "empty_cat.csv")
 
         # Assert
         assert len(errors) == 0
         assert len(events) == 1  # Only TransactionImported, no TransactionCategorized
         assert isinstance(events[0], TransactionImported)
 
-    def it_should_include_raw_data_in_imported_event(self, sample_csv_file: Path):
+    def it_should_include_raw_data_in_imported_event(self, sample_csv_content: str):
         """Should include complete CSV row in raw_data."""
         # Arrange
         service = EventMigrationService()
 
         # Act
-        events, errors = service.generate_transaction_events(sample_csv_file)
+        events, errors = service.generate_transaction_events(sample_csv_content, "test_ledger.csv")
 
         # Assert
         tx = events[0]
@@ -410,22 +364,18 @@ class DescribeGenerateBudgetEvents:
 class DescribeValidateMigration:
     """Tests for validate_migration() method."""
 
-    def it_should_pass_validation_when_counts_match(
-        self, tmp_path: Path, sample_category_config: CategoryConfig
-    ):
+    def it_should_pass_validation_when_counts_match(self, sample_category_config: CategoryConfig):
         """Should pass validation when all counts match."""
         # Arrange
         service = EventMigrationService()
 
-        # Create sample ledger
-        data_dir = tmp_path / "data"
-        data_dir.mkdir()
-        ledger_path = data_dir / "test.csv"
-        content = """transaction_id,date,description,amount,currency,account_id,category,row_type
-abc123,2025-01-15,Test 1,-100.00,CAD,CHQ,Housing,primary
-def456,2025-01-16,Test 2,-50.00,CAD,MC,Groceries,primary
-"""
-        ledger_path.write_text(content)
+        ledger_texts = {
+            "test.csv": (
+                "transaction_id,date,description,amount,currency,account_id,category,row_type\n"
+                "abc123,2025-01-15,Test 1,-100.00,CAD,CHQ,Housing,primary\n"
+                "def456,2025-01-16,Test 2,-50.00,CAD,MC,Groceries,primary\n"
+            )
+        }
 
         # Mock builders
         mock_event_store = Mock()
@@ -469,7 +419,7 @@ def456,2025-01-16,Test 2,-50.00,CAD,MC,Groceries,primary
         # Act
         result = service.validate_migration(
             mock_event_store,
-            data_dir,
+            ledger_texts,
             sample_category_config,
             mock_tx_builder,
             mock_budget_builder,
@@ -483,19 +433,18 @@ def456,2025-01-16,Test 2,-50.00,CAD,MC,Groceries,primary
         assert len(result.errors) == 0
 
     def it_should_fail_when_transaction_count_mismatch(
-        self, tmp_path: Path, sample_category_config: CategoryConfig
+        self, sample_category_config: CategoryConfig
     ):
         """Should fail validation when transaction counts don't match."""
         # Arrange
         service = EventMigrationService()
 
-        data_dir = tmp_path / "data"
-        data_dir.mkdir()
-        ledger_path = data_dir / "test.csv"
-        content = """transaction_id,date,description,amount,currency,account_id,row_type
-abc123,2025-01-15,Test,-100.00,CAD,CHQ,primary
-"""
-        ledger_path.write_text(content)
+        ledger_texts = {
+            "test.csv": (
+                "transaction_id,date,description,amount,currency,account_id,row_type\n"
+                "abc123,2025-01-15,Test,-100.00,CAD,CHQ,primary\n"
+            )
+        }
 
         mock_event_store = Mock()
         mock_tx_builder = Mock()
@@ -511,7 +460,7 @@ abc123,2025-01-15,Test,-100.00,CAD,CHQ,primary
         # Act
         result = service.validate_migration(
             mock_event_store,
-            data_dir,
+            ledger_texts,
             sample_category_config,
             mock_tx_builder,
             mock_budget_builder,
@@ -523,15 +472,12 @@ abc123,2025-01-15,Test,-100.00,CAD,CHQ,primary
         assert len(result.errors) >= 1
         assert any("Transaction count mismatch" in e for e in result.errors)
 
-    def it_should_fail_when_budget_count_mismatch(
-        self, tmp_path: Path, sample_category_config: CategoryConfig
-    ):
+    def it_should_fail_when_budget_count_mismatch(self, sample_category_config: CategoryConfig):
         """Should fail validation when budget counts don't match."""
         # Arrange
         service = EventMigrationService()
 
-        data_dir = tmp_path / "data"
-        data_dir.mkdir()
+        ledger_texts: dict[str, str] = {}
 
         mock_event_store = Mock()
         mock_tx_builder = Mock()
@@ -544,7 +490,7 @@ abc123,2025-01-15,Test,-100.00,CAD,CHQ,primary
         # Act
         result = service.validate_migration(
             mock_event_store,
-            data_dir,
+            ledger_texts,
             sample_category_config,
             mock_tx_builder,
             mock_budget_builder,
@@ -556,19 +502,18 @@ abc123,2025-01-15,Test,-100.00,CAD,CHQ,primary
         assert any("Budget count mismatch" in e for e in result.errors)
 
     def it_should_fail_when_sample_transaction_fields_mismatch(
-        self, tmp_path: Path, sample_category_config: CategoryConfig
+        self, sample_category_config: CategoryConfig
     ):
         """Should fail validation when transaction fields don't match."""
         # Arrange
         service = EventMigrationService()
 
-        data_dir = tmp_path / "data"
-        data_dir.mkdir()
-        ledger_path = data_dir / "test.csv"
-        content = """transaction_id,date,description,amount,currency,account_id,category,row_type
-abc123,2025-01-15,Test,-100.00,CAD,CHQ,Housing,primary
-"""
-        ledger_path.write_text(content)
+        ledger_texts = {
+            "test.csv": (
+                "transaction_id,date,description,amount,currency,account_id,category,row_type\n"
+                "abc123,2025-01-15,Test,-100.00,CAD,CHQ,Housing,primary\n"
+            )
+        }
 
         mock_event_store = Mock()
         mock_tx_builder = Mock()
@@ -592,7 +537,7 @@ abc123,2025-01-15,Test,-100.00,CAD,CHQ,Housing,primary
         # Act
         result = service.validate_migration(
             mock_event_store,
-            data_dir,
+            ledger_texts,
             sample_category_config,
             mock_tx_builder,
             mock_budget_builder,
@@ -603,11 +548,10 @@ abc123,2025-01-15,Test,-100.00,CAD,CHQ,Housing,primary
         assert result.sample_transactions_match is False
         assert any("date mismatch" in e for e in result.errors)
 
-    def it_should_handle_missing_data_directory(self, sample_category_config: CategoryConfig):
-        """Should handle missing data directory gracefully."""
+    def it_should_handle_empty_ledger_texts(self, sample_category_config: CategoryConfig):
+        """Should handle empty ledger texts dict gracefully."""
         # Arrange
         service = EventMigrationService()
-        nonexistent_dir = Path("/nonexistent/directory")
 
         mock_event_store = Mock()
         mock_tx_builder = Mock()
@@ -620,7 +564,7 @@ abc123,2025-01-15,Test,-100.00,CAD,CHQ,Housing,primary
         # Act
         result = service.validate_migration(
             mock_event_store,
-            nonexistent_dir,
+            {},
             sample_category_config,
             mock_tx_builder,
             mock_budget_builder,
@@ -680,35 +624,31 @@ class DescribeInferImportTimestamp:
 class DescribeEdgeCases:
     """Tests for edge cases and boundary conditions."""
 
-    def it_should_handle_csv_with_extra_columns(self, tmp_path: Path):
+    def it_should_handle_csv_with_extra_columns(self):
         """Should handle CSV with extra columns not in row dict."""
         # Arrange
         service = EventMigrationService()
-        csv_path = tmp_path / "extra_cols.csv"
         content = """transaction_id,date,description,amount,currency,account_id,row_type,extra_field
 abc123,2025-01-15,Test,-100.00,CAD,CHQ,primary,ignored
 """
-        csv_path.write_text(content)
 
         # Act
-        events, errors = service.generate_transaction_events(csv_path)
+        events, errors = service.generate_transaction_events(content, "extra_cols.csv")
 
         # Assert
         assert len(errors) == 0
         assert len(events) == 1
 
-    def it_should_handle_csv_with_unicode_characters(self, tmp_path: Path):
+    def it_should_handle_csv_with_unicode_characters(self):
         """Should handle CSV with unicode characters in descriptions."""
         # Arrange
         service = EventMigrationService()
-        csv_path = tmp_path / "unicode.csv"
         content = """transaction_id,date,description,amount,currency,account_id,row_type
 abc123,2025-01-15,Café Déjà vu 🎉,-100.00,CAD,CHQ,primary
 """
-        csv_path.write_text(content, encoding="utf-8")
 
         # Act
-        events, errors = service.generate_transaction_events(csv_path)
+        events, errors = service.generate_transaction_events(content, "unicode.csv")
 
         # Assert
         assert len(errors) == 0
@@ -717,18 +657,16 @@ abc123,2025-01-15,Café Déjà vu 🎉,-100.00,CAD,CHQ,primary
         assert isinstance(event, TransactionImported)
         assert event.raw_description == "Café Déjà vu 🎉"
 
-    def it_should_preserve_decimal_precision(self, tmp_path: Path):
+    def it_should_preserve_decimal_precision(self):
         """Should preserve decimal precision for amounts."""
         # Arrange
         service = EventMigrationService()
-        csv_path = tmp_path / "precision.csv"
         content = """transaction_id,date,description,amount,currency,account_id,row_type
 abc123,2025-01-15,Test,-123.456789,CAD,CHQ,primary
 """
-        csv_path.write_text(content)
 
         # Act
-        events, errors = service.generate_transaction_events(csv_path)
+        events, errors = service.generate_transaction_events(content, "precision.csv")
 
         # Assert
         assert len(errors) == 0
@@ -737,37 +675,34 @@ abc123,2025-01-15,Test,-123.456789,CAD,CHQ,primary
         assert isinstance(event.amount, Decimal)
         assert event.amount == Decimal("-123.456789")
 
-    def it_should_handle_large_csv_files(self, tmp_path: Path):
+    def it_should_handle_large_csv_files(self):
         """Should handle CSV with many rows efficiently."""
         # Arrange
         service = EventMigrationService()
-        csv_path = tmp_path / "large.csv"
 
         # Generate 1000 rows
         lines = ["transaction_id,date,description,amount,currency,account_id,row_type"]
         for i in range(1000):
             lines.append(f"txn{i:05d},2025-01-15,Test {i},-{i}.00,CAD,CHQ,primary")
-        csv_path.write_text("\n".join(lines))
+        content = "\n".join(lines)
 
         # Act
-        events, errors = service.generate_transaction_events(csv_path)
+        events, errors = service.generate_transaction_events(content, "large.csv")
 
         # Assert
         assert len(errors) == 0
         assert len(events) == 1000  # All TransactionImported (no categories)
 
-    def it_should_handle_whitespace_in_transaction_ids(self, tmp_path: Path):
+    def it_should_handle_whitespace_in_transaction_ids(self):
         """Should strip whitespace from transaction IDs."""
         # Arrange
         service = EventMigrationService()
-        csv_path = tmp_path / "whitespace.csv"
         content = """transaction_id,date,description,amount,currency,account_id,row_type
   abc123  ,2025-01-15,Test,-100.00,CAD,CHQ,primary
 """
-        csv_path.write_text(content)
 
         # Act
-        events, errors = service.generate_transaction_events(csv_path)
+        events, errors = service.generate_transaction_events(content, "whitespace.csv")
 
         # Assert
         assert len(errors) == 0
@@ -776,18 +711,16 @@ abc123,2025-01-15,Test,-123.456789,CAD,CHQ,primary
         assert isinstance(event, TransactionImported)
         assert event.transaction_id == "abc123"
 
-    def it_should_handle_whitespace_in_categories(self, tmp_path: Path):
+    def it_should_handle_whitespace_in_categories(self):
         """Should strip whitespace from category names."""
         # Arrange
         service = EventMigrationService()
-        csv_path = tmp_path / "cat_whitespace.csv"
         content = """transaction_id,date,description,amount,currency,account_id,category,subcategory,row_type
 abc123,2025-01-15,Test,-100.00,CAD,CHQ,  Housing  ,  Rent  ,primary
 """
-        csv_path.write_text(content)
 
         # Act
-        events, errors = service.generate_transaction_events(csv_path)
+        events, errors = service.generate_transaction_events(content, "cat_whitespace.csv")
 
         # Assert
         assert len(events) == 2

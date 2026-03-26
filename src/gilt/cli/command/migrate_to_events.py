@@ -104,7 +104,8 @@ def _backfill_events(
 
     for ledger_path in ledger_files:
         try:
-            events, event_errors = service.generate_transaction_events(ledger_path)
+            csv_text = ledger_path.read_text(encoding="utf-8")
+            events, event_errors = service.generate_transaction_events(csv_text, ledger_path.name)
             for event in events:
                 event_store.append_event(event)
                 transaction_events += 1
@@ -184,8 +185,11 @@ def _validate_migration(
 
         if has_categories:
             config = load_categories_config(categories_config)
+            ledger_texts = {
+                p.name: p.read_text(encoding="utf-8") for p in sorted(data_dir.glob("*.csv"))
+            }
             result = service.validate_migration(
-                event_store, data_dir, config, tx_builder, budget_builder
+                event_store, ledger_texts, config, tx_builder, budget_builder
             )
         else:
             from gilt.services.event_migration_service import ValidationResult

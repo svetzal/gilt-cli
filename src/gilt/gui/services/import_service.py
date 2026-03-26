@@ -6,10 +6,13 @@ Provides account detection, preview, duplicate checking, and import execution.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
+
+_logger = logging.getLogger(__name__)
 
 import pandas as pd
 
@@ -348,7 +351,7 @@ class ImportService:
             return relevant_matches
 
         except Exception as e:
-            print(f"Error scanning for duplicates: {e}")
+            _logger.error("Error scanning for duplicates: %s", e)
             return []
 
     def scan_file_for_categorization(
@@ -417,7 +420,7 @@ class ImportService:
             return items
 
         except Exception as e:
-            print(f"Error scanning for categorization: {e}")
+            _logger.error("Error scanning for categorization: %s", e)
             return []
 
     def import_file(
