@@ -1,14 +1,10 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable
 from pathlib import Path
 
 from gilt.ingest import load_accounts_config, normalize_file
-from gilt.model.account import Account
-from gilt.model.category_io import load_categories_config
-from gilt.model.events import TransactionCategorized
-from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
-from gilt.services.categorization_service import CategorizationService
+from gilt.model.ledger_io import load_ledger_csv
 from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.services.ingestion_service import IngestionService
 from gilt.services.rule_inference_service import RuleInferenceService
@@ -27,21 +23,6 @@ def _print_plan(plan: Iterable[tuple[Path, str | None]], total_files: int) -> No
     console.print("No files were read. No outputs were written.")
 
 
-def _ledger_paths_to_load(output_dir: Path, accounts) -> list[Path]:
-    paths: list[Path] = []
-    # Prefer configured accounts if available
-    if accounts:
-        for acct in accounts:
-            p = output_dir / f"{acct.account_id}.csv"
-            if p.exists():
-                paths.append(p)
-    # Also include any other *.csv present (to cover unmanaged accounts)
-    for p in sorted(output_dir.glob("*.csv")):
-        if p not in paths:
-            paths.append(p)
-    return paths
-
-
 def _load_ledger_counts(paths: Iterable[Path]) -> dict[str, int]:
     counts: dict[str, int] = {}
     for lp in paths:
@@ -54,19 +35,11 @@ def _load_ledger_counts(paths: Iterable[Path]) -> dict[str, int]:
     return counts
 
 
-def _amount_sign_for(account_id: str, accounts: Sequence[Account]) -> str:
-    """Look up the amount_sign import hint for an account."""
-    for acct in accounts:
-        if acct.account_id == account_id and acct.import_hints:
-            return acct.import_hints.amount_sign or "expenses_negative"
-    return "expenses_negative"
-
-
 def _perform_normalization(
     plan: Iterable[tuple[Path, str | None]],
     output_dir: Path,
+    ingestion_service: IngestionService,
     event_store: EventStore | None = None,
-    accounts: Sequence[Account] = (),
 ) -> tuple[int, int]:
     written = 0
     skipped = 0
@@ -84,7 +57,7 @@ def _perform_normalization(
                 acct_id,
                 output_dir,
                 event_store=event_store,
-                amount_sign=_amount_sign_for(acct_id, accounts),
+                amount_sign=ingestion_service.amount_sign_for(acct_id),
             )
             console.print(f"[green][ok][/green] Wrote {out_path}")
             written += 1
@@ -96,15 +69,7 @@ def _perform_normalization(
 
 def _link_transfers_and_report(output_dir: Path) -> int:
     console.print("[bold]Linking transfers across ledgers[/]")
-    modified = link_transfers(
-        processed_dir=output_dir,
-        window_days=3,
-        epsilon_direct=0.0,
-        epsilon_interac=0.0,
-        fee_max_amount=3.00,
-        fee_day_window=1,
-        write=True,
-    )
+    modified = link_transfers(processed_dir=output_dir, write=True)
     if modified:
         console.print(
             f"[green][ok][/green] Updated {modified} ledger file(s) with transfer metadata"
@@ -133,44 +98,28 @@ def _apply_auto_categorizations(matches, workspace, event_store, projection_buil
 
     console.print("[bold]Auto-categorizing via inferred rules[/]")
 
-    category_config = load_categories_config(workspace.categories_config)
+    from gilt.services.categorization_persistence_service import (
+        CategorizationPersistenceService,
+        CategorizationUpdate,
+    )
 
-    by_account: dict[str, list] = {}
-    for m in matches:
-        event = TransactionCategorized(
+    persistence_svc = CategorizationPersistenceService(
+        event_store=event_store,
+        projection_builder=projection_builder,
+        ledger_data_dir=workspace.ledger_data_dir,
+    )
+    updates = [
+        CategorizationUpdate(
             transaction_id=m.transaction["transaction_id"],
+            account_id=m.transaction.get("account_id", ""),
             category=m.rule.category,
             subcategory=m.rule.subcategory,
             source="rule",
             confidence=m.rule.confidence,
         )
-        event_store.append_event(event)
-        acct = m.transaction.get("account_id", "")
-        by_account.setdefault(acct, []).append(m)
-
-    for account_id, acct_matches in by_account.items():
-        ledger_path = workspace.ledger_data_dir / f"{account_id}.csv"
-        if not ledger_path.exists():
-            continue
-
-        text = ledger_path.read_text(encoding="utf-8")
-        groups = load_ledger_csv(text, default_currency="CAD")
-
-        updates = {}
-        for m in acct_matches:
-            updates[m.transaction["transaction_id"]] = (m.rule.category, m.rule.subcategory)
-
-        cat_svc = CategorizationService(category_config)
-        for i, g in enumerate(groups):
-            if g.primary.transaction_id in updates:
-                cat_name, subcat_name = updates[g.primary.transaction_id]
-                result = cat_svc.apply_categorization([g], cat_name, subcat_name)
-                groups[i] = result.updated_transactions[0]
-
-        updated_csv = dump_ledger_csv(groups)
-        ledger_path.write_text(updated_csv, encoding="utf-8")
-
-    projection_builder.rebuild_incremental(event_store)
+        for m in matches
+    ]
+    persistence_svc.persist_categorizations(updates)
     console.print(f"[green][ok][/green] Auto-categorized {len(matches)} transaction(s) via rules")
 
 
@@ -206,7 +155,7 @@ def run(
 
     # 1) Load existing ledgers from disk into models for all accounts (validation-only)
     output_dir.mkdir(parents=True, exist_ok=True)
-    ledger_paths = _ledger_paths_to_load(output_dir, accounts)
+    ledger_paths = ingestion_service.discover_ledger_paths(output_dir)
 
     pre_counts = _load_ledger_counts(ledger_paths)
     if pre_counts:
@@ -216,7 +165,7 @@ def run(
 
     # 2) Perform normalization/writes with event store
     written, skipped = _perform_normalization(
-        ingestion_plan.files, output_dir, event_store=event_store, accounts=accounts
+        ingestion_plan.files, output_dir, ingestion_service, event_store=event_store
     )
 
     # 3) Reload ledgers after ingest to ensure serialization back to disk

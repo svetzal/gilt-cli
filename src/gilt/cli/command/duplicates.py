@@ -357,10 +357,15 @@ def run(
     matches = _analyze_candidates(console, detector, candidates, detection_method)
     console.print()
 
-    filtered_matches = [m for m in matches if m.assessment.confidence >= min_confidence]
+    filtered_matches = review_service.filter_by_confidence(matches, min_confidence)
     if not filtered_matches:
         console.print(f"[green]No duplicates found with confidence >= {min_confidence:.0%}[/green]")
         return 0
+
+    # Remove pairs already processed (either side already marked as duplicate)
+    filtered_matches, skipped_count = review_service.exclude_already_processed(
+        filtered_matches, projection_builder
+    )
 
     console.print(
         f"[cyan]Found {len(filtered_matches)} potential duplicate(s) "
@@ -369,18 +374,9 @@ def run(
     console.print()
 
     feedback = []
-    skipped_count = 0
 
     for i, match in enumerate(filtered_matches, 1):
         pair = match.pair
-
-        txn1 = projection_builder.get_transaction(pair.txn1_id)
-        txn2 = projection_builder.get_transaction(pair.txn2_id)
-        if (txn1 and txn1.get("is_duplicate", 0) == 1) or (
-            txn2 and txn2.get("is_duplicate", 0) == 1
-        ):
-            skipped_count += 1
-            continue
 
         _, event_id = review_service.create_suggestion_event(
             pair=pair,

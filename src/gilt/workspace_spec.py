@@ -42,3 +42,7 @@ class DescribeWorkspace:
         def it_should_compute_categories_config(self):
             ws = Workspace(root=Path("/data"))
             assert ws.categories_config == Path("/data/config/categories.yml")
+
+        def it_should_compute_intelligence_cache_path(self):
+            ws = Workspace(root=Path("/data"))
+            assert ws.intelligence_cache_path == Path("/data/data/private/intelligence_cache.json")

@@ -16,6 +16,7 @@ from rich.prompt import Prompt
 from rich.table import Table
 
 from gilt.model.events import DuplicateConfirmed
+from gilt.services.duplicate_review_service import DuplicateReviewService
 from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
@@ -69,51 +70,15 @@ def _find_transaction_by_prefix(
     return matches[0]
 
 
-def _validate_and_warn(
-    console: Console,
-    primary_txn: dict,
-    duplicate_txn: dict,
-    write: bool,
-) -> int | None:
-    """Check already-duplicate status and warn about mismatched accounts/amounts.
+def _display_validation_results(validation, write: bool) -> None:
+    """Display validation errors and warnings to the console."""
+    for error in validation.errors:
+        console.print(f"[red]Error:[/red] {error}")
 
-    Returns:
-        1 if validation fails (primary already duplicate), None to continue.
-    """
-    if primary_txn.get("is_duplicate", 0) == 1:
-        console.print(
-            f"[red]Error:[/red] Primary transaction {primary_txn['transaction_id'][:8]} "
-            "is already marked as a duplicate"
-        )
-        return 1
-
-    if duplicate_txn.get("is_duplicate", 0) == 1:
-        txid_short = duplicate_txn["transaction_id"][:8]
-        console.print(
-            f"[yellow]Warning:[/yellow] Duplicate transaction {txid_short} "
-            "is already marked as a duplicate"
-        )
-        # Allow continuing - user might be reclassifying
-
-    if primary_txn["account_id"] != duplicate_txn["account_id"]:
-        console.print("[yellow]Warning:[/yellow] Transactions are from different accounts:")
-        console.print(f"  Primary: {primary_txn['account_id']}")
-        console.print(f"  Duplicate: {duplicate_txn['account_id']}")
-        if not write:
+    for warning in validation.warnings:
+        console.print(f"[yellow]Warning:[/yellow] {warning}")
+        if not write and ("different account" in warning or "different amount" in warning):
             console.print("[yellow]Use --write to proceed anyway[/yellow]")
-
-    amount_diff = abs(float(primary_txn["amount"]) - float(duplicate_txn["amount"]))
-    if amount_diff > 0.01:  # More than 1 cent difference
-        console.print(
-            f"[yellow]Warning:[/yellow] Transactions have different amounts "
-            f"(difference: {amount_diff:.2f})"
-        )
-        console.print(f"  Primary: {primary_txn['amount']}")
-        console.print(f"  Duplicate: {duplicate_txn['amount']}")
-        if not write:
-            console.print("[yellow]Use --write to proceed anyway[/yellow]")
-
-    return None
 
 
 def run(
@@ -163,7 +128,9 @@ def run(
 
     # Initialize services
     es_service = EventSourcingService(workspace=workspace)
+    event_store = es_service.get_event_store()
     projection_builder = ProjectionBuilder(workspace.projections_path)
+    review_service = DuplicateReviewService(event_store=event_store)
 
     # Find transactions
     console.print("[dim]Looking up transactions...[/dim]")
@@ -175,9 +142,10 @@ def run(
     if not duplicate_txn:
         return 1
 
-    validation_error = _validate_and_warn(console, primary_txn, duplicate_txn, write)
-    if validation_error is not None:
-        return validation_error
+    validation = review_service.validate_duplicate_pair(primary_txn, duplicate_txn)
+    _display_validation_results(validation, write)
+    if not validation.is_valid:
+        return 1
 
     # Display both transactions
     table = Table(
@@ -259,11 +227,11 @@ def run(
         llm_was_correct=False,  # Not from LLM prediction
     )
 
-    es_service.event_store.append_event(event)
+    event_store.append_event(event)
 
     # Rebuild projections to reflect the change
     console.print("[dim]Rebuilding projections...[/dim]")
-    events_processed = projection_builder.rebuild_incremental(es_service.event_store)
+    events_processed = projection_builder.rebuild_incremental(event_store)
 
     console.print()
     console.print("[green]✓ Duplicate marked successfully[/green]")

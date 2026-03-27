@@ -671,3 +671,46 @@ class DescribeProjectionBuilder:
         assert txn["invoice_number"] is None
         assert txn["tax_amount"] is None
         assert txn["receipt_file"] is None
+
+    def it_should_delete_account_projections(self, event_store, projection_builder):
+        """Should remove all projection rows for a given account_id."""
+        for i in range(3):
+            event = TransactionImported(
+                transaction_date=f"2025-01-{10 + i:02d}",
+                transaction_id=f"txn{i:012d}",
+                source_file="test.csv",
+                source_account="MYBANK_CHQ",
+                raw_description="EXAMPLE UTILITY",
+                amount=Decimal("-50.00"),
+                currency="CAD",
+                raw_data={},
+            )
+            event_store.append_event(event)
+
+        projection_builder.rebuild_from_scratch(event_store)
+        assert len(projection_builder.get_all_transactions()) == 3
+
+        deleted = projection_builder.delete_account_projections("MYBANK_CHQ")
+        assert deleted == 3
+        assert len(projection_builder.get_all_transactions()) == 0
+
+    def it_should_reset_projection_metadata(self, event_store, projection_builder):
+        """Should clear the projection_metadata table so incremental rebuild replays all events."""
+        event = TransactionImported(
+            transaction_date="2025-01-10",
+            transaction_id="txn000000000001",
+            source_file="test.csv",
+            source_account="MYBANK_CHQ",
+            raw_description="SAMPLE STORE",
+            amount=Decimal("-25.00"),
+            currency="CAD",
+            raw_data={},
+        )
+        event_store.append_event(event)
+        projection_builder.rebuild_from_scratch(event_store)
+
+        # Sequence should be stored
+        assert projection_builder.get_current_sequence() > 0
+
+        projection_builder.reset_metadata()
+        assert projection_builder.get_current_sequence() == 0

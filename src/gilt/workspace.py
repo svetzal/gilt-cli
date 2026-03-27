@@ -70,6 +70,10 @@ class Workspace:
         return self.root / "config" / "accounts.yml"
 
     @property
+    def intelligence_cache_path(self) -> Path:
+        return self.root / "data" / "private" / "intelligence_cache.json"
+
+    @property
     def reports_dir(self) -> Path:
         return self.root / "reports"
 

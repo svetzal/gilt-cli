@@ -318,3 +318,110 @@ class DescribePlanIngestion(DescribeIngestionService):
         file_names = [p.name for p in (f for f, _ in plan.files)]
 
         assert file_names == sorted(file_names)
+
+
+class DescribeAmountSignFor(DescribeIngestionService):
+    """Tests for amount_sign_for method."""
+
+    def it_should_return_amount_sign_from_account_import_hints(
+        self, accounts_config: list[Account]
+    ):
+        """Should return the amount_sign value configured for the account."""
+        from gilt.model.account import ImportHints
+
+        accounts = [
+            Account(
+                account_id="MYBANK_CHQ",
+                import_hints=ImportHints(amount_sign="expenses_positive"),
+            )
+        ]
+        service = IngestionService(accounts=accounts)
+        assert service.amount_sign_for("MYBANK_CHQ") == "expenses_positive"
+
+    def it_should_default_to_expenses_negative_when_no_import_hints(self):
+        """Should return 'expenses_negative' when account has no import hints."""
+        accounts = [Account(account_id="MYBANK_CHQ")]
+        service = IngestionService(accounts=accounts)
+        assert service.amount_sign_for("MYBANK_CHQ") == "expenses_negative"
+
+    def it_should_default_to_expenses_negative_when_account_not_found(
+        self, accounts_config: list[Account]
+    ):
+        """Should return 'expenses_negative' when account_id is not in accounts list."""
+        service = IngestionService(accounts=accounts_config)
+        assert service.amount_sign_for("UNKNOWN_ACCT") == "expenses_negative"
+
+    def it_should_default_to_expenses_negative_when_amount_sign_is_none(self):
+        """Should return 'expenses_negative' when import_hints.amount_sign is None."""
+        from gilt.model.account import ImportHints
+
+        accounts = [
+            Account(
+                account_id="MYBANK_CHQ",
+                import_hints=ImportHints(amount_sign=None),
+            )
+        ]
+        service = IngestionService(accounts=accounts)
+        assert service.amount_sign_for("MYBANK_CHQ") == "expenses_negative"
+
+
+class DescribeDiscoverLedgerPaths(DescribeIngestionService):
+    """Tests for discover_ledger_paths method."""
+
+    def it_should_include_configured_account_ledgers(
+        self, service: IngestionService, tmp_path: Path
+    ):
+        """Should include ledger CSV files for configured accounts that exist."""
+        accounts_dir = tmp_path / "accounts"
+        accounts_dir.mkdir()
+        (accounts_dir / "MYBANK_CHQ.csv").write_text("header\n", encoding="utf-8")
+
+        paths = service.discover_ledger_paths(accounts_dir)
+        names = [p.name for p in paths]
+        assert "MYBANK_CHQ.csv" in names
+
+    def it_should_include_unmanaged_csv_files(self, service: IngestionService, tmp_path: Path):
+        """Should include CSV files in the output dir that are not in accounts config."""
+        accounts_dir = tmp_path / "accounts"
+        accounts_dir.mkdir()
+        (accounts_dir / "MYBANK_CHQ.csv").write_text("header\n", encoding="utf-8")
+        (accounts_dir / "UNMANAGED.csv").write_text("header\n", encoding="utf-8")
+
+        paths = service.discover_ledger_paths(accounts_dir)
+        names = [p.name for p in paths]
+        assert "MYBANK_CHQ.csv" in names
+        assert "UNMANAGED.csv" in names
+
+    def it_should_not_duplicate_configured_accounts_present_in_dir(
+        self, service: IngestionService, tmp_path: Path
+    ):
+        """Should not include a configured ledger twice."""
+        accounts_dir = tmp_path / "accounts"
+        accounts_dir.mkdir()
+        (accounts_dir / "MYBANK_CHQ.csv").write_text("header\n", encoding="utf-8")
+
+        paths = service.discover_ledger_paths(accounts_dir)
+        names = [p.name for p in paths]
+        assert names.count("MYBANK_CHQ.csv") == 1
+
+    def it_should_not_include_missing_configured_accounts(
+        self, service: IngestionService, tmp_path: Path
+    ):
+        """Should not include paths for configured accounts whose CSV does not exist."""
+        accounts_dir = tmp_path / "accounts"
+        accounts_dir.mkdir()
+        # MYBANK_CHQ is configured but file does not exist
+
+        paths = service.discover_ledger_paths(accounts_dir)
+        names = [p.name for p in paths]
+        assert "MYBANK_CHQ.csv" not in names
+
+    def it_should_return_empty_list_for_empty_directory(
+        self, service: IngestionService, tmp_path: Path
+    ):
+        """Should return empty list when no CSV files exist."""
+        accounts_dir = tmp_path / "accounts"
+        accounts_dir.mkdir()
+
+        paths = service.discover_ledger_paths(accounts_dir)
+        assert paths == []

@@ -7,126 +7,14 @@ Removes the account's ledger CSV, purges related events and projections,
 clears cached intelligence, then re-runs ingestion for that account only.
 """
 
-import sqlite3
-from collections.abc import Sequence
-
 from gilt.ingest import load_accounts_config, normalize_file
-from gilt.model.account import Account
 from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.services.ingestion_service import IngestionService
-from gilt.storage.event_store import EventStore
+from gilt.services.reingestion_service import ReingestionService
 from gilt.transfer.linker import link_transfers
 from gilt.workspace import Workspace
 
 from .util import console, print_dry_run_message
-
-
-def _collect_transaction_ids_for_account(event_store: EventStore, account_id: str) -> set[str]:
-    """Find all transaction IDs imported for a given account."""
-    events = event_store.get_events_by_type("TransactionImported")
-    return {e.transaction_id for e in events if getattr(e, "source_account", None) == account_id}
-
-
-def _collect_event_ids_to_purge(
-    event_store: EventStore, account_id: str, txn_ids: set[str]
-) -> set[str]:
-    """Collect all event IDs that reference the account or its transactions."""
-    event_ids: set[str] = set()
-    all_events = event_store.get_all_events()
-
-    for evt in all_events:
-        # Events with source_account field (TransactionImported, TransactionDescriptionObserved)
-        if getattr(evt, "source_account", None) == account_id:
-            event_ids.add(evt.event_id)
-            continue
-
-        # Events referencing a transaction_id belonging to this account
-        evt_txn_id = getattr(evt, "transaction_id", None)
-        if evt_txn_id and evt_txn_id in txn_ids:
-            event_ids.add(evt.event_id)
-            continue
-
-        # Duplicate events reference two transaction IDs
-        for attr in (
-            "transaction_id_1",
-            "transaction_id_2",
-            "primary_transaction_id",
-            "duplicate_transaction_id",
-            "original_transaction_id",
-            "new_transaction_id",
-        ):
-            ref_id = getattr(evt, attr, None)
-            if ref_id and ref_id in txn_ids:
-                event_ids.add(evt.event_id)
-                break
-
-    return event_ids
-
-
-def _purge_events(event_store: EventStore, event_ids: set[str]) -> int:
-    """Delete events from the event store by event_id."""
-    if not event_ids:
-        return 0
-    conn = sqlite3.connect(event_store.db_path)
-    try:
-        placeholders = ",".join("?" for _ in event_ids)
-        ids = list(event_ids)
-        conn.execute(f"DELETE FROM event_sequence WHERE event_id IN ({placeholders})", ids)
-        conn.execute(f"DELETE FROM events WHERE event_id IN ({placeholders})", ids)
-        conn.commit()
-        return len(event_ids)
-    finally:
-        conn.close()
-
-
-def _purge_projections(workspace: Workspace, account_id: str) -> int:
-    """Delete projection rows for an account."""
-    proj_path = workspace.projections_path
-    if not proj_path.exists():
-        return 0
-    conn = sqlite3.connect(proj_path)
-    try:
-        cursor = conn.execute(
-            "DELETE FROM transaction_projections WHERE account_id = ?",
-            (account_id,),
-        )
-        # Reset sequence metadata so incremental rebuild replays all events
-        conn.execute("DELETE FROM projection_metadata")
-        conn.commit()
-        return cursor.rowcount
-    finally:
-        conn.close()
-
-
-def _purge_intelligence_cache(workspace: Workspace, txn_ids: set[str]) -> int:
-    """Remove cached intelligence entries for the account's transactions."""
-    cache_path = workspace.root / "data" / "private" / "intelligence_cache.json"
-    if not cache_path.exists():
-        return 0
-
-    import json
-
-    try:
-        data = json.loads(cache_path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return 0
-
-    original_count = len(data)
-    data = {k: v for k, v in data.items() if k not in txn_ids}
-    removed = original_count - len(data)
-
-    if removed > 0:
-        cache_path.write_text(json.dumps(data), encoding="utf-8")
-
-    return removed
-
-
-def _amount_sign_for(account_id: str, accounts: Sequence[Account]) -> str:
-    """Look up the amount_sign import hint for an account."""
-    for acct in accounts:
-        if acct.account_id == account_id and acct.import_hints:
-            return acct.import_hints.amount_sign or "expenses_negative"
-    return "expenses_negative"
 
 
 def run(
@@ -154,8 +42,8 @@ def run(
 
     # Find source files for this account
     ingestion_service = IngestionService(accounts=accounts)
-    plan = ingestion_service.plan_ingestion(ingest_dir)
-    account_files = [(p, aid) for p, aid in plan.files if aid == account]
+    ingestion_plan = ingestion_service.plan_ingestion(ingest_dir)
+    account_files = [(p, aid) for p, aid in ingestion_plan.files if aid == account]
 
     if not account_files:
         console.print(f"[yellow]No source files matched account '{account}'[/]")
@@ -164,10 +52,16 @@ def run(
     # Initialize event sourcing
     es_service = EventSourcingService(workspace=workspace)
     event_store = es_service.get_event_store()
+    projection_builder = es_service.get_projection_builder()
 
-    # Collect what we'll purge
-    txn_ids = _collect_transaction_ids_for_account(event_store, account)
-    event_ids = _collect_event_ids_to_purge(event_store, account, txn_ids)
+    # Plan what to purge using the reingestion service
+    reingest_svc = ReingestionService(
+        event_store=event_store,
+        projection_builder=projection_builder,
+        ledger_data_dir=output_dir,
+        intelligence_cache_path=workspace.intelligence_cache_path,
+    )
+    purge_plan = reingest_svc.plan_purge(account)
 
     ledger_path = output_dir / f"{account}.csv"
     ledger_exists = ledger_path.exists()
@@ -177,8 +71,8 @@ def run(
     for p, _ in account_files:
         console.print(f"    - {p.name}")
     console.print(f"  Ledger file: {ledger_path.name} ({'exists' if ledger_exists else 'missing'})")
-    console.print(f"  Events to purge: {len(event_ids)}")
-    console.print(f"  Transactions to purge: {len(txn_ids)}")
+    console.print(f"  Events to purge: {len(purge_plan.event_ids)}")
+    console.print(f"  Transactions to purge: {len(purge_plan.transaction_ids)}")
 
     if not write:
         print_dry_run_message()
@@ -189,20 +83,16 @@ def run(
         ledger_path.unlink()
         console.print(f"[green][ok][/] Removed ledger: {ledger_path.name}")
 
-    # 2. Purge events
-    purged_events = _purge_events(event_store, event_ids)
-    console.print(f"[green][ok][/] Purged {purged_events} events")
-
-    # 3. Purge projections
-    purged_projections = _purge_projections(workspace, account)
-    console.print(f"[green][ok][/] Purged {purged_projections} projections")
-
-    # 4. Purge intelligence cache
-    purged_cache = _purge_intelligence_cache(workspace, txn_ids)
-    console.print(f"[green][ok][/] Purged {purged_cache} cached intelligence entries")
+    # 2-4. Purge events, projections, and intelligence cache via service
+    purge_result = reingest_svc.execute_purge(purge_plan)
+    console.print(f"[green][ok][/] Purged {purge_result.events_purged} events")
+    console.print(f"[green][ok][/] Purged {purge_result.projections_purged} projections")
+    console.print(
+        f"[green][ok][/] Purged {purge_result.cache_entries_purged} cached intelligence entries"
+    )
 
     # 5. Re-ingest source files
-    amount_sign = _amount_sign_for(account, accounts)
+    amount_sign = ingestion_service.amount_sign_for(account)
     written = 0
     for p, acct_id in account_files:
         try:
@@ -225,7 +115,6 @@ def run(
 
     # 7. Rebuild projections
     console.print("[bold]Rebuilding projections[/]")
-    projection_builder = es_service.get_projection_builder()
     events_processed = projection_builder.rebuild_from_scratch(event_store)
     console.print(f"[green][ok][/] Rebuilt projections from {events_processed} events")
 

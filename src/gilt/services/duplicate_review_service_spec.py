@@ -12,7 +12,7 @@ CRITICAL: These tests catch bugs that weren't caught before, specifically:
 from __future__ import annotations
 
 from datetime import date
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 
 import pytest
 
@@ -512,3 +512,138 @@ class DescribeEdgeCases(DescribeDuplicateReviewService):
         )
 
         assert event.user_rationale is None
+
+
+class DescribeDuplicateValidation(DescribeDuplicateReviewService):
+    """Tests for validate_duplicate_pair method."""
+
+    def _txn(self, txn_id: str, account_id: str, amount: float, is_duplicate: int = 0) -> dict:
+        return {
+            "transaction_id": txn_id,
+            "account_id": account_id,
+            "amount": amount,
+            "is_duplicate": is_duplicate,
+        }
+
+    def it_should_reject_when_primary_is_already_duplicate(self, service):
+        """Should return is_valid=False when the primary is already marked as a duplicate."""
+        primary = self._txn("txn001", "MYBANK_CHQ", -50.0, is_duplicate=1)
+        duplicate = self._txn("txn002", "MYBANK_CHQ", -50.0)
+
+        result = service.validate_duplicate_pair(primary, duplicate)
+
+        assert not result.is_valid
+        assert any("already marked as a duplicate" in e for e in result.errors)
+
+    def it_should_warn_when_duplicate_is_already_marked(self, service):
+        """Should include a warning when the duplicate transaction is already marked."""
+        primary = self._txn("txn001", "MYBANK_CHQ", -50.0)
+        duplicate = self._txn("txn002", "MYBANK_CHQ", -50.0, is_duplicate=1)
+
+        result = service.validate_duplicate_pair(primary, duplicate)
+
+        assert result.is_valid
+        assert any("already marked" in w for w in result.warnings)
+
+    def it_should_warn_about_cross_account_duplicates(self, service):
+        """Should warn when the two transactions are from different accounts."""
+        primary = self._txn("txn001", "MYBANK_CHQ", -50.0)
+        duplicate = self._txn("txn002", "MYBANK_CC", -50.0)
+
+        result = service.validate_duplicate_pair(primary, duplicate)
+
+        assert result.is_valid
+        assert any("different account" in w for w in result.warnings)
+
+    def it_should_warn_about_amount_mismatch_above_threshold(self, service):
+        """Should warn when amounts differ by more than 0.01."""
+        primary = self._txn("txn001", "MYBANK_CHQ", -50.00)
+        duplicate = self._txn("txn002", "MYBANK_CHQ", -50.50)
+
+        result = service.validate_duplicate_pair(primary, duplicate)
+
+        assert result.is_valid
+        assert any("different amount" in w for w in result.warnings)
+
+    def it_should_pass_valid_same_account_same_amount_pair(self, service):
+        """Should return is_valid=True with no errors or warnings for a clean pair."""
+        primary = self._txn("txn001", "MYBANK_CHQ", -50.00)
+        duplicate = self._txn("txn002", "MYBANK_CHQ", -50.00)
+
+        result = service.validate_duplicate_pair(primary, duplicate)
+
+        assert result.is_valid
+        assert result.errors == []
+        assert result.warnings == []
+
+
+class DescribeDuplicateFiltering(DescribeDuplicateReviewService):
+    """Tests for filter_by_confidence and exclude_already_processed methods."""
+
+    def _make_match(self, confidence: float, is_duplicate: bool = True) -> DuplicateMatch:
+        pair = TransactionPair(
+            txn1_id=f"txn1_{confidence}",
+            txn1_date=date(2025, 1, 1),
+            txn1_description="EXAMPLE UTILITY",
+            txn1_amount=-50.0,
+            txn1_account="MYBANK_CHQ",
+            txn2_id=f"txn2_{confidence}",
+            txn2_date=date(2025, 1, 1),
+            txn2_description="EXAMPLE UTILITY",
+            txn2_amount=-50.0,
+            txn2_account="MYBANK_CHQ",
+        )
+        assessment = DuplicateAssessment(
+            is_duplicate=is_duplicate, confidence=confidence, reasoning="test"
+        )
+        return DuplicateMatch(pair=pair, assessment=assessment)
+
+    def it_should_filter_matches_below_confidence_threshold(self, service):
+        """Should return only matches with confidence >= min_confidence."""
+        matches = [
+            self._make_match(0.3),
+            self._make_match(0.7),
+            self._make_match(0.9),
+        ]
+
+        filtered = service.filter_by_confidence(matches, min_confidence=0.7)
+
+        assert len(filtered) == 2
+        assert all(m.assessment.confidence >= 0.7 for m in filtered)
+
+    def it_should_exclude_pairs_where_either_is_already_duplicate(self, service, sample_pair):
+        """Should skip pairs where either transaction is already marked as duplicate."""
+        # Projection builder mock: txn1 is a duplicate, txn2 is not
+        mock_projection_builder = MagicMock()
+
+        def get_transaction(txn_id):
+            if txn_id == sample_pair.txn1_id:
+                return {"transaction_id": txn_id, "is_duplicate": 1}
+            return {"transaction_id": txn_id, "is_duplicate": 0}
+
+        mock_projection_builder.get_transaction.side_effect = get_transaction
+
+        match = DuplicateMatch(
+            pair=sample_pair,
+            assessment=DuplicateAssessment(is_duplicate=True, confidence=0.9, reasoning="test"),
+        )
+
+        filtered, skipped = service.exclude_already_processed([match], mock_projection_builder)
+
+        assert len(filtered) == 0
+        assert skipped == 1
+
+    def it_should_return_skipped_count(self, service, sample_pair):
+        """Should return the number of pairs that were skipped."""
+        mock_projection_builder = MagicMock()
+        mock_projection_builder.get_transaction.return_value = {"is_duplicate": 0}
+
+        match = DuplicateMatch(
+            pair=sample_pair,
+            assessment=DuplicateAssessment(is_duplicate=True, confidence=0.9, reasoning="test"),
+        )
+
+        filtered, skipped = service.exclude_already_processed([match], mock_projection_builder)
+
+        assert len(filtered) == 1
+        assert skipped == 0

@@ -112,6 +112,50 @@ class IngestionService:
 
         return None
 
+    def amount_sign_for(self, account_id: str) -> str:
+        """Look up the amount_sign import hint for an account.
+
+        Args:
+            account_id: The account ID to look up
+
+        Returns:
+            The configured amount_sign value, or 'expenses_negative' as the default.
+        """
+        for acct in self._accounts:
+            if acct.account_id == account_id and acct.import_hints:
+                return acct.import_hints.amount_sign or "expenses_negative"
+        return "expenses_negative"
+
+    def discover_ledger_paths(self, output_dir: Path) -> list[Path]:
+        """Discover existing ledger CSV files in the output directory.
+
+        Configured accounts come first (in config order), followed by any other
+        CSV files present in the directory. Each path is included at most once.
+
+        Args:
+            output_dir: Directory where per-account ledger CSV files are stored.
+
+        Returns:
+            List of Path objects for existing ledger CSV files.
+        """
+        paths: list[Path] = []
+        seen: set[Path] = set()
+
+        # Prefer configured accounts first
+        for acct in self._accounts:
+            p = output_dir / f"{acct.account_id}.csv"
+            if p.exists() and p not in seen:
+                paths.append(p)
+                seen.add(p)
+
+        # Also include any other CSV files present (unmanaged accounts)
+        for p in sorted(output_dir.glob("*.csv")):
+            if p not in seen:
+                paths.append(p)
+                seen.add(p)
+
+        return paths
+
     def plan_ingestion(self, ingest_dir: Path) -> IngestionPlan:
         """Plan which files should be normalized to which accounts.
 

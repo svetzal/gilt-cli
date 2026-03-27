@@ -258,3 +258,33 @@ class DescribeEventStore:
         assert recent_events[0].transaction_id == "txn2"
         assert recent_events[1].transaction_id == "txn3"
         assert recent_events[2].transaction_id == "txn4"
+
+    def it_should_delete_events_by_id(self, event_store):
+        """Should delete events from both events and event_sequence tables."""
+        events = []
+        for i in range(3):
+            evt = TransactionImported(
+                transaction_date=f"2025-10-{15 + i:02d}",
+                transaction_id=f"txn{i}",
+                source_file="test.csv",
+                source_account="TEST",
+                raw_description=f"Transaction {i}",
+                amount=Decimal(f"-{10 + i}.00"),
+                currency="CAD",
+                raw_data={},
+            )
+            event_store.append_event(evt)
+            events.append(evt)
+
+        ids_to_delete = {events[0].event_id, events[1].event_id}
+        deleted = event_store.delete_events(ids_to_delete)
+
+        assert deleted == 2
+        remaining = event_store.get_all_events()
+        assert len(remaining) == 1
+        assert remaining[0].transaction_id == "txn2"
+
+    def it_should_return_zero_when_deleting_empty_set(self, event_store):
+        """Should return 0 when given an empty set of IDs to delete."""
+        deleted = event_store.delete_events(set())
+        assert deleted == 0

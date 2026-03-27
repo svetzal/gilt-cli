@@ -6,9 +6,6 @@ import json
 
 from rich.table import Table
 
-from gilt.model.category_io import load_categories_config
-from gilt.model.events import TransactionCategorized
-from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
 from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.services.rule_inference_service import RuleInferenceService
 from gilt.storage.projection import ProjectionBuilder
@@ -71,53 +68,29 @@ def _display_matches(matches):
 
 def _write_matches(matches, workspace, event_store, projection_builder):
     """Apply rule-based categorizations: emit events, update CSVs, rebuild projections."""
-    category_config = load_categories_config(workspace.categories_config)
+    from gilt.services.categorization_persistence_service import (
+        CategorizationPersistenceService,
+        CategorizationUpdate,
+    )
 
-    # Emit categorization events
-    for m in matches:
-        event = TransactionCategorized(
+    persistence_svc = CategorizationPersistenceService(
+        event_store=event_store,
+        projection_builder=projection_builder,
+        ledger_data_dir=workspace.ledger_data_dir,
+    )
+    updates = [
+        CategorizationUpdate(
             transaction_id=m.transaction["transaction_id"],
+            account_id=m.transaction.get("account_id", ""),
             category=m.rule.category,
             subcategory=m.rule.subcategory,
             source="rule",
             confidence=m.rule.confidence,
         )
-        event_store.append_event(event)
-
-    # Update CSV ledgers
-    by_account: dict[str, list] = {}
-    for m in matches:
-        acct = m.transaction.get("account_id", "")
-        by_account.setdefault(acct, []).append(m)
-
-    for account_id, acct_matches in by_account.items():
-        ledger_path = workspace.ledger_data_dir / f"{account_id}.csv"
-        if not ledger_path.exists():
-            console.print(f"[yellow]Warning: Ledger not found for {account_id}[/yellow]")
-            continue
-
-        text = ledger_path.read_text(encoding="utf-8")
-        groups = load_ledger_csv(text, default_currency="CAD")
-
-        updates = {}
-        for m in acct_matches:
-            updates[m.transaction["transaction_id"]] = (m.rule.category, m.rule.subcategory)
-
-        for i, g in enumerate(groups):
-            if g.primary.transaction_id in updates:
-                cat_name, subcat_name = updates[g.primary.transaction_id]
-                from gilt.services.categorization_service import CategorizationService
-
-                cat_svc = CategorizationService(category_config)
-                result = cat_svc.apply_categorization([g], cat_name, subcat_name)
-                groups[i] = result.updated_transactions[0]
-
-        updated_csv = dump_ledger_csv(groups)
-        ledger_path.write_text(updated_csv, encoding="utf-8")
-
-    # Rebuild projections
+        for m in matches
+    ]
     console.print("[dim]Updating projections...[/dim]")
-    projection_builder.rebuild_incremental(event_store)
+    persistence_svc.persist_categorizations(updates)
     console.print(f"[green]Categorized {len(matches)} transaction(s) via rules[/green]")
 
 

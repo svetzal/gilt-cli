@@ -19,11 +19,20 @@ All dependencies are injected. All functions return data structures.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from gilt.model.duplicate import DuplicateAssessment, DuplicateMatch, TransactionPair
 from gilt.model.events import DuplicateConfirmed, DuplicateRejected, DuplicateSuggested, Event
 from gilt.storage.event_store import EventStore
+
+
+@dataclass
+class DuplicateValidationResult:
+    """Result of validating a duplicate transaction pair."""
+
+    is_valid: bool
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -82,6 +91,53 @@ class DuplicateReviewService:
             event_store: Event store for persisting events
         """
         self.event_store = event_store
+
+    def validate_duplicate_pair(
+        self, primary_txn: dict, duplicate_txn: dict
+    ) -> DuplicateValidationResult:
+        """Validate that two transactions can be marked as duplicates.
+
+        Checks:
+        - Primary is not already marked as a duplicate (error)
+        - Duplicate is not already marked (warning, allows continuing)
+        - Transactions are from the same account (warning if cross-account)
+        - Amounts match within 0.01 (warning if they differ)
+
+        Args:
+            primary_txn: Transaction dict for the transaction to keep.
+            duplicate_txn: Transaction dict for the transaction to mark as duplicate.
+
+        Returns:
+            DuplicateValidationResult with is_valid, errors, and warnings.
+        """
+        errors: list[str] = []
+        warnings: list[str] = []
+
+        if primary_txn.get("is_duplicate", 0) == 1:
+            errors.append(
+                f"Transaction {primary_txn['transaction_id'][:8]} is already marked as a duplicate"
+            )
+
+        if duplicate_txn.get("is_duplicate", 0) == 1:
+            warnings.append(
+                f"Transaction {duplicate_txn['transaction_id'][:8]} is already marked as a duplicate"
+            )
+
+        if primary_txn["account_id"] != duplicate_txn["account_id"]:
+            warnings.append(
+                f"Transactions are from different accounts: "
+                f"{primary_txn['account_id']} vs {duplicate_txn['account_id']}"
+            )
+
+        amount_diff = abs(float(primary_txn["amount"]) - float(duplicate_txn["amount"]))
+        if amount_diff > 0.01:
+            warnings.append(f"Transactions have different amounts (difference: {amount_diff:.2f})")
+
+        return DuplicateValidationResult(
+            is_valid=len(errors) == 0,
+            errors=errors,
+            warnings=warnings,
+        )
 
     def create_suggestion_event(
         self,
@@ -223,6 +279,51 @@ class DuplicateReviewService:
 
         return SmartDefault(default_choice=default_choice, hint=hint)
 
+    def filter_by_confidence(
+        self,
+        matches: list[DuplicateMatch],
+        min_confidence: float,
+    ) -> list[DuplicateMatch]:
+        """Filter duplicate match candidates by minimum confidence threshold.
+
+        Args:
+            matches: All assessed duplicate matches.
+            min_confidence: Minimum confidence score (0.0 to 1.0) to include.
+
+        Returns:
+            Matches where assessment.confidence >= min_confidence.
+        """
+        return [m for m in matches if m.assessment.confidence >= min_confidence]
+
+    def exclude_already_processed(
+        self,
+        matches: list[DuplicateMatch],
+        projection_builder,
+    ) -> tuple[list[DuplicateMatch], int]:
+        """Exclude pairs where either transaction is already marked as a duplicate.
+
+        Args:
+            matches: Candidate duplicate matches to filter.
+            projection_builder: ProjectionBuilder used to look up transaction state.
+
+        Returns:
+            Tuple of (filtered matches, number of skipped pairs).
+        """
+        filtered: list[DuplicateMatch] = []
+        skipped = 0
+
+        for match in matches:
+            txn1 = projection_builder.get_transaction(match.pair.txn1_id)
+            txn2 = projection_builder.get_transaction(match.pair.txn2_id)
+            if (txn1 and txn1.get("is_duplicate", 0) == 1) or (
+                txn2 and txn2.get("is_duplicate", 0) == 1
+            ):
+                skipped += 1
+            else:
+                filtered.append(match)
+
+        return filtered, skipped
+
     def build_summary(
         self,
         matches: list[DuplicateMatch],
@@ -258,6 +359,7 @@ class DuplicateReviewService:
 
 __all__ = [
     "DuplicateReviewService",
+    "DuplicateValidationResult",
     "ReviewSummary",
     "UserDecision",
     "SmartDefault",

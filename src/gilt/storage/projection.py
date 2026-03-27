@@ -522,5 +522,43 @@ class ProjectionBuilder:
         finally:
             conn.close()
 
+    def delete_account_projections(self, account_id: str) -> int:
+        """Delete all projection rows for a given account.
+
+        Used during reingest to purge stale projections before replaying events.
+
+        Args:
+            account_id: The account whose projections should be removed.
+
+        Returns:
+            Number of rows deleted.
+        """
+        if not self.db_path.exists():
+            return 0
+        conn = sqlite3.connect(self.db_path)
+        try:
+            cursor = conn.execute(
+                "DELETE FROM transaction_projections WHERE account_id = ?",
+                (account_id,),
+            )
+            conn.commit()
+            return cursor.rowcount
+        finally:
+            conn.close()
+
+    def reset_metadata(self) -> None:
+        """Clear projection metadata so the next incremental rebuild replays all events.
+
+        Used during reingest to force a full re-projection after purging account data.
+        """
+        if not self.db_path.exists():
+            return
+        conn = sqlite3.connect(self.db_path)
+        try:
+            conn.execute("DELETE FROM projection_metadata")
+            conn.commit()
+        finally:
+            conn.close()
+
 
 __all__ = ["ProjectionBuilder"]

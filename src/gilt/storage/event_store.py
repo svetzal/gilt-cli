@@ -318,6 +318,31 @@ class EventStore:
         finally:
             conn.close()
 
+    def delete_events(self, event_ids: set[str]) -> int:
+        """Delete events from the store by event_id.
+
+        Removes entries from both the events table and event_sequence table.
+        This is a destructive operation used only during reingest purges.
+
+        Args:
+            event_ids: Set of event IDs to delete.
+
+        Returns:
+            Number of events deleted.
+        """
+        if not event_ids:
+            return 0
+        conn = sqlite3.connect(self.db_path)
+        try:
+            placeholders = ",".join("?" for _ in event_ids)
+            ids = list(event_ids)
+            conn.execute(f"DELETE FROM event_sequence WHERE event_id IN ({placeholders})", ids)
+            conn.execute(f"DELETE FROM events WHERE event_id IN ({placeholders})", ids)
+            conn.commit()
+            return len(event_ids)
+        finally:
+            conn.close()
+
     def _deserialize_event(self, event_data: str) -> Event:
         """Deserialize event from JSON.
 

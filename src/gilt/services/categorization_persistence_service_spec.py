@@ -1,0 +1,234 @@
+"""
+Tests for CategorizationPersistenceService.
+
+These tests verify that the persistence orchestration correctly:
+- Emits events per update
+- Groups updates by account and writes CSVs
+- Rebuilds projections after updates
+- Returns accurate counts
+- Handles missing ledger files gracefully
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from unittest.mock import MagicMock
+
+import pytest
+
+from gilt.model.account import Transaction, TransactionGroup
+from gilt.model.events import TransactionCategorized
+from gilt.model.ledger_io import dump_ledger_csv
+from gilt.services.categorization_persistence_service import (
+    CategorizationPersistenceService,
+    CategorizationUpdate,
+)
+
+
+def _make_group(txn_id: str, account_id: str, category: str | None = None) -> TransactionGroup:
+    """Create a minimal TransactionGroup for testing."""
+    return TransactionGroup(
+        group_id=txn_id,
+        primary=Transaction(
+            transaction_id=txn_id,
+            date="2025-01-10",
+            description="EXAMPLE UTILITY",
+            amount=-50.0,
+            currency="CAD",
+            account_id=account_id,
+            category=category,
+        ),
+    )
+
+
+class DescribeCategorizationPersistenceService:
+    """Base fixtures for all tests."""
+
+    @pytest.fixture
+    def mock_event_store(self):
+        store = MagicMock()
+        store.append_event = MagicMock()
+        return store
+
+    @pytest.fixture
+    def mock_projection_builder(self):
+        builder = MagicMock()
+        builder.rebuild_incremental = MagicMock(return_value=2)
+        return builder
+
+    @pytest.fixture
+    def ledger_dir(self, tmp_path: Path) -> Path:
+        d = tmp_path / "accounts"
+        d.mkdir()
+        return d
+
+    @pytest.fixture
+    def service(self, mock_event_store, mock_projection_builder, ledger_dir):
+        return CategorizationPersistenceService(
+            event_store=mock_event_store,
+            projection_builder=mock_projection_builder,
+            ledger_data_dir=ledger_dir,
+        )
+
+
+class DescribePersistCategorizations(DescribeCategorizationPersistenceService):
+    """Tests for persist_categorizations method."""
+
+    def it_should_emit_categorization_events_for_each_update(
+        self, service, mock_event_store, ledger_dir
+    ):
+        """Should emit one TransactionCategorized event per update."""
+        group = _make_group("abc123", "MYBANK_CHQ")
+        ledger_path = ledger_dir / "MYBANK_CHQ.csv"
+        ledger_path.write_text(dump_ledger_csv([group]), encoding="utf-8")
+
+        updates = [
+            CategorizationUpdate(
+                transaction_id="abc123",
+                account_id="MYBANK_CHQ",
+                category="Utilities",
+                subcategory="Electric",
+                source="rule",
+                confidence=0.95,
+            )
+        ]
+
+        service.persist_categorizations(updates)
+
+        mock_event_store.append_event.assert_called_once()
+        emitted = mock_event_store.append_event.call_args[0][0]
+        assert isinstance(emitted, TransactionCategorized)
+        assert emitted.transaction_id == "abc123"
+        assert emitted.category == "Utilities"
+        assert emitted.subcategory == "Electric"
+
+    def it_should_update_csv_ledgers_grouped_by_account(self, service, ledger_dir):
+        """Should update the CSV file for each affected account."""
+        group_a = _make_group("txn001", "MYBANK_CHQ")
+        group_b = _make_group("txn002", "MYBANK_CC")
+
+        (ledger_dir / "MYBANK_CHQ.csv").write_text(dump_ledger_csv([group_a]), encoding="utf-8")
+        (ledger_dir / "MYBANK_CC.csv").write_text(dump_ledger_csv([group_b]), encoding="utf-8")
+
+        updates = [
+            CategorizationUpdate(
+                transaction_id="txn001",
+                account_id="MYBANK_CHQ",
+                category="Groceries",
+                subcategory=None,
+                source="user",
+                confidence=1.0,
+            ),
+            CategorizationUpdate(
+                transaction_id="txn002",
+                account_id="MYBANK_CC",
+                category="Dining",
+                subcategory=None,
+                source="user",
+                confidence=1.0,
+            ),
+        ]
+
+        result = service.persist_categorizations(updates)
+
+        assert set(result.accounts_written) == {"MYBANK_CHQ", "MYBANK_CC"}
+
+    def it_should_rebuild_projections_after_updates(
+        self, service, mock_projection_builder, mock_event_store, ledger_dir
+    ):
+        """Should call rebuild_incremental after writing all CSV updates."""
+        group = _make_group("txn001", "MYBANK_CHQ")
+        (ledger_dir / "MYBANK_CHQ.csv").write_text(dump_ledger_csv([group]), encoding="utf-8")
+
+        updates = [
+            CategorizationUpdate(
+                transaction_id="txn001",
+                account_id="MYBANK_CHQ",
+                category="Transport",
+                subcategory=None,
+                source="rule",
+                confidence=0.9,
+            )
+        ]
+
+        service.persist_categorizations(updates)
+
+        mock_projection_builder.rebuild_incremental.assert_called_once_with(mock_event_store)
+
+    def it_should_return_count_of_updated_transactions(self, service, ledger_dir):
+        """Should return the number of transactions processed."""
+        group_a = _make_group("txn001", "MYBANK_CHQ")
+        group_b = _make_group("txn002", "MYBANK_CHQ")
+        (ledger_dir / "MYBANK_CHQ.csv").write_text(
+            dump_ledger_csv([group_a, group_b]), encoding="utf-8"
+        )
+
+        updates = [
+            CategorizationUpdate(
+                transaction_id="txn001",
+                account_id="MYBANK_CHQ",
+                category="Food",
+                subcategory=None,
+                source="user",
+                confidence=1.0,
+            ),
+            CategorizationUpdate(
+                transaction_id="txn002",
+                account_id="MYBANK_CHQ",
+                category="Food",
+                subcategory=None,
+                source="user",
+                confidence=1.0,
+            ),
+        ]
+
+        result = service.persist_categorizations(updates)
+
+        assert result.transactions_updated == 2
+        assert result.events_emitted == 2
+
+    def it_should_handle_missing_ledger_files_gracefully(self, service, ledger_dir):
+        """Should skip accounts whose ledger CSV does not exist without raising."""
+        updates = [
+            CategorizationUpdate(
+                transaction_id="txn001",
+                account_id="UNKNOWN_ACCT",
+                category="Misc",
+                subcategory=None,
+                source="rule",
+                confidence=0.8,
+            )
+        ]
+
+        result = service.persist_categorizations(updates)
+
+        assert result.transactions_updated == 1
+        assert result.events_emitted == 1
+        assert "UNKNOWN_ACCT" not in result.accounts_written
+
+
+class DescribePersistCategoryRename(DescribeCategorizationPersistenceService):
+    """Tests for persist_category_rename method."""
+
+    def it_should_persist_category_rename_across_accounts(self, service, ledger_dir):
+        """Should update all matched groups and emit events for each."""
+        group_a = _make_group("txn001", "MYBANK_CHQ", category="OldName")
+        group_b = _make_group("txn002", "MYBANK_CC", category="OldName")
+
+        (ledger_dir / "MYBANK_CHQ.csv").write_text(dump_ledger_csv([group_a]), encoding="utf-8")
+        (ledger_dir / "MYBANK_CC.csv").write_text(dump_ledger_csv([group_b]), encoding="utf-8")
+
+        matches = [
+            ("MYBANK_CHQ", group_a),
+            ("MYBANK_CC", group_b),
+        ]
+
+        result = service.persist_category_rename(
+            matches=matches,
+            to_category="NewName",
+            to_subcategory=None,
+        )
+
+        assert result.transactions_updated == 2
+        assert result.events_emitted == 2
+        assert set(result.accounts_written) == {"MYBANK_CHQ", "MYBANK_CC"}

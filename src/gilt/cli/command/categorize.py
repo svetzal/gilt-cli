@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
 from pathlib import Path
 
 import typer
@@ -8,8 +7,6 @@ from rich.table import Table
 
 from gilt.model.account import TransactionGroup
 from gilt.model.category_io import load_categories_config, parse_category_path
-from gilt.model.events import TransactionCategorized
-from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
 from gilt.services.categorization_service import CategorizationService
 from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.services.transaction_operations_service import (
@@ -186,61 +183,47 @@ def _confirm_and_apply(
         subcategory,
     )
 
-    _write_back_ledgers(all_matches, result.updated_transactions, workspace)
-    _emit_events_and_rebuild(result.updated_transactions, workspace)
+    _persist_categorizations(all_matches, result.updated_transactions, workspace)
 
     console.print(f"[green]✓[/] Categorized {total_matched} transaction(s)")
     return 0
 
 
-def _write_back_ledgers(
+def _persist_categorizations(
     all_matches: list[tuple[str, TransactionGroup]],
     updated_transactions: list[TransactionGroup],
     workspace: Workspace,
 ) -> None:
-    """Write updated transactions back to per-account ledger CSV files."""
-    by_account: dict[str, list[str]] = {}
-    for account_id, group in all_matches:
-        by_account.setdefault(account_id, []).append(group.primary.transaction_id)
+    """Emit events, update CSVs, and rebuild projections for categorized transactions."""
+    from gilt.services.categorization_persistence_service import (
+        CategorizationPersistenceService,
+        CategorizationUpdate,
+    )
 
-    updated_by_id = {g.primary.transaction_id: g for g in updated_transactions}
-
-    for account_id in by_account:
-        ledger_path = workspace.ledger_data_dir / f"{account_id}.csv"
-        if not ledger_path.exists():
-            console.print(f"[yellow]Warning: Ledger not found for {account_id}[/yellow]")
-            continue
-
-        text = ledger_path.read_text(encoding="utf-8")
-        groups = load_ledger_csv(text, default_currency="CAD")
-
-        for i, g in enumerate(groups):
-            if g.primary.transaction_id in updated_by_id:
-                groups[i] = updated_by_id[g.primary.transaction_id]
-
-        updated_csv = dump_ledger_csv(groups)
-        ledger_path.write_text(updated_csv, encoding="utf-8")
-
-
-def _emit_events_and_rebuild(
-    updated_transactions: list[TransactionGroup],
-    workspace: Workspace,
-) -> None:
-    """Emit TransactionCategorized events and rebuild projections."""
     event_store = EventStore(workspace.event_store_path)
     projection_builder = ProjectionBuilder(workspace.projections_path)
 
-    for group in updated_transactions:
-        event = TransactionCategorized(
+    persistence_svc = CategorizationPersistenceService(
+        event_store=event_store,
+        projection_builder=projection_builder,
+        ledger_data_dir=workspace.ledger_data_dir,
+    )
+
+    account_by_txn_id = {
+        group.primary.transaction_id: account_id for account_id, group in all_matches
+    }
+    updates = [
+        CategorizationUpdate(
             transaction_id=group.primary.transaction_id,
+            account_id=account_by_txn_id.get(group.primary.transaction_id, ""),
             category=group.primary.category or "",
             subcategory=group.primary.subcategory,
             source="user",
-            event_timestamp=datetime.now(),
+            confidence=1.0,
         )
-        event_store.append_event(event)
-
-    projection_builder.rebuild_incremental(event_store)
+        for group in updated_transactions
+    ]
+    persistence_svc.persist_categorizations(updates)
 
 
 def _init_services(

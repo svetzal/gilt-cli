@@ -99,14 +99,22 @@ def _ensure_transfer_metadata(group: TransactionGroup, payload: dict) -> bool:
     return True
 
 
+# Default parameters for transfer linking. Both ingest and reingest use these values.
+TRANSFER_LINK_WINDOW_DAYS: int = 3
+TRANSFER_LINK_EPSILON_DIRECT: float = 0.0
+TRANSFER_LINK_EPSILON_INTERAC: float = 0.0
+TRANSFER_LINK_FEE_MAX_AMOUNT: float = 3.00
+TRANSFER_LINK_FEE_DAY_WINDOW: int = 1
+
+
 def link_transfers(
     processed_dir: Path = Path("data/accounts"),
     *,
-    window_days: int = 3,
-    epsilon_direct: float = 0.0,
-    epsilon_interac: float = 0.0,
-    fee_max_amount: float = 3.00,
-    fee_day_window: int = 1,
+    window_days: int = TRANSFER_LINK_WINDOW_DAYS,
+    epsilon_direct: float = TRANSFER_LINK_EPSILON_DIRECT,
+    epsilon_interac: float = TRANSFER_LINK_EPSILON_INTERAC,
+    fee_max_amount: float = TRANSFER_LINK_FEE_MAX_AMOUNT,
+    fee_day_window: int = TRANSFER_LINK_FEE_DAY_WINDOW,
     write: bool = False,
 ) -> int:
     """Identify transfers across ledgers and mark them in-place via metadata.

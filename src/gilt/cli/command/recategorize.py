@@ -1,14 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime
-
 import typer
 from rich.table import Table
 
 from gilt.model.account import TransactionGroup
 from gilt.model.category_io import parse_category_path
-from gilt.model.events import TransactionCategorized
-from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
 from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
@@ -171,57 +167,21 @@ def _apply_renaming(
         to_subcat: New subcategory name (or None)
         workspace: Workspace for resolving data paths
     """
-    data_dir = workspace.ledger_data_dir
+    from gilt.services.categorization_persistence_service import CategorizationPersistenceService
 
-    # Group by account
-    by_account: dict[str, list[TransactionGroup]] = {}
-    for account_id, group in matches:
-        if account_id not in by_account:
-            by_account[account_id] = []
-        by_account[account_id].append(group)
-
-    # Update each account's CSV
-    for account_id, matched_groups in by_account.items():
-        ledger_path = data_dir / f"{account_id}.csv"
-        if not ledger_path.exists():
-            console.print(f"[yellow]Warning: Ledger not found for {account_id}[/yellow]")
-            continue
-
-        # Reload full ledger
-        text = ledger_path.read_text(encoding="utf-8")
-        all_groups = load_ledger_csv(text, default_currency="CAD")
-
-        # Update matched groups
-        matched_ids = {g.primary.transaction_id for g in matched_groups}
-        for group in all_groups:
-            if group.primary.transaction_id in matched_ids:
-                # Mutate in place since Transaction is mutable
-                group.primary.category = to_cat
-                # Only update subcategory if explicitly specified in --to
-                if to_subcat is not None:
-                    group.primary.subcategory = to_subcat
-
-        # Write back
-        updated_csv = dump_ledger_csv(all_groups)
-        ledger_path.write_text(updated_csv, encoding="utf-8")
-
-    # Emit TransactionCategorized events and rebuild projections
     event_store = EventStore(workspace.event_store_path)
     projection_builder = ProjectionBuilder(workspace.projections_path)
 
-    for matched_groups in by_account.values():
-        for group in matched_groups:
-            event = TransactionCategorized(
-                transaction_id=group.primary.transaction_id,
-                category=to_cat,
-                subcategory=to_subcat,
-                source="user",  # Manual recategorization by user
-                event_timestamp=datetime.now(),
-            )
-            event_store.append_event(event)
-
-    # Rebuild projections incrementally to include new categorization events
-    projection_builder.rebuild_incremental(event_store)
+    persistence_svc = CategorizationPersistenceService(
+        event_store=event_store,
+        projection_builder=projection_builder,
+        ledger_data_dir=workspace.ledger_data_dir,
+    )
+    persistence_svc.persist_category_rename(
+        matches=matches,
+        to_category=to_cat,
+        to_subcategory=to_subcat,
+    )
 
 
 __all__ = ["run"]

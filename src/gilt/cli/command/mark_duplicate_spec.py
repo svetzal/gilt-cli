@@ -104,8 +104,8 @@ class DescribeMarkDuplicate:
             patch("gilt.cli.command.mark_duplicate.Prompt.ask", return_value="1"),
             patch("gilt.cli.command.mark_duplicate.EventSourcingService") as mock_es,
         ):
-            # Mock the event store append
-            mock_es.return_value.event_store = event_store
+            # Mock get_event_store() to return the real event store
+            mock_es.return_value.get_event_store.return_value = event_store
 
             result = mark_duplicate.run(
                 primary_txid="abc12345",
@@ -136,7 +136,7 @@ class DescribeMarkDuplicate:
             patch("gilt.cli.command.mark_duplicate.Prompt.ask", return_value="2"),
             patch("gilt.cli.command.mark_duplicate.EventSourcingService") as mock_es,
         ):
-            mock_es.return_value.event_store = event_store
+            mock_es.return_value.get_event_store.return_value = event_store
 
             result = mark_duplicate.run(
                 primary_txid="abc12345",
@@ -205,7 +205,7 @@ class DescribeMarkDuplicate:
             patch("gilt.cli.command.mark_duplicate.Prompt.ask", return_value="1"),
             patch("gilt.cli.command.mark_duplicate.EventSourcingService") as mock_es,
         ):
-            mock_es.return_value.event_store = event_store
+            mock_es.return_value.get_event_store.return_value = event_store
             mark_duplicate.run(
                 primary_txid="def98765",
                 duplicate_txid="abc12345",
@@ -236,7 +236,7 @@ class DescribeMarkDuplicate:
             patch("gilt.cli.command.mark_duplicate.Prompt.ask", return_value="1"),
             patch("gilt.cli.command.mark_duplicate.EventSourcingService") as mock_es,
         ):
-            mock_es.return_value.event_store = event_store
+            mock_es.return_value.get_event_store.return_value = event_store
 
             result = mark_duplicate.run(
                 primary_txid="abc12345",  # 8 chars
