@@ -11,7 +11,7 @@ from datetime import date
 from pathlib import Path
 
 from gilt.model.account import TransactionGroup
-from gilt.model.ledger_io import load_ledger_csv
+from gilt.model.ledger_io import load_all_ledger_groups, load_ledger_csv
 from gilt.storage.projection import ProjectionBuilder
 
 
@@ -58,21 +58,7 @@ class TransactionService:
 
     def _load_from_csv(self, default_currency: str = "CAD") -> list[TransactionGroup]:
         """Load transactions from CSV ledger files (fallback)."""
-        all_transactions: list[TransactionGroup] = []
-
-        if not self.data_dir.exists():
-            return all_transactions
-
-        for ledger_file in sorted(self.data_dir.glob("*.csv")):
-            try:
-                text = ledger_file.read_text(encoding="utf-8")
-                groups = load_ledger_csv(text, default_currency=default_currency)
-                all_transactions.extend(groups)
-            except Exception as e:
-                print(f"Error loading {ledger_file.name}: {e}")
-                continue
-
-        return all_transactions
+        return load_all_ledger_groups(self.data_dir, default_currency=default_currency)
 
     def load_account_transactions(
         self, account_id: str, default_currency: str = "CAD"

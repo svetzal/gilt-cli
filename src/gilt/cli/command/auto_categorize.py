@@ -16,10 +16,9 @@ from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
 from gilt.services.categorization_service import CategorizationService
 from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.services.rule_inference_service import RuleInferenceService
-from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
-from .util import console, fmt_amount_str, print_dry_run_message
+from .util import console, fmt_amount_str, print_dry_run_message, require_projections
 
 
 def _train_classifier(workspace, min_samples):
@@ -57,15 +56,11 @@ def _train_classifier(workspace, min_samples):
 
 def _load_uncategorized(workspace, account, limit):
     """Load uncategorized transactions. Returns (projection_builder, txns) or exit code."""
-    if not workspace.projections_path.exists():
-        console.print(
-            f"[red]Error:[/red] Projections database not found at {workspace.projections_path}\n"
-            "[dim]Run 'gilt rebuild-projections' first[/dim]"
-        )
+    projection_builder = require_projections(workspace)
+    if projection_builder is None:
         return 1
 
     console.print("\n[dim]Loading uncategorized transactions...[/dim]")
-    projection_builder = ProjectionBuilder(workspace.projections_path)
     all_transactions = projection_builder.get_all_transactions(include_duplicates=False)
 
     uncategorized_rows = [

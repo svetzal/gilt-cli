@@ -21,6 +21,7 @@ import csv
 import io
 import json
 from collections.abc import Iterable
+from pathlib import Path
 
 from pydantic import ValidationError
 
@@ -340,8 +341,29 @@ def load_ledger_csv(text: str, *, default_currency: str | None = None) -> list[T
     return result
 
 
+def load_all_ledger_groups(
+    data_dir: Path, *, default_currency: str = "CAD"
+) -> list[TransactionGroup]:
+    """Load and combine all CSV ledger files from a directory.
+
+    Returns an empty list if the directory does not exist or contains no CSV files.
+    Silently skips files that fail to parse.
+    """
+    all_groups: list[TransactionGroup] = []
+    if not data_dir.exists():
+        return all_groups
+    for ledger_path in sorted(data_dir.glob("*.csv")):
+        try:
+            text = ledger_path.read_text(encoding="utf-8")
+            all_groups.extend(load_ledger_csv(text, default_currency=default_currency))
+        except Exception:
+            continue
+    return all_groups
+
+
 __all__ = [
     "dump_ledger_csv",
+    "load_all_ledger_groups",
     "load_ledger_csv",
     "LEDGER_COLUMNS",
     "ROW_TYPE_PRIMARY",

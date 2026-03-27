@@ -9,7 +9,7 @@ from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
-from .util import console, fmt_amount_str, print_dry_run_message
+from .util import console, fmt_amount_str, print_dry_run_message, require_projections
 
 """
 Rename categories across all ledger files.
@@ -53,16 +53,11 @@ def run(
         console.print("[red]Error:[/] --to category cannot be empty")
         return 1
 
-    # Check projections database exists
-    if not workspace.projections_path.exists():
-        console.print(
-            f"[red]Error:[/red] Projections database not found at {workspace.projections_path}\n"
-            "[dim]Run 'gilt rebuild-projections' first[/dim]"
-        )
+    projection_builder = require_projections(workspace)
+    if projection_builder is None:
         return 1
 
     # Load transactions from projections (excludes duplicates)
-    projection_builder = ProjectionBuilder(workspace.projections_path)
     all_transactions = projection_builder.get_all_transactions(include_duplicates=False)
 
     if not all_transactions:

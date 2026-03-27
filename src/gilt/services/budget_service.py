@@ -13,7 +13,7 @@ from pathlib import Path
 
 from gilt.model.category import BudgetPeriod, Category
 from gilt.model.category_io import load_categories_config
-from gilt.model.ledger_io import load_ledger_csv
+from gilt.model.ledger_io import load_all_ledger_groups
 
 
 @dataclass
@@ -223,37 +223,27 @@ class BudgetService:
         """
         spending: dict[tuple[str, str | None], float] = defaultdict(float)
 
-        try:
-            for ledger_path in sorted(self.data_dir.glob("*.csv")):
-                try:
-                    text = ledger_path.read_text(encoding="utf-8")
-                    groups = load_ledger_csv(text, default_currency="CAD")
+        for group in load_all_ledger_groups(self.data_dir):
+            t = group.primary
 
-                    for group in groups:
-                        t = group.primary
+            # Skip if no category
+            if not t.category:
+                continue
 
-                        # Skip if no category
-                        if not t.category:
-                            continue
+            # Filter by category if specified
+            if category_filter and t.category != category_filter:
+                continue
 
-                        # Filter by category if specified
-                        if category_filter and t.category != category_filter:
-                            continue
-
-                        # Filter by date
-                        if isinstance(t.date, date):
-                            if year is not None and t.date.year != year:
-                                continue
-                            if month is not None and t.date.month != month:
-                                continue
-
-                        # Aggregate (negative amounts are expenses)
-                        key = (t.category, t.subcategory)
-                        spending[key] += abs(t.amount) if t.amount < 0 else 0.0
-                except Exception:
+            # Filter by date
+            if isinstance(t.date, date):
+                if year is not None and t.date.year != year:
                     continue
-        except Exception:
-            pass
+                if month is not None and t.date.month != month:
+                    continue
+
+            # Aggregate (negative amounts are expenses)
+            key = (t.category, t.subcategory)
+            spending[key] += abs(t.amount) if t.amount < 0 else 0.0
 
         return dict(spending)
 
@@ -306,20 +296,6 @@ class BudgetService:
         Returns:
             Number of uncategorized transactions
         """
-        count = 0
-
-        try:
-            for ledger_path in sorted(self.data_dir.glob("*.csv")):
-                try:
-                    text = ledger_path.read_text(encoding="utf-8")
-                    groups = load_ledger_csv(text, default_currency="CAD")
-
-                    for group in groups:
-                        if not group.primary.category:
-                            count += 1
-                except Exception:
-                    continue
-        except Exception:
-            pass
-
-        return count
+        return sum(
+            1 for group in load_all_ledger_groups(self.data_dir) if not group.primary.category
+        )

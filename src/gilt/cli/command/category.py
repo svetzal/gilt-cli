@@ -14,29 +14,13 @@ from gilt.model.category_io import (
     parse_category_path,
     save_categories_config,
 )
-from gilt.model.ledger_io import load_ledger_csv
+from gilt.model.ledger_io import load_all_ledger_groups
 from gilt.services.category_management_service import (
     CategoryManagementService,
 )
 from gilt.workspace import Workspace
 
 from .util import console, fmt_amount_str, print_dry_run_message
-
-
-def _load_all_transactions(data_dir: Path):
-    """Load all transaction groups from ledger files."""
-    groups = []
-    try:
-        for ledger_path in sorted(data_dir.glob("*.csv")):
-            try:
-                text = ledger_path.read_text(encoding="utf-8")
-                ledger_groups = load_ledger_csv(text, default_currency="CAD")
-                groups.extend(ledger_groups)
-            except Exception:
-                continue
-    except Exception:
-        pass
-    return groups
 
 
 def run(
@@ -212,7 +196,7 @@ def _handle_remove(
     cat_name, subcat_name = parse_category_path(category_path)
 
     # Load all transactions for usage checking
-    transaction_groups = _load_all_transactions(data_dir)
+    transaction_groups = load_all_ledger_groups(data_dir)
 
     # Use service to plan removal
     service = CategoryManagementService(category_config)

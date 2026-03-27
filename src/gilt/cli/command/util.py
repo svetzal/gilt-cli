@@ -5,6 +5,9 @@ from pathlib import Path
 from rich.console import Console
 from rich.text import Text
 
+from gilt.storage.projection import ProjectionBuilder
+from gilt.workspace import Workspace
+
 console = Console()
 
 
@@ -35,3 +38,14 @@ def print_dry_run_message(*, detail: str | None = None) -> None:
     else:
         msg = "Dry-run: use --write to persist changes"
     console.print(f"[dim]{msg}[/dim]")
+
+
+def require_projections(workspace: Workspace) -> ProjectionBuilder | None:
+    """Load projections or print error and return None."""
+    if not workspace.projections_path.exists():
+        console.print(
+            f"[red]Error:[/red] Projections database not found at {workspace.projections_path}\n"
+            "[dim]Run 'gilt rebuild-projections' first[/dim]"
+        )
+        return None
+    return ProjectionBuilder(workspace.projections_path)

@@ -49,6 +49,44 @@ class CategorizationPersistenceResult:
     accounts_written: list[str] = field(default_factory=list)
 
 
+def write_categorizations_to_csv(
+    updates: list[CategorizationUpdate],
+    ledger_data_dir: Path,
+) -> None:
+    """Write category updates directly to per-account CSV ledger files.
+
+    Groups updates by account_id, loads each ledger, applies the updates in memory,
+    and writes the file back. Does NOT emit events or rebuild projections.
+
+    Silently skips accounts whose ledger file does not exist.
+
+    Args:
+        updates: Categorization changes to apply.
+        ledger_data_dir: Directory containing per-account CSV ledger files.
+    """
+    by_account: dict[str, list[CategorizationUpdate]] = {}
+    for update in updates:
+        by_account.setdefault(update.account_id, []).append(update)
+
+    for account_id, acct_updates in by_account.items():
+        ledger_path = ledger_data_dir / f"{account_id}.csv"
+        if not ledger_path.exists():
+            continue
+
+        text = ledger_path.read_text(encoding="utf-8")
+        groups = load_ledger_csv(text, default_currency="CAD")
+
+        update_map = {u.transaction_id: u for u in acct_updates}
+        for group in groups:
+            txn_id = group.primary.transaction_id
+            if txn_id in update_map:
+                u = update_map[txn_id]
+                group.primary.category = u.category
+                group.primary.subcategory = u.subcategory
+
+        ledger_path.write_text(dump_ledger_csv(groups), encoding="utf-8")
+
+
 class CategorizationPersistenceService:
     """
     Service that orchestrates the emit-update-rebuild pattern for categorizations.
@@ -193,9 +231,60 @@ class CategorizationPersistenceService:
             accounts_written=accounts_written,
         )
 
+    def persist_note_update(
+        self,
+        account_id: str,
+        transaction_id: str,
+        note: str | None,
+    ) -> None:
+        """Update the note on a single transaction and write back to its ledger CSV.
+
+        Delegates to the standalone :func:`persist_note_update` function.
+        """
+        persist_note_update(
+            account_id=account_id,
+            transaction_id=transaction_id,
+            note=note,
+            ledger_data_dir=self._ledger_data_dir,
+        )
+
+
+def persist_note_update(
+    account_id: str,
+    transaction_id: str,
+    note: str | None,
+    ledger_data_dir: Path,
+) -> None:
+    """Update the note on a single transaction and write back to its ledger CSV.
+
+    Args:
+        account_id: Account ID that owns the transaction (used to locate the ledger file).
+        transaction_id: The transaction whose note should be updated.
+        note: New note text, or None to clear the note.
+        ledger_data_dir: Directory containing per-account CSV ledger files.
+
+    Raises:
+        FileNotFoundError: If the ledger CSV for the account does not exist.
+    """
+    ledger_path = ledger_data_dir / f"{account_id}.csv"
+    if not ledger_path.exists():
+        raise FileNotFoundError(f"Ledger file not found: {ledger_path}")
+
+    text = ledger_path.read_text(encoding="utf-8")
+    groups = load_ledger_csv(text, default_currency="CAD")
+
+    for group in groups:
+        if group.primary.transaction_id == transaction_id:
+            group.primary.notes = note if note else None
+            break
+
+    ledger_path.write_text(dump_ledger_csv(groups), encoding="utf-8")
+
 
 __all__ = [
     "CategorizationUpdate",
     "CategorizationPersistenceResult",
     "CategorizationPersistenceService",
+    "persist_note_update",
+    "write_categorizations_to_csv",
 ]

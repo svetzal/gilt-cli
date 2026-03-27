@@ -10,7 +10,7 @@ from pathlib import Path
 from rich.table import Table
 
 from gilt.model.category_io import load_categories_config
-from gilt.model.ledger_io import load_ledger_csv
+from gilt.model.ledger_io import load_all_ledger_groups
 from gilt.workspace import Workspace
 
 from .util import console, fmt_amount_str
@@ -24,27 +24,15 @@ def _count_category_usage(data_dir: Path) -> dict[tuple[str, str | None], tuple[
     """
     usage: dict[tuple[str, str | None], tuple[int, float]] = defaultdict(lambda: (0, 0.0))
 
-    try:
-        for ledger_path in sorted(data_dir.glob("*.csv")):
-            try:
-                text = ledger_path.read_text(encoding="utf-8")
-                groups = load_ledger_csv(text, default_currency="CAD")
+    for group in load_all_ledger_groups(data_dir):
+        cat = group.primary.category
+        subcat = group.primary.subcategory
+        amount = group.primary.amount
 
-                for group in groups:
-                    cat = group.primary.category
-                    subcat = group.primary.subcategory
-                    amount = group.primary.amount
-
-                    if cat:  # Only count categorized transactions
-                        key = (cat, subcat)
-                        count, total = usage[key]
-                        usage[key] = (count + 1, total + amount)
-            except Exception:
-                # Skip individual ledger errors
-                continue
-    except Exception:
-        # If data_dir doesn't exist or is unreadable
-        pass
+        if cat:  # Only count categorized transactions
+            key = (cat, subcat)
+            count, total = usage[key]
+            usage[key] = (count + 1, total + amount)
 
     return dict(usage)
 

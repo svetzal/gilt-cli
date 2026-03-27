@@ -8,10 +8,9 @@ from rich.text import Text
 from gilt.ingest import load_accounts_config
 from gilt.model.account import Transaction
 from gilt.services.transaction_query_service import TransactionQueryService
-from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
-from .util import console, fmt_amount
+from .util import console, fmt_amount, require_projections
 
 
 def _load_all_transactions(
@@ -19,13 +18,10 @@ def _load_all_transactions(
     include_duplicates: bool,
 ) -> list[Transaction] | int:
     """Load all transactions from the projections database. Returns list or exit code."""
-    projections_path = workspace.projections_path
-    if not projections_path.exists():
-        console.print(f"[red]Error:[/red] Projections database not found: {projections_path}")
-        console.print("[yellow]Run 'gilt rebuild-projections' first.[/yellow]")
+    projection_builder = require_projections(workspace)
+    if projection_builder is None:
         return 1
 
-    projection_builder = ProjectionBuilder(projections_path)
     rows = projection_builder.get_all_transactions(include_duplicates=include_duplicates)
     return [Transaction.from_projection_row(row) for row in rows]
 

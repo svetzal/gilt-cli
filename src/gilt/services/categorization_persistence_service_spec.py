@@ -232,3 +232,116 @@ class DescribePersistCategoryRename(DescribeCategorizationPersistenceService):
         assert result.transactions_updated == 2
         assert result.events_emitted == 2
         assert set(result.accounts_written) == {"MYBANK_CHQ", "MYBANK_CC"}
+
+
+class DescribeWriteCategorizationsToCsv:
+    """Tests for write_categorizations_to_csv standalone function."""
+
+    def it_should_update_category_in_csv_for_each_update(self, tmp_path):
+        from gilt.services.categorization_persistence_service import write_categorizations_to_csv
+
+        ledger_dir = tmp_path / "accounts"
+        ledger_dir.mkdir()
+        group = _make_group("txn001", "MYBANK_CHQ")
+        (ledger_dir / "MYBANK_CHQ.csv").write_text(dump_ledger_csv([group]), encoding="utf-8")
+
+        from gilt.model.ledger_io import load_ledger_csv
+
+        updates = [
+            CategorizationUpdate(
+                transaction_id="txn001",
+                account_id="MYBANK_CHQ",
+                category="Groceries",
+                subcategory="Fresh",
+                source="user",
+                confidence=1.0,
+            )
+        ]
+        write_categorizations_to_csv(updates, ledger_dir)
+
+        text = (ledger_dir / "MYBANK_CHQ.csv").read_text(encoding="utf-8")
+        result = load_ledger_csv(text)
+        assert result[0].primary.category == "Groceries"
+        assert result[0].primary.subcategory == "Fresh"
+
+    def it_should_skip_missing_ledger_files(self, tmp_path):
+        from gilt.services.categorization_persistence_service import write_categorizations_to_csv
+
+        ledger_dir = tmp_path / "accounts"
+        ledger_dir.mkdir()
+
+        updates = [
+            CategorizationUpdate(
+                transaction_id="txn001",
+                account_id="MISSING_ACCT",
+                category="Groceries",
+                subcategory=None,
+                source="user",
+                confidence=1.0,
+            )
+        ]
+        # Should not raise
+        write_categorizations_to_csv(updates, ledger_dir)
+
+
+class DescribePersistNoteUpdate:
+    """Tests for persist_note_update standalone function."""
+
+    def it_should_update_note_in_csv_file(self, tmp_path):
+        from gilt.services.categorization_persistence_service import persist_note_update
+
+        ledger_dir = tmp_path / "accounts"
+        ledger_dir.mkdir()
+        group = _make_group("txn001", "MYBANK_CHQ")
+        (ledger_dir / "MYBANK_CHQ.csv").write_text(dump_ledger_csv([group]), encoding="utf-8")
+
+        persist_note_update(
+            account_id="MYBANK_CHQ",
+            transaction_id="txn001",
+            note="paid by cash",
+            ledger_data_dir=ledger_dir,
+        )
+
+        from gilt.model.ledger_io import load_ledger_csv
+
+        text = (ledger_dir / "MYBANK_CHQ.csv").read_text(encoding="utf-8")
+        result = load_ledger_csv(text)
+        assert result[0].primary.notes == "paid by cash"
+
+    def it_should_clear_note_when_none_passed(self, tmp_path):
+        from gilt.services.categorization_persistence_service import persist_note_update
+
+        ledger_dir = tmp_path / "accounts"
+        ledger_dir.mkdir()
+        group = _make_group("txn001", "MYBANK_CHQ")
+        group.primary.notes = "old note"
+        (ledger_dir / "MYBANK_CHQ.csv").write_text(dump_ledger_csv([group]), encoding="utf-8")
+
+        persist_note_update(
+            account_id="MYBANK_CHQ",
+            transaction_id="txn001",
+            note=None,
+            ledger_data_dir=ledger_dir,
+        )
+
+        from gilt.model.ledger_io import load_ledger_csv
+
+        text = (ledger_dir / "MYBANK_CHQ.csv").read_text(encoding="utf-8")
+        result = load_ledger_csv(text)
+        assert result[0].primary.notes is None
+
+    def it_should_raise_when_ledger_file_not_found(self, tmp_path):
+        import pytest
+
+        from gilt.services.categorization_persistence_service import persist_note_update
+
+        ledger_dir = tmp_path / "accounts"
+        ledger_dir.mkdir()
+
+        with pytest.raises(FileNotFoundError):
+            persist_note_update(
+                account_id="MISSING_ACCT",
+                transaction_id="txn001",
+                note="some note",
+                ledger_data_dir=ledger_dir,
+            )

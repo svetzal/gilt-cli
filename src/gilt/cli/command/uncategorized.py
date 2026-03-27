@@ -8,10 +8,9 @@ Display uncategorized transactions.
 from rich.table import Table
 
 from gilt.model.account import Transaction
-from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
-from .util import console, fmt_amount_str
+from .util import console, fmt_amount_str, require_projections
 
 
 def run(
@@ -39,16 +38,11 @@ def run(
     Returns:
         Exit code (0 success, 1 error)
     """
-    projections_path = workspace.projections_path
-
-    # Check projections exist
-    if not projections_path.exists():
-        console.print(f"[red]Error:[/red] Projections database not found: {projections_path}")
-        console.print("[yellow]Run 'gilt rebuild-projections' first.[/yellow]")
+    projection_builder = require_projections(workspace)
+    if projection_builder is None:
         return 1
 
     # Load all transactions from projections (excludes duplicates)
-    projection_builder = ProjectionBuilder(projections_path)
     all_transactions = projection_builder.get_all_transactions(include_duplicates=False)
 
     # Filter for uncategorized transactions

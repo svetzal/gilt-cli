@@ -42,7 +42,11 @@ from gilt.gui.widgets.transaction_detail_panel import TransactionDetailPanel
 from gilt.gui.widgets.transaction_table import TransactionTableWidget
 from gilt.model.account import TransactionGroup
 from gilt.model.duplicate import DuplicateAssessment, DuplicateMatch, TransactionPair
-from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
+from gilt.services.categorization_persistence_service import (
+    CategorizationUpdate,
+    persist_note_update,
+    write_categorizations_to_csv,
+)
 from gilt.services.duplicate_service import DuplicateService
 from gilt.services.rule_inference_service import RuleInferenceService
 from gilt.services.smart_category_service import SmartCategoryService
@@ -798,33 +802,19 @@ class TransactionsView(QWidget):
             restore_transaction_id: If set, re-select this transaction after reload.
         """
         try:
-            # Group transactions by account
-            by_account = {}
-            for txn_group in transactions:
-                account_id = txn_group.primary.account_id
-                if account_id not in by_account:
-                    by_account[account_id] = []
-                by_account[account_id].append(txn_group.primary.transaction_id)
-
-            # Update each account file
-            for account_id, txn_ids in by_account.items():
-                ledger_path = self.service.data_dir / f"{account_id}.csv"
-                if not ledger_path.exists():
-                    continue
-
-                # Load ledger
-                text = ledger_path.read_text(encoding="utf-8")
-                groups = load_ledger_csv(text)
-
-                # Update transactions
-                for group in groups:
-                    if group.primary.transaction_id in txn_ids:
-                        group.primary.category = category
-                        group.primary.subcategory = subcategory
-
-                # Save back to file
-                updated_csv = dump_ledger_csv(groups)
-                ledger_path.write_text(updated_csv, encoding="utf-8")
+            # Write category updates to CSV ledger files
+            updates = [
+                CategorizationUpdate(
+                    transaction_id=txn_group.primary.transaction_id,
+                    account_id=txn_group.primary.account_id,
+                    category=category,
+                    subcategory=subcategory,
+                    source=source,
+                    confidence=1.0,
+                )
+                for txn_group in transactions
+            ]
+            write_categorizations_to_csv(updates, self.service.data_dir)
 
             # Record categorization events for ML training
             if self.smart_category_service:
@@ -880,25 +870,12 @@ class TransactionsView(QWidget):
             note: New note text
         """
         try:
-            account_id = transaction.primary.account_id
-            ledger_path = self.service.data_dir / f"{account_id}.csv"
-
-            if not ledger_path.exists():
-                raise FileNotFoundError(f"Ledger file not found: {ledger_path}")
-
-            # Load ledger
-            text = ledger_path.read_text(encoding="utf-8")
-            groups = load_ledger_csv(text)
-
-            # Update transaction
-            for group in groups:
-                if group.primary.transaction_id == transaction.primary.transaction_id:
-                    group.primary.notes = note if note else None
-                    break
-
-            # Save back to file
-            updated_csv = dump_ledger_csv(groups)
-            ledger_path.write_text(updated_csv, encoding="utf-8")
+            persist_note_update(
+                account_id=transaction.primary.account_id,
+                transaction_id=transaction.primary.transaction_id,
+                note=note if note else None,
+                ledger_data_dir=self.service.data_dir,
+            )
 
             # Sync projections DB so reload sees the updated data
             self._sync_projections()

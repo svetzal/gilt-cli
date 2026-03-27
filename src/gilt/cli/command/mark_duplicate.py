@@ -21,7 +21,7 @@ from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
-from .util import console
+from .util import console, require_projections
 
 
 def _find_transaction_by_prefix(
@@ -113,12 +113,8 @@ def run(
         console.print(f"[red]Error:[/red] Data directory not found: {workspace.ledger_data_dir}")
         return 1
 
-    # Check that projections exist
-    if not workspace.projections_path.exists():
-        console.print(
-            f"[red]Error:[/red] Projections database not found: {workspace.projections_path}"
-        )
-        console.print("[yellow]Run 'gilt rebuild-projections' first.[/yellow]")
+    projection_builder = require_projections(workspace)
+    if projection_builder is None:
         return 1
 
     # Validate input
@@ -129,7 +125,6 @@ def run(
     # Initialize services
     es_service = EventSourcingService(workspace=workspace)
     event_store = es_service.get_event_store()
-    projection_builder = ProjectionBuilder(workspace.projections_path)
     review_service = DuplicateReviewService(event_store=event_store)
 
     # Find transactions

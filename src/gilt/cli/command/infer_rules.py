@@ -11,7 +11,7 @@ from gilt.services.rule_inference_service import RuleInferenceService
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
-from .util import console, fmt_amount_str, print_dry_run_message
+from .util import console, fmt_amount_str, print_dry_run_message, require_projections
 
 
 def _display_rules(rules):
@@ -104,11 +104,8 @@ def run(
     export: str | None = None,
 ) -> int:
     """Infer and optionally apply categorization rules from history."""
-    if not workspace.projections_path.exists():
-        console.print(
-            "[red]Error:[/red] Projections database not found.\n"
-            "[dim]Run 'gilt rebuild-projections' first[/dim]"
-        )
+    projection_builder_check = require_projections(workspace)
+    if projection_builder_check is None:
         return 1
 
     service = RuleInferenceService(workspace.projections_path)

@@ -7,7 +7,7 @@ Diagnose category issues by finding categories in transactions that aren't in co
 from rich.table import Table
 
 from gilt.model.category_io import load_categories_config
-from gilt.model.ledger_io import load_ledger_csv
+from gilt.model.ledger_io import load_all_ledger_groups
 from gilt.services.category_diagnostics_service import CategoryDiagnosticsService
 from gilt.workspace import Workspace
 
@@ -16,24 +16,10 @@ from .util import console
 
 def _load_transactions_from_ledgers(data_dir) -> list[dict]:
     """Load all transactions from ledger CSVs as plain dicts for diagnostic use."""
-    transactions: list[dict] = []
-    try:
-        for ledger_path in sorted(data_dir.glob("*.csv")):
-            try:
-                text = ledger_path.read_text(encoding="utf-8")
-                groups = load_ledger_csv(text, default_currency="CAD")
-                for group in groups:
-                    transactions.append(
-                        {
-                            "category": group.primary.category,
-                            "subcategory": group.primary.subcategory,
-                        }
-                    )
-            except Exception:
-                continue
-    except Exception:
-        pass
-    return transactions
+    return [
+        {"category": group.primary.category, "subcategory": group.primary.subcategory}
+        for group in load_all_ledger_groups(data_dir)
+    ]
 
 
 def run(
