@@ -192,9 +192,9 @@ def _validate_migration(
                 event_store, ledger_texts, config, tx_builder, budget_builder
             )
         else:
-            from gilt.services.event_migration_service import ValidationResult
+            from gilt.services.event_migration_service import MigrationValidationResult
 
-            result = ValidationResult(
+            result = MigrationValidationResult(
                 is_valid=True,
                 errors=[],
                 transaction_count_match=True,

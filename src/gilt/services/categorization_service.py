@@ -23,6 +23,7 @@ from dataclasses import dataclass, field
 from gilt.model.account import TransactionGroup
 from gilt.model.category import CategoryConfig
 from gilt.model.events import TransactionCategorized
+from gilt.model.validation import ValidationResult
 from gilt.services.transaction_operations_service import (
     SearchCriteria,
     TransactionOperationsService,
@@ -32,14 +33,6 @@ try:
     from gilt.storage.event_store import EventStore
 except ImportError:
     EventStore = None  # type: ignore
-
-
-@dataclass
-class ValidationResult:
-    """Result of validating a category/subcategory."""
-
-    is_valid: bool
-    errors: list[str] = field(default_factory=list)
 
 
 @dataclass

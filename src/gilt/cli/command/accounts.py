@@ -38,7 +38,7 @@ def _collect_accounts(config_path: Path, data_dir: Path) -> dict[str, str]:
 
     # 2) Unmanaged ledgers present on disk
     try:
-        for p in sorted((data_dir or Path("data/accounts")).glob("*.csv")):
+        for p in sorted(data_dir.glob("*.csv")):
             aid = p.stem
             if aid not in id_to_desc:
                 id_to_desc[aid] = aid

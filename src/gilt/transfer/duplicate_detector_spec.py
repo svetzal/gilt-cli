@@ -136,6 +136,15 @@ class DescribeDuplicateDetectorAdaptivePrompts:
             assert detector.learned_patterns == ["Pattern from v4"]
 
 
+class DescribeLoadAllTransactions:
+    def it_should_raise_when_projections_path_not_provided(self):
+        import pytest
+
+        detector = DuplicateDetector()
+        with pytest.raises(ValueError, match="projections_path"):
+            detector.load_all_transactions(Path("/any"))
+
+
 class DescribeTransactionPairSourceFileTracking:
     """Test suite for source_file tracking in TransactionPair."""
 

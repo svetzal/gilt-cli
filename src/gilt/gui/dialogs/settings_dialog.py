@@ -24,6 +24,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from gilt.workspace import Workspace
+
 
 class SettingsDialog(QDialog):
     """Dialog for application settings."""
@@ -145,28 +147,28 @@ class SettingsDialog(QDialog):
 
     def _browse_data_dir(self):
         """Browse for data directory."""
-        current = self.data_dir_edit.text() or str(Path.cwd() / "data/accounts")
+        current = self.data_dir_edit.text() or str(Workspace.resolve().ledger_data_dir)
         directory = QFileDialog.getExistingDirectory(self, "Select Data Directory", current)
         if directory:
             self.data_dir_edit.setText(directory)
 
     def _browse_ingest_dir(self):
         """Browse for ingest directory."""
-        current = self.ingest_dir_edit.text() or str(Path.cwd() / "ingest")
+        current = self.ingest_dir_edit.text() or str(Workspace.resolve().ingest_dir)
         directory = QFileDialog.getExistingDirectory(self, "Select Ingest Directory", current)
         if directory:
             self.ingest_dir_edit.setText(directory)
 
     def _browse_receipts_dir(self):
         """Browse for receipts directory."""
-        current = self.receipts_dir_edit.text() or str(Path.cwd() / "receipts")
+        current = self.receipts_dir_edit.text() or str(Workspace.resolve().root / "receipts")
         directory = QFileDialog.getExistingDirectory(self, "Select Receipts Directory", current)
         if directory:
             self.receipts_dir_edit.setText(directory)
 
     def _browse_accounts_config(self):
         """Browse for accounts config file."""
-        current = self.accounts_config_edit.text() or str(Path.cwd() / "config/accounts.yml")
+        current = self.accounts_config_edit.text() or str(Workspace.resolve().accounts_config)
         file_path, _ = QFileDialog.getOpenFileName(
             self,
             "Select Accounts Config",
@@ -178,7 +180,7 @@ class SettingsDialog(QDialog):
 
     def _browse_categories_config(self):
         """Browse for categories config file."""
-        current = self.categories_config_edit.text() or str(Path.cwd() / "config/categories.yml")
+        current = self.categories_config_edit.text() or str(Workspace.resolve().categories_config)
         file_path, _ = QFileDialog.getOpenFileName(
             self,
             "Select Categories Config",
@@ -190,19 +192,23 @@ class SettingsDialog(QDialog):
 
     def _load_settings(self):
         """Load settings from QSettings."""
+        ws = Workspace.resolve()
+
         # General
         self.currency_edit.setText(self.settings.value("general/default_currency", "CAD"))
 
-        # Paths
-        self.data_dir_edit.setText(self.settings.value("paths/data_dir", "data/accounts"))
-        self.ingest_dir_edit.setText(self.settings.value("paths/ingest_dir", "ingest"))
+        # Paths - use Workspace as fallback when no QSettings value
+        self.data_dir_edit.setText(self.settings.value("paths/data_dir", str(ws.ledger_data_dir)))
+        self.ingest_dir_edit.setText(self.settings.value("paths/ingest_dir", str(ws.ingest_dir)))
         self.accounts_config_edit.setText(
-            self.settings.value("paths/accounts_config", "config/accounts.yml")
+            self.settings.value("paths/accounts_config", str(ws.accounts_config))
         )
         self.categories_config_edit.setText(
-            self.settings.value("paths/categories_config", "config/categories.yml")
+            self.settings.value("paths/categories_config", str(ws.categories_config))
         )
-        self.receipts_dir_edit.setText(self.settings.value("paths/receipts_dir", "receipts"))
+        self.receipts_dir_edit.setText(
+            self.settings.value("paths/receipts_dir", str(ws.root / "receipts"))
+        )
 
     def accept(self):
         """Save settings and close dialog."""
@@ -219,70 +225,64 @@ class SettingsDialog(QDialog):
         super().accept()
 
     @staticmethod
-    def _gilt_data_root() -> Path | None:
-        """Return the GILT_DATA workspace root, or None if not set."""
-        env = os.environ.get("GILT_DATA")
-        return Path(env) if env else None
-
-    @staticmethod
     def get_data_dir() -> Path:
         """Get the configured data directory.
 
-        Resolution: GILT_DATA env var → QSettings → relative default.
+        Resolution: GILT_DATA env var → QSettings → Workspace default.
         """
-        root = SettingsDialog._gilt_data_root()
-        if root is not None:
-            return root / "data" / "accounts"
+        ws = Workspace.resolve()
+        if os.environ.get("GILT_DATA"):
+            return ws.ledger_data_dir
         settings = QSettings()
-        return Path(settings.value("paths/data_dir", "data/accounts"))
+        return Path(settings.value("paths/data_dir", str(ws.ledger_data_dir)))
 
     @staticmethod
     def get_ingest_dir() -> Path:
         """Get the configured ingest directory.
 
-        Resolution: GILT_DATA env var → QSettings → relative default.
+        Resolution: GILT_DATA env var → QSettings → Workspace default.
         """
-        root = SettingsDialog._gilt_data_root()
-        if root is not None:
-            return root / "ingest"
+        ws = Workspace.resolve()
+        if os.environ.get("GILT_DATA"):
+            return ws.ingest_dir
         settings = QSettings()
-        return Path(settings.value("paths/ingest_dir", "ingest"))
+        return Path(settings.value("paths/ingest_dir", str(ws.ingest_dir)))
 
     @staticmethod
     def get_accounts_config() -> Path:
         """Get the configured accounts config path.
 
-        Resolution: GILT_DATA env var → QSettings → relative default.
+        Resolution: GILT_DATA env var → QSettings → Workspace default.
         """
-        root = SettingsDialog._gilt_data_root()
-        if root is not None:
-            return root / "config" / "accounts.yml"
+        ws = Workspace.resolve()
+        if os.environ.get("GILT_DATA"):
+            return ws.accounts_config
         settings = QSettings()
-        return Path(settings.value("paths/accounts_config", "config/accounts.yml"))
+        return Path(settings.value("paths/accounts_config", str(ws.accounts_config)))
 
     @staticmethod
     def get_categories_config() -> Path:
         """Get the configured categories config path.
 
-        Resolution: GILT_DATA env var → QSettings → relative default.
+        Resolution: GILT_DATA env var → QSettings → Workspace default.
         """
-        root = SettingsDialog._gilt_data_root()
-        if root is not None:
-            return root / "config" / "categories.yml"
+        ws = Workspace.resolve()
+        if os.environ.get("GILT_DATA"):
+            return ws.categories_config
         settings = QSettings()
-        return Path(settings.value("paths/categories_config", "config/categories.yml"))
+        return Path(settings.value("paths/categories_config", str(ws.categories_config)))
 
     @staticmethod
     def get_receipts_dir() -> Path:
         """Get the configured receipts directory.
 
-        Resolution: GILT_DATA env var → QSettings → relative default.
+        Resolution: GILT_DATA env var → QSettings → Workspace default.
         """
-        root = SettingsDialog._gilt_data_root()
-        if root is not None:
-            return root / "receipts"
+        ws = Workspace.resolve()
+        if os.environ.get("GILT_DATA"):
+            return ws.root / "receipts"
         settings = QSettings()
-        return Path(settings.value("paths/receipts_dir", "receipts"))
+        return Path(settings.value("paths/receipts_dir", str(ws.root / "receipts")))
 
     @staticmethod
     def get_default_currency() -> str:

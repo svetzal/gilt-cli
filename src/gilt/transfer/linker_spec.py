@@ -83,3 +83,10 @@ def it_should_mark_both_sides_and_persist_metadata(tmp_path: Path):
     # Run again (idempotent). No further file changes should be needed.
     changed2 = link_transfers(processed_dir=tmp_path, write=True)
     assert changed2 in {0, 2}  # implementation may touch both files if score/method updated
+
+
+def it_should_require_processed_dir():
+    import pytest
+
+    with pytest.raises(TypeError):
+        link_transfers()

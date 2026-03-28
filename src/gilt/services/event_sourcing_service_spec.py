@@ -64,10 +64,11 @@ class DescribeEventSourcingServicePathResolution:
             assert service.event_store_path == explicit_es
             assert service.projections_path == explicit_proj
 
-    def it_should_fall_back_to_relative_paths_when_no_workspace(self):
-        service = EventSourcingService()
-        assert service.event_store_path == Path("data/events.db")
-        assert service.projections_path == Path("data/projections.db")
+    def it_should_raise_when_no_workspace_or_paths_provided(self):
+        import pytest
+
+        with pytest.raises(ValueError, match="workspace"):
+            EventSourcingService()
 
 
 # ---------------------------------------------------------------------------

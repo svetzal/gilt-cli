@@ -23,15 +23,14 @@ from dataclasses import dataclass, field
 
 from gilt.model.duplicate import DuplicateAssessment, DuplicateMatch, TransactionPair
 from gilt.model.events import DuplicateConfirmed, DuplicateRejected, DuplicateSuggested, Event
+from gilt.model.validation import ValidationResult
 from gilt.storage.event_store import EventStore
 
 
 @dataclass
-class DuplicateValidationResult:
+class DuplicateValidationResult(ValidationResult):
     """Result of validating a duplicate transaction pair."""
 
-    is_valid: bool
-    errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
 

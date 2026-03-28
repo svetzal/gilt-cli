@@ -87,9 +87,12 @@ class EventSourcingService:
             self.event_store_path = event_store_path or workspace.event_store_path
             self.projections_path = projections_path or workspace.projections_path
         else:
-            # Fallback to relative paths for backward compat
-            self.event_store_path = event_store_path or Path("data/events.db")
-            self.projections_path = projections_path or Path("data/projections.db")
+            if event_store_path is None or projections_path is None:
+                raise ValueError(
+                    "Either workspace or explicit event_store_path and projections_path must be provided"
+                )
+            self.event_store_path = event_store_path
+            self.projections_path = projections_path
 
     def check_event_store_status(self, data_dir: Path | None = None) -> EventStoreStatus:
         """

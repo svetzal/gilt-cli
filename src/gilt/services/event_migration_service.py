@@ -28,6 +28,7 @@ from gilt.model.events import (
     TransactionCategorized,
     TransactionImported,
 )
+from gilt.model.validation import ValidationResult
 from gilt.storage.budget_projection import BudgetProjectionBuilder
 from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
@@ -44,14 +45,12 @@ class MigrationStats:
 
 
 @dataclass
-class ValidationResult:
+class MigrationValidationResult(ValidationResult):
     """Result of projection validation against original data."""
 
-    is_valid: bool
-    errors: list[str]
-    transaction_count_match: bool
-    budget_count_match: bool
-    sample_transactions_match: bool
+    transaction_count_match: bool = False
+    budget_count_match: bool = False
+    sample_transactions_match: bool = False
 
 
 class EventMigrationService:
@@ -192,7 +191,7 @@ class EventMigrationService:
         category_config: CategoryConfig,
         tx_projection_builder: ProjectionBuilder,
         budget_projection_builder: BudgetProjectionBuilder,
-    ) -> ValidationResult:
+    ) -> MigrationValidationResult:
         """Validate that projections rebuilt from events match original data.
 
         Compares:
@@ -208,7 +207,7 @@ class EventMigrationService:
             budget_projection_builder: Budget projection builder
 
         Returns:
-            ValidationResult with detailed comparison
+            MigrationValidationResult with detailed comparison
         """
         errors: list[str] = []
 
@@ -252,7 +251,7 @@ class EventMigrationService:
         # Overall validation passes if all checks pass
         is_valid = transaction_count_match and budget_count_match and sample_transactions_match
 
-        return ValidationResult(
+        return MigrationValidationResult(
             is_valid=is_valid,
             errors=errors,
             transaction_count_match=transaction_count_match,

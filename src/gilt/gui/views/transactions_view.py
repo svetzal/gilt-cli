@@ -215,12 +215,14 @@ class TransactionsView(QWidget):
         smart_category_service: SmartCategoryService = None,
         event_store: EventStore = None,
         cache_path: Path | None = None,
+        projections_path: Path | None = None,
         parent=None,
     ):
         super().__init__(parent)
 
-        # Projections DB is sibling to accounts dir (data/projections.db)
-        self.projections_path = data_dir.parent / "projections.db"
+        self.projections_path = (
+            projections_path if projections_path is not None else data_dir.parent / "projections.db"
+        )
         self.service = TransactionService(data_dir, projections_db_path=self.projections_path)
         self.duplicate_service = duplicate_service
         self.smart_category_service = smart_category_service

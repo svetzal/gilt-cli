@@ -186,6 +186,7 @@ def show_predictions(
     detector = DuplicateDetector(
         model=DEFAULT_OLLAMA_MODEL,
         event_store_path=workspace.event_store_path,
+        projections_path=workspace.projections_path,
         use_ml=True,
     )
 

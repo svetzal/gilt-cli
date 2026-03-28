@@ -322,6 +322,7 @@ def run(
         model=model,
         data_dir=data_dir if interactive else None,
         event_store_path=workspace.event_store_path,
+        projections_path=workspace.projections_path,
         use_ml=not use_llm,
     )
 

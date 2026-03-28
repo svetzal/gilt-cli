@@ -34,7 +34,10 @@ class DescribeSettingsDialog:
             monkeypatch.delenv("GILT_DATA", raising=False)
             with patch("gilt.gui.dialogs.settings_dialog.QSettings") as mock_qs:
                 mock_qs.return_value.value.side_effect = lambda key, default: default
-                assert SettingsDialog.get_data_dir() == Path("data/accounts")
+                from gilt.workspace import Workspace
+
+                ws = Workspace.resolve()
+                assert SettingsDialog.get_data_dir() == ws.ledger_data_dir
 
     class DescribeGetIngestDir:
         def it_should_use_gilt_data_env_var_when_set(self, monkeypatch):
@@ -45,7 +48,10 @@ class DescribeSettingsDialog:
             monkeypatch.delenv("GILT_DATA", raising=False)
             with patch("gilt.gui.dialogs.settings_dialog.QSettings") as mock_qs:
                 mock_qs.return_value.value.side_effect = lambda key, default: default
-                assert SettingsDialog.get_ingest_dir() == Path("ingest")
+                from gilt.workspace import Workspace
+
+                ws = Workspace.resolve()
+                assert SettingsDialog.get_ingest_dir() == ws.ingest_dir
 
     class DescribeGetAccountsConfig:
         def it_should_use_gilt_data_env_var_when_set(self, monkeypatch):
@@ -56,7 +62,10 @@ class DescribeSettingsDialog:
             monkeypatch.delenv("GILT_DATA", raising=False)
             with patch("gilt.gui.dialogs.settings_dialog.QSettings") as mock_qs:
                 mock_qs.return_value.value.side_effect = lambda key, default: default
-                assert SettingsDialog.get_accounts_config() == Path("config/accounts.yml")
+                from gilt.workspace import Workspace
+
+                ws = Workspace.resolve()
+                assert SettingsDialog.get_accounts_config() == ws.accounts_config
 
     class DescribeGetCategoriesConfig:
         def it_should_use_gilt_data_env_var_when_set(self, monkeypatch):
@@ -69,4 +78,7 @@ class DescribeSettingsDialog:
             monkeypatch.delenv("GILT_DATA", raising=False)
             with patch("gilt.gui.dialogs.settings_dialog.QSettings") as mock_qs:
                 mock_qs.return_value.value.side_effect = lambda key, default: default
-                assert SettingsDialog.get_categories_config() == Path("config/categories.yml")
+                from gilt.workspace import Workspace
+
+                ws = Workspace.resolve()
+                assert SettingsDialog.get_categories_config() == ws.categories_config

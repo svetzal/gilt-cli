@@ -139,8 +139,11 @@ class DuplicateDetector:
 
         transactions: list[Transaction] = []
 
-        # Use provided projections_path or fall back to default
-        projections_path = self.projections_path or Path("data/projections.db")
+        if self.projections_path is None:
+            raise ValueError(
+                "projections_path is required — pass it to the DuplicateDetector constructor"
+            )
+        projections_path = self.projections_path
         if not projections_path.exists():
             return transactions
 

@@ -108,7 +108,7 @@ TRANSFER_LINK_FEE_DAY_WINDOW: int = 1
 
 
 def link_transfers(
-    processed_dir: Path = Path("data/accounts"),
+    processed_dir: Path,
     *,
     window_days: int = TRANSFER_LINK_WINDOW_DAYS,
     epsilon_direct: float = TRANSFER_LINK_EPSILON_DIRECT,

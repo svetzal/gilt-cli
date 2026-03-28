@@ -68,7 +68,8 @@ class MainWindow(QMainWindow):
 
         # Duplicate Detection
         self.duplicate_detector = DuplicateDetector(
-            event_store_path=self.workspace.event_store_path
+            event_store_path=self.workspace.event_store_path,
+            projections_path=self.workspace.projections_path,
         )
         self.duplicate_service = DuplicateService(self.duplicate_detector, self.event_store)
 
@@ -215,6 +216,7 @@ class MainWindow(QMainWindow):
             duplicate_service=self.duplicate_service,
             smart_category_service=self.smart_category_service,
             event_store=self.event_store,
+            projections_path=self.workspace.projections_path,
             parent=self,
         )
         self.transactions_view.status_message.connect(
@@ -337,7 +339,11 @@ class MainWindow(QMainWindow):
         es_service = EventSourcingService(workspace=self.workspace)
         event_store = es_service.get_event_store()
 
-        detector = DuplicateDetector(event_store_path=self.workspace.event_store_path, use_ml=True)
+        detector = DuplicateDetector(
+            event_store_path=self.workspace.event_store_path,
+            projections_path=self.workspace.projections_path,
+            use_ml=True,
+        )
         duplicate_service = DuplicateService(detector, event_store)
 
         # Initialize smart category service
