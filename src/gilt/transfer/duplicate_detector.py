@@ -12,6 +12,7 @@ Privacy:
 - All processing happens on local ledger files only.
 """
 
+import logging
 from pathlib import Path
 
 from mojentic.llm.gateways.models import LLMMessage
@@ -27,6 +28,8 @@ from gilt.model.duplicate import (
 from gilt.model.events import PromptUpdated
 from gilt.storage.event_store import EventStore
 from gilt.transfer.prompt_manager import PromptManager
+
+logger = logging.getLogger(__name__)
 
 
 class DuplicateDetector:
@@ -96,7 +99,7 @@ class DuplicateDetector:
             # ML dependencies not installed, fall back to LLM
             return None
         except Exception:
-            # Training failed, fall back to LLM
+            logger.warning("ML classifier training failed, falling back to LLM", exc_info=True)
             return None
 
     def _load_learned_patterns(self, event_store_path: Path) -> None:
@@ -116,8 +119,9 @@ class DuplicateDetector:
                     self.prompt_version = latest_event.prompt_version
                     self.learned_patterns = latest_event.learned_patterns
         except Exception:
-            # If loading fails, just use defaults (v1 with no patterns)
-            pass
+            logger.warning(
+                "Failed to load learned patterns from event store, using defaults", exc_info=True
+            )
 
     def _get_llm(self) -> LLMBroker:
         """Lazy-initialize LLM broker."""
@@ -244,8 +248,7 @@ class DuplicateDetector:
             try:
                 return self._ml_classifier.predict(pair)
             except Exception:
-                # Fall back to LLM if ML fails
-                pass
+                logger.debug("ML prediction failed, falling back to LLM", exc_info=True)
 
         # Fall back to LLM
         return self._assess_duplicate_llm(pair)

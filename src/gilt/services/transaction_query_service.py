@@ -7,6 +7,7 @@ Accepts Transaction objects directly; no file I/O, no projections database,
 no UI imports (rich, typer, PySide6).
 """
 
+import logging
 from dataclasses import dataclass
 
 from gilt.model.account import Transaction
@@ -17,6 +18,8 @@ from gilt.transfer import (
     TRANSFER_META_KEY,
     TRANSFER_ROLE,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -118,7 +121,7 @@ class TransactionQueryService:
                     else:
                         note_parts.append(f"Transfer {cp_label}")
         except Exception:
-            pass
+            logger.debug("Failed to extract transfer metadata for display", exc_info=True)
 
         if transaction.notes:
             note_parts.append(transaction.notes)

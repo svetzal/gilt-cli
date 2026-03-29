@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import typer
@@ -20,6 +21,8 @@ from gilt.workspace import Workspace
 from .util import console, fmt_amount_str, print_dry_run_message, require_projections
 
 """Categorize transactions (single or batch mode)."""
+
+logger = logging.getLogger(__name__)
 
 
 def _find_account_ledgers(data_dir: Path, account: str | None) -> list[Path]:
@@ -240,7 +243,7 @@ def _init_services(
         if event_store_status.exists:
             event_store = event_sourcing_service.get_event_store()
     except Exception:
-        pass
+        logger.debug("Event store not available, proceeding without it", exc_info=True)
 
     if categorization_service is None:
         categorization_service = CategorizationService(

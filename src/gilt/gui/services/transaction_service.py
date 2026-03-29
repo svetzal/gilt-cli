@@ -7,12 +7,15 @@ Handles loading, filtering, and manipulating transaction data for the GUI.
 All operations remain local-only with no network I/O.
 """
 
+import logging
 from datetime import date
 from pathlib import Path
 
 from gilt.model.account import TransactionGroup
 from gilt.model.ledger_io import load_all_ledger_groups, load_ledger_csv
 from gilt.storage.projection import ProjectionBuilder
+
+logger = logging.getLogger(__name__)
 
 
 class TransactionService:
@@ -87,7 +90,7 @@ class TransactionService:
             self._cache[account_id] = groups
             return groups
         except Exception as e:
-            print(f"Error loading account {account_id}: {e}")
+            logger.error("Failed to load account %s: %s", account_id, e, exc_info=True)
             return []
 
     def get_available_accounts(self) -> list[str]:
@@ -247,7 +250,7 @@ class TransactionService:
             return True
 
         except Exception as e:
-            print(f"Error deleting transaction {transaction_id}: {e}")
+            logger.error("Failed to delete transaction %s: %s", transaction_id, e, exc_info=True)
             return False
 
     def update_transaction(self, group: TransactionGroup) -> bool:
@@ -294,5 +297,5 @@ class TransactionService:
             return True
 
         except Exception as e:
-            print(f"Error updating transaction: {e}")
+            logger.error("Failed to update transaction: %s", e, exc_info=True)
             return False

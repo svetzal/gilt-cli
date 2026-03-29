@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from rich.table import Table
@@ -8,6 +9,8 @@ from gilt.ingest import load_accounts_config
 from gilt.workspace import Workspace
 
 from .util import console
+
+logger = logging.getLogger(__name__)
 
 
 def _collect_accounts(config_path: Path, data_dir: Path) -> dict[str, str]:
@@ -22,6 +25,7 @@ def _collect_accounts(config_path: Path, data_dir: Path) -> dict[str, str]:
     try:
         accounts = load_accounts_config(config_path)
     except Exception:
+        logger.warning("Failed to load accounts config", exc_info=True)
         accounts = []
     for a in accounts:
         aid = getattr(a, "account_id", None)
@@ -43,8 +47,7 @@ def _collect_accounts(config_path: Path, data_dir: Path) -> dict[str, str]:
             if aid not in id_to_desc:
                 id_to_desc[aid] = aid
     except Exception:
-        # Be resilient if directory doesn't exist or is unreadable
-        pass
+        logger.debug("Could not scan data directory for unmanaged ledgers", exc_info=True)
 
     return id_to_desc
 

@@ -21,6 +21,7 @@ transfer = {
 Idempotent: if the same counterpart is already recorded, it will not duplicate.
 """
 
+import logging
 from pathlib import Path
 
 from gilt.model.account import TransactionGroup
@@ -41,6 +42,8 @@ from gilt.transfer._constants import (
 # We reuse the matching logic from the matching module (no CLI deps)
 from gilt.transfer.matching import Match, compute_matches
 
+logger = logging.getLogger(__name__)
+
 
 def _build_indexes(
     processed_dir: Path,
@@ -59,6 +62,7 @@ def _build_indexes(
             text = csv_path.read_text(encoding="utf-8")
             groups = load_ledger_csv(text, default_currency="CAD")
         except Exception:
+            logger.warning("Failed to load ledger %s, skipping", csv_path, exc_info=True)
             groups = []
         file_groups[str(csv_path)] = groups
         for g in groups:

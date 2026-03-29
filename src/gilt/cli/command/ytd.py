@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import date
 
 from rich.table import Table
@@ -11,6 +12,8 @@ from gilt.services.transaction_query_service import TransactionQueryService
 from gilt.workspace import Workspace
 
 from .util import console, fmt_amount, require_projections
+
+logger = logging.getLogger(__name__)
 
 
 def _load_all_transactions(
@@ -125,7 +128,7 @@ def run(
             if aid == account:
                 acct_nature = getattr(a.nature, "value", str(a.nature))
     except Exception:
-        pass
+        logger.debug("Could not determine account nature, defaulting to asset", exc_info=True)
 
     load_result = _load_all_transactions(workspace, include_duplicates)
     if isinstance(load_result, int):
