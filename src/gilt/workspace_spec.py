@@ -46,3 +46,19 @@ class DescribeWorkspace:
         def it_should_compute_intelligence_cache_path(self):
             ws = Workspace(root=Path("/data"))
             assert ws.intelligence_cache_path == Path("/data/data/private/intelligence_cache.json")
+
+        def it_should_compute_event_store_path(self):
+            ws = Workspace(root=Path("/data"))
+            assert ws.event_store_path == Path("/data/data/events.db")
+
+        def it_should_compute_projections_path(self):
+            ws = Workspace(root=Path("/data"))
+            assert ws.projections_path == Path("/data/data/projections.db")
+
+        def it_should_compute_budget_projections_path(self):
+            ws = Workspace(root=Path("/data"))
+            assert ws.budget_projections_path == Path("/data/data/budget_projections.db")
+
+        def it_should_compute_reports_dir(self):
+            ws = Workspace(root=Path("/data"))
+            assert ws.reports_dir == Path("/data/reports")
