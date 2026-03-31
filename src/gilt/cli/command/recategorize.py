@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import typer
-from rich.table import Table
 
 from gilt.model.account import TransactionGroup
 from gilt.model.category_io import parse_category_path
@@ -9,7 +8,14 @@ from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
-from .util import console, fmt_amount_str, print_dry_run_message, require_projections
+from .util import (
+    console,
+    create_transaction_table,
+    fmt_amount_str,
+    print_dry_run_message,
+    print_transaction_table,
+    require_projections,
+)
 
 """
 Rename categories across all ledger files.
@@ -115,20 +121,13 @@ def _display_matches(
     to_category: str,
 ) -> None:
     """Display matched transactions in a table."""
-    table = Table(title="Transactions to Recategorize", show_lines=False)
-    table.add_column("Account", style="cyan", no_wrap=True)
-    table.add_column("TxnID", style="blue", no_wrap=True)
-    table.add_column("Date", style="white")
-    table.add_column("Description", style="white")
-    table.add_column("Amount", style="yellow", justify="right")
-    table.add_column("From", style="red")
-    table.add_column("→ To", style="green")
+    table = create_transaction_table(
+        "Transactions to Recategorize",
+        [("From", {"style": "red"}), ("→ To", {"style": "green"})],
+    )
 
     for account_id, group in matches[:50]:  # Limit display to 50
         t = group.primary
-
-        current_cat = from_category
-        new_cat = to_category
 
         table.add_row(
             account_id,
@@ -136,14 +135,11 @@ def _display_matches(
             str(t.date),
             (t.description or "")[:40],
             fmt_amount_str(t.amount),
-            current_cat,
-            new_cat,
+            from_category,
+            to_category,
         )
 
-    console.print(table)
-
-    if len(matches) > 50:
-        console.print(f"[dim]... and {len(matches) - 50} more[/]")
+    print_transaction_table(table, len(matches))
 
     console.print(f"\n[bold]Total:[/] {len(matches)} transaction(s)")
 

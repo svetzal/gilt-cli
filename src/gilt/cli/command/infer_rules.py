@@ -11,7 +11,14 @@ from gilt.services.rule_inference_service import RuleInferenceService
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
-from .util import console, fmt_amount_str, print_dry_run_message, require_projections
+from .util import (
+    console,
+    create_transaction_table,
+    fmt_amount_str,
+    print_dry_run_message,
+    print_transaction_table,
+    require_projections,
+)
 
 
 def _display_rules(rules):
@@ -38,14 +45,13 @@ def _display_rules(rules):
 
 
 def _display_matches(matches):
-    table = Table(title="Transactions Matching Rules", show_lines=False)
-    table.add_column("TxnID", style="dim", no_wrap=True)
-    table.add_column("Date", style="dim")
-    table.add_column("Account", style="cyan", no_wrap=True)
-    table.add_column("Description", style="white")
-    table.add_column("Amount", style="yellow", justify="right")
-    table.add_column("Inferred Category", style="green")
-    table.add_column("Evidence", style="blue", justify="right")
+    table = create_transaction_table(
+        "Transactions Matching Rules",
+        [
+            ("Inferred Category", {"style": "green"}),
+            ("Evidence", {"style": "blue", "justify": "right"}),
+        ],
+    )
 
     for m in matches:
         txn = m.transaction
@@ -53,9 +59,9 @@ def _display_matches(matches):
         if m.rule.subcategory:
             cat_display = f"{m.rule.category}:{m.rule.subcategory}"
         table.add_row(
+            txn.get("account_id", ""),
             txn["transaction_id"][:8],
             txn.get("transaction_date", ""),
-            txn.get("account_id", ""),
             (txn.get("canonical_description") or "")[:50],
             fmt_amount_str(txn.get("amount", 0)),
             cat_display,
@@ -63,7 +69,7 @@ def _display_matches(matches):
         )
 
     console.print("\n")
-    console.print(table)
+    print_transaction_table(table, len(matches))
 
 
 def _write_matches(matches, workspace, event_store, projection_builder):

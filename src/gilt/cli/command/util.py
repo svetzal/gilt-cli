@@ -3,12 +3,53 @@ from __future__ import annotations
 from pathlib import Path
 
 from rich.console import Console
+from rich.table import Table
 from rich.text import Text
 
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
 console = Console()
+
+
+def create_transaction_table(title: str, extra_columns: list[tuple[str, dict]]) -> Table:
+    """Create a Rich Table with 5 standard transaction columns plus any extra columns.
+
+    The standard columns are: Account (cyan/no_wrap), TxnID (blue/no_wrap),
+    Date (white), Description (white), Amount (yellow/right).
+
+    Args:
+        title: The table title.
+        extra_columns: List of (header, kwargs) pairs appended after the base columns.
+            kwargs are keyword arguments for ``Table.add_column`` (e.g. ``{"style": "green"}``).
+    """
+    table = Table(title=title, show_lines=False)
+    table.add_column("Account", style="cyan", no_wrap=True)
+    table.add_column("TxnID", style="blue", no_wrap=True)
+    table.add_column("Date", style="white")
+    table.add_column("Description", style="white")
+    table.add_column("Amount", style="yellow", justify="right")
+    for header, kwargs in extra_columns:
+        table.add_column(header, **kwargs)
+    return table
+
+
+def print_transaction_table(
+    table: Table,
+    total_count: int,
+    *,
+    display_limit: int = 50,
+) -> None:
+    """Print a transaction table and an overflow message if total_count exceeds display_limit.
+
+    Args:
+        table: The Rich Table to print.
+        total_count: The true number of transactions (before any slice was applied).
+        display_limit: Maximum rows shown before the overflow message is printed.
+    """
+    console.print(table)
+    if total_count > display_limit:
+        console.print(f"[dim]... and {total_count - display_limit} more[/]")
 
 
 def read_ledger_text(ledger_path: Path) -> str:

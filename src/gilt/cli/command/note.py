@@ -2,8 +2,6 @@ from __future__ import annotations
 
 """Add or update notes on transactions."""
 
-from rich.table import Table
-
 from gilt.model.account import TransactionGroup
 from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
 from gilt.services.transaction_operations_service import (
@@ -12,7 +10,7 @@ from gilt.services.transaction_operations_service import (
 )
 from gilt.workspace import Workspace
 
-from .util import console, print_dry_run_message
+from .util import console, create_transaction_table, print_dry_run_message, print_transaction_table
 
 
 def _highlight_prefix(desc: str, prefix: str, style: str = "bold yellow") -> str:
@@ -38,14 +36,10 @@ def _display_matches(
     desc_prefix: str | None = None,
 ) -> None:
     """Display matched transactions in a table."""
-    table = Table(title="Matched Transactions", show_lines=False)
-    table.add_column("Account", style="cyan", no_wrap=True)
-    table.add_column("TxnID", style="blue", no_wrap=True)
-    table.add_column("Date", style="white")
-    table.add_column("Description", style="white")
-    table.add_column("Amount", style="yellow", justify="right")
-    table.add_column("Current Note", style="dim")
-    table.add_column("→ New Note", style="green")
+    table = create_transaction_table(
+        "Matched Transactions",
+        [("Current Note", {"style": "dim"}), ("→ New Note", {"style": "green"})],
+    )
 
     for group in groups[:50]:  # Limit display to 50
         txn = group.primary
@@ -62,10 +56,7 @@ def _display_matches(
             note_text[:30],
         )
 
-    console.print(table)
-
-    if len(groups) > 50:
-        console.print(f"[dim]... and {len(groups) - 50} more[/]")
+    print_transaction_table(table, len(groups))
 
 
 def _find_single_transaction(

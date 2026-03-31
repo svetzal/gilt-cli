@@ -4,7 +4,6 @@ import logging
 from pathlib import Path
 
 import typer
-from rich.table import Table
 
 from gilt.model.account import TransactionGroup
 from gilt.model.category_io import load_categories_config, parse_category_path
@@ -18,7 +17,14 @@ from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
-from .util import console, fmt_amount_str, print_dry_run_message, require_projections
+from .util import (
+    console,
+    create_transaction_table,
+    fmt_amount_str,
+    print_dry_run_message,
+    print_transaction_table,
+    require_projections,
+)
 
 """Categorize transactions (single or batch mode)."""
 
@@ -363,14 +369,10 @@ def _display_matches(
     subcategory: str | None,
 ) -> None:
     """Display matched transactions in a table."""
-    table = Table(title="Matched Transactions", show_lines=False)
-    table.add_column("Account", style="cyan", no_wrap=True)
-    table.add_column("TxnID", style="blue", no_wrap=True)
-    table.add_column("Date", style="white")
-    table.add_column("Description", style="white")
-    table.add_column("Amount", style="yellow", justify="right")
-    table.add_column("Current Cat", style="dim")
-    table.add_column("→ New Cat", style="green")
+    table = create_transaction_table(
+        "Matched Transactions",
+        [("Current Cat", {"style": "dim"}), ("→ New Cat", {"style": "green"})],
+    )
 
     for account_id, group in matches[:50]:  # Limit display to 50
         t = group.primary
@@ -395,10 +397,7 @@ def _display_matches(
             new_cat,
         )
 
-    console.print(table)
-
-    if len(matches) > 50:
-        console.print(f"[dim]... and {len(matches) - 50} more[/]")
+    print_transaction_table(table, len(matches))
 
 
 __all__ = ["run"]
