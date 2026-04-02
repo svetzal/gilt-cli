@@ -272,3 +272,72 @@ class DescribeEnsureProjectionsUpToDate:
             service = EventSourcingService(workspace=ws)
             result = service.ensure_projections_up_to_date(store, builder)
             assert result > 0
+
+
+class DescribeEnsureReady:
+    """Tests for EventSourcingService.ensure_ready."""
+
+    def it_should_return_no_data_when_event_store_missing_and_no_csvs(self):
+        with TemporaryDirectory() as tmpdir:
+            ws = Workspace(root=Path(tmpdir))
+            service = EventSourcingService(workspace=ws)
+            result = service.ensure_ready(data_dir=ws.ledger_data_dir)
+            assert result.ready is False
+            assert result.error == "no_data"
+            assert result.event_store is None
+
+    def it_should_return_no_event_store_when_csvs_exist_but_no_store(self):
+        with TemporaryDirectory() as tmpdir:
+            ws = Workspace(root=Path(tmpdir))
+            ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
+            (ws.ledger_data_dir / "MYBANK_CHQ.csv").write_text("header\n")
+            service = EventSourcingService(workspace=ws)
+            result = service.ensure_ready(data_dir=ws.ledger_data_dir)
+            assert result.ready is False
+            assert result.error == "no_event_store"
+            assert result.csv_files_count == 1
+
+    def it_should_return_ready_with_store_and_builder_when_all_present(self):
+        with TemporaryDirectory() as tmpdir:
+            ws = Workspace(root=Path(tmpdir))
+            ws.event_store_path.parent.mkdir(parents=True, exist_ok=True)
+            store = EventStore(str(ws.event_store_path))
+            _append_transaction_event(store, txn_id="aaaa0001aaaa0001", account="MYBANK_CHQ")
+            builder = ProjectionBuilder(ws.projections_path)
+            builder.rebuild_from_scratch(store)
+
+            service = EventSourcingService(workspace=ws)
+            result = service.ensure_ready()
+            assert result.ready is True
+            assert result.event_store is not None
+            assert result.projection_builder is not None
+            assert result.error is None
+
+    def it_should_auto_rebuild_projections_when_missing(self):
+        with TemporaryDirectory() as tmpdir:
+            ws = Workspace(root=Path(tmpdir))
+            ws.event_store_path.parent.mkdir(parents=True, exist_ok=True)
+            store = EventStore(str(ws.event_store_path))
+            _append_transaction_event(store, txn_id="bbbb0001bbbb0001", account="MYBANK_CHQ")
+            # No projections created
+
+            service = EventSourcingService(workspace=ws)
+            result = service.ensure_ready()
+            assert result.ready is True
+            assert result.events_processed > 0
+
+    def it_should_auto_rebuild_projections_when_outdated(self):
+        with TemporaryDirectory() as tmpdir:
+            ws = Workspace(root=Path(tmpdir))
+            ws.event_store_path.parent.mkdir(parents=True, exist_ok=True)
+            store = EventStore(str(ws.event_store_path))
+            _append_transaction_event(store, txn_id="cccc0001cccc0001", account="MYBANK_CHQ")
+            builder = ProjectionBuilder(ws.projections_path)
+            builder.rebuild_from_scratch(store)
+            # Add another event to make projections outdated
+            _append_transaction_event(store, txn_id="cccc0002cccc0002", account="MYBANK_CC")
+
+            service = EventSourcingService(workspace=ws)
+            result = service.ensure_ready()
+            assert result.ready is True
+            assert result.events_processed > 0

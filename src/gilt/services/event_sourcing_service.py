@@ -29,6 +29,18 @@ from gilt.storage.projection import ProjectionBuilder
 
 
 @dataclass
+class EventSourcingReadyResult:
+    """Result of ensure_ready() — describes whether event sourcing is usable."""
+
+    ready: bool
+    event_store: EventStore | None = None
+    projection_builder: ProjectionBuilder | None = None
+    error: str | None = None  # "no_event_store", "no_data"
+    csv_files_count: int | None = None  # populated when event store is missing but CSVs exist
+    events_processed: int = 0  # number of events applied during auto-rebuild
+
+
+@dataclass
 class EventStoreStatus:
     """Status of event store existence check."""
 
@@ -201,8 +213,48 @@ class EventSourcingService:
             return 0
 
 
+    def ensure_ready(self, data_dir: Path | None = None) -> EventSourcingReadyResult:
+        """Check and initialize event sourcing, auto-rebuilding projections if needed.
+
+        Returns a result that is either ready (with event_store and projection_builder)
+        or not ready (with an error code and diagnostic info). No console output — the
+        caller formats messages for display.
+
+        Args:
+            data_dir: Optional data directory to check for legacy CSV files when the
+                event store is missing (used to hint the user about migration).
+
+        Returns:
+            EventSourcingReadyResult — inspect .ready before using .event_store /
+            .projection_builder.  When not ready, .error is one of:
+            - "no_event_store"  event store DB does not exist
+            - "no_data"         event store missing and no legacy CSVs found either
+        """
+        store_status = self.check_event_store_status(data_dir=data_dir)
+        if not store_status.exists:
+            if store_status.csv_files_count:
+                return EventSourcingReadyResult(
+                    ready=False,
+                    error="no_event_store",
+                    csv_files_count=store_status.csv_files_count,
+                )
+            return EventSourcingReadyResult(ready=False, error="no_data")
+
+        event_store = self.get_event_store()
+        projection_builder = self.get_projection_builder()
+        events_processed = self.ensure_projections_up_to_date(event_store, projection_builder)
+
+        return EventSourcingReadyResult(
+            ready=True,
+            event_store=event_store,
+            projection_builder=projection_builder,
+            events_processed=events_processed,
+        )
+
+
 __all__ = [
     "EventSourcingService",
+    "EventSourcingReadyResult",
     "EventStoreStatus",
     "ProjectionStatus",
 ]

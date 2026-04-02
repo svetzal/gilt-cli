@@ -1,6 +1,8 @@
 from datetime import date
 from unittest.mock import Mock
 
+import pytest
+
 from gilt.model.duplicate import DuplicateAssessment, DuplicateMatch, TransactionPair
 from gilt.model.events import DuplicateConfirmed, DuplicateRejected
 from gilt.services.duplicate_service import DuplicateService
@@ -89,3 +91,47 @@ class DescribeDuplicateService:
         assert event.transaction_id_2 == "t2"
         assert event.user_rationale == "Different dates"
         assert event.llm_was_correct is False
+
+
+class DescribeResolveAndIdentifyDeletion:
+    @pytest.fixture
+    def match(self):
+        pair = TransactionPair(
+            txn1_id="t1",
+            txn1_date=date(2025, 1, 1),
+            txn1_description="desc1",
+            txn1_amount=10.0,
+            txn1_account="acc1",
+            txn2_id="t2",
+            txn2_date=date(2025, 1, 1),
+            txn2_description="desc2",
+            txn2_amount=10.0,
+            txn2_account="acc2",
+        )
+        assessment = DuplicateAssessment(is_duplicate=True, confidence=0.9, reasoning="Same")
+        return DuplicateMatch(pair=pair, assessment=assessment)
+
+    @pytest.fixture
+    def service(self):
+        mock_detector = Mock(spec=DuplicateDetector)
+        mock_event_store = Mock(spec=EventStore)
+        mock_event_store.get_events_by_type.return_value = []
+        return DuplicateService(mock_detector, mock_event_store)
+
+    def it_should_return_not_confirmed_when_rejected(self, service, match):
+        result = service.resolve_and_identify_deletion(match, is_duplicate=False)
+        assert result.confirmed is False
+        assert result.delete_transaction_id is None
+        assert result.delete_account_id is None
+
+    def it_should_identify_txn2_for_deletion_when_keeping_txn1(self, service, match):
+        result = service.resolve_and_identify_deletion(match, is_duplicate=True, keep_id="t1")
+        assert result.confirmed is True
+        assert result.delete_transaction_id == "t2"
+        assert result.delete_account_id == "acc2"
+
+    def it_should_identify_txn1_for_deletion_when_keeping_txn2(self, service, match):
+        result = service.resolve_and_identify_deletion(match, is_duplicate=True, keep_id="t2")
+        assert result.confirmed is True
+        assert result.delete_transaction_id == "t1"
+        assert result.delete_account_id == "acc1"

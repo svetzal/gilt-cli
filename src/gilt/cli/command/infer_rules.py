@@ -162,10 +162,12 @@ def run(
 
     # Write mode
     es_service = EventSourcingService(workspace=workspace)
-    event_store = es_service.get_event_store()
-    projection_builder = es_service.get_projection_builder()
+    ready = es_service.ensure_ready()
+    if not ready.ready:
+        console.print("[red]Error:[/red] Event store not found. Run 'gilt migrate-to-events --write' first.")
+        return 1
 
-    _write_matches(matches, workspace, event_store, projection_builder)
+    _write_matches(matches, workspace, ready.event_store, ready.projection_builder)
     return 0
 
 

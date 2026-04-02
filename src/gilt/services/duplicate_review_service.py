@@ -278,6 +278,33 @@ class DuplicateReviewService:
 
         return SmartDefault(default_choice=default_choice, hint=hint)
 
+    def mark_manual_duplicate(
+        self,
+        primary_transaction_id: str,
+        duplicate_transaction_id: str,
+        canonical_description: str,
+    ) -> DuplicateConfirmed:
+        """Create and emit a DuplicateConfirmed event for a manually identified duplicate.
+
+        Args:
+            primary_transaction_id: Transaction ID to keep.
+            duplicate_transaction_id: Transaction ID to mark as duplicate.
+            canonical_description: Description to use on the primary transaction.
+
+        Returns:
+            The emitted DuplicateConfirmed event.
+        """
+        event = DuplicateConfirmed(
+            suggestion_event_id="manual",
+            primary_transaction_id=primary_transaction_id,
+            duplicate_transaction_id=duplicate_transaction_id,
+            canonical_description=canonical_description,
+            user_rationale="Manual duplicate marking",
+            llm_was_correct=False,
+        )
+        self.event_store.append_event(event)
+        return event
+
     def filter_by_confidence(
         self,
         matches: list[DuplicateMatch],

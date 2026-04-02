@@ -528,3 +528,57 @@ class DescribeEdgeCases(DescribeTransactionOperationsService):
         assert preview.criteria == criteria
         assert preview.criteria.desc_prefix == "SPOTIFY"
         assert preview.criteria.amount == -10.99
+
+
+
+
+class DescribeFindByPrefix:
+    """Tests for TransactionOperationsService.find_by_prefix."""
+
+    @pytest.fixture
+    def service(self):
+        return TransactionOperationsService()
+
+    @pytest.fixture
+    def sample_txns(self):
+        return [
+            {"transaction_id": "abc123def456789a", "description": "SPOTIFY"},
+            {"transaction_id": "abc123def456789b", "description": "SPOTIFY DUP"},
+            {"transaction_id": "xyz789uvw0123456", "description": "NETFLIX"},
+        ]
+
+    def it_should_return_error_when_prefix_too_short(self, service, sample_txns):
+        result = service.find_by_prefix("abc123", sample_txns)
+        assert result.transaction is None
+        assert result.error == "prefix_too_short"
+
+    def it_should_return_error_when_not_found(self, service, sample_txns):
+        result = service.find_by_prefix("notfound", sample_txns)
+        assert result.transaction is None
+        assert result.error == "not_found"
+
+    def it_should_return_error_when_ambiguous(self, service, sample_txns):
+        # "abc123de" matches both abc123def456789a and abc123def456789b
+        result = service.find_by_prefix("abc123de", sample_txns)
+        assert result.transaction is None
+        assert result.error == "ambiguous"
+        assert len(result.ambiguous_matches) == 2
+
+    def it_should_return_transaction_on_exact_match(self, service, sample_txns):
+        result = service.find_by_prefix("abc123def456789a", sample_txns)
+        assert result.error is None
+        assert result.transaction is not None
+        assert result.transaction["transaction_id"] == "abc123def456789a"
+
+    def it_should_return_transaction_on_unique_prefix(self, service, sample_txns):
+        # "xyz789uv" uniquely matches "xyz789uvw0123456"
+        result = service.find_by_prefix("xyz789uv", sample_txns)
+        assert result.error is None
+        assert result.transaction is not None
+        assert result.transaction["transaction_id"] == "xyz789uvw0123456"
+
+    def it_should_cap_ambiguous_matches_at_five(self, service):
+        txns = [{"transaction_id": f"abc123de{i:08d}"} for i in range(10)]
+        result = service.find_by_prefix("abc123de", txns)
+        assert result.error == "ambiguous"
+        assert len(result.ambiguous_matches) == 5

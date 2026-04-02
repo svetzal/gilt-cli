@@ -647,3 +647,40 @@ class DescribeDuplicateFiltering(DescribeDuplicateReviewService):
 
         assert len(filtered) == 1
         assert skipped == 0
+
+
+class DescribeMarkManualDuplicate(DescribeDuplicateReviewService):
+    """Tests for mark_manual_duplicate method."""
+
+    def it_should_create_manual_duplicate_event(
+        self, service, mock_event_store
+    ):
+        """Should create DuplicateConfirmed event with manual sentinel values."""
+        event = service.mark_manual_duplicate(
+            primary_transaction_id="abc123def456",
+            duplicate_transaction_id="xyz789uvw012",
+            canonical_description="SPOTIFY PREMIUM",
+        )
+
+        assert isinstance(event, DuplicateConfirmed)
+        assert event.primary_transaction_id == "abc123def456"
+        assert event.duplicate_transaction_id == "xyz789uvw012"
+        assert event.canonical_description == "SPOTIFY PREMIUM"
+        assert event.suggestion_event_id == "manual"
+        assert event.user_rationale == "Manual duplicate marking"
+        assert event.llm_was_correct is False
+
+    def it_should_append_event_to_store(
+        self, service, mock_event_store
+    ):
+        """Should append the DuplicateConfirmed event to the event store."""
+        service.mark_manual_duplicate(
+            primary_transaction_id="abc123def456",
+            duplicate_transaction_id="xyz789uvw012",
+            canonical_description="SPOTIFY PREMIUM",
+        )
+
+        mock_event_store.append_event.assert_called_once()
+        event = mock_event_store.append_event.call_args[0][0]
+        assert isinstance(event, DuplicateConfirmed)
+        assert event.primary_transaction_id == "abc123def456"

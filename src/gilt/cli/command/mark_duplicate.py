@@ -11,63 +11,40 @@ Privacy:
 
 from __future__ import annotations
 
-from rich.console import Console
 from rich.prompt import Prompt
 from rich.table import Table
 
-from gilt.model.events import DuplicateConfirmed
 from gilt.services.duplicate_review_service import DuplicateReviewService
 from gilt.services.event_sourcing_service import EventSourcingService
-from gilt.storage.projection import ProjectionBuilder
+from gilt.services.transaction_operations_service import TransactionOperationsService
 from gilt.workspace import Workspace
 
 from .util import console, require_projections
 
 
-def _find_transaction_by_prefix(
-    projection_builder: ProjectionBuilder,
-    txid_prefix: str,
-    console: Console,
-) -> dict | None:
-    """Find a transaction by ID prefix (min 8 chars).
+def _resolve_prefix(tx_service: TransactionOperationsService, txid_prefix: str, transactions: list[dict]) -> dict | None:
+    """Resolve a transaction by prefix, printing errors to console.
 
-    Args:
-        projection_builder: Projection builder for querying transactions
-        txid_prefix: Transaction ID prefix (minimum 8 characters)
-        console: Rich console for error messages
-
-    Returns:
-        Transaction dict if found, None otherwise
+    Returns the transaction dict on success, None on any error.
     """
-    if len(txid_prefix) < 8:
+    result = tx_service.find_by_prefix(txid_prefix, transactions)
+    if result.transaction is not None:
+        return result.transaction
+    if result.error == "prefix_too_short":
         console.print(
             f"[red]Error:[/red] Transaction ID prefix must be at least 8 characters "
             f"(got {len(txid_prefix)})"
         )
-        return None
-
-    # Try exact match first
-    txn = projection_builder.get_transaction(txid_prefix)
-    if txn:
-        return txn
-
-    # Try prefix match
-    all_txns = projection_builder.get_all_transactions(include_duplicates=True)
-    matches = [t for t in all_txns if t["transaction_id"].startswith(txid_prefix)]
-
-    if len(matches) == 0:
+    elif result.error == "not_found":
         console.print(f"[red]Error:[/red] No transaction found with ID prefix: {txid_prefix}")
-        return None
-    elif len(matches) > 1:
+    elif result.error == "ambiguous":
         console.print(
             f"[red]Error:[/red] Ambiguous transaction ID prefix '{txid_prefix}' "
-            f"matches {len(matches)} transactions:"
+            f"matches {len(result.ambiguous_matches)} transactions:"
         )
-        for m in matches[:5]:  # Show first 5 matches
-            console.print(f"  - {m['transaction_id'][:16]}")
-        return None
-
-    return matches[0]
+        for tid in (result.ambiguous_matches or []):
+            console.print(f"  - {tid}")
+    return None
 
 
 def _display_validation_results(validation, write: bool) -> None:
@@ -126,14 +103,17 @@ def run(
     es_service = EventSourcingService(workspace=workspace)
     event_store = es_service.get_event_store()
     review_service = DuplicateReviewService(event_store=event_store)
+    tx_service = TransactionOperationsService()
 
     # Find transactions
     console.print("[dim]Looking up transactions...[/dim]")
-    primary_txn = _find_transaction_by_prefix(projection_builder, primary_txid, console)
+    all_txns = projection_builder.get_all_transactions(include_duplicates=True)
+
+    primary_txn = _resolve_prefix(tx_service, primary_txid, all_txns)
     if not primary_txn:
         return 1
 
-    duplicate_txn = _find_transaction_by_prefix(projection_builder, duplicate_txid, console)
+    duplicate_txn = _resolve_prefix(tx_service, duplicate_txid, all_txns)
     if not duplicate_txn:
         return 1
 
@@ -213,20 +193,15 @@ def run(
         return 0
 
     # Emit DuplicateConfirmed event
-    event = DuplicateConfirmed(
-        suggestion_event_id="manual",  # No suggestion event for manual marking
+    review_service.mark_manual_duplicate(
         primary_transaction_id=primary_txn["transaction_id"],
         duplicate_transaction_id=duplicate_txn["transaction_id"],
         canonical_description=canonical_description,
-        user_rationale="Manual duplicate marking",
-        llm_was_correct=False,  # Not from LLM prediction
     )
-
-    event_store.append_event(event)
 
     # Rebuild projections to reflect the change
     console.print("[dim]Rebuilding projections...[/dim]")
-    events_processed = projection_builder.rebuild_incremental(event_store)
+    events_processed = es_service.ensure_projections_up_to_date(event_store)
 
     console.print()
     console.print("[green]✓ Duplicate marked successfully[/green]")

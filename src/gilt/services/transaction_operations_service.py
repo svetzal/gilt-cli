@@ -65,6 +65,15 @@ class MatchResult:
 
 
 @dataclass
+class TransactionLookupResult:
+    """Result of finding a projection transaction dict by ID prefix."""
+
+    transaction: dict | None
+    error: str | None = None  # "prefix_too_short", "not_found", "ambiguous"
+    ambiguous_matches: list[str] | None = None  # First 5 IDs when ambiguous
+
+
+@dataclass
 class BatchPreview:
     """Preview of a batch operation."""
 
@@ -93,6 +102,47 @@ class TransactionOperationsService:
     - Prompt users for input
     - Format output for display
     """
+
+    def find_by_prefix(
+        self,
+        txid_prefix: str,
+        transactions: list[dict],
+        min_length: int = 8,
+    ) -> TransactionLookupResult:
+        """Find a projection transaction dict by ID prefix.
+
+        Args:
+            txid_prefix: Transaction ID prefix (case-insensitive)
+            transactions: Pre-loaded list of transaction dicts from the projection DB
+            min_length: Minimum prefix length required (default 8)
+
+        Returns:
+            TransactionLookupResult with the found transaction or an error code.
+            error values: "prefix_too_short", "not_found", "ambiguous"
+        """
+        if len(txid_prefix) < min_length:
+            return TransactionLookupResult(
+                transaction=None, error="prefix_too_short"
+            )
+
+        # Exact match first
+        for txn in transactions:
+            if txn.get("transaction_id") == txid_prefix:
+                return TransactionLookupResult(transaction=txn)
+
+        # Prefix match
+        matches = [t for t in transactions if t.get("transaction_id", "").startswith(txid_prefix)]
+
+        if len(matches) == 0:
+            return TransactionLookupResult(transaction=None, error="not_found")
+        elif len(matches) == 1:
+            return TransactionLookupResult(transaction=matches[0])
+        else:
+            return TransactionLookupResult(
+                transaction=None,
+                error="ambiguous",
+                ambiguous_matches=[t["transaction_id"][:16] for t in matches[:5]],
+            )
 
     def find_by_id_prefix(
         self,
@@ -262,6 +312,7 @@ __all__ = [
     "TransactionOperationsService",
     "SearchCriteria",
     "MatchResult",
+    "TransactionLookupResult",
     "BatchPreview",
     "NoteMode",
 ]

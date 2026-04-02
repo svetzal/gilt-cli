@@ -183,9 +183,7 @@ def run(
     # 5) Rebuild projections to reflect new events
     console.print("[bold]Rebuilding projections from events[/]")
     projection_builder = es_service.get_projection_builder()
-
-    # Use incremental rebuild (only new events)
-    events_processed = projection_builder.rebuild_incremental(event_store)
+    events_processed = es_service.ensure_projections_up_to_date(event_store, projection_builder)
     console.print(f"[green][ok][/green] Processed {events_processed} new event(s)")
 
     # Show projection stats

@@ -65,6 +65,7 @@ class MainWindow(QMainWindow):
         """Initialize application services."""
         # Event Store
         self.event_store = EventStore(str(self.workspace.event_store_path))
+        self.es_service = EventSourcingService(workspace=self.workspace)
 
         # Duplicate Detection
         self.duplicate_detector = DuplicateDetector(
@@ -217,6 +218,7 @@ class MainWindow(QMainWindow):
             smart_category_service=self.smart_category_service,
             event_store=self.event_store,
             projections_path=self.workspace.projections_path,
+            es_service=self.es_service,
             parent=self,
         )
         self.transactions_view.status_message.connect(

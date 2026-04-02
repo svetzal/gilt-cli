@@ -8,6 +8,7 @@ improve future detection.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 
 from gilt.model.account import Transaction
@@ -15,6 +16,15 @@ from gilt.model.duplicate import DuplicateMatch
 from gilt.model.events import DuplicateConfirmed, DuplicateRejected
 from gilt.storage.event_store import EventStore
 from gilt.transfer.duplicate_detector import DuplicateDetector
+
+
+@dataclass
+class DuplicateResolutionResult:
+    """Result of resolving a duplicate match, identifying which transaction to delete."""
+
+    confirmed: bool
+    delete_transaction_id: str | None = None
+    delete_account_id: str | None = None
 
 
 class DuplicateService:
@@ -147,3 +157,43 @@ class DuplicateService:
             )
 
         self.event_store.append_event(event)
+
+    def resolve_and_identify_deletion(
+        self,
+        match: DuplicateMatch,
+        is_duplicate: bool,
+        keep_id: str | None = None,
+        rationale: str | None = None,
+    ) -> DuplicateResolutionResult:
+        """Resolve a match and return which transaction should be deleted.
+
+        Calls resolve_duplicate() to record the decision, then computes which
+        transaction (if any) should be removed from the ledger.
+
+        Args:
+            match: The duplicate match being resolved
+            is_duplicate: True if user confirms it is a duplicate
+            keep_id: ID of the transaction to keep (required if is_duplicate=True)
+            rationale: User's explanation (optional)
+
+        Returns:
+            DuplicateResolutionResult — if confirmed, delete_transaction_id and
+            delete_account_id are populated; otherwise they are None.
+        """
+        self.resolve_duplicate(match, is_duplicate, keep_id, rationale)
+
+        if not is_duplicate:
+            return DuplicateResolutionResult(confirmed=False)
+
+        if keep_id == match.pair.txn1_id:
+            return DuplicateResolutionResult(
+                confirmed=True,
+                delete_transaction_id=match.pair.txn2_id,
+                delete_account_id=match.pair.txn2_account,
+            )
+        else:
+            return DuplicateResolutionResult(
+                confirmed=True,
+                delete_transaction_id=match.pair.txn1_id,
+                delete_account_id=match.pair.txn1_account,
+            )

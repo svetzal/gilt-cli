@@ -2,6 +2,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 from gilt.cli.command import infer_rules
+from gilt.services.event_sourcing_service import EventSourcingReadyResult
 
 
 def _make_workspace(tmp_path):
@@ -116,8 +117,11 @@ class DescribeInferRulesCommand:
             MockSvc.return_value.infer_rules.return_value = [mock_rule]
             MockSvc.return_value.apply_rules.return_value = [mock_match]
             MockPB.return_value.get_all_transactions.return_value = []
-            MockES.return_value.get_event_store.return_value = mock_event_store
-            MockES.return_value.get_projection_builder.return_value = mock_projection_builder
+            MockES.return_value.ensure_ready.return_value = EventSourcingReadyResult(
+                ready=True,
+                event_store=mock_event_store,
+                projection_builder=mock_projection_builder,
+            )
 
             code = infer_rules.run(workspace=ws, apply=True, write=True)
 

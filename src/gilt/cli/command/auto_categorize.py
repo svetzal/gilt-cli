@@ -116,7 +116,8 @@ def _write_categorizations(approved, workspace, category_config, event_store, pr
         ledger_path.write_text(updated_csv, encoding="utf-8")
 
     console.print("\n[dim]Updating projections...[/dim]")
-    projection_builder.rebuild_incremental(event_store)
+    es_service = EventSourcingService(workspace=workspace)
+    es_service.ensure_projections_up_to_date(event_store, projection_builder)
     console.print(f"[green]✓[/green] Categorized {len(approved)} transaction(s)")
 
 

@@ -60,19 +60,19 @@ from .util import console
 
 
 def _setup_event_sourcing(console, workspace):
-    """Initialize event sourcing and ensure projections are current. Returns (es, store, builder) or exit code."""
-    data_dir = workspace.ledger_data_dir
-    if not data_dir.exists():
-        console.print(f"[red]Error:[/red] Data directory not found: {data_dir}")
-        return 1
+    """Initialize event sourcing and ensure projections are current.
 
+    Returns (es_service, event_store, projection_builder) on success, or an int exit code.
+    """
+    data_dir = workspace.ledger_data_dir
     es_service = EventSourcingService(workspace=workspace)
-    event_store_status = es_service.check_event_store_status(data_dir=data_dir)
-    if not event_store_status.exists:
-        if event_store_status.csv_files_count and event_store_status.csv_files_count > 0:
+    result = es_service.ensure_ready(data_dir=data_dir if data_dir.exists() else None)
+
+    if not result.ready:
+        if result.error == "no_event_store":
             console.print(
                 f"[yellow]Event store not found, but found "
-                f"{event_store_status.csv_files_count} CSV file(s)[/]"
+                f"{result.csv_files_count} CSV file(s)[/]"
             )
             console.print()
             console.print("[bold]To migrate your existing data to event sourcing:[/]")
@@ -81,34 +81,24 @@ def _setup_event_sourcing(console, workspace):
             console.print(
                 "[dim]This will create the event store and projections from your CSV files.[/dim]"
             )
-        else:
+        elif data_dir.exists():
             console.print(f"[red]Error:[/red] No data found in {data_dir}")
             console.print()
             console.print("[bold]To get started:[/]")
             console.print("  1. Export CSV files from your bank")
             console.print("  2. Place them in ingest/ directory")
             console.print("  3. Run: gilt ingest --write")
+        else:
+            console.print(f"[red]Error:[/red] Data directory not found: {data_dir}")
         return 1
 
-    event_store = es_service.get_event_store()
-    projection_builder = es_service.get_projection_builder()
-
-    projection_status = es_service.check_projection_status(event_store)
-    if not projection_status.exists:
-        console.print("[yellow]Projections not found, rebuilding from events...[/]")
-        events_processed = projection_builder.rebuild_from_scratch(event_store)
-        console.print(f"[green]✓[/green] Rebuilt projections ({events_processed} events processed)")
-        console.print()
-    elif projection_status.is_outdated:
+    if result.events_processed > 0:
         console.print(
-            f"[yellow]Projections outdated (event {projection_status.current_sequence}/"
-            f"{projection_status.latest_event_sequence}), rebuilding...[/]"
+            f"[green]✓[/green] Projections rebuilt ({result.events_processed} events processed)"
         )
-        events_processed = projection_builder.rebuild_incremental(event_store)
-        console.print(f"[green]✓[/green] Processed {events_processed} new event(s)")
         console.print()
 
-    return es_service, event_store, projection_builder
+    return es_service, result.event_store, result.projection_builder
 
 
 def _analyze_candidates(console, detector, candidates, detection_method):
@@ -145,7 +135,7 @@ def _display_and_review_match(
     match,
     review_service,
     detector,
-    projection_builder,
+    es_service,
     event_store,
     suggestion_event_id,
     feedback,
@@ -214,7 +204,7 @@ def _display_and_review_match(
     else:
         console.print("[green]✓ Rejection recorded[/green]")
 
-    events_processed = projection_builder.rebuild_incremental(event_store)
+    events_processed = es_service.ensure_projections_up_to_date(event_store)
     if events_processed > 0:
         console.print("[dim]✓ Projection updated[/dim]")
     console.print()
@@ -403,7 +393,7 @@ def run(
                     match,
                     review_service,
                     detector,
-                    projection_builder,
+                    es_service,
                     event_store,
                     event_id,
                     feedback,

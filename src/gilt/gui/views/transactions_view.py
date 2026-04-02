@@ -43,12 +43,13 @@ from gilt.gui.widgets.transaction_table import TransactionTableWidget
 from gilt.model.account import TransactionGroup
 from gilt.model.duplicate import DuplicateAssessment, DuplicateMatch, TransactionPair
 from gilt.services.categorization_persistence_service import (
+    CategorizationPersistenceService,
     CategorizationUpdate,
     persist_note_update,
-    write_categorizations_to_csv,
 )
-from gilt.services.duplicate_service import DuplicateService
-from gilt.services.rule_inference_service import RuleInferenceService
+from gilt.services.duplicate_service import DuplicateResolutionResult, DuplicateService
+from gilt.services.event_sourcing_service import EventSourcingService
+from gilt.services.intelligence_scan_service import IntelligenceScanService
 from gilt.services.smart_category_service import SmartCategoryService
 from gilt.storage.event_store import EventStore
 
@@ -76,41 +77,48 @@ class IntelligenceWorker(QThread):
 
     def run(self):
         try:
-            metadata = {}
+            scan_service = IntelligenceScanService()
             all_txns = [g.primary for g in self.transactions]
 
-            # Calculate total work units: 1 for dup scan + 1 for rules + 1 per uncategorized txn
             uncategorized = [t for t in all_txns if not t.category]
-            total_units = 0
-            if self.duplicate_service:
-                total_units += 1
-            if self.projections_path:
-                total_units += 1
-            if self.smart_category_service:
-                total_units += len(uncategorized)
+            total_units = (
+                (1 if self.duplicate_service else 0)
+                + (1 if self.projections_path else 0)
+                + (len(uncategorized) if self.smart_category_service else 0)
+            )
             completed = 0
+            metadata: dict = {}
 
             if self.duplicate_service:
-                self.status.emit("Scanning for duplicates...")
-                if not self._scan_duplicates(all_txns, metadata):
+                if self.isInterruptionRequested():
                     return
+                self.status.emit("Scanning for duplicates...")
+                metadata.update(scan_service.scan_duplicates(all_txns, self.duplicate_service))
                 completed += 1
                 self.progress.emit(completed, total_units)
 
-            # Run rule inference before ML predictions
             rule_matched_ids: set[str] = set()
             if self.projections_path and self.projections_path.exists():
-                self.status.emit("Applying inferred rules...")
-                if not self._apply_inferred_rules(all_txns, metadata, rule_matched_ids):
+                if self.isInterruptionRequested():
                     return
+                self.status.emit("Applying inferred rules...")
+                try:
+                    fragment = scan_service.apply_inferred_rules(all_txns, self.projections_path)
+                    metadata.update(fragment)
+                    rule_matched_ids = set(fragment.keys())
+                except Exception as e:
+                    self.status.emit(f"Rule inference skipped: {e}")
                 completed += 1
                 self.progress.emit(completed, total_units)
 
             if self.smart_category_service:
+                if self.isInterruptionRequested():
+                    return
                 self.status.emit("Predicting categories...")
-                if not self._predict_categories(
-                    all_txns, metadata, completed, total_units, rule_matched_ids
-                ):
+                completed = self._predict_with_progress(
+                    scan_service, all_txns, rule_matched_ids, metadata, completed, total_units
+                )
+                if completed is None:
                     return
 
             if not self.isInterruptionRequested():
@@ -118,82 +126,19 @@ class IntelligenceWorker(QThread):
         except Exception as e:
             self.error.emit(f"Intelligence scan failed: {e}")
 
-    def _scan_duplicates(self, all_txns, metadata: dict) -> bool:
-        """Scan for duplicates and populate metadata. Returns False if interrupted."""
-        if self.isInterruptionRequested():
-            return False
-        matches = self.duplicate_service.scan_transactions(all_txns)
-        for m in matches:
-            if self.isInterruptionRequested():
-                return False
-            for tid in [m.pair.txn1_id, m.pair.txn2_id]:
-                if tid not in metadata:
-                    metadata[tid] = {}
-                metadata[tid]["risk"] = True
-                metadata[tid]["duplicate_match"] = m
-        return True
-
-    def _apply_inferred_rules(self, all_txns, metadata: dict, rule_matched_ids: set[str]) -> bool:
-        """Apply inferred rules to uncategorized transactions. Returns False if interrupted."""
-        if self.isInterruptionRequested():
-            return False
-        try:
-            service = RuleInferenceService(self.projections_path)
-            rules = service.infer_rules(min_evidence=3, min_confidence=0.9)
-            if not rules:
-                return True
-
-            txn_dicts = [
-                {
-                    "transaction_id": t.transaction_id,
-                    "canonical_description": t.description,
-                    "category": t.category,
-                    "account_id": t.account_id,
-                }
-                for t in all_txns
-            ]
-            matches = service.apply_rules(txn_dicts, rules)
-            for m in matches:
-                if self.isInterruptionRequested():
-                    return False
-                tid = m.transaction["transaction_id"]
-                if tid not in metadata:
-                    metadata[tid] = {}
-                cat_display = m.rule.category
-                if m.rule.subcategory:
-                    cat_display = f"{m.rule.category}:{m.rule.subcategory}"
-                metadata[tid]["predicted_category"] = cat_display
-                metadata[tid]["confidence"] = m.rule.confidence
-                metadata[tid]["prediction_source"] = "rule"
-                rule_matched_ids.add(tid)
-        except Exception as e:
-            self.status.emit(f"Rule inference skipped: {e}")
-        return True
-
-    def _predict_categories(
-        self,
-        all_txns,
-        metadata: dict,
-        completed: int = 0,
-        total_units: int = 0,
-        rule_matched_ids: set[str] | None = None,
-    ) -> bool:
-        """Predict categories for uncategorized transactions. Returns False if interrupted."""
-        skip_ids = rule_matched_ids or set()
+    def _predict_with_progress(
+        self, scan_service, all_txns, rule_matched_ids, metadata, completed, total_units
+    ) -> int | None:
+        """Predict categories for uncategorized transactions, emitting progress. Returns None if interrupted."""
         for txn in all_txns:
             if self.isInterruptionRequested():
-                return False
-            if not txn.category and txn.transaction_id not in skip_ids:
-                cat, conf = self.smart_category_service.predict_category(
-                    txn.description, txn.amount, txn.account_id
-                )
-                if txn.transaction_id not in metadata:
-                    metadata[txn.transaction_id] = {}
-                metadata[txn.transaction_id]["confidence"] = conf
-                metadata[txn.transaction_id]["predicted_category"] = cat
+                return None
+            if not txn.category and txn.transaction_id not in rule_matched_ids:
+                fragment = scan_service.predict_categories([txn], self.smart_category_service)
+                metadata.update(fragment)
                 completed += 1
                 self.progress.emit(completed, total_units)
-        return True
+        return completed
 
 
 class TransactionsView(QWidget):
@@ -216,6 +161,7 @@ class TransactionsView(QWidget):
         event_store: EventStore = None,
         cache_path: Path | None = None,
         projections_path: Path | None = None,
+        es_service: EventSourcingService | None = None,
         parent=None,
     ):
         super().__init__(parent)
@@ -227,6 +173,16 @@ class TransactionsView(QWidget):
         self.duplicate_service = duplicate_service
         self.smart_category_service = smart_category_service
         self.event_store = event_store
+
+        if es_service is not None:
+            self.es_service: EventSourcingService | None = es_service
+        elif event_store is not None:
+            self.es_service = EventSourcingService(
+                event_store_path=self.projections_path.parent / "events.db",
+                projections_path=self.projections_path,
+            )
+        else:
+            self.es_service = None
         self.enrichment_service: EnrichmentService | None = None
         self._all_transactions: list[TransactionGroup] = []
         self.worker: IntelligenceWorker | None = None
@@ -281,13 +237,10 @@ class TransactionsView(QWidget):
 
     def _sync_projections(self):
         """Incrementally rebuild projections DB from new events."""
-        if not self.event_store or not self.projections_path:
+        if not self.es_service or not self.event_store:
             return
         try:
-            from gilt.storage.projection import ProjectionBuilder
-
-            builder = ProjectionBuilder(self.projections_path)
-            builder.rebuild_incremental(self.event_store)
+            self.es_service.ensure_projections_up_to_date(self.event_store)
         except Exception:
             self.status_message.emit("Warning: projections sync failed — view may be stale")
 
@@ -804,7 +757,6 @@ class TransactionsView(QWidget):
             restore_transaction_id: If set, re-select this transaction after reload.
         """
         try:
-            # Write category updates to CSV ledger files
             updates = [
                 CategorizationUpdate(
                     transaction_id=txn_group.primary.transaction_id,
@@ -816,7 +768,21 @@ class TransactionsView(QWidget):
                 )
                 for txn_group in transactions
             ]
-            write_categorizations_to_csv(updates, self.service.data_dir)
+
+            if self.event_store and self.es_service:
+                persistence_svc = CategorizationPersistenceService(
+                    event_store=self.event_store,
+                    projection_builder=self.es_service.get_projection_builder(),
+                    ledger_data_dir=self.service.data_dir,
+                )
+                persistence_svc.persist_categorizations(updates)
+            else:
+                from gilt.services.categorization_persistence_service import (
+                    write_categorizations_to_csv,
+                )
+
+                write_categorizations_to_csv(updates, self.service.data_dir)
+                self._sync_projections()
 
             # Record categorization events for ML training
             if self.smart_category_service:
@@ -830,9 +796,6 @@ class TransactionsView(QWidget):
                         previous_category=txn.category,
                         previous_subcategory=txn.subcategory,
                     )
-
-            # Sync projections DB so reload sees the updated data
-            self._sync_projections()
 
             # Reload transactions
             self.reload_transactions(restore_transaction_id=restore_transaction_id)
@@ -910,22 +873,16 @@ class TransactionsView(QWidget):
             is_duplicate, keep_id = dialog.get_resolution()
 
             try:
-                # Record decision
-                self.duplicate_service.resolve_duplicate(match, is_duplicate, keep_id)
-
-                if is_duplicate:
-                    # Determine which one to delete
-                    delete_id = (
-                        match.pair.txn2_id if keep_id == match.pair.txn1_id else match.pair.txn1_id
+                resolution: DuplicateResolutionResult = (
+                    self.duplicate_service.resolve_and_identify_deletion(
+                        match, is_duplicate, keep_id
                     )
-                    delete_account = (
-                        match.pair.txn2_account
-                        if keep_id == match.pair.txn1_id
-                        else match.pair.txn1_account
-                    )
+                )
 
-                    # Delete from ledger
-                    if self.service.delete_transaction(delete_id, delete_account):
+                if resolution.confirmed:
+                    if self.service.delete_transaction(
+                        resolution.delete_transaction_id, resolution.delete_account_id
+                    ):
                         QMessageBox.information(self, "Success", "Duplicate resolved and removed.")
                     else:
                         QMessageBox.warning(
@@ -985,28 +942,23 @@ class TransactionsView(QWidget):
                 return
 
             try:
-                # Record decision
-                self.duplicate_service.resolve_duplicate(
-                    match, is_duplicate, keep_id, rationale="Manual merge"
-                )
-
-                # Determine which one to delete
-                delete_id = (
-                    match.pair.txn2_id if keep_id == match.pair.txn1_id else match.pair.txn1_id
-                )
-                delete_account = (
-                    match.pair.txn2_account
-                    if keep_id == match.pair.txn1_id
-                    else match.pair.txn1_account
-                )
-
-                # Delete from ledger
-                if self.service.delete_transaction(delete_id, delete_account):
-                    QMessageBox.information(self, "Success", "Transactions merged.")
-                else:
-                    QMessageBox.warning(
-                        self, "Warning", "Merged but failed to remove duplicate transaction file."
+                resolution: DuplicateResolutionResult = (
+                    self.duplicate_service.resolve_and_identify_deletion(
+                        match, is_duplicate, keep_id, rationale="Manual merge"
                     )
+                )
+
+                if resolution.confirmed:
+                    if self.service.delete_transaction(
+                        resolution.delete_transaction_id, resolution.delete_account_id
+                    ):
+                        QMessageBox.information(self, "Success", "Transactions merged.")
+                    else:
+                        QMessageBox.warning(
+                            self,
+                            "Warning",
+                            "Merged but failed to remove duplicate transaction file.",
+                        )
 
                 # Sync projections DB so reload sees the updated data
                 self._sync_projections()
