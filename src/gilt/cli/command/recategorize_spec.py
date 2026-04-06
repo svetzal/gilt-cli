@@ -4,64 +4,14 @@ from __future__ import annotations
 Tests for recategorize command.
 """
 
-from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from gilt.cli.command.conftest import build_projections_from_csvs, write_ledger
 from gilt.cli.command.recategorize import run
 from gilt.model.account import Transaction, TransactionGroup
-from gilt.model.events import TransactionCategorized, TransactionImported
-from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
-from gilt.storage.event_store import EventStore
-from gilt.storage.projection import ProjectionBuilder
+from gilt.model.ledger_io import load_ledger_csv
 from gilt.workspace import Workspace
-
-
-def _write_ledger(path: Path, groups: list[TransactionGroup]):
-    """Helper to write ledger CSV."""
-    csv_text = dump_ledger_csv(groups)
-    path.write_text(csv_text, encoding="utf-8")
-
-
-def _build_projections_from_csvs(data_dir: Path, projections_path: Path):
-    """Helper to build projections database from CSV files in test data directory."""
-    # Create event store and add imported transactions
-    events_dir = data_dir / "events"
-    events_dir.mkdir(exist_ok=True)
-    store_path = events_dir / "events.db"
-
-    store = EventStore(str(store_path))
-    for csv_file in data_dir.glob("*.csv"):
-        text = csv_file.read_text(encoding="utf-8")
-        groups = load_ledger_csv(text, default_currency="CAD")
-        for group in groups:
-            txn = group.primary
-            # Add import event
-            import_event = TransactionImported(
-                transaction_id=txn.transaction_id,
-                transaction_date=str(txn.date),
-                source_file=csv_file.name,
-                source_account=txn.account_id,
-                raw_description=txn.description,
-                amount=Decimal(str(txn.amount)),
-                currency=txn.currency,
-                raw_data={},
-            )
-            store.append_event(import_event)
-
-            # Add categorization event if categorized
-            if txn.category:
-                cat_event = TransactionCategorized(
-                    transaction_id=txn.transaction_id,
-                    category=txn.category,
-                    subcategory=txn.subcategory,
-                    source="user",
-                )
-                store.append_event(cat_event)
-
-    # Build projections from events
-    builder = ProjectionBuilder(projections_path)
-    builder.rebuild_from_scratch(store)
 
 
 class DescribeRecategorizeCommand:
@@ -117,10 +67,10 @@ class DescribeRecategorizeCommand:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
 
             # Build projections from test CSVs
-            _build_projections_from_csvs(data_dir, workspace.projections_path)
+            build_projections_from_csvs(data_dir, workspace.projections_path)
 
             # Dry-run should not modify
             rc = run(
@@ -189,10 +139,10 @@ class DescribeRecategorizeCommand:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
 
             # Build projections from test CSVs
-            _build_projections_from_csvs(data_dir, workspace.projections_path)
+            build_projections_from_csvs(data_dir, workspace.projections_path)
 
             # Rename only Business:Bank Fees to Work:Bank Fees
             rc = run(
@@ -233,10 +183,10 @@ class DescribeRecategorizeCommand:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
 
             # Build projections from test CSVs
-            _build_projections_from_csvs(data_dir, workspace.projections_path)
+            build_projections_from_csvs(data_dir, workspace.projections_path)
 
             rc = run(
                 from_category="Miscellaneous",
@@ -273,10 +223,10 @@ class DescribeRecategorizeCommand:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
 
             # Build projections from test CSVs
-            _build_projections_from_csvs(data_dir, workspace.projections_path)
+            build_projections_from_csvs(data_dir, workspace.projections_path)
 
             rc = run(
                 from_category="NonExistent",
@@ -312,10 +262,10 @@ class DescribeRecategorizeCommand:
                         ),
                     ),
                 ]
-                _write_ledger(ledger_path, groups)
+                write_ledger(ledger_path, groups)
 
             # Build projections from test CSVs
-            _build_projections_from_csvs(data_dir, workspace.projections_path)
+            build_projections_from_csvs(data_dir, workspace.projections_path)
 
             rc = run(
                 from_category="Business",

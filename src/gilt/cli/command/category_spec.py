@@ -8,17 +8,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from gilt.cli.command.category import run
+from gilt.cli.command.conftest import write_ledger
 from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.category import Budget, BudgetPeriod, Category, CategoryConfig, Subcategory
 from gilt.model.category_io import load_categories_config, save_categories_config
-from gilt.model.ledger_io import dump_ledger_csv
 from gilt.workspace import Workspace
-
-
-def _write_ledger(path: Path, groups: list[TransactionGroup]):
-    """Helper to write ledger CSV."""
-    csv_text = dump_ledger_csv(groups)
-    path.write_text(csv_text, encoding="utf-8")
 
 
 class DescribeCategoryAdd:
@@ -233,7 +227,7 @@ class DescribeCategoryRemove:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
 
             # Without force should fail in dry-run
             rc = run(

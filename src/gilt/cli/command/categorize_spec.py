@@ -4,66 +4,16 @@ from __future__ import annotations
 Tests for categorize command.
 """
 
-from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from gilt.cli.command.categorize import run
+from gilt.cli.command.conftest import build_projections_from_csvs, write_ledger
 from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.category import Category, CategoryConfig, Subcategory
 from gilt.model.category_io import save_categories_config
-from gilt.model.events import TransactionCategorized, TransactionImported
-from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
-from gilt.storage.event_store import EventStore
-from gilt.storage.projection import ProjectionBuilder
+from gilt.model.ledger_io import load_ledger_csv
 from gilt.workspace import Workspace
-
-
-def _write_ledger(path: Path, groups: list[TransactionGroup]):
-    """Helper to write ledger CSV."""
-    csv_text = dump_ledger_csv(groups)
-    path.write_text(csv_text, encoding="utf-8")
-
-
-def _build_projections_from_csvs(data_dir: Path, projections_path: Path):
-    """Helper to build projections database from CSV files in test data directory."""
-    # Create event store and add imported transactions
-    events_dir = data_dir / "events"
-    events_dir.mkdir(exist_ok=True)
-    store_path = events_dir / "events.db"
-
-    store = EventStore(str(store_path))
-    for csv_file in data_dir.glob("*.csv"):
-        text = csv_file.read_text(encoding="utf-8")
-        groups = load_ledger_csv(text, default_currency="CAD")
-        for group in groups:
-            txn = group.primary
-            # Add import event
-            import_event = TransactionImported(
-                transaction_id=txn.transaction_id,
-                transaction_date=str(txn.date),
-                source_file=csv_file.name,
-                source_account=txn.account_id,
-                raw_description=txn.description,
-                amount=Decimal(str(txn.amount)),
-                currency=txn.currency,
-                raw_data={},
-            )
-            store.append_event(import_event)
-
-            # Add categorization event if categorized
-            if txn.category:
-                cat_event = TransactionCategorized(
-                    transaction_id=txn.transaction_id,
-                    category=txn.category,
-                    subcategory=txn.subcategory,
-                    source="user",
-                )
-                store.append_event(cat_event)
-
-    # Build projections from events
-    builder = ProjectionBuilder(projections_path)
-    builder.rebuild_from_scratch(store)
 
 
 class DescribeCategorizeValidation:
@@ -126,10 +76,10 @@ class DescribeCategorizeValidation:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
 
             # Build projections from test CSVs
-            _build_projections_from_csvs(data_dir, workspace.projections_path)
+            build_projections_from_csvs(data_dir, workspace.projections_path)
 
             rc = run(
                 account="TEST",
@@ -171,10 +121,10 @@ class DescribeCategorizeSingleMode:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
 
             # Build projections from test CSVs
-            _build_projections_from_csvs(data_dir, workspace.projections_path)
+            build_projections_from_csvs(data_dir, workspace.projections_path)
 
             # Dry-run should not modify
             rc = run(
@@ -239,10 +189,10 @@ class DescribeCategorizeSingleMode:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
 
             # Build projections from test CSVs
-            _build_projections_from_csvs(data_dir, workspace.projections_path)
+            build_projections_from_csvs(data_dir, workspace.projections_path)
 
             # Using colon syntax
             rc = run(
@@ -298,10 +248,10 @@ class DescribeCategorizeSingleMode:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
 
             # Build projections from test CSVs
-            _build_projections_from_csvs(data_dir, workspace.projections_path)
+            build_projections_from_csvs(data_dir, workspace.projections_path)
 
             rc = run(
                 txid="abcd1234",  # No account specified, ambiguous
@@ -364,10 +314,10 @@ class DescribeCategorizeBatchMode:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
 
             # Build projections from test CSVs
-            _build_projections_from_csvs(data_dir, workspace.projections_path)
+            build_projections_from_csvs(data_dir, workspace.projections_path)
 
             rc = run(
                 account="TEST",
@@ -433,10 +383,10 @@ class DescribeCategorizeBatchMode:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
 
             # Build projections from test CSVs
-            _build_projections_from_csvs(data_dir, workspace.projections_path)
+            build_projections_from_csvs(data_dir, workspace.projections_path)
 
             rc = run(
                 account="TEST",
@@ -482,10 +432,10 @@ class DescribeCategorizeBatchMode:
                         ),
                     ),
                 ]
-                _write_ledger(ledger_path, groups)
+                write_ledger(ledger_path, groups)
 
                 # Build projections from test CSVs
-                _build_projections_from_csvs(data_dir, workspace.projections_path)
+                build_projections_from_csvs(data_dir, workspace.projections_path)
 
             # No account specified - should categorize in all accounts
             rc = run(
@@ -541,10 +491,10 @@ class DescribeCategorizeBatchMode:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
 
             # Build projections from test CSVs
-            _build_projections_from_csvs(data_dir, workspace.projections_path)
+            build_projections_from_csvs(data_dir, workspace.projections_path)
 
             # Only categorize the -12.95 fee
             rc = run(
@@ -589,10 +539,10 @@ class DescribeCategorizeBatchMode:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
 
             # Build projections from test CSVs
-            _build_projections_from_csvs(data_dir, workspace.projections_path)
+            build_projections_from_csvs(data_dir, workspace.projections_path)
 
             rc = run(
                 account="TEST",
@@ -640,10 +590,10 @@ class DescribeCategorizeRecategorization:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
 
             # Build projections from test CSVs
-            _build_projections_from_csvs(data_dir, workspace.projections_path)
+            build_projections_from_csvs(data_dir, workspace.projections_path)
 
             # Should succeed but show warning (check return code is 0)
             rc = run(
@@ -714,10 +664,10 @@ class DescribeCategorizePatternMode:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
 
             # Build projections from test CSVs
-            _build_projections_from_csvs(data_dir, workspace.projections_path)
+            build_projections_from_csvs(data_dir, workspace.projections_path)
 
             # Categorize using regex pattern
             rc = run(
@@ -764,10 +714,10 @@ class DescribeCategorizePatternMode:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
 
             # Build projections from test CSVs
-            _build_projections_from_csvs(data_dir, workspace.projections_path)
+            build_projections_from_csvs(data_dir, workspace.projections_path)
 
             # Invalid regex should return error code
             rc = run(

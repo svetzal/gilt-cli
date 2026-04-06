@@ -12,25 +12,14 @@ Tests cover the migrate_events() business logic:
 All fixtures use synthetic/generic data only.
 """
 
-from pathlib import Path
 from unittest.mock import patch
 
+from gilt.conftest import make_workspace
 from gilt.model.events import DuplicateSuggested
 from gilt.scripts.migrate_event_schema import migrate_events
 from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _make_workspace(tmp_path: Path) -> Workspace:
-    ws = Workspace(root=tmp_path)
-    ws.event_store_path.parent.mkdir(parents=True, exist_ok=True)
-    ws.projections_path.parent.mkdir(parents=True, exist_ok=True)
-    return ws
 
 
 def _make_event_store(ws: Workspace) -> EventStore:
@@ -100,7 +89,7 @@ class DescribeMigrateEventsNothingToMigrate:
     """When there are no DuplicateSuggested events at all."""
 
     def it_should_run_without_error_when_no_events_exist(self, tmp_path):
-        ws = _make_workspace(tmp_path)
+        ws = make_workspace(tmp_path, init_dirs=["event_store_path", "projections_path"])
         _make_event_store(ws)
         # Ensure projection DB is initialised
         ProjectionBuilder(ws.projections_path)
@@ -111,7 +100,7 @@ class DescribeMigrateEventsNothingToMigrate:
             migrate_events(dry_run=True)
 
     def it_should_skip_all_events_that_already_have_pair_data(self, tmp_path):
-        ws = _make_workspace(tmp_path)
+        ws = make_workspace(tmp_path, init_dirs=["event_store_path", "projections_path"])
         store = _make_event_store(ws)
         ProjectionBuilder(ws.projections_path)
 
@@ -133,7 +122,7 @@ class DescribeMigrateEventsPairDataBuilding:
     """Verify that pair data is correctly built from projection records and persisted."""
 
     def it_should_write_pair_data_to_event_store_in_write_mode(self, tmp_path):
-        ws = _make_workspace(tmp_path)
+        ws = make_workspace(tmp_path, init_dirs=["event_store_path", "projections_path"])
         store = _make_event_store(ws)
         ProjectionBuilder(ws.projections_path)
 
@@ -160,7 +149,7 @@ class DescribeMigrateEventsPairDataBuilding:
         assert pair["txn2_amount"] == -120.0
 
     def it_should_include_account_id_in_pair_data_when_writing(self, tmp_path):
-        ws = _make_workspace(tmp_path)
+        ws = make_workspace(tmp_path, init_dirs=["event_store_path", "projections_path"])
         store = _make_event_store(ws)
         ProjectionBuilder(ws.projections_path)
 
@@ -181,7 +170,7 @@ class DescribeMigrateEventsPairDataBuilding:
         assert pair["txn2_account"] == "MYBANK_CHQ"
 
     def it_should_include_descriptions_in_pair_data_when_writing(self, tmp_path):
-        ws = _make_workspace(tmp_path)
+        ws = make_workspace(tmp_path, init_dirs=["event_store_path", "projections_path"])
         store = _make_event_store(ws)
         ProjectionBuilder(ws.projections_path)
 
@@ -203,7 +192,7 @@ class DescribeMigrateEventsPairDataBuilding:
 
     def it_should_not_modify_event_store_in_dry_run(self, tmp_path):
         """Dry-run must not write any pair data to the database."""
-        ws = _make_workspace(tmp_path)
+        ws = make_workspace(tmp_path, init_dirs=["event_store_path", "projections_path"])
         store = _make_event_store(ws)
         ProjectionBuilder(ws.projections_path)
 
@@ -227,7 +216,7 @@ class DescribeMigrateEventsMissingTransactions:
     """When one or both transactions are missing from the projection."""
 
     def it_should_skip_event_when_txn1_is_missing(self, tmp_path):
-        ws = _make_workspace(tmp_path)
+        ws = make_workspace(tmp_path, init_dirs=["event_store_path", "projections_path"])
         store = _make_event_store(ws)
         ProjectionBuilder(ws.projections_path)
 
@@ -246,7 +235,7 @@ class DescribeMigrateEventsMissingTransactions:
         assert "pair" not in event.assessment
 
     def it_should_skip_event_when_both_transactions_are_missing(self, tmp_path):
-        ws = _make_workspace(tmp_path)
+        ws = make_workspace(tmp_path, init_dirs=["event_store_path", "projections_path"])
         store = _make_event_store(ws)
         ProjectionBuilder(ws.projections_path)
         # No transactions in projection
@@ -266,7 +255,7 @@ class DescribeMigrateEventsWriteMode:
     """Verify write mode persists the updated event data to SQLite."""
 
     def it_should_not_raise_when_writing_with_valid_data(self, tmp_path):
-        ws = _make_workspace(tmp_path)
+        ws = make_workspace(tmp_path, init_dirs=["event_store_path", "projections_path"])
         store = _make_event_store(ws)
         ProjectionBuilder(ws.projections_path)
 

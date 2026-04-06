@@ -2,14 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pandas as pd
-
+from gilt.transfer.conftest import write_ledger_from_dicts
 from gilt.transfer.matching import compute_matches
-
-
-def _write_ledger(path: Path, rows: list[dict]):
-    df = pd.DataFrame(rows)
-    df.to_csv(path, index=False)
 
 
 def it_should_match_direct_same_day_and_capture_fee(tmp_path: Path):
@@ -21,7 +15,7 @@ def it_should_match_direct_same_day_and_capture_fee(tmp_path: Path):
     credit_id = "c1" * 8
     fee_id = "f1" * 8
 
-    _write_ledger(
+    write_ledger_from_dicts(
         a1,
         [
             {
@@ -52,7 +46,7 @@ def it_should_match_direct_same_day_and_capture_fee(tmp_path: Path):
             },
         ],
     )
-    _write_ledger(
+    write_ledger_from_dicts(
         a2,
         [
             {
@@ -89,7 +83,7 @@ def it_should_allow_bank2_biz_loc_same_sign_pair(tmp_path: Path):
     d_id = "d2" * 8
     c_id = "c2" * 8
 
-    _write_ledger(
+    write_ledger_from_dicts(
         sc_curr,
         [
             {
@@ -107,7 +101,7 @@ def it_should_allow_bank2_biz_loc_same_sign_pair(tmp_path: Path):
             }
         ],
     )
-    _write_ledger(
+    write_ledger_from_dicts(
         sc_loc,
         [
             {

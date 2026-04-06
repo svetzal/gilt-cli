@@ -9,15 +9,9 @@ Privacy: all data is synthetic — no real bank names, account IDs, or merchant 
 from pathlib import Path
 
 from gilt.cli.command.rebuild_projections import run
+from gilt.conftest import make_workspace
 from gilt.model.events import TransactionImported
 from gilt.storage.event_store import EventStore
-from gilt.workspace import Workspace
-
-
-def _make_workspace(tmp_path: Path) -> Workspace:
-    ws = Workspace(root=tmp_path)
-    ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
-    return ws
 
 
 def _populate_event_store(event_store_path: Path) -> None:
@@ -39,14 +33,14 @@ def _populate_event_store(event_store_path: Path) -> None:
 
 class DescribeRebuildProjections:
     def it_should_return_one_when_event_store_missing(self, tmp_path):
-        ws = _make_workspace(tmp_path)
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
 
         result = run(workspace=ws)
 
         assert result == 1
 
     def it_should_return_zero_on_success(self, tmp_path):
-        ws = _make_workspace(tmp_path)
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
         _populate_event_store(ws.event_store_path)
 
         result = run(workspace=ws)
@@ -54,7 +48,7 @@ class DescribeRebuildProjections:
         assert result == 0
 
     def it_should_create_projections_database(self, tmp_path):
-        ws = _make_workspace(tmp_path)
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
         _populate_event_store(ws.event_store_path)
 
         run(workspace=ws)
@@ -62,7 +56,7 @@ class DescribeRebuildProjections:
         assert ws.projections_path.exists()
 
     def it_should_return_zero_for_empty_event_store(self, tmp_path):
-        ws = _make_workspace(tmp_path)
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
         # Create an event store file but put no events in it
         EventStore(str(ws.event_store_path))
 
@@ -71,7 +65,7 @@ class DescribeRebuildProjections:
         assert result == 0
 
     def it_should_rebuild_from_scratch_when_flag_set(self, tmp_path):
-        ws = _make_workspace(tmp_path)
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
         _populate_event_store(ws.event_store_path)
 
         result = run(workspace=ws, from_scratch=True)

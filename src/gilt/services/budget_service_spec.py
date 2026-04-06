@@ -10,20 +10,15 @@ from datetime import date
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from gilt.cli.command.conftest import write_ledger
 from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.category import Budget, BudgetPeriod, Category, CategoryConfig, Subcategory
 from gilt.model.category_io import save_categories_config
-from gilt.model.ledger_io import dump_ledger_csv
 from gilt.services.budget_service import BudgetService
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-
-def _write_ledger(data_dir: Path, filename: str, groups: list[TransactionGroup]) -> None:
-    csv_text = dump_ledger_csv(groups)
-    (data_dir / filename).write_text(csv_text, encoding="utf-8")
 
 
 def _make_transaction(
@@ -95,7 +90,7 @@ class DescribeGetSpendingByCategory:
                     category="Housing",
                 ),
             ]
-            _write_ledger(data_dir, "MYBANK_CHQ.csv", groups)
+            write_ledger(data_dir / "MYBANK_CHQ.csv", groups)
 
             service = BudgetService(data_dir=data_dir, categories_config=cats_path)
             result = service.get_spending_by_category(year=2025, month=3)
@@ -118,7 +113,7 @@ class DescribeGetSpendingByCategory:
                     category="Income",
                 ),
             ]
-            _write_ledger(data_dir, "MYBANK_CHQ.csv", groups)
+            write_ledger(data_dir / "MYBANK_CHQ.csv", groups)
 
             service = BudgetService(data_dir=data_dir, categories_config=cats_path)
             result = service.get_spending_by_category(year=2025, month=1)
@@ -148,7 +143,7 @@ class DescribeGetSpendingByCategory:
                     category="Shopping",
                 ),
             ]
-            _write_ledger(data_dir, "MYBANK_CHQ.csv", groups)
+            write_ledger(data_dir / "MYBANK_CHQ.csv", groups)
 
             service = BudgetService(data_dir=data_dir, categories_config=cats_path)
             jan_result = service.get_spending_by_category(year=2025, month=1)
@@ -173,7 +168,7 @@ class DescribeGetSpendingByCategory:
                     category=None,  # uncategorized
                 ),
             ]
-            _write_ledger(data_dir, "MYBANK_CHQ.csv", groups)
+            write_ledger(data_dir / "MYBANK_CHQ.csv", groups)
 
             service = BudgetService(data_dir=data_dir, categories_config=cats_path)
             result = service.get_spending_by_category(year=2025, month=4)
@@ -212,7 +207,7 @@ class DescribeGetTotalSpending:
                     category="Shopping",
                 ),
             ]
-            _write_ledger(data_dir, "MYBANK_CHQ.csv", groups)
+            write_ledger(data_dir / "MYBANK_CHQ.csv", groups)
 
             service = BudgetService(data_dir=data_dir, categories_config=cats_path)
             total = service.get_total_spending(year=2025, month=5)
@@ -263,7 +258,7 @@ class DescribeGetUncategorizedCount:
                     category="Shopping",  # categorized
                 ),
             ]
-            _write_ledger(data_dir, "MYBANK_CHQ.csv", groups)
+            write_ledger(data_dir / "MYBANK_CHQ.csv", groups)
 
             service = BudgetService(data_dir=data_dir, categories_config=cats_path)
             count = service.get_uncategorized_count()
@@ -286,7 +281,7 @@ class DescribeGetUncategorizedCount:
                     category="Housing",
                 ),
             ]
-            _write_ledger(data_dir, "MYBANK_CHQ.csv", groups)
+            write_ledger(data_dir / "MYBANK_CHQ.csv", groups)
 
             service = BudgetService(data_dir=data_dir, categories_config=cats_path)
             count = service.get_uncategorized_count()
@@ -328,7 +323,7 @@ class DescribeGetBudgetSummary:
                     category="Housing",
                 ),
             ]
-            _write_ledger(data_dir, "MYBANK_CHQ.csv", groups)
+            write_ledger(data_dir / "MYBANK_CHQ.csv", groups)
 
             service = BudgetService(data_dir=data_dir, categories_config=cats_path)
             # No year/month specified — should default to current year
@@ -406,7 +401,7 @@ class DescribeGetBudgetSummary:
                     category="Housing",
                 ),
             ]
-            _write_ledger(data_dir, "MYBANK_CHQ.csv", groups)
+            write_ledger(data_dir / "MYBANK_CHQ.csv", groups)
 
             service = BudgetService(data_dir=data_dir, categories_config=cats_path)
             summary = service.get_budget_summary(year=2025, month=9)
@@ -438,7 +433,7 @@ class DescribeGetBudgetSummary:
                     category="Misc",
                 ),
             ]
-            _write_ledger(data_dir, "MYBANK_CHQ.csv", groups)
+            write_ledger(data_dir / "MYBANK_CHQ.csv", groups)
 
             service = BudgetService(data_dir=data_dir, categories_config=cats_path)
             summary = service.get_budget_summary(year=2025, month=10)
@@ -485,7 +480,7 @@ class DescribeGetBudgetSummary:
                     subcategory="Utilities",
                 ),
             ]
-            _write_ledger(data_dir, "MYBANK_CHQ.csv", groups)
+            write_ledger(data_dir / "MYBANK_CHQ.csv", groups)
 
             service = BudgetService(data_dir=data_dir, categories_config=cats_path)
             summary = service.get_budget_summary(year=2025, month=11)

@@ -2,15 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pandas as pd
-
 from gilt.model.ledger_io import load_ledger_csv
+from gilt.transfer.conftest import write_ledger_from_dicts
 from gilt.transfer.linker import link_transfers
-
-
-def _write_ledger(path: Path, rows: list[dict]):
-    df = pd.DataFrame(rows)
-    df.to_csv(path, index=False)
 
 
 def it_should_mark_both_sides_and_persist_metadata(tmp_path: Path):
@@ -21,7 +15,7 @@ def it_should_mark_both_sides_and_persist_metadata(tmp_path: Path):
     d_id = "d3" * 8
     c_id = "c3" * 8
 
-    _write_ledger(
+    write_ledger_from_dicts(
         acc1,
         [
             {
@@ -40,7 +34,7 @@ def it_should_mark_both_sides_and_persist_metadata(tmp_path: Path):
         ],
     )
 
-    _write_ledger(
+    write_ledger_from_dicts(
         acc2,
         [
             {

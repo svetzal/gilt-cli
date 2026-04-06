@@ -8,19 +8,13 @@ from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from gilt.cli.command.conftest import write_ledger
 from gilt.cli.command.uncategorized import run
 from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.events import TransactionCategorized, TransactionImported
-from gilt.model.ledger_io import dump_ledger_csv
 from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
-
-
-def _write_ledger(path: Path, groups: list[TransactionGroup]):
-    """Helper to write ledger CSV."""
-    csv_text = dump_ledger_csv(groups)
-    path.write_text(csv_text, encoding="utf-8")
 
 
 def _build_projections(workspace: Workspace, groups: list[TransactionGroup]):
@@ -75,7 +69,7 @@ class DescribeUncategorizedCommand:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
             _build_projections(workspace, groups)
 
             rc = run(workspace=workspace)
@@ -113,7 +107,7 @@ class DescribeUncategorizedCommand:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
             _build_projections(workspace, groups)
 
             rc = run(workspace=workspace)
@@ -142,7 +136,7 @@ class DescribeUncategorizedCommand:
                         ),
                     ),
                 ]
-                _write_ledger(ledger_path, groups)
+                write_ledger(ledger_path, groups)
                 all_groups.extend(groups)
             _build_projections(workspace, all_groups)
 
@@ -181,7 +175,7 @@ class DescribeUncategorizedCommand:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
             _build_projections(workspace, groups)
 
             rc = run(year=2025, workspace=workspace)
@@ -218,7 +212,7 @@ class DescribeUncategorizedCommand:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
             _build_projections(workspace, groups)
 
             rc = run(min_amount=100.0, workspace=workspace)
@@ -245,7 +239,7 @@ class DescribeUncategorizedCommand:
                 )
                 for i in range(1, 11)
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
             _build_projections(workspace, groups)
 
             rc = run(limit=5, workspace=workspace)
@@ -324,7 +318,7 @@ class DescribeUncategorizedCommand:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
             _build_projections(workspace, groups)
 
             # Should only show the third transaction
@@ -373,7 +367,7 @@ class DescribeUncategorizedCommand:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
             _build_projections(workspace, groups)
 
             # Sort order should be: AAAA (2025-01-01), AAAA (2025-01-02), ZZZZ (2025-01-01)

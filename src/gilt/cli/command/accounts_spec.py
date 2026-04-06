@@ -9,18 +9,12 @@ Privacy: all data is synthetic — no real bank names, account IDs, or merchant 
 from pathlib import Path
 
 from gilt.cli.command.accounts import _collect_accounts, run
-from gilt.workspace import Workspace
+from gilt.conftest import make_workspace
 
 
 def _write_accounts_config(config_path: Path, content: str) -> None:
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(content, encoding="utf-8")
-
-
-def _make_workspace(tmp_path: Path) -> Workspace:
-    ws = Workspace(root=tmp_path)
-    ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
-    return ws
 
 
 class DescribeCollectAccounts:
@@ -87,14 +81,14 @@ class DescribeCollectAccounts:
 
 class DescribeAccountsCommand:
     def it_should_return_zero_when_no_accounts_found(self, tmp_path):
-        ws = _make_workspace(tmp_path)
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
 
         result = run(workspace=ws)
 
         assert result == 0
 
     def it_should_return_zero_when_accounts_are_found(self, tmp_path):
-        ws = _make_workspace(tmp_path)
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
         _write_accounts_config(
             ws.accounts_config,
             "accounts:\n"
@@ -108,7 +102,7 @@ class DescribeAccountsCommand:
         assert result == 0
 
     def it_should_return_zero_when_only_ledger_files_present(self, tmp_path):
-        ws = _make_workspace(tmp_path)
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
         (ws.ledger_data_dir / "MYBANK_CC.csv").write_text("", encoding="utf-8")
 
         result = run(workspace=ws)

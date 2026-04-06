@@ -7,65 +7,16 @@ Business logic tests (aggregation, markdown rendering) live in:
     src/gilt/services/budget_reporting_service_spec.py
 """
 
-from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
+from gilt.cli.command.conftest import build_projections_from_csvs, write_ledger
 from gilt.cli.command.report import run
 from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.category import Budget, BudgetPeriod, Category, CategoryConfig
 from gilt.model.category_io import save_categories_config
-from gilt.model.events import TransactionCategorized, TransactionImported
-from gilt.model.ledger_io import dump_ledger_csv
-from gilt.storage.event_store import EventStore
-from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
-
-
-def _write_ledger(path: Path, groups: list[TransactionGroup]):
-    """Helper to write a ledger file."""
-    text = dump_ledger_csv(groups)
-    path.write_text(text, encoding="utf-8")
-
-
-def _build_projections_from_csvs(data_dir: Path, projections_path: Path):
-    """Helper to build projections database from CSV files in test data directory."""
-    events_dir = data_dir / "events"
-    events_dir.mkdir(exist_ok=True)
-    store_path = events_dir / "events.db"
-
-    from gilt.model.ledger_io import load_ledger_csv
-
-    store = EventStore(str(store_path))
-    for csv_file in data_dir.glob("*.csv"):
-        text = csv_file.read_text(encoding="utf-8")
-        groups = load_ledger_csv(text, default_currency="CAD")
-        for group in groups:
-            txn = group.primary
-            import_event = TransactionImported(
-                transaction_id=txn.transaction_id,
-                transaction_date=str(txn.date),
-                source_file=csv_file.name,
-                source_account=txn.account_id,
-                raw_description=txn.description,
-                amount=Decimal(str(txn.amount)),
-                currency=txn.currency,
-                raw_data={},
-            )
-            store.append_event(import_event)
-
-            if txn.category:
-                cat_event = TransactionCategorized(
-                    transaction_id=txn.transaction_id,
-                    category=txn.category,
-                    subcategory=txn.subcategory,
-                    source="user",
-                )
-                store.append_event(cat_event)
-
-    builder = ProjectionBuilder(projections_path)
-    builder.rebuild_from_scratch(store)
 
 
 class DescribeReportCommand:
@@ -93,7 +44,7 @@ class DescribeReportCommand:
             save_categories_config(config_path, config)
 
             ledger_path = data_dir / "test.csv"
-            _write_ledger(
+            write_ledger(
                 ledger_path,
                 [
                     TransactionGroup(
@@ -145,7 +96,7 @@ class DescribeReportCommand:
             save_categories_config(config_path, config)
 
             ledger_path = data_dir / "test.csv"
-            _write_ledger(
+            write_ledger(
                 ledger_path,
                 [
                     TransactionGroup(
@@ -163,7 +114,7 @@ class DescribeReportCommand:
                 ],
             )
 
-            _build_projections_from_csvs(data_dir, workspace.projections_path)
+            build_projections_from_csvs(data_dir, workspace.projections_path)
 
             with patch("gilt.cli.command.report._check_pandoc", return_value=False):
                 result = run(

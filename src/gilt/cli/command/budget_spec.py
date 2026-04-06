@@ -8,17 +8,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from gilt.cli.command.budget import run
+from gilt.cli.command.conftest import write_ledger
 from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.category import Budget, BudgetPeriod, Category, CategoryConfig, Subcategory
 from gilt.model.category_io import save_categories_config
-from gilt.model.ledger_io import dump_ledger_csv
 from gilt.workspace import Workspace
-
-
-def _write_ledger(path: Path, groups: list[TransactionGroup]):
-    """Helper to write ledger CSV."""
-    csv_text = dump_ledger_csv(groups)
-    path.write_text(csv_text, encoding="utf-8")
 
 
 class DescribeBudgetCommand:
@@ -72,7 +66,7 @@ class DescribeBudgetCommand:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
 
             rc = run(year=2025, workspace=workspace)
             assert rc == 0
@@ -116,7 +110,7 @@ class DescribeBudgetCommand:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
 
             # Should only include 2025 transaction
             rc = run(year=2025, workspace=workspace)
@@ -168,7 +162,7 @@ class DescribeBudgetCommand:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
 
             # Should only include January transaction
             rc = run(year=2025, month=1, workspace=workspace)
@@ -218,7 +212,7 @@ class DescribeBudgetCommand:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
 
             # Should only show Housing
             rc = run(year=2025, category="Housing", workspace=workspace)
@@ -292,7 +286,7 @@ class DescribeBudgetProration:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
 
             # Monthly report should use 400.0 budget directly
             rc = run(year=2025, month=1, workspace=workspace)
@@ -332,7 +326,7 @@ class DescribeBudgetProration:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
 
             # Monthly report should prorate: 4800 / 12 = 400
             rc = run(year=2025, month=1, workspace=workspace)
@@ -372,7 +366,7 @@ class DescribeBudgetProration:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
 
             # Yearly report should use 4800.0 budget directly
             rc = run(year=2025, workspace=workspace)
@@ -412,7 +406,7 @@ class DescribeBudgetProration:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
 
             # Yearly report should multiply: 400 * 12 = 4800
             rc = run(year=2025, workspace=workspace)
@@ -474,7 +468,7 @@ class DescribeBudgetWithSubcategories:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
 
             # Should show parent with total 2300.0 against budget 2500.0
             rc = run(year=2025, workspace=workspace)
@@ -511,7 +505,7 @@ class DescribeBudgetWithSubcategories:
                     ),
                 ),
             ]
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
 
             rc = run(year=2025, workspace=workspace)
             assert rc == 0
@@ -537,7 +531,7 @@ class DescribeBudgetWithSubcategories:
 
             ledger_path = data_dir / "TEST.csv"
             groups = []  # No transactions
-            _write_ledger(ledger_path, groups)
+            write_ledger(ledger_path, groups)
 
             rc = run(year=2025, workspace=workspace)
             assert rc == 0
