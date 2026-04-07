@@ -8,13 +8,12 @@ clears cached intelligence, then re-runs ingestion for that account only.
 """
 
 from gilt.ingest import load_accounts_config, normalize_file
-from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.services.ingestion_service import IngestionService
 from gilt.services.reingestion_service import ReingestionService
 from gilt.transfer.linker import link_transfers
 from gilt.workspace import Workspace
 
-from .util import console, print_dry_run_message
+from .util import console, print_dry_run_message, require_event_sourcing
 
 
 def run(
@@ -50,9 +49,11 @@ def run(
         return 1
 
     # Initialize event sourcing
-    es_service = EventSourcingService(workspace=workspace)
-    event_store = es_service.get_event_store()
-    projection_builder = es_service.get_projection_builder()
+    ready = require_event_sourcing(workspace)
+    if ready is None:
+        return 1
+    event_store = ready.event_store
+    projection_builder = ready.projection_builder
 
     # Plan what to purge using the reingestion service
     reingest_svc = ReingestionService(

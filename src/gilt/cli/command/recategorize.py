@@ -4,8 +4,6 @@ import typer
 
 from gilt.model.account import TransactionGroup
 from gilt.model.category_io import parse_category_path
-from gilt.storage.event_store import EventStore
-from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
 from .util import (
@@ -14,6 +12,8 @@ from .util import (
     fmt_amount_str,
     print_dry_run_message,
     print_transaction_table,
+    require_event_sourcing,
+    require_persistence_service,
     require_projections,
 )
 
@@ -99,6 +99,10 @@ def run(
         print_dry_run_message()
         return 0
 
+    ready = require_event_sourcing(workspace)
+    if ready is None:
+        return 1
+
     # Confirm
     import sys
 
@@ -109,7 +113,7 @@ def run(
         return 0
 
     # Apply renaming by account
-    _apply_renaming(all_matches, to_cat, to_subcat, workspace)
+    _apply_renaming(all_matches, to_cat, to_subcat, workspace, ready.event_store, ready.projection_builder)
 
     console.print(f"[green]✓[/] Renamed category in {total_matched} transaction(s)")
     return 0
@@ -149,25 +153,11 @@ def _apply_renaming(
     to_cat: str,
     to_subcat: str | None,
     workspace: Workspace,
+    event_store,
+    projection_builder,
 ) -> None:
-    """Apply category renaming to matched transactions.
-
-    Args:
-        matches: List of (account_id, group) tuples
-        to_cat: New category name
-        to_subcat: New subcategory name (or None)
-        workspace: Workspace for resolving data paths
-    """
-    from gilt.services.categorization_persistence_service import CategorizationPersistenceService
-
-    event_store = EventStore(workspace.event_store_path)
-    projection_builder = ProjectionBuilder(workspace.projections_path)
-
-    persistence_svc = CategorizationPersistenceService(
-        event_store=event_store,
-        projection_builder=projection_builder,
-        ledger_data_dir=workspace.ledger_data_dir,
-    )
+    """Apply category renaming to matched transactions."""
+    persistence_svc = require_persistence_service(event_store, projection_builder, workspace)
     persistence_svc.persist_category_rename(
         matches=matches,
         to_category=to_cat,

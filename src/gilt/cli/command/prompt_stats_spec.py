@@ -11,6 +11,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
 
 from gilt.cli.command.prompt_stats import run
+from gilt.services.event_sourcing_service import EventSourcingReadyResult
 
 
 def _make_status(exists: bool) -> MagicMock:
@@ -53,10 +54,12 @@ class DescribePromptStatsCommand:
             workspace.ledger_data_dir = data_dir
             workspace.event_store_path = tmp / "events.db"
 
-            with patch("gilt.cli.command.prompt_stats.EventSourcingService") as mock_es_cls:
+            with patch("gilt.cli.command.util.EventSourcingService") as mock_es_cls:
                 mock_es = MagicMock()
-                mock_es.event_store_path = tmp / "events.db"
-                mock_es.check_event_store_status.return_value = _make_status(exists=False)
+                mock_es.ensure_ready.return_value = EventSourcingReadyResult(
+                    ready=False,
+                    error="no_data",
+                )
                 mock_es_cls.return_value = mock_es
 
                 result = run(workspace=workspace)
@@ -74,12 +77,17 @@ class DescribePromptStatsCommand:
             workspace.event_store_path = tmp / "events.db"
 
             with (
-                patch("gilt.cli.command.prompt_stats.EventSourcingService") as mock_es_cls,
+                patch("gilt.cli.command.util.EventSourcingService") as mock_es_cls,
                 patch("gilt.cli.command.prompt_stats.PromptLearningService") as mock_learning_cls,
             ):
+                mock_event_store = MagicMock()
+                mock_event_store.get_events_by_type.return_value = []
                 mock_es = MagicMock()
-                mock_es.event_store_path = tmp / "events.db"
-                mock_es.check_event_store_status.return_value = _make_status(exists=True)
+                mock_es.ensure_ready.return_value = EventSourcingReadyResult(
+                    ready=True,
+                    event_store=mock_event_store,
+                    projection_builder=MagicMock(),
+                )
                 mock_es_cls.return_value = mock_es
 
                 mock_learning = MagicMock()
@@ -104,15 +112,17 @@ class DescribePromptStatsCommand:
             workspace.event_store_path = tmp / "events.db"
 
             with (
-                patch("gilt.cli.command.prompt_stats.EventSourcingService") as mock_es_cls,
+                patch("gilt.cli.command.util.EventSourcingService") as mock_es_cls,
                 patch("gilt.cli.command.prompt_stats.PromptLearningService") as mock_learning_cls,
             ):
-                mock_es = MagicMock()
-                mock_es.event_store_path = tmp / "events.db"
-                mock_es.check_event_store_status.return_value = _make_status(exists=True)
                 mock_event_store = MagicMock()
                 mock_event_store.get_events_by_type.return_value = []
-                mock_es.get_event_store.return_value = mock_event_store
+                mock_es = MagicMock()
+                mock_es.ensure_ready.return_value = EventSourcingReadyResult(
+                    ready=True,
+                    event_store=mock_event_store,
+                    projection_builder=MagicMock(),
+                )
                 mock_es_cls.return_value = mock_es
 
                 mock_learning = MagicMock()
@@ -139,16 +149,12 @@ class DescribePromptStatsCommand:
             workspace.event_store_path = tmp / "events.db"
 
             with (
-                patch("gilt.cli.command.prompt_stats.EventSourcingService") as mock_es_cls,
+                patch("gilt.cli.command.util.EventSourcingService") as mock_es_cls,
                 patch("gilt.cli.command.prompt_stats.PromptLearningService") as mock_learning_cls,
             ):
                 from datetime import datetime
 
                 from gilt.model.events import PromptUpdated
-
-                mock_es = MagicMock()
-                mock_es.event_store_path = tmp / "events.db"
-                mock_es.check_event_store_status.return_value = _make_status(exists=True)
 
                 prompt_event = MagicMock(spec=PromptUpdated)
                 prompt_event.prompt_version = "v2"
@@ -158,7 +164,12 @@ class DescribePromptStatsCommand:
 
                 mock_event_store = MagicMock()
                 mock_event_store.get_events_by_type.return_value = [prompt_event]
-                mock_es.get_event_store.return_value = mock_event_store
+                mock_es = MagicMock()
+                mock_es.ensure_ready.return_value = EventSourcingReadyResult(
+                    ready=True,
+                    event_store=mock_event_store,
+                    projection_builder=MagicMock(),
+                )
                 mock_es_cls.return_value = mock_es
 
                 mock_learning = MagicMock()

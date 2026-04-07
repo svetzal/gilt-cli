@@ -12,7 +12,7 @@ from gilt.storage.event_store import EventStore
 from gilt.transfer.linker import link_transfers
 from gilt.workspace import Workspace
 
-from .util import console
+from .util import console, require_persistence_service
 
 
 def _print_plan(plan: Iterable[tuple[Path, str | None]], total_files: int) -> None:
@@ -98,16 +98,9 @@ def _apply_auto_categorizations(matches, workspace, event_store, projection_buil
 
     console.print("[bold]Auto-categorizing via inferred rules[/]")
 
-    from gilt.services.categorization_persistence_service import (
-        CategorizationPersistenceService,
-        CategorizationUpdate,
-    )
+    from gilt.services.categorization_persistence_service import CategorizationUpdate
 
-    persistence_svc = CategorizationPersistenceService(
-        event_store=event_store,
-        projection_builder=projection_builder,
-        ledger_data_dir=workspace.ledger_data_dir,
-    )
+    persistence_svc = require_persistence_service(event_store, projection_builder, workspace)
     updates = [
         CategorizationUpdate(
             transaction_id=m.transaction["transaction_id"],

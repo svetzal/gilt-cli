@@ -14,27 +14,26 @@ from gilt.model.account import Transaction
 from gilt.model.category_io import load_categories_config, parse_category_path
 from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
 from gilt.services.categorization_service import CategorizationService
-from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.services.rule_inference_service import RuleInferenceService
 from gilt.workspace import Workspace
 
-from .util import console, fmt_amount_str, print_dry_run_message, require_projections
+from .util import (
+    console,
+    fmt_amount_str,
+    print_dry_run_message,
+    require_event_sourcing,
+    require_projections,
+)
 
 
 def _train_classifier(workspace, min_samples):
     """Train the ML classifier. Returns (event_store, classifier) or exit code."""
-    event_sourcing_service = EventSourcingService(workspace=workspace)
-    event_store_status = event_sourcing_service.check_event_store_status(workspace.ledger_data_dir)
-
-    if not event_store_status.exists:
-        console.print("[red]Error:[/red] Event store not found.")
-        console.print("\nAuto-categorization requires event sourcing to be initialized.")
-        console.print("Run this command first:")
-        console.print("  [cyan]gilt migrate-to-events --write[/cyan]")
+    ready = require_event_sourcing(workspace)
+    if ready is None:
         return 1
 
     console.print("[dim]Loading categorization history...[/dim]")
-    event_store = event_sourcing_service.get_event_store()
+    event_store = ready.event_store
 
     try:
         classifier = CategorizationClassifier(event_store, min_samples_per_category=min_samples)
@@ -116,8 +115,7 @@ def _write_categorizations(approved, workspace, category_config, event_store, pr
         ledger_path.write_text(updated_csv, encoding="utf-8")
 
     console.print("\n[dim]Updating projections...[/dim]")
-    es_service = EventSourcingService(workspace=workspace)
-    es_service.ensure_projections_up_to_date(event_store, projection_builder)
+    projection_builder.rebuild_incremental(event_store)
     console.print(f"[green]✓[/green] Categorized {len(approved)} transaction(s)")
 
 

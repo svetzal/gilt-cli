@@ -6,6 +6,9 @@ from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
+from gilt.services.categorization_persistence_service import CategorizationPersistenceService
+from gilt.services.event_sourcing_service import EventSourcingReadyResult, EventSourcingService
+from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
@@ -79,6 +82,62 @@ def print_dry_run_message(*, detail: str | None = None) -> None:
     else:
         msg = "Dry-run: use --write to persist changes"
     console.print(f"[dim]{msg}[/dim]")
+
+
+def require_event_sourcing(workspace: Workspace) -> EventSourcingReadyResult | None:
+    """Initialize event sourcing or print error and return None.
+
+    Calls ensure_ready() which auto-rebuilds projections if needed.
+    Uses the error message pattern from the duplicates command (most informative).
+    """
+    data_dir = workspace.ledger_data_dir
+    es_service = EventSourcingService(workspace=workspace)
+    result = es_service.ensure_ready(data_dir=data_dir if data_dir.exists() else None)
+
+    if not result.ready:
+        if result.error == "no_event_store":
+            console.print(
+                f"[yellow]Event store not found, but found "
+                f"{result.csv_files_count} CSV file(s)[/]"
+            )
+            console.print()
+            console.print("[bold]To migrate your existing data to event sourcing:[/]")
+            console.print("  gilt migrate-to-events --write")
+            console.print()
+            console.print(
+                "[dim]This will create the event store and projections from your CSV files.[/dim]"
+            )
+        elif data_dir.exists():
+            console.print(f"[red]Error:[/red] No data found in {data_dir}")
+            console.print()
+            console.print("[bold]To get started:[/]")
+            console.print("  1. Export CSV files from your bank")
+            console.print("  2. Place them in ingest/ directory")
+            console.print("  3. Run: gilt ingest --write")
+        else:
+            console.print(f"[red]Error:[/red] Data directory not found: {data_dir}")
+        return None
+
+    if result.events_processed > 0:
+        console.print(
+            f"[green]✓[/green] Projections rebuilt ({result.events_processed} events processed)"
+        )
+        console.print()
+
+    return result
+
+
+def require_persistence_service(
+    event_store: EventStore,
+    projection_builder: ProjectionBuilder,
+    workspace: Workspace,
+) -> CategorizationPersistenceService:
+    """Construct a CategorizationPersistenceService from components."""
+    return CategorizationPersistenceService(
+        event_store=event_store,
+        projection_builder=projection_builder,
+        ledger_data_dir=workspace.ledger_data_dir,
+    )
 
 
 def require_projections(workspace: Workspace) -> ProjectionBuilder | None:

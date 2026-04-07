@@ -16,9 +16,9 @@ def write_ledger(path: Path, groups: list[TransactionGroup]):
 
 
 def build_projections_from_csvs(data_dir: Path, projections_path: Path):
-    events_dir = data_dir / "events"
-    events_dir.mkdir(exist_ok=True)
-    store_path = events_dir / "events.db"
+    # Create event store at the workspace-standard path (sibling of projections.db)
+    store_path = projections_path.parent / "events.db"
+    store_path.parent.mkdir(parents=True, exist_ok=True)
 
     store = EventStore(str(store_path))
     for csv_file in data_dir.glob("*.csv"):

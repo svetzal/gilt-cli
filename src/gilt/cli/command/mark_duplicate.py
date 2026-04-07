@@ -15,11 +15,10 @@ from rich.prompt import Prompt
 from rich.table import Table
 
 from gilt.services.duplicate_review_service import DuplicateReviewService
-from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.services.transaction_operations_service import TransactionOperationsService
 from gilt.workspace import Workspace
 
-from .util import console, require_projections
+from .util import console, require_event_sourcing, require_projections
 
 
 def _resolve_prefix(tx_service: TransactionOperationsService, txid_prefix: str, transactions: list[dict]) -> dict | None:
@@ -100,8 +99,10 @@ def run(
         return 1
 
     # Initialize services
-    es_service = EventSourcingService(workspace=workspace)
-    event_store = es_service.get_event_store()
+    ready = require_event_sourcing(workspace)
+    if ready is None:
+        return 1
+    event_store = ready.event_store
     review_service = DuplicateReviewService(event_store=event_store)
     tx_service = TransactionOperationsService()
 
@@ -201,7 +202,7 @@ def run(
 
     # Rebuild projections to reflect the change
     console.print("[dim]Rebuilding projections...[/dim]")
-    events_processed = es_service.ensure_projections_up_to_date(event_store)
+    events_processed = ready.projection_builder.rebuild_incremental(event_store)
 
     console.print()
     console.print("[green]✓ Duplicate marked successfully[/green]")

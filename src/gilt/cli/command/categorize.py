@@ -13,8 +13,6 @@ from gilt.services.transaction_operations_service import (
     SearchCriteria,
     TransactionOperationsService,
 )
-from gilt.storage.event_store import EventStore
-from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
 from .util import (
@@ -23,6 +21,8 @@ from .util import (
     fmt_amount_str,
     print_dry_run_message,
     print_transaction_table,
+    require_event_sourcing,
+    require_persistence_service,
     require_projections,
 )
 
@@ -182,13 +182,17 @@ def _confirm_and_apply(
         print_dry_run_message()
         return 0
 
+    ready = require_event_sourcing(workspace)
+    if ready is None:
+        return 1
+
     result = categorization_service.apply_categorization(
         [group for _, group in all_matches],
         category,
         subcategory,
     )
 
-    _persist_categorizations(all_matches, result.updated_transactions, workspace)
+    _persist_categorizations(all_matches, result.updated_transactions, workspace, ready.event_store, ready.projection_builder)
 
     console.print(f"[green]✓[/] Categorized {total_matched} transaction(s)")
     return 0
@@ -198,21 +202,13 @@ def _persist_categorizations(
     all_matches: list[tuple[str, TransactionGroup]],
     updated_transactions: list[TransactionGroup],
     workspace: Workspace,
+    event_store,
+    projection_builder,
 ) -> None:
     """Emit events, update CSVs, and rebuild projections for categorized transactions."""
-    from gilt.services.categorization_persistence_service import (
-        CategorizationPersistenceService,
-        CategorizationUpdate,
-    )
+    from gilt.services.categorization_persistence_service import CategorizationUpdate
 
-    event_store = EventStore(workspace.event_store_path)
-    projection_builder = ProjectionBuilder(workspace.projections_path)
-
-    persistence_svc = CategorizationPersistenceService(
-        event_store=event_store,
-        projection_builder=projection_builder,
-        ledger_data_dir=workspace.ledger_data_dir,
-    )
+    persistence_svc = require_persistence_service(event_store, projection_builder, workspace)
 
     account_by_txn_id = {
         group.primary.transaction_id: account_id for account_id, group in all_matches
@@ -243,13 +239,8 @@ def _init_services(
     category_config = load_categories_config(workspace.categories_config)
 
     event_store = None
-    try:
-        event_sourcing_service = EventSourcingService(workspace=workspace)
-        event_store_status = event_sourcing_service.check_event_store_status()
-        if event_store_status.exists:
-            event_store = event_sourcing_service.get_event_store()
-    except Exception:
-        logger.debug("Event store not available, proceeding without it", exc_info=True)
+    if workspace.event_store_path.exists():
+        event_store = EventSourcingService(workspace=workspace).get_event_store()
 
     if categorization_service is None:
         categorization_service = CategorizationService(

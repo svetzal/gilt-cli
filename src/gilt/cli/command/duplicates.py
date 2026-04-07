@@ -56,49 +56,7 @@ from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.transfer.duplicate_detector import DuplicateDetector
 from gilt.workspace import Workspace
 
-from .util import console
-
-
-def _setup_event_sourcing(console, workspace):
-    """Initialize event sourcing and ensure projections are current.
-
-    Returns (es_service, event_store, projection_builder) on success, or an int exit code.
-    """
-    data_dir = workspace.ledger_data_dir
-    es_service = EventSourcingService(workspace=workspace)
-    result = es_service.ensure_ready(data_dir=data_dir if data_dir.exists() else None)
-
-    if not result.ready:
-        if result.error == "no_event_store":
-            console.print(
-                f"[yellow]Event store not found, but found "
-                f"{result.csv_files_count} CSV file(s)[/]"
-            )
-            console.print()
-            console.print("[bold]To migrate your existing data to event sourcing:[/]")
-            console.print("  gilt migrate-to-events --write")
-            console.print()
-            console.print(
-                "[dim]This will create the event store and projections from your CSV files.[/dim]"
-            )
-        elif data_dir.exists():
-            console.print(f"[red]Error:[/red] No data found in {data_dir}")
-            console.print()
-            console.print("[bold]To get started:[/]")
-            console.print("  1. Export CSV files from your bank")
-            console.print("  2. Place them in ingest/ directory")
-            console.print("  3. Run: gilt ingest --write")
-        else:
-            console.print(f"[red]Error:[/red] Data directory not found: {data_dir}")
-        return 1
-
-    if result.events_processed > 0:
-        console.print(
-            f"[green]✓[/green] Projections rebuilt ({result.events_processed} events processed)"
-        )
-        console.print()
-
-    return es_service, result.event_store, result.projection_builder
+from .util import console, require_event_sourcing
 
 
 def _analyze_candidates(console, detector, candidates, detection_method):
@@ -301,10 +259,12 @@ def run(
     """Scan projections for duplicate transactions using ML or LLM analysis with event sourcing."""
     data_dir = workspace.ledger_data_dir
 
-    setup_result = _setup_event_sourcing(console, workspace)
-    if isinstance(setup_result, int):
-        return setup_result
-    es_service, event_store, projection_builder = setup_result
+    ready = require_event_sourcing(workspace)
+    if ready is None:
+        return 1
+    event_store = ready.event_store
+    projection_builder = ready.projection_builder
+    es_service = EventSourcingService(workspace=workspace)
 
     review_service = DuplicateReviewService(event_store=event_store)
 

@@ -16,11 +16,10 @@ from rich.table import Table
 from gilt.config import DEFAULT_OLLAMA_MODEL
 from gilt.ml.duplicate_classifier import DuplicateClassifier
 from gilt.ml.training_data_builder import TrainingDataBuilder
-from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.transfer.duplicate_detector import DuplicateDetector
 from gilt.workspace import Workspace
 
-from .util import console, fmt_amount_str
+from .util import console, fmt_amount_str, require_event_sourcing
 
 
 def run(
@@ -40,15 +39,11 @@ def run(
     Returns:
         Exit code (0 = success)
     """
-    # Initialize services
-    es_service = EventSourcingService(workspace=workspace)
-
-    if not es_service.event_store_path.exists():
-        console.print("[red]Error:[/red] Event store not found")
-        console.print("Run 'gilt migrate-to-events --write' first")
+    ready = require_event_sourcing(workspace)
+    if ready is None:
         return 1
 
-    event_store = es_service.get_event_store()
+    event_store = ready.event_store
     builder = TrainingDataBuilder(event_store)
 
     if mode == "summary":
@@ -56,7 +51,7 @@ def run(
     elif mode == "training":
         return show_training_data(console, builder, filter_pattern, limit)
     elif mode == "predictions":
-        return show_predictions(console, workspace, es_service, filter_pattern, limit)
+        return show_predictions(console, workspace, filter_pattern, limit)
     elif mode == "features":
         return show_features(console, builder)
     else:
@@ -173,7 +168,6 @@ def show_training_data(
 def show_predictions(
     console: Console,
     workspace: Workspace,
-    es_service: EventSourcingService,
     filter_pattern: str | None,
     limit: int,
 ) -> int:

@@ -22,11 +22,10 @@ from rich.panel import Panel
 from rich.table import Table
 
 from gilt.model.events import PromptUpdated
-from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.transfer.prompt_learning import PromptLearningService
 from gilt.workspace import Workspace
 
-from .util import console
+from .util import console, require_event_sourcing
 
 
 def run(
@@ -42,25 +41,11 @@ def run(
     Returns:
         Exit code (0 = success)
     """
-    data_dir = workspace.ledger_data_dir
-
-    if not data_dir.exists():
-        console.print(f"[red]Error:[/red] Data directory not found: {data_dir}")
+    ready = require_event_sourcing(workspace)
+    if ready is None:
         return 1
 
-    # Initialize event sourcing service
-    es_service = EventSourcingService(workspace=workspace)
-
-    # Check if event store exists
-    event_store_status = es_service.check_event_store_status(data_dir=data_dir)
-    if not event_store_status.exists:
-        console.print(f"[red]Error:[/red] Event store not found: {es_service.event_store_path}")
-        console.print(
-            "[yellow]Hint:[/yellow] Run 'gilt ingest --write' first to create event store"
-        )
-        return 1
-
-    event_store = es_service.get_event_store()
+    event_store = ready.event_store
     learning_service = PromptLearningService(event_store)
 
     console.print("[cyan]Prompt Learning Statistics[/cyan]")

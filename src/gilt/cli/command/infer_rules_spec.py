@@ -112,7 +112,7 @@ class DescribeInferRulesCommand:
         with (
             patch("gilt.cli.command.infer_rules.RuleInferenceService") as MockSvc,
             patch("gilt.cli.command.infer_rules.ProjectionBuilder") as MockPB,
-            patch("gilt.cli.command.infer_rules.EventSourcingService") as MockES,
+            patch("gilt.cli.command.util.EventSourcingService") as MockES,
         ):
             MockSvc.return_value.infer_rules.return_value = [mock_rule]
             MockSvc.return_value.apply_rules.return_value = [mock_match]

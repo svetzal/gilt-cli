@@ -11,6 +11,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
 
 from gilt.cli.command.audit_ml import run
+from gilt.services.event_sourcing_service import EventSourcingReadyResult
 
 
 class DescribeAuditMlCommand:
@@ -32,9 +33,13 @@ class DescribeAuditMlCommand:
             workspace = MagicMock()
             workspace.event_store_path = event_store_path
 
-            with patch("gilt.cli.command.audit_ml.EventSourcingService") as mock_es_cls:
+            with patch("gilt.cli.command.util.EventSourcingService") as mock_es_cls:
                 mock_es = MagicMock()
-                mock_es.event_store_path = event_store_path
+                mock_es.ensure_ready.return_value = EventSourcingReadyResult(
+                    ready=True,
+                    event_store=MagicMock(),
+                    projection_builder=MagicMock(),
+                )
                 mock_es_cls.return_value = mock_es
 
                 result = run(workspace=workspace, mode="banana")
@@ -51,11 +56,15 @@ class DescribeAuditMlCommand:
             workspace.event_store_path = event_store_path
 
             with (
-                patch("gilt.cli.command.audit_ml.EventSourcingService") as mock_es_cls,
+                patch("gilt.cli.command.util.EventSourcingService") as mock_es_cls,
                 patch("gilt.cli.command.audit_ml.TrainingDataBuilder") as mock_builder_cls,
             ):
                 mock_es = MagicMock()
-                mock_es.event_store_path = event_store_path
+                mock_es.ensure_ready.return_value = EventSourcingReadyResult(
+                    ready=True,
+                    event_store=MagicMock(),
+                    projection_builder=MagicMock(),
+                )
                 mock_es_cls.return_value = mock_es
 
                 mock_builder = MagicMock()
@@ -83,11 +92,15 @@ class DescribeAuditMlCommand:
             workspace.event_store_path = event_store_path
 
             with (
-                patch("gilt.cli.command.audit_ml.EventSourcingService") as mock_es_cls,
+                patch("gilt.cli.command.util.EventSourcingService") as mock_es_cls,
                 patch("gilt.cli.command.audit_ml.TrainingDataBuilder") as mock_builder_cls,
             ):
                 mock_es = MagicMock()
-                mock_es.event_store_path = event_store_path
+                mock_es.ensure_ready.return_value = EventSourcingReadyResult(
+                    ready=True,
+                    event_store=MagicMock(),
+                    projection_builder=MagicMock(),
+                )
                 mock_es_cls.return_value = mock_es
 
                 mock_builder = MagicMock()

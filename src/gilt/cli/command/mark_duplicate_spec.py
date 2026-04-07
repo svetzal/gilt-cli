@@ -100,13 +100,7 @@ class DescribeMarkDuplicate:
         proj_path, event_store = mock_projections
         workspace = Workspace(root=tmp_path)
 
-        with (
-            patch("gilt.cli.command.mark_duplicate.Prompt.ask", return_value="1"),
-            patch("gilt.cli.command.mark_duplicate.EventSourcingService") as mock_es,
-        ):
-            # Mock get_event_store() to return the real event store
-            mock_es.return_value.get_event_store.return_value = event_store
-
+        with patch("gilt.cli.command.mark_duplicate.Prompt.ask", return_value="1"):
             result = mark_duplicate.run(
                 primary_txid="abc12345",
                 duplicate_txid="def98765",
@@ -132,12 +126,7 @@ class DescribeMarkDuplicate:
         proj_path, event_store = mock_projections
         workspace = Workspace(root=tmp_path)
 
-        with (
-            patch("gilt.cli.command.mark_duplicate.Prompt.ask", return_value="2"),
-            patch("gilt.cli.command.mark_duplicate.EventSourcingService") as mock_es,
-        ):
-            mock_es.return_value.get_event_store.return_value = event_store
-
+        with patch("gilt.cli.command.mark_duplicate.Prompt.ask", return_value="2"):
             result = mark_duplicate.run(
                 primary_txid="abc12345",
                 duplicate_txid="def98765",
@@ -201,21 +190,13 @@ class DescribeMarkDuplicate:
         workspace = Workspace(root=tmp_path)
 
         # Mark abc as duplicate first
-        with (
-            patch("gilt.cli.command.mark_duplicate.Prompt.ask", return_value="1"),
-            patch("gilt.cli.command.mark_duplicate.EventSourcingService") as mock_es,
-        ):
-            mock_es.return_value.get_event_store.return_value = event_store
+        with patch("gilt.cli.command.mark_duplicate.Prompt.ask", return_value="1"):
             mark_duplicate.run(
                 primary_txid="def98765",
                 duplicate_txid="abc12345",
                 workspace=workspace,
                 write=True,
             )
-
-        # Rebuild projections
-        builder = ProjectionBuilder(proj_path)
-        builder.rebuild_incremental(event_store)
 
         # Try to use abc as primary again (should fail)
         result = mark_duplicate.run(
@@ -232,12 +213,7 @@ class DescribeMarkDuplicate:
         proj_path, event_store = mock_projections
         workspace = Workspace(root=tmp_path)
 
-        with (
-            patch("gilt.cli.command.mark_duplicate.Prompt.ask", return_value="1"),
-            patch("gilt.cli.command.mark_duplicate.EventSourcingService") as mock_es,
-        ):
-            mock_es.return_value.get_event_store.return_value = event_store
-
+        with patch("gilt.cli.command.mark_duplicate.Prompt.ask", return_value="1"):
             result = mark_duplicate.run(
                 primary_txid="abc12345",  # 8 chars
                 duplicate_txid="def98765",  # 8 chars

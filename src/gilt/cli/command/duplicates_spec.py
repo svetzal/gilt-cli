@@ -14,10 +14,12 @@ from tempfile import TemporaryDirectory
 
 from rich.console import Console
 
-from gilt.cli.command.duplicates import _setup_event_sourcing, run
+from gilt.cli.command.duplicates import run
+from gilt.cli.command.util import require_event_sourcing
 from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.events import TransactionImported
 from gilt.model.ledger_io import dump_ledger_csv
+from gilt.services.event_sourcing_service import EventSourcingReadyResult
 from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
@@ -27,7 +29,7 @@ from gilt.workspace import Workspace
 # ---------------------------------------------------------------------------
 
 
-def _quiet_console() -> Console:
+def _quiet_console() -> Console:  # noqa: F401 (kept for potential future use)
     """Create a Rich console that discards all output (for test isolation)."""
     return Console(quiet=True)
 
@@ -76,17 +78,16 @@ def _build_event_store_and_projections(ws: Workspace) -> None:
 
 
 class DescribeSetupEventSourcing:
-    """Specs for _setup_event_sourcing helper guard checks."""
+    """Specs for require_event_sourcing guard checks (formerly _setup_event_sourcing)."""
 
-    def it_should_return_1_when_data_dir_does_not_exist(self):
+    def it_should_return_none_when_data_dir_does_not_exist(self):
         with TemporaryDirectory() as tmpdir:
             ws = Workspace(root=Path(tmpdir))
             # data dir intentionally NOT created
-            console = _quiet_console()
-            result = _setup_event_sourcing(console, ws)
-            assert result == 1
+            result = require_event_sourcing(ws)
+            assert result is None
 
-    def it_should_return_1_when_data_dir_exists_but_no_event_store_and_csvs_present(self):
+    def it_should_return_none_when_data_dir_exists_but_no_event_store_and_csvs_present(self):
         with TemporaryDirectory() as tmpdir:
             ws = Workspace(root=Path(tmpdir))
             ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
@@ -94,36 +95,34 @@ class DescribeSetupEventSourcing:
             _write_synthetic_ledger(ws.ledger_data_dir)
             # No event store created
 
-            console = _quiet_console()
-            result = _setup_event_sourcing(console, ws)
-            assert result == 1
+            result = require_event_sourcing(ws)
+            assert result is None
 
-    def it_should_return_1_when_data_dir_exists_but_no_event_store_and_no_csvs(self):
+    def it_should_return_none_when_data_dir_exists_but_no_event_store_and_no_csvs(self):
         with TemporaryDirectory() as tmpdir:
             ws = Workspace(root=Path(tmpdir))
             ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
             # No CSVs, no event store
 
-            console = _quiet_console()
-            result = _setup_event_sourcing(console, ws)
-            assert result == 1
+            result = require_event_sourcing(ws)
+            assert result is None
 
-    def it_should_return_tuple_when_event_store_and_projections_exist(self):
+    def it_should_return_ready_result_when_event_store_and_projections_exist(self):
         with TemporaryDirectory() as tmpdir:
             ws = Workspace(root=Path(tmpdir))
             ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
             _write_synthetic_ledger(ws.ledger_data_dir)
             _build_event_store_and_projections(ws)
 
-            console = _quiet_console()
-            result = _setup_event_sourcing(console, ws)
-            # Should return (es_service, event_store, projection_builder)
-            assert isinstance(result, tuple)
-            assert len(result) == 3
+            result = require_event_sourcing(ws)
+            assert isinstance(result, EventSourcingReadyResult)
+            assert result.ready is True
+            assert result.event_store is not None
+            assert result.projection_builder is not None
 
     def it_should_rebuild_projections_when_they_do_not_yet_exist(self):
         """When the event store exists but projections are missing,
-        _setup_event_sourcing should rebuild them and return a tuple."""
+        require_event_sourcing should rebuild them and return a ready result."""
         with TemporaryDirectory() as tmpdir:
             ws = Workspace(root=Path(tmpdir))
             ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
@@ -146,9 +145,9 @@ class DescribeSetupEventSourcing:
             )
             # Projections deliberately NOT built
 
-            console = _quiet_console()
-            result = _setup_event_sourcing(console, ws)
-            assert isinstance(result, tuple)
+            result = require_event_sourcing(ws)
+            assert isinstance(result, EventSourcingReadyResult)
+            assert result.ready is True
             # Projections should now exist
             assert ws.projections_path.exists()
 

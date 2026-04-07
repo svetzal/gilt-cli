@@ -6,7 +6,6 @@ import json
 
 from rich.table import Table
 
-from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.services.rule_inference_service import RuleInferenceService
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
@@ -17,6 +16,8 @@ from .util import (
     fmt_amount_str,
     print_dry_run_message,
     print_transaction_table,
+    require_event_sourcing,
+    require_persistence_service,
     require_projections,
 )
 
@@ -74,16 +75,9 @@ def _display_matches(matches):
 
 def _write_matches(matches, workspace, event_store, projection_builder):
     """Apply rule-based categorizations: emit events, update CSVs, rebuild projections."""
-    from gilt.services.categorization_persistence_service import (
-        CategorizationPersistenceService,
-        CategorizationUpdate,
-    )
+    from gilt.services.categorization_persistence_service import CategorizationUpdate
 
-    persistence_svc = CategorizationPersistenceService(
-        event_store=event_store,
-        projection_builder=projection_builder,
-        ledger_data_dir=workspace.ledger_data_dir,
-    )
+    persistence_svc = require_persistence_service(event_store, projection_builder, workspace)
     updates = [
         CategorizationUpdate(
             transaction_id=m.transaction["transaction_id"],
@@ -161,10 +155,8 @@ def run(
         return 0
 
     # Write mode
-    es_service = EventSourcingService(workspace=workspace)
-    ready = es_service.ensure_ready()
-    if not ready.ready:
-        console.print("[red]Error:[/red] Event store not found. Run 'gilt migrate-to-events --write' first.")
+    ready = require_event_sourcing(workspace)
+    if ready is None:
         return 1
 
     _write_matches(matches, workspace, ready.event_store, ready.projection_builder)
