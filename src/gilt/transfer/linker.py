@@ -61,7 +61,7 @@ def _build_indexes(
         try:
             text = csv_path.read_text(encoding="utf-8")
             groups = load_ledger_csv(text, default_currency="CAD")
-        except Exception:
+        except (OSError, ValueError, UnicodeDecodeError):
             logger.warning("Failed to load ledger %s, skipping", csv_path, exc_info=True)
             groups = []
         file_groups[str(csv_path)] = groups

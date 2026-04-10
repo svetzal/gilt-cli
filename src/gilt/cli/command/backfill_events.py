@@ -185,7 +185,7 @@ def _backfill_transactions(
                     console.print(f"[red]{error}[/]")
                     stats.errors += 1
 
-            except Exception as e:
+            except (OSError, ValueError, UnicodeDecodeError) as e:
                 console.print(f"[red]Error processing {ledger_path.name}: {e}[/]")
                 stats.errors += 1
 
@@ -210,7 +210,7 @@ def _backfill_budgets(
     """
     try:
         config = load_categories_config(categories_config)
-    except Exception as e:
+    except (OSError, ValueError) as e:
         console.print(f"[red]Error loading categories config: {e}[/]")
         stats.errors += 1
         return
@@ -276,7 +276,7 @@ def _validate_projections(
     # Load category config for validation
     try:
         config = load_categories_config(categories_config)
-    except Exception as e:
+    except (OSError, ValueError) as e:
         console.print(f"[red]Error loading categories config: {e}[/]")
         return False
 

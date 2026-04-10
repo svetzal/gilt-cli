@@ -59,7 +59,7 @@ class SmartCategoryService:
                 account=account,
                 confidence_threshold=0.0,
             )
-        except Exception:
+        except (RuntimeError, ValueError):
             # Fallback if prediction fails
             return None, 0.0
 

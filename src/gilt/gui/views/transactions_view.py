@@ -241,7 +241,7 @@ class TransactionsView(QWidget):
             return
         try:
             self.es_service.ensure_projections_up_to_date(self.event_store)
-        except Exception:
+        except (OSError, ValueError):
             self.status_message.emit("Warning: projections sync failed — view may be stale")
 
     def _load_enrichment(self):
@@ -251,7 +251,7 @@ class TransactionsView(QWidget):
         try:
             events = self.event_store.get_events_by_type("TransactionEnriched")
             self.enrichment_service = EnrichmentService(events)
-        except Exception:
+        except (OSError, ValueError):
             self.enrichment_service = None
 
     def _init_ui(self):

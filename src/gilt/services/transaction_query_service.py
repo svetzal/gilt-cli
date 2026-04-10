@@ -120,7 +120,7 @@ class TransactionQueryService:
                         note_parts.append(f"Transfer from {cp_label}")
                     else:
                         note_parts.append(f"Transfer {cp_label}")
-        except Exception:
+        except (TypeError, KeyError):
             logger.debug("Failed to extract transfer metadata for display", exc_info=True)
 
         if transaction.notes:

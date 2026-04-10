@@ -89,7 +89,7 @@ class TransactionService:
             groups = load_ledger_csv(text, default_currency=default_currency)
             self._cache[account_id] = groups
             return groups
-        except Exception as e:
+        except (OSError, ValueError, UnicodeDecodeError) as e:
             logger.error("Failed to load account %s: %s", account_id, e, exc_info=True)
             return []
 
@@ -249,7 +249,7 @@ class TransactionService:
 
             return True
 
-        except Exception as e:
+        except (OSError, ValueError, UnicodeDecodeError) as e:
             logger.error("Failed to delete transaction %s: %s", transaction_id, e, exc_info=True)
             return False
 
@@ -296,6 +296,6 @@ class TransactionService:
 
             return True
 
-        except Exception as e:
+        except (OSError, ValueError, UnicodeDecodeError) as e:
             logger.error("Failed to update transaction: %s", e, exc_info=True)
             return False

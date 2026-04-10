@@ -18,6 +18,8 @@ try:
 except ImportError:  # pragma: no cover
     yaml = None  # type: ignore[assignment]
 
+from pydantic import ValidationError
+
 from gilt.model.category import CategoryConfig
 
 
@@ -44,7 +46,7 @@ def load_categories_config(path: Path) -> CategoryConfig:
         data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         # Validate the entire config structure
         return CategoryConfig.model_validate(data)
-    except Exception:  # pragma: no cover
+    except (yaml.YAMLError, ValidationError, OSError):  # pragma: no cover
         # Swallow errors and return empty config for resilience
         return CategoryConfig(categories=[])
 

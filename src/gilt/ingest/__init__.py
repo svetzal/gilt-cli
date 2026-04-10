@@ -16,20 +16,24 @@ Key functions:
 No network I/O. All operations are local, privacy-first.
 """
 
+import fnmatch
+import hashlib
+import logging
 from decimal import Decimal
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple, Dict
-import fnmatch
-import hashlib
 
 import pandas as pd
+from pydantic import ValidationError
 
 try:
     import yaml  # optional; used for local config parsing
-except Exception:  # pragma: no cover
+except ImportError:  # pragma: no cover
     yaml = None
 
 from gilt.model.account import Account
+
+logger = logging.getLogger(__name__)
 
 # Public constant: standardized processed schema
 STANDARD_FIELDS = [
@@ -64,11 +68,12 @@ def load_accounts_config(path: Path) -> List[Account]:
         for item in data.get("accounts") or []:
             try:
                 accounts.append(Account.model_validate(item))
-            except Exception:  # pragma: no cover
+            except ValidationError:  # pragma: no cover
                 # Skip invalid entries; keep local processing resilient
                 continue
-    except Exception:  # pragma: no cover
+    except (yaml.YAMLError, OSError):  # pragma: no cover
         # Swallow and return best-effort empty config
+        logger.warning("Failed to load accounts config from %s", path, exc_info=True)
         return accounts
     return accounts
 
@@ -346,7 +351,7 @@ def normalize_file(
             existing = pd.read_csv(ledger_path)
         else:
             existing = pd.DataFrame(columns=out.columns)
-    except Exception:
+    except (OSError, ValueError, UnicodeDecodeError):
         existing = pd.DataFrame(columns=out.columns)
 
     # Combine avoiding re-adding rows that already exist in the ledger
@@ -402,7 +407,7 @@ def normalize_file(
                             amount=Decimal(str(row["amount"])),
                         )
                         event_store.append_event(event)
-                    except (ValueError, Exception):
+                    except (ValueError, TypeError):
                         pass  # Skip events that can't be created
 
             # Only emit TransactionImported events for new transactions
@@ -421,7 +426,7 @@ def normalize_file(
                         raw_data=raw_row,
                     )
                     event_store.append_event(event)
-                except (ValueError, Exception):
+                except (ValueError, TypeError):
                     # Skip events that can't be created (invalid data)
                     continue
 

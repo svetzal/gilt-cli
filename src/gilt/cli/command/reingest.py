@@ -106,7 +106,7 @@ def run(
             )
             console.print(f"[green][ok][/] Wrote {out_path}")
             written += 1
-        except Exception as e:
+        except (OSError, ValueError, UnicodeDecodeError) as e:
             console.print(f"[red][error][/] Failed to normalize {p.name}: {e}")
 
     # 6. Link transfers

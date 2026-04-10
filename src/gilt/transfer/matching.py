@@ -86,7 +86,7 @@ def load_normalized(processed_dir: Path) -> list[Txn]:
     for f in files:
         try:
             df = pd.read_csv(f)
-        except Exception:  # pragma: no cover
+        except (OSError, UnicodeDecodeError):  # pragma: no cover
             continue
         required = {
             "transaction_id",
@@ -116,7 +116,7 @@ def load_normalized(processed_dir: Path) -> list[Txn]:
                         source_file=str(row["source_file"]),
                     )
                 )
-            except Exception:  # pragma: no cover
+            except (ValueError, TypeError, KeyError):  # pragma: no cover
                 continue
     return txns
 

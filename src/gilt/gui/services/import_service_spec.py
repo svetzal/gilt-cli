@@ -296,7 +296,7 @@ class DescribeImportServiceDuplicateScanning:
 
     def it_should_return_empty_list_on_parse_error(self, service, mock_duplicate_service):
         with patch("gilt.gui.services.import_service.parse_file") as mock_parse:
-            mock_parse.side_effect = Exception("CSV parse error")
+            mock_parse.side_effect = ValueError("CSV parse error")
             result = service.scan_file_for_duplicates(Path("fake.csv"), "MYBANK_CHQ")
         assert result == []
 
@@ -369,7 +369,7 @@ class DescribeImportServiceCategorizationScanning:
 
     def it_should_return_empty_list_on_parse_error(self, service):
         with patch("gilt.gui.services.import_service.parse_file") as mock_parse:
-            mock_parse.side_effect = Exception("Parse failed")
+            mock_parse.side_effect = ValueError("Parse failed")
             result = service.scan_file_for_categorization(Path("fake.csv"), "MYBANK_CHQ")
         assert result == []
 
@@ -438,7 +438,7 @@ class DescribeImportServiceImportExecution:
 
     def it_should_return_error_result_on_exception(self, service):
         with patch("gilt.gui.services.import_service.link_transfers") as mock_link:
-            mock_link.side_effect = Exception("Link failed")
+            mock_link.side_effect = OSError("Link failed")
             result = service.import_file(Path("fake.csv"), "MYBANK_CHQ", write=False)
         assert result.success is False
         assert result.error_count == 1

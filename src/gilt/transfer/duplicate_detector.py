@@ -98,7 +98,7 @@ class DuplicateDetector:
         except ImportError:
             # ML dependencies not installed, fall back to LLM
             return None
-        except Exception:
+        except (RuntimeError, ValueError, OSError):
             logger.warning("ML classifier training failed, falling back to LLM", exc_info=True)
             return None
 
@@ -118,7 +118,7 @@ class DuplicateDetector:
                 if isinstance(latest_event, PromptUpdated):
                     self.prompt_version = latest_event.prompt_version
                     self.learned_patterns = latest_event.learned_patterns
-        except Exception:
+        except (OSError, ValueError, TypeError):
             logger.warning(
                 "Failed to load learned patterns from event store, using defaults", exc_info=True
             )
@@ -247,7 +247,7 @@ class DuplicateDetector:
         if self.use_ml and self._ml_classifier is not None:
             try:
                 return self._ml_classifier.predict(pair)
-            except Exception:
+            except (RuntimeError, ValueError):
                 logger.debug("ML prediction failed, falling back to LLM", exc_info=True)
 
         # Fall back to LLM

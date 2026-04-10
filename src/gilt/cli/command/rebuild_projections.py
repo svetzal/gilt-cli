@@ -131,7 +131,7 @@ def run(
 
         return 0
 
-    except Exception as e:
+    except (OSError, ValueError) as e:
         console.print(f"[red]Error rebuilding projections:[/red] {e}")
         return 1
 

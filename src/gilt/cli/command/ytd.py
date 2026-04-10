@@ -127,7 +127,7 @@ def run(
             aid = getattr(a, "account_id", None)
             if aid == account:
                 acct_nature = getattr(a.nature, "value", str(a.nature))
-    except Exception:
+    except OSError:
         logger.debug("Could not determine account nature, defaulting to asset", exc_info=True)
 
     load_result = _load_all_transactions(workspace, include_duplicates)

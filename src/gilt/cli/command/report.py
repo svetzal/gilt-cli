@@ -102,7 +102,7 @@ def _write_report_files(
     try:
         markdown_path.write_text(markdown_content, encoding="utf-8")
         console.print(f"[green]✓[/] Written markdown report: [cyan]{markdown_path}[/]")
-    except Exception as e:
+    except OSError as e:
         console.print(f"[red]Error writing markdown file:[/] {e}")
         return 1
 

@@ -57,7 +57,7 @@ def run(
             month=month,
             category_filter=category,
         )
-    except Exception as e:
+    except (OSError, ValueError) as e:
         console.print(f"[red]Error:[/] Failed to generate budget report: {e}")
         return 1
 

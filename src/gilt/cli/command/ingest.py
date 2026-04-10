@@ -30,7 +30,7 @@ def _load_ledger_counts(paths: Iterable[Path]) -> dict[str, int]:
             text = lp.read_text(encoding="utf-8")
             groups = load_ledger_csv(text, default_currency="CAD")
             counts[lp.name] = len(groups)
-        except Exception:
+        except (OSError, ValueError, UnicodeDecodeError):
             counts[lp.name] = 0
     return counts
 
@@ -61,7 +61,7 @@ def _perform_normalization(
             )
             console.print(f"[green][ok][/green] Wrote {out_path}")
             written += 1
-        except Exception as e:
+        except (OSError, ValueError, UnicodeDecodeError) as e:
             console.print(f"[red][error][/red] Failed to normalize {p.name}: {e}")
             skipped += 1
     return written, skipped

@@ -24,7 +24,7 @@ def _collect_accounts(config_path: Path, data_dir: Path) -> dict[str, str]:
     # 1) Configured accounts (best-effort)
     try:
         accounts = load_accounts_config(config_path)
-    except Exception:
+    except OSError:
         logger.warning("Failed to load accounts config", exc_info=True)
         accounts = []
     for a in accounts:
@@ -46,7 +46,7 @@ def _collect_accounts(config_path: Path, data_dir: Path) -> dict[str, str]:
             aid = p.stem
             if aid not in id_to_desc:
                 id_to_desc[aid] = aid
-    except Exception:
+    except OSError:
         logger.debug("Could not scan data directory for unmanaged ledgers", exc_info=True)
 
     return id_to_desc

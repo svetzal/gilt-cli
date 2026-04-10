@@ -202,7 +202,7 @@ def run(
     text = ledger_path.read_text(encoding="utf-8")
     try:
         groups = load_ledger_csv(text)
-    except Exception as e:
+    except ValueError as e:
         console.print(f"[red]Error loading ledger:[/red] {e}")
         return 1
 

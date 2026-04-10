@@ -112,7 +112,7 @@ def _backfill_events(
             for error in event_errors:
                 console.print(f"[red]  • {error}[/]")
                 errors += 1
-        except Exception as e:
+        except (OSError, ValueError, UnicodeDecodeError) as e:
             console.print(f"[red]Error processing {ledger_path.name}: {e}[/]")
             errors += 1
 
@@ -126,7 +126,7 @@ def _backfill_events(
                 event_store.append_event(event)
                 budget_events += 1
             console.print(f"[green]✓[/green] Created {budget_events} budget event(s)")
-        except Exception as e:
+        except (OSError, ValueError) as e:
             console.print(f"[red]Error creating budget events: {e}[/]")
             errors += 1
 
@@ -149,7 +149,7 @@ def _build_projections(
         console.print(
             f"[green]✓[/green] Built transaction projections ({tx_count} events processed)"
         )
-    except Exception as e:
+    except (OSError, ValueError) as e:
         console.print(f"[red]Error building transaction projections: {e}[/]")
         return 1
 
@@ -161,7 +161,7 @@ def _build_projections(
             console.print(
                 f"[green]✓[/green] Built budget projections ({budget_count} events processed)"
             )
-        except Exception as e:
+        except (OSError, ValueError) as e:
             console.print(f"[red]Error building budget projections: {e}[/]")
             return 1
 
@@ -213,7 +213,7 @@ def _validate_migration(
             for error in result.errors:
                 console.print(f"  • {error}")
             return 1
-    except Exception as e:
+    except (OSError, ValueError) as e:
         console.print(f"[red]Validation failed: {e}[/]")
         return 1
 

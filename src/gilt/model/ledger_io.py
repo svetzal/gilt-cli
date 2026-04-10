@@ -79,7 +79,7 @@ def _parse_metadata_field(s: str) -> dict:
         return {}
     try:
         return json.loads(s)
-    except Exception:
+    except (json.JSONDecodeError, TypeError):
         return {}
 
 
@@ -356,7 +356,7 @@ def load_all_ledger_groups(
         try:
             text = ledger_path.read_text(encoding="utf-8")
             all_groups.extend(load_ledger_csv(text, default_currency=default_currency))
-        except Exception:
+        except (OSError, ValueError, UnicodeDecodeError):
             continue
     return all_groups
 

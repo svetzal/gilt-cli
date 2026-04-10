@@ -183,7 +183,7 @@ class ImportService:
             preview = df.to_dict("records")
             return preview, None
 
-        except Exception as e:
+        except (FileNotFoundError, UnicodeDecodeError, pd.errors.ParserError) as e:
             return [], str(e)
 
     def create_file_mapping(self, file_path: Path, max_preview_rows: int = 5) -> ImportFileMapping:
@@ -227,7 +227,7 @@ class ImportService:
             text = ledger_path.read_text(encoding="utf-8")
             groups = load_ledger_csv(text)
             return len(groups)
-        except Exception:
+        except (OSError, ValueError, UnicodeDecodeError):
             return 0
 
     def count_duplicates(self, file_path: Path, account_id: str) -> tuple[int, int, str | None]:
@@ -261,7 +261,7 @@ class ImportService:
 
             return new_count, duplicate_count, None
 
-        except Exception as e:
+        except (FileNotFoundError, UnicodeDecodeError, pd.errors.ParserError, KeyError) as e:
             return 0, 0, str(e)
 
     def scan_file_for_duplicates(self, file_path: Path, account_id: str) -> list[DuplicateMatch]:
@@ -350,7 +350,7 @@ class ImportService:
 
             return relevant_matches
 
-        except Exception as e:
+        except (OSError, ValueError) as e:
             _logger.error("Error scanning for duplicates: %s", e)
             return []
 
@@ -419,7 +419,7 @@ class ImportService:
 
             return items
 
-        except Exception as e:
+        except (OSError, ValueError) as e:
             _logger.error("Error scanning for categorization: %s", e)
             return []
 
@@ -513,7 +513,7 @@ class ImportService:
                 ledger_path=ledger_path,
             )
 
-        except Exception as e:
+        except (OSError, ValueError, UnicodeDecodeError) as e:
             return ImportResult(
                 success=False,
                 imported_count=0,

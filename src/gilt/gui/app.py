@@ -7,6 +7,7 @@ Privacy-first Qt6 graphical user interface for Gilt.
 All data processing remains local-only with no network I/O.
 """
 
+import logging
 import sys
 from pathlib import Path
 
@@ -14,6 +15,8 @@ from PySide6.QtGui import QPalette
 from PySide6.QtWidgets import QApplication
 
 from gilt.gui.main_window import MainWindow
+
+logger = logging.getLogger(__name__)
 
 
 def is_dark_mode(app: QApplication) -> bool:
@@ -60,8 +63,8 @@ def load_stylesheet(theme: str) -> str:
         try:
             with open(stylesheet_path, encoding="utf-8") as f:
                 return f.read()
-        except Exception as e:
-            print(f"Warning: Could not load {theme} stylesheet: {e}")
+        except OSError as e:
+            logger.warning("Could not load %s stylesheet: %s", theme, e)
 
     # Fallback: minimal stylesheet that respects system colors
     return ""
