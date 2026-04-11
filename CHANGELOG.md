@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.1] - 2026-04-11
+
+### Changed
+- Extract file I/O from EventMigrationService, isolating pure business logic from filesystem dependencies
+- Extract budget reporting logic to dedicated BudgetReportingService with dataclass models
+- Remove category logic duplication in GUI service layer by delegating to CategoryManagementService
+- Link CHARTER.md in AGENTS.md for agent clarity on project purpose and constraints
+
+### Tests
+- Add ~190 comprehensive tests across transfer linking, GUI services, ledger I/O, budget, duplicate detection, and event sourcing modules
+
+### Dependencies
+- Update ruff, openai, anthropic, PySide6, anyio, mkdocs-material, and transitive dependencies to latest patches
+
 ## [0.5.0] - 2026-03-17
 
 ### Added
