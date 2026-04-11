@@ -253,6 +253,27 @@ The gilt skill for Claude Code is distributed alongside the CLI package.
 
 **Pre-release checklist addition**: After bumping version in `pyproject.toml`, verify `gilt skill-init` stamps the correct version.
 
+## Release Process
+
+To create a new release:
+
+1. **Pre-flight — all quality gates pass:**
+   ```bash
+   uv run ruff check .
+   uv run ruff format --check .
+   uv run pytest
+   ```
+2. **Update CHANGELOG.md** — move `[Unreleased]` entries to `[X.Y.Z] - YYYY-MM-DD` with today's date, add a fresh empty `[Unreleased]` section above it
+3. **Bump version** in `pyproject.toml` `[project]` section (semver — minor for features, patch for fixes)
+4. **Update skill files** — run `gilt skill-init --force` to verify the new version stamps correctly into `skills/gilt/SKILL.md`
+5. **Commit**: `git commit -m "Release vX.Y.Z"`
+6. **Tag**: `git tag vX.Y.Z`
+7. **Push**: `git push origin main --tags`
+8. **Publish** — CI handles it automatically: `.github/workflows/release.yml` triggers on GitHub release, verifies the tag matches `pyproject.toml` version, runs quality checks, then `uv build && uv publish`. To publish manually instead: `rm -rf dist && uv build && uv publish`
+9. **Local install** (optional): `uv tool install ".[gui]" --force`
+
+**CI details**: The release workflow (`release.yml`) triggers on `release: [published]`. It runs the same quality gates as CI (`ruff check`, `ruff format --check`, `pytest`), verifies the git tag version matches `pyproject.toml`, builds, publishes to PyPI, and attaches dist artifacts to the GitHub release.
+
 ## Anti-Patterns
 
 - **No real financial data in tracked files** — no real bank names, account IDs, merchant names, employer names, budget amounts, or locations in source, tests, or docs
