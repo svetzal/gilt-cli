@@ -32,23 +32,9 @@ except ImportError:  # pragma: no cover
     yaml = None
 
 from gilt.model.account import Account
+from gilt.model.ledger_io import STANDARD_FIELDS
 
 logger = logging.getLogger(__name__)
-
-# Public constant: standardized processed schema
-STANDARD_FIELDS = [
-    "transaction_id",
-    "date",
-    "description",
-    "amount",
-    "currency",
-    "account_id",
-    "counterparty",
-    "category",
-    "subcategory",
-    "notes",
-    "source_file",
-]
 
 
 def load_accounts_config(path: Path) -> List[Account]:

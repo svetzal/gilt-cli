@@ -31,14 +31,9 @@ from .account import SplitLine, Transaction, TransactionGroup
 ROW_TYPE_PRIMARY = "primary"
 ROW_TYPE_SPLIT = "split"
 
-# Columns for the flat ledger CSV. We union Transaction fields with split-only fields
-# and a couple of control columns (row_type, group_id, metadata_json).
-# Note: Keep order stable for deterministic outputs.
-LEDGER_COLUMNS: list[str] = [
-    # Control / linkage
-    "row_type",  # "primary" or "split"; missing -> treat as primary (back-compat)
-    "group_id",  # required for split rows; optional for primary (defaults to transaction_id)
-    # Primary/Transaction fields
+# Core transaction field names (source of truth for the processed schema).
+# This is the canonical list; LEDGER_COLUMNS is composed from it.
+STANDARD_FIELDS: list[str] = [
     "transaction_id",
     "date",
     "description",
@@ -50,15 +45,29 @@ LEDGER_COLUMNS: list[str] = [
     "subcategory",
     "notes",
     "source_file",
-    "metadata_json",  # JSON for Transaction.metadata (dict) — may be empty
-    # Split-only fields
-    "line_id",
-    "target_account_id",
-    "split_category",
-    "split_subcategory",
-    "split_memo",
-    "split_percent",
 ]
+
+# Columns for the flat ledger CSV. We union Transaction fields with split-only fields
+# and a couple of control columns (row_type, group_id, metadata_json).
+# Note: Keep order stable for deterministic outputs.
+LEDGER_COLUMNS: list[str] = (
+    [
+        # Control / linkage
+        "row_type",  # "primary" or "split"; missing -> treat as primary (back-compat)
+        "group_id",  # required for split rows; optional for primary (defaults to transaction_id)
+    ]
+    + STANDARD_FIELDS
+    + [
+        "metadata_json",  # JSON for Transaction.metadata (dict) — may be empty
+        # Split-only fields
+        "line_id",
+        "target_account_id",
+        "split_category",
+        "split_subcategory",
+        "split_memo",
+        "split_percent",
+    ]
+)
 
 
 def _to_str(v) -> str:
@@ -366,6 +375,7 @@ __all__ = [
     "load_all_ledger_groups",
     "load_ledger_csv",
     "LEDGER_COLUMNS",
+    "STANDARD_FIELDS",
     "ROW_TYPE_PRIMARY",
     "ROW_TYPE_SPLIT",
 ]

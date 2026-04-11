@@ -38,7 +38,7 @@ When circumstances suggest breaking these principles, explicitly consult the use
 
 ## Ledger Schema
 
-Columns in order (source of truth: `gilt.ingest.STANDARD_FIELDS`):
+Columns in order (source of truth: `gilt.model.ledger_io.STANDARD_FIELDS`):
 
 `transaction_id | date | description | amount | currency | account_id | counterparty | category | subcategory | notes | source_file | metadata`
 
