@@ -17,6 +17,10 @@ Apply these Simple Design Heuristics in priority order:
 
 When circumstances suggest breaking these principles, explicitly consult the user.
 
+## Development Workflow
+
+Trunk-based development: `main` is the only long-lived branch. All work lands on `main` via direct commit. Feature branches are not pushed to `origin`. Pull requests are not used. Short-lived local working branches (e.g. hopper worktrees) are merged to `main` and deleted locally before work is considered complete.
+
 ## Architecture
 
 - **Data storage**: CSV ledgers (`data/accounts/*.csv`), YAML config (`config/*.yml`)
