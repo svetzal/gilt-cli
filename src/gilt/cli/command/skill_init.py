@@ -8,8 +8,7 @@ from pathlib import Path
 
 from .util import console
 
-# Source skill files live alongside the package in the repo
-_SKILL_SOURCE_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent / "skills" / "gilt"
+_SKILL_SOURCE_DIR = Path(__file__).resolve().parent.parent.parent / "skills" / "gilt"
 
 _VERSION_FRONTMATTER_RE = re.compile(r"^(---\n.*?)(---\n)", re.DOTALL)
 

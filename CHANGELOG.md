@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.2] - 2026-04-12
+
+### Fixed
+- Fix `gilt skill-init` failing when installed via `uv tool install` — skill source files are now packaged inside the wheel instead of relying on a repo-relative path
+
 ## [0.5.1] - 2026-04-11
 
 ### Changed

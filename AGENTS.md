@@ -244,7 +244,7 @@ Any relaxation of privacy rules or external integrations must be documented here
 
 The gilt skill for Claude Code is distributed alongside the CLI package.
 
-- **Source of truth**: `skills/gilt/` directory in the repo (no version in frontmatter)
+- **Source of truth**: `src/gilt/skills/gilt/` directory in the repo (no version in frontmatter)
 - **Install locally**: `gilt skill-init` — copies to `.claude/skills/gilt/` in CWD
 - **Install globally**: `gilt skill-init --global` — copies to `~/.claude/skills/gilt/`
 - **Force overwrite**: `gilt skill-init --force` — bypasses version guard
