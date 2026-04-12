@@ -121,9 +121,7 @@ class TransactionOperationsService:
             error values: "prefix_too_short", "not_found", "ambiguous"
         """
         if len(txid_prefix) < min_length:
-            return TransactionLookupResult(
-                transaction=None, error="prefix_too_short"
-            )
+            return TransactionLookupResult(transaction=None, error="prefix_too_short")
 
         # Exact match first
         for txn in transactions:

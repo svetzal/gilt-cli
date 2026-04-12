@@ -192,7 +192,13 @@ def _confirm_and_apply(
         subcategory,
     )
 
-    _persist_categorizations(all_matches, result.updated_transactions, workspace, ready.event_store, ready.projection_builder)
+    _persist_categorizations(
+        all_matches,
+        result.updated_transactions,
+        workspace,
+        ready.event_store,
+        ready.projection_builder,
+    )
 
     console.print(f"[green]✓[/] Categorized {total_matched} transaction(s)")
     return 0

@@ -104,7 +104,7 @@ class DescribeSetCurrentData:
     def it_should_locate_item_by_user_role_data(self):
         # Simulate findData(data, UserRole) logic
         items = [
-            (None, None),           # placeholder
+            (None, None),  # placeholder
             ("Groceries", "Groceries"),
             ("Transport", "Transport"),
         ]

@@ -7,7 +7,7 @@ Diagnose category issues by finding categories in transactions that aren't in co
 from rich.table import Table
 
 from gilt.model.category_io import load_categories_config
-from gilt.model.ledger_io import load_all_ledger_groups
+from gilt.model.ledger_repository import LedgerRepository
 from gilt.services.category_diagnostics_service import CategoryDiagnosticsService
 from gilt.workspace import Workspace
 
@@ -18,7 +18,7 @@ def _load_transactions_from_ledgers(data_dir) -> list[dict]:
     """Load all transactions from ledger CSVs as plain dicts for diagnostic use."""
     return [
         {"category": group.primary.category, "subcategory": group.primary.subcategory}
-        for group in load_all_ledger_groups(data_dir)
+        for group in LedgerRepository(data_dir).load_all()
     ]
 
 

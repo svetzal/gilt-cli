@@ -212,7 +212,6 @@ class EventSourcingService:
             # Already up to date
             return 0
 
-
     def ensure_ready(self, data_dir: Path | None = None) -> EventSourcingReadyResult:
         """Check and initialize event sourcing, auto-rebuilding projections if needed.
 

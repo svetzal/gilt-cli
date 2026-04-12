@@ -42,6 +42,7 @@ from gilt.gui.widgets.transaction_detail_panel import TransactionDetailPanel
 from gilt.gui.widgets.transaction_table import TransactionTableWidget
 from gilt.model.account import TransactionGroup
 from gilt.model.duplicate import DuplicateAssessment, DuplicateMatch, TransactionPair
+from gilt.model.ledger_repository import LedgerRepository
 from gilt.services.categorization_persistence_service import (
     CategorizationPersistenceService,
     CategorizationUpdate,
@@ -769,11 +770,12 @@ class TransactionsView(QWidget):
                 for txn_group in transactions
             ]
 
+            ledger_repo = LedgerRepository(self.service.data_dir)
             if self.event_store and self.es_service:
                 persistence_svc = CategorizationPersistenceService(
                     event_store=self.event_store,
                     projection_builder=self.es_service.get_projection_builder(),
-                    ledger_data_dir=self.service.data_dir,
+                    ledger_repo=ledger_repo,
                 )
                 persistence_svc.persist_categorizations(updates)
             else:
@@ -781,7 +783,7 @@ class TransactionsView(QWidget):
                     write_categorizations_to_csv,
                 )
 
-                write_categorizations_to_csv(updates, self.service.data_dir)
+                write_categorizations_to_csv(updates, ledger_repo)
                 self._sync_projections()
 
             # Record categorization events for ML training
@@ -839,7 +841,7 @@ class TransactionsView(QWidget):
                 account_id=transaction.primary.account_id,
                 transaction_id=transaction.primary.transaction_id,
                 note=note if note else None,
-                ledger_data_dir=self.service.data_dir,
+                ledger_repo=LedgerRepository(self.service.data_dir),
             )
 
             # Sync projections DB so reload sees the updated data

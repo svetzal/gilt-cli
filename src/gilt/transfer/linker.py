@@ -25,7 +25,7 @@ import logging
 from pathlib import Path
 
 from gilt.model.account import TransactionGroup
-from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
+from gilt.model.ledger_repository import LedgerRepository
 from gilt.transfer._constants import (
     ROLE_CREDIT,
     ROLE_DEBIT,
@@ -56,11 +56,12 @@ def _build_indexes(
     """
     file_groups: dict[str, list[TransactionGroup]] = {}
     txn_index: dict[str, tuple[str, TransactionGroup]] = {}
+    repo = LedgerRepository(processed_dir)
 
-    for csv_path in sorted((processed_dir).glob("*.csv")):
+    for account_id in repo.available_account_ids():
+        csv_path = repo.ledger_path(account_id)
         try:
-            text = csv_path.read_text(encoding="utf-8")
-            groups = load_ledger_csv(text, default_currency="CAD")
+            groups = repo.load(account_id)
         except (OSError, ValueError, UnicodeDecodeError):
             logger.warning("Failed to load ledger %s, skipping", csv_path, exc_info=True)
             groups = []
@@ -182,10 +183,11 @@ def link_transfers(
 
     # 4) Persist changes if requested
     if write and modified_files:
+        repo = LedgerRepository(processed_dir)
         for path_str in sorted(modified_files):
             groups = file_groups.get(path_str, [])
-            csv_text = dump_ledger_csv(groups)
-            Path(path_str).write_text(csv_text, encoding="utf-8")
+            account_id = Path(path_str).stem
+            repo.save(account_id, groups)
 
     return len(modified_files)
 

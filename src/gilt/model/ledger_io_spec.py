@@ -16,7 +16,6 @@ from gilt.model.ledger_io import (
     ROW_TYPE_SPLIT,
     _to_str,
     dump_ledger_csv,
-    load_all_ledger_groups,
     load_ledger_csv,
 )
 
@@ -495,72 +494,3 @@ class DescribeRoundTrip:
         assert len(result) == 3
         ids = {g.primary.transaction_id for g in result}
         assert ids == {"tx00000000000001", "tx00000000000002", "tx00000000000003"}
-
-
-# ---------------------------------------------------------------------------
-# load_all_ledger_groups
-# ---------------------------------------------------------------------------
-
-
-class DescribeLoadAllLedgerGroups:
-    """Specs for loading and combining all CSV ledger files from a directory."""
-
-    def it_should_return_empty_list_for_empty_directory(self, tmp_path):
-        result = load_all_ledger_groups(tmp_path)
-        assert result == []
-
-    def it_should_load_and_combine_groups_from_multiple_csvs(self, tmp_path):
-        t1 = _make_primary(
-            transaction_id="aaaa0001aaaa0001",
-            date="2025-01-10",
-            description="EXAMPLE UTILITY",
-            amount=-100.0,
-            account_id="MYBANK_CHQ",
-        )
-        t2 = _make_primary(
-            transaction_id="bbbb0002bbbb0002",
-            date="2025-01-15",
-            description="SAMPLE STORE",
-            amount=-50.0,
-            account_id="MYBANK_CC",
-        )
-        (tmp_path / "MYBANK_CHQ.csv").write_text(
-            dump_ledger_csv([_make_group(t1)]), encoding="utf-8"
-        )
-        (tmp_path / "MYBANK_CC.csv").write_text(
-            dump_ledger_csv([_make_group(t2)]), encoding="utf-8"
-        )
-
-        result = load_all_ledger_groups(tmp_path)
-
-        assert len(result) == 2
-        ids = {g.primary.transaction_id for g in result}
-        assert ids == {"aaaa0001aaaa0001", "bbbb0002bbbb0002"}
-
-    def it_should_return_empty_list_when_directory_does_not_exist(self, tmp_path):
-        result = load_all_ledger_groups(tmp_path / "nonexistent")
-        assert result == []
-
-    def it_should_sort_files_alphabetically_before_loading(self, tmp_path):
-        t_a = _make_primary(
-            transaction_id="aaaa1111aaaa1111",
-            date="2025-02-01",
-            description="ACME CORP",
-            amount=-10.0,
-            account_id="MYBANK_CHQ",
-        )
-        t_b = _make_primary(
-            transaction_id="bbbb2222bbbb2222",
-            date="2025-02-02",
-            description="SAMPLE STORE",
-            amount=-20.0,
-            account_id="MYBANK_CC",
-        )
-        # Write b.csv before a.csv to confirm alphabetical ordering is enforced
-        (tmp_path / "b.csv").write_text(dump_ledger_csv([_make_group(t_b)]), encoding="utf-8")
-        (tmp_path / "a.csv").write_text(dump_ledger_csv([_make_group(t_a)]), encoding="utf-8")
-
-        result = load_all_ledger_groups(tmp_path)
-
-        # Sorted by date here (load_ledger_csv sorts by date), but both files loaded
-        assert len(result) == 2

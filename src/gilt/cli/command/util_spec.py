@@ -33,7 +33,15 @@ class DescribeCreateTransactionTable:
         assert isinstance(table, Table)
         assert len(table.columns) == 7
         headers = [col.header for col in table.columns]
-        assert headers == ["Account", "TxnID", "Date", "Description", "Amount", "Current Note", "→ New Note"]
+        assert headers == [
+            "Account",
+            "TxnID",
+            "Date",
+            "Description",
+            "Amount",
+            "Current Note",
+            "→ New Note",
+        ]
 
     def it_should_apply_correct_styles_to_base_columns(self):
         table = create_transaction_table("Test", [])

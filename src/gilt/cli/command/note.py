@@ -3,7 +3,7 @@ from __future__ import annotations
 """Add or update notes on transactions."""
 
 from gilt.model.account import TransactionGroup
-from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
+from gilt.model.ledger_repository import LedgerRepository
 from gilt.services.transaction_operations_service import (
     SearchCriteria,
     TransactionOperationsService,
@@ -159,7 +159,8 @@ def _apply_and_write_notes(
     groups: list[TransactionGroup],
     groups_to_update: list[TransactionGroup],
     note_text: str,
-    ledger_path,
+    ledger_repo: LedgerRepository,
+    account_id: str,
 ) -> None:
     """Apply notes and write back to CSV."""
     updated_ids = {g.primary.transaction_id for g in groups_to_update}
@@ -170,8 +171,7 @@ def _apply_and_write_notes(
         else:
             updated_groups.append(group)
 
-    csv_text = dump_ledger_csv(updated_groups)
-    ledger_path.write_text(csv_text, encoding="utf-8")
+    ledger_repo.save(account_id, updated_groups)
 
     console.print(
         f"[green]Saved notes to ledger successfully.[/] Applied to {len(groups_to_update)} transaction(s)."
@@ -192,22 +192,22 @@ def run(
     write: bool = False,
 ) -> int:
     """Attach or update notes on transactions in the account ledger."""
-    data_dir = workspace.ledger_data_dir
-    ledger_path = data_dir / f"{account}.csv"
+    ledger_repo = LedgerRepository(workspace.ledger_data_dir)
 
-    if not ledger_path.exists():
-        console.print(f"[red]Error:[/red] Ledger not found: {ledger_path}")
+    if not ledger_repo.exists(account):
+        console.print(f"[red]Error:[/red] Ledger not found: {ledger_repo.ledger_path(account)}")
         return 1
 
-    text = ledger_path.read_text(encoding="utf-8")
     try:
-        groups = load_ledger_csv(text)
+        groups = ledger_repo.load(account)
     except ValueError as e:
         console.print(f"[red]Error loading ledger:[/red] {e}")
         return 1
 
     if not groups:
-        console.print(f"[yellow]No transactions found in ledger:[/] {ledger_path}")
+        console.print(
+            f"[yellow]No transactions found in ledger:[/] {ledger_repo.ledger_path(account)}"
+        )
         return 1
 
     service = TransactionOperationsService()
@@ -238,5 +238,5 @@ def run(
             console.print("[dim]Aborted.[/]")
             return 0
 
-    _apply_and_write_notes(service, groups, groups_to_update, note_text, ledger_path)
+    _apply_and_write_notes(service, groups, groups_to_update, note_text, ledger_repo, account)
     return 0

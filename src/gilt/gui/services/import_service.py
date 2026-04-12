@@ -25,7 +25,7 @@ from gilt.ingest import (
 )
 from gilt.model.account import Account, Transaction
 from gilt.model.duplicate import DuplicateMatch, TransactionPair
-from gilt.model.ledger_io import load_ledger_csv
+from gilt.model.ledger_repository import LedgerRepository
 from gilt.services.duplicate_service import DuplicateService
 from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.services.smart_category_service import SmartCategoryService
@@ -219,14 +219,12 @@ class ImportService:
         Returns:
             Count of existing transactions
         """
-        ledger_path = self.data_dir / f"{account_id}.csv"
-        if not ledger_path.exists():
+        ledger_repo = LedgerRepository(self.data_dir)
+        if not ledger_repo.exists(account_id):
             return 0
 
         try:
-            text = ledger_path.read_text(encoding="utf-8")
-            groups = load_ledger_csv(text)
-            return len(groups)
+            return len(ledger_repo.load(account_id))
         except (OSError, ValueError, UnicodeDecodeError):
             return 0
 

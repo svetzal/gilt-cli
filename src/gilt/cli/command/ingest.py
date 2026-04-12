@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from pathlib import Path
 
 from gilt.ingest import load_accounts_config, normalize_file
-from gilt.model.ledger_io import load_ledger_csv
+from gilt.model.ledger_repository import LedgerRepository
 from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.services.ingestion_service import IngestionService
 from gilt.services.rule_inference_service import RuleInferenceService
@@ -26,9 +26,9 @@ def _print_plan(plan: Iterable[tuple[Path, str | None]], total_files: int) -> No
 def _load_ledger_counts(paths: Iterable[Path]) -> dict[str, int]:
     counts: dict[str, int] = {}
     for lp in paths:
+        repo = LedgerRepository(lp.parent)
         try:
-            text = lp.read_text(encoding="utf-8")
-            groups = load_ledger_csv(text, default_currency="CAD")
+            groups = repo.load(lp.stem)
             counts[lp.name] = len(groups)
         except (OSError, ValueError, UnicodeDecodeError):
             counts[lp.name] = 0

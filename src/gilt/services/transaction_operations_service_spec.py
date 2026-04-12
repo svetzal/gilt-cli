@@ -530,8 +530,6 @@ class DescribeEdgeCases(DescribeTransactionOperationsService):
         assert preview.criteria.amount == -10.99
 
 
-
-
 class DescribeFindByPrefix:
     """Tests for TransactionOperationsService.find_by_prefix."""
 

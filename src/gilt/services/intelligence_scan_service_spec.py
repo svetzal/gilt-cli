@@ -67,9 +67,7 @@ class DescribeApplyInferredRules:
         fake_projections = tmp_path / "projections.db"
         txns = [_make_transaction("t1")]
 
-        with patch(
-            "gilt.services.intelligence_scan_service.RuleInferenceService"
-        ) as mock_rule_cls:
+        with patch("gilt.services.intelligence_scan_service.RuleInferenceService") as mock_rule_cls:
             mock_rule_svc = Mock()
             mock_rule_svc.infer_rules.return_value = []
             mock_rule_cls.return_value = mock_rule_svc
@@ -92,9 +90,7 @@ class DescribeApplyInferredRules:
         mock_match.transaction = {"transaction_id": "t1"}
         mock_match.rule = mock_rule
 
-        with patch(
-            "gilt.services.intelligence_scan_service.RuleInferenceService"
-        ) as mock_rule_cls:
+        with patch("gilt.services.intelligence_scan_service.RuleInferenceService") as mock_rule_cls:
             mock_rule_svc = Mock()
             mock_rule_svc.infer_rules.return_value = [mock_rule]
             mock_rule_svc.apply_rules.return_value = [mock_match]

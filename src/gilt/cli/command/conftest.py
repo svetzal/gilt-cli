@@ -5,14 +5,14 @@ from pathlib import Path
 
 from gilt.model.account import TransactionGroup
 from gilt.model.events import TransactionCategorized, TransactionImported
-from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
+from gilt.model.ledger_repository import LedgerRepository
 from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
 
 
 def write_ledger(path: Path, groups: list[TransactionGroup]):
-    csv_text = dump_ledger_csv(groups)
-    path.write_text(csv_text, encoding="utf-8")
+    repo = LedgerRepository(path.parent)
+    repo.save(path.stem, groups)
 
 
 def build_projections_from_csvs(data_dir: Path, projections_path: Path):
@@ -21,15 +21,15 @@ def build_projections_from_csvs(data_dir: Path, projections_path: Path):
     store_path.parent.mkdir(parents=True, exist_ok=True)
 
     store = EventStore(str(store_path))
-    for csv_file in data_dir.glob("*.csv"):
-        text = csv_file.read_text(encoding="utf-8")
-        groups = load_ledger_csv(text, default_currency="CAD")
+    repo = LedgerRepository(data_dir)
+    for account_id in repo.available_account_ids():
+        groups = repo.load(account_id)
         for group in groups:
             txn = group.primary
             import_event = TransactionImported(
                 transaction_id=txn.transaction_id,
                 transaction_date=str(txn.date),
-                source_file=csv_file.name,
+                source_file=f"{account_id}.csv",
                 source_account=txn.account_id,
                 raw_description=txn.description,
                 amount=Decimal(str(txn.amount)),

@@ -120,9 +120,7 @@ class DescribeAccountMappingPageInference:
 
     def it_should_report_unknown_when_no_account_detected(self):
         detected_account = None
-        detected_label = (
-            detected_account.account_id if detected_account else "Unknown"
-        )
+        detected_label = detected_account.account_id if detected_account else "Unknown"
         assert detected_label == "Unknown"
 
     def it_should_show_ready_status_when_account_selected(self):

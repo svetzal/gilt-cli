@@ -6,6 +6,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
+from gilt.model.ledger_repository import LedgerRepository
 from gilt.services.categorization_persistence_service import CategorizationPersistenceService
 from gilt.services.event_sourcing_service import EventSourcingReadyResult, EventSourcingService
 from gilt.storage.event_store import EventStore
@@ -97,8 +98,7 @@ def require_event_sourcing(workspace: Workspace) -> EventSourcingReadyResult | N
     if not result.ready:
         if result.error == "no_event_store":
             console.print(
-                f"[yellow]Event store not found, but found "
-                f"{result.csv_files_count} CSV file(s)[/]"
+                f"[yellow]Event store not found, but found {result.csv_files_count} CSV file(s)[/]"
             )
             console.print()
             console.print("[bold]To migrate your existing data to event sourcing:[/]")
@@ -136,7 +136,7 @@ def require_persistence_service(
     return CategorizationPersistenceService(
         event_store=event_store,
         projection_builder=projection_builder,
-        ledger_data_dir=workspace.ledger_data_dir,
+        ledger_repo=LedgerRepository(workspace.ledger_data_dir),
     )
 
 

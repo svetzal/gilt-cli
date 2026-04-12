@@ -19,11 +19,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from pathlib import Path
 
 from gilt.model.account import TransactionGroup
 from gilt.model.events import TransactionCategorized
-from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
+from gilt.model.ledger_repository import LedgerRepository
 from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
 
@@ -51,7 +50,7 @@ class CategorizationPersistenceResult:
 
 def write_categorizations_to_csv(
     updates: list[CategorizationUpdate],
-    ledger_data_dir: Path,
+    ledger_repo: LedgerRepository,
 ) -> None:
     """Write category updates directly to per-account CSV ledger files.
 
@@ -62,19 +61,17 @@ def write_categorizations_to_csv(
 
     Args:
         updates: Categorization changes to apply.
-        ledger_data_dir: Directory containing per-account CSV ledger files.
+        ledger_repo: Repository providing ledger I/O for each account.
     """
     by_account: dict[str, list[CategorizationUpdate]] = {}
     for update in updates:
         by_account.setdefault(update.account_id, []).append(update)
 
     for account_id, acct_updates in by_account.items():
-        ledger_path = ledger_data_dir / f"{account_id}.csv"
-        if not ledger_path.exists():
+        if not ledger_repo.exists(account_id):
             continue
 
-        text = ledger_path.read_text(encoding="utf-8")
-        groups = load_ledger_csv(text, default_currency="CAD")
+        groups = ledger_repo.load(account_id)
 
         update_map = {u.transaction_id: u for u in acct_updates}
         for group in groups:
@@ -84,7 +81,7 @@ def write_categorizations_to_csv(
                 group.primary.category = u.category
                 group.primary.subcategory = u.subcategory
 
-        ledger_path.write_text(dump_ledger_csv(groups), encoding="utf-8")
+        ledger_repo.save(account_id, groups)
 
 
 class CategorizationPersistenceService:
@@ -104,11 +101,11 @@ class CategorizationPersistenceService:
         self,
         event_store: EventStore,
         projection_builder: ProjectionBuilder,
-        ledger_data_dir: Path,
+        ledger_repo: LedgerRepository,
     ) -> None:
         self._event_store = event_store
         self._projection_builder = projection_builder
-        self._ledger_data_dir = ledger_data_dir
+        self._ledger_repo = ledger_repo
 
     def persist_categorizations(
         self, updates: list[CategorizationUpdate]
@@ -140,12 +137,10 @@ class CategorizationPersistenceService:
 
         accounts_written: list[str] = []
         for account_id, acct_updates in by_account.items():
-            ledger_path = self._ledger_data_dir / f"{account_id}.csv"
-            if not ledger_path.exists():
+            if not self._ledger_repo.exists(account_id):
                 continue
 
-            text = ledger_path.read_text(encoding="utf-8")
-            groups = load_ledger_csv(text, default_currency="CAD")
+            groups = self._ledger_repo.load(account_id)
 
             update_map = {u.transaction_id: u for u in acct_updates}
             for group in groups:
@@ -155,7 +150,7 @@ class CategorizationPersistenceService:
                     group.primary.category = u.category
                     group.primary.subcategory = u.subcategory
 
-            ledger_path.write_text(dump_ledger_csv(groups), encoding="utf-8")
+            self._ledger_repo.save(account_id, groups)
             accounts_written.append(account_id)
 
         # 3. Rebuild projections
@@ -194,12 +189,10 @@ class CategorizationPersistenceService:
         # 1. Update CSVs
         accounts_written: list[str] = []
         for account_id, matched_groups in by_account.items():
-            ledger_path = self._ledger_data_dir / f"{account_id}.csv"
-            if not ledger_path.exists():
+            if not self._ledger_repo.exists(account_id):
                 continue
 
-            text = ledger_path.read_text(encoding="utf-8")
-            all_groups = load_ledger_csv(text, default_currency="CAD")
+            all_groups = self._ledger_repo.load(account_id)
 
             matched_ids = {g.primary.transaction_id for g in matched_groups}
             for group in all_groups:
@@ -208,7 +201,7 @@ class CategorizationPersistenceService:
                     if to_subcategory is not None:
                         group.primary.subcategory = to_subcategory
 
-            ledger_path.write_text(dump_ledger_csv(all_groups), encoding="utf-8")
+            self._ledger_repo.save(account_id, all_groups)
             accounts_written.append(account_id)
 
         # 2. Emit events for all matched groups
@@ -245,7 +238,7 @@ class CategorizationPersistenceService:
             account_id=account_id,
             transaction_id=transaction_id,
             note=note,
-            ledger_data_dir=self._ledger_data_dir,
+            ledger_repo=self._ledger_repo,
         )
 
 
@@ -253,7 +246,7 @@ def persist_note_update(
     account_id: str,
     transaction_id: str,
     note: str | None,
-    ledger_data_dir: Path,
+    ledger_repo: LedgerRepository,
 ) -> None:
     """Update the note on a single transaction and write back to its ledger CSV.
 
@@ -261,24 +254,22 @@ def persist_note_update(
         account_id: Account ID that owns the transaction (used to locate the ledger file).
         transaction_id: The transaction whose note should be updated.
         note: New note text, or None to clear the note.
-        ledger_data_dir: Directory containing per-account CSV ledger files.
+        ledger_repo: Repository providing ledger I/O for the account.
 
     Raises:
         FileNotFoundError: If the ledger CSV for the account does not exist.
     """
-    ledger_path = ledger_data_dir / f"{account_id}.csv"
-    if not ledger_path.exists():
-        raise FileNotFoundError(f"Ledger file not found: {ledger_path}")
+    if not ledger_repo.exists(account_id):
+        raise FileNotFoundError(f"Ledger file not found: {ledger_repo.ledger_path(account_id)}")
 
-    text = ledger_path.read_text(encoding="utf-8")
-    groups = load_ledger_csv(text, default_currency="CAD")
+    groups = ledger_repo.load(account_id)
 
     for group in groups:
         if group.primary.transaction_id == transaction_id:
             group.primary.notes = note if note else None
             break
 
-    ledger_path.write_text(dump_ledger_csv(groups), encoding="utf-8")
+    ledger_repo.save(account_id, groups)
 
 
 __all__ = [

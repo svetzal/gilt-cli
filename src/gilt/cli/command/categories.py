@@ -10,7 +10,7 @@ from pathlib import Path
 from rich.table import Table
 
 from gilt.model.category_io import load_categories_config
-from gilt.model.ledger_io import load_all_ledger_groups
+from gilt.model.ledger_repository import LedgerRepository
 from gilt.workspace import Workspace
 
 from .util import console, fmt_amount_str
@@ -24,7 +24,7 @@ def _count_category_usage(data_dir: Path) -> dict[tuple[str, str | None], tuple[
     """
     usage: dict[tuple[str, str | None], tuple[int, float]] = defaultdict(lambda: (0, 0.0))
 
-    for group in load_all_ledger_groups(data_dir):
+    for group in LedgerRepository(data_dir).load_all():
         cat = group.primary.category
         subcat = group.primary.subcategory
         amount = group.primary.amount

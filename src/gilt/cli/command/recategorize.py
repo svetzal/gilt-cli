@@ -113,7 +113,9 @@ def run(
         return 0
 
     # Apply renaming by account
-    _apply_renaming(all_matches, to_cat, to_subcat, workspace, ready.event_store, ready.projection_builder)
+    _apply_renaming(
+        all_matches, to_cat, to_subcat, workspace, ready.event_store, ready.projection_builder
+    )
 
     console.print(f"[green]✓[/] Renamed category in {total_matched} transaction(s)")
     return 0

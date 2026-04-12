@@ -12,7 +12,7 @@ from rich.table import Table
 from gilt.ml.categorization_classifier import CategorizationClassifier
 from gilt.model.account import Transaction
 from gilt.model.category_io import load_categories_config, parse_category_path
-from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
+from gilt.model.ledger_repository import LedgerRepository
 from gilt.services.categorization_service import CategorizationService
 from gilt.services.rule_inference_service import RuleInferenceService
 from gilt.workspace import Workspace
@@ -86,19 +86,18 @@ def _write_categorizations(approved, workspace, category_config, event_store, pr
     """Apply categorizations and write back to CSV files."""
     console.print("\n[dim]Applying categorizations...[/dim]")
     categorization_service = CategorizationService(category_config, event_store=event_store)
+    ledger_repo = LedgerRepository(workspace.ledger_data_dir)
 
     by_account: dict[str, list[tuple[str, str]]] = {}
     for account_id, txn_id, _, category, _ in approved:
         by_account.setdefault(account_id, []).append((txn_id, category))
 
     for account_id, items in by_account.items():
-        ledger_path = workspace.ledger_data_dir / f"{account_id}.csv"
-        if not ledger_path.exists():
+        if not ledger_repo.exists(account_id):
             console.print(f"[yellow]Warning: Ledger not found for {account_id}[/yellow]")
             continue
 
-        text = ledger_path.read_text(encoding="utf-8")
-        groups = load_ledger_csv(text, default_currency="CAD")
+        groups = ledger_repo.load(account_id)
 
         updates = {}
         for txn_id, category_path in items:
@@ -111,8 +110,7 @@ def _write_categorizations(approved, workspace, category_config, event_store, pr
                 result = categorization_service.apply_categorization([g], cat_name, subcat_name)
                 groups[i] = result.updated_transactions[0]
 
-        updated_csv = dump_ledger_csv(groups)
-        ledger_path.write_text(updated_csv, encoding="utf-8")
+        ledger_repo.save(account_id, groups)
 
     console.print("\n[dim]Updating projections...[/dim]")
     projection_builder.rebuild_incremental(event_store)

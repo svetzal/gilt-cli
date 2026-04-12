@@ -13,7 +13,7 @@ from pathlib import Path
 
 from gilt.model.category import BudgetPeriod, Category
 from gilt.model.category_io import load_categories_config
-from gilt.model.ledger_io import load_all_ledger_groups
+from gilt.model.ledger_repository import LedgerRepository
 
 
 @dataclass
@@ -223,7 +223,7 @@ class BudgetService:
         """
         spending: dict[tuple[str, str | None], float] = defaultdict(float)
 
-        for group in load_all_ledger_groups(self.data_dir):
+        for group in LedgerRepository(self.data_dir).load_all():
             t = group.primary
 
             # Skip if no category
@@ -297,5 +297,5 @@ class BudgetService:
             Number of uncategorized transactions
         """
         return sum(
-            1 for group in load_all_ledger_groups(self.data_dir) if not group.primary.category
+            1 for group in LedgerRepository(self.data_dir).load_all() if not group.primary.category
         )

@@ -652,9 +652,7 @@ class DescribeDuplicateFiltering(DescribeDuplicateReviewService):
 class DescribeMarkManualDuplicate(DescribeDuplicateReviewService):
     """Tests for mark_manual_duplicate method."""
 
-    def it_should_create_manual_duplicate_event(
-        self, service, mock_event_store
-    ):
+    def it_should_create_manual_duplicate_event(self, service, mock_event_store):
         """Should create DuplicateConfirmed event with manual sentinel values."""
         event = service.mark_manual_duplicate(
             primary_transaction_id="abc123def456",
@@ -670,9 +668,7 @@ class DescribeMarkManualDuplicate(DescribeDuplicateReviewService):
         assert event.user_rationale == "Manual duplicate marking"
         assert event.llm_was_correct is False
 
-    def it_should_append_event_to_store(
-        self, service, mock_event_store
-    ):
+    def it_should_append_event_to_store(self, service, mock_event_store):
         """Should append the DuplicateConfirmed event to the event store."""
         service.mark_manual_duplicate(
             primary_transaction_id="abc123def456",

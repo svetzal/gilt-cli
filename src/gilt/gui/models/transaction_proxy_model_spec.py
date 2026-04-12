@@ -64,17 +64,15 @@ def _make_proxy_with_groups(groups: list[TransactionGroup]) -> TransactionSortFi
 def _all_visible_account_ids(proxy: TransactionSortFilterProxyModel) -> list[str]:
     return [
         proxy.sourceModel()
-            .get_transaction(proxy.mapToSource(proxy.index(r, 0)).row())
-            .primary.account_id
+        .get_transaction(proxy.mapToSource(proxy.index(r, 0)).row())
+        .primary.account_id
         for r in range(proxy.rowCount())
     ]
 
 
 def _all_visible_transactions(proxy: TransactionSortFilterProxyModel) -> list[Transaction]:
     return [
-        proxy.sourceModel()
-            .get_transaction(proxy.mapToSource(proxy.index(r, 0)).row())
-            .primary
+        proxy.sourceModel().get_transaction(proxy.mapToSource(proxy.index(r, 0)).row()).primary
         for r in range(proxy.rowCount())
     ]
 
@@ -283,6 +281,7 @@ class DescribeTransactionSortFilterProxyModelLessThan:
         ]
         proxy = _make_proxy_with_groups(groups)
         from PySide6.QtCore import Qt as QtCore
+
         proxy.sort(TransactionTableModel.COL_DATE, QtCore.AscendingOrder)
         visible = _all_visible_transactions(proxy)
         assert visible[0].date < visible[1].date
@@ -302,6 +301,7 @@ class DescribeTransactionSortFilterProxyModelLessThan:
         ]
         proxy = _make_proxy_with_groups(groups)
         from PySide6.QtCore import Qt as QtCore
+
         proxy.sort(TransactionTableModel.COL_DESCRIPTION, QtCore.AscendingOrder)
         visible = _all_visible_transactions(proxy)
         assert visible[0].description < visible[1].description

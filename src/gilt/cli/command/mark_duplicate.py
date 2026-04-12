@@ -21,7 +21,9 @@ from gilt.workspace import Workspace
 from .util import console, require_event_sourcing, require_projections
 
 
-def _resolve_prefix(tx_service: TransactionOperationsService, txid_prefix: str, transactions: list[dict]) -> dict | None:
+def _resolve_prefix(
+    tx_service: TransactionOperationsService, txid_prefix: str, transactions: list[dict]
+) -> dict | None:
     """Resolve a transaction by prefix, printing errors to console.
 
     Returns the transaction dict on success, None on any error.
@@ -41,7 +43,7 @@ def _resolve_prefix(tx_service: TransactionOperationsService, txid_prefix: str, 
             f"[red]Error:[/red] Ambiguous transaction ID prefix '{txid_prefix}' "
             f"matches {len(result.ambiguous_matches)} transactions:"
         )
-        for tid in (result.ambiguous_matches or []):
+        for tid in result.ambiguous_matches or []:
             console.print(f"  - {tid}")
     return None
 

@@ -19,6 +19,7 @@ import pytest
 from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.events import TransactionCategorized
 from gilt.model.ledger_io import dump_ledger_csv
+from gilt.model.ledger_repository import LedgerRepository
 from gilt.services.categorization_persistence_service import (
     CategorizationPersistenceService,
     CategorizationUpdate,
@@ -63,11 +64,15 @@ class DescribeCategorizationPersistenceService:
         return d
 
     @pytest.fixture
-    def service(self, mock_event_store, mock_projection_builder, ledger_dir):
+    def ledger_repo(self, ledger_dir):
+        return LedgerRepository(ledger_dir)
+
+    @pytest.fixture
+    def service(self, mock_event_store, mock_projection_builder, ledger_repo):
         return CategorizationPersistenceService(
             event_store=mock_event_store,
             projection_builder=mock_projection_builder,
-            ledger_data_dir=ledger_dir,
+            ledger_repo=ledger_repo,
         )
 
 
@@ -257,7 +262,7 @@ class DescribeWriteCategorizationsToCsv:
                 confidence=1.0,
             )
         ]
-        write_categorizations_to_csv(updates, ledger_dir)
+        write_categorizations_to_csv(updates, LedgerRepository(ledger_dir))
 
         text = (ledger_dir / "MYBANK_CHQ.csv").read_text(encoding="utf-8")
         result = load_ledger_csv(text)
@@ -281,7 +286,7 @@ class DescribeWriteCategorizationsToCsv:
             )
         ]
         # Should not raise
-        write_categorizations_to_csv(updates, ledger_dir)
+        write_categorizations_to_csv(updates, LedgerRepository(ledger_dir))
 
 
 class DescribePersistNoteUpdate:
@@ -299,7 +304,7 @@ class DescribePersistNoteUpdate:
             account_id="MYBANK_CHQ",
             transaction_id="txn001",
             note="paid by cash",
-            ledger_data_dir=ledger_dir,
+            ledger_repo=LedgerRepository(ledger_dir),
         )
 
         from gilt.model.ledger_io import load_ledger_csv
@@ -321,7 +326,7 @@ class DescribePersistNoteUpdate:
             account_id="MYBANK_CHQ",
             transaction_id="txn001",
             note=None,
-            ledger_data_dir=ledger_dir,
+            ledger_repo=LedgerRepository(ledger_dir),
         )
 
         from gilt.model.ledger_io import load_ledger_csv
@@ -343,5 +348,5 @@ class DescribePersistNoteUpdate:
                 account_id="MISSING_ACCT",
                 transaction_id="txn001",
                 note="some note",
-                ledger_data_dir=ledger_dir,
+                ledger_repo=LedgerRepository(ledger_dir),
             )

@@ -12,7 +12,7 @@ from datetime import date
 from pathlib import Path
 
 from gilt.model.account import TransactionGroup
-from gilt.model.ledger_io import load_all_ledger_groups, load_ledger_csv
+from gilt.model.ledger_repository import LedgerRepository
 from gilt.storage.projection import ProjectionBuilder
 
 logger = logging.getLogger(__name__)
@@ -35,6 +35,7 @@ class TransactionService:
             self.projections_db_path = self.data_dir.parent / "projections.db"
         else:
             self.projections_db_path = Path(projections_db_path)
+        self._ledger_repo = LedgerRepository(self.data_dir)
         self._cache: dict[str, list[TransactionGroup]] = {}
 
     def load_all_transactions(self, include_duplicates: bool = False) -> list[TransactionGroup]:
@@ -61,7 +62,7 @@ class TransactionService:
 
     def _load_from_csv(self, default_currency: str = "CAD") -> list[TransactionGroup]:
         """Load transactions from CSV ledger files (fallback)."""
-        return load_all_ledger_groups(self.data_dir, default_currency=default_currency)
+        return self._ledger_repo.load_all()
 
     def load_account_transactions(
         self, account_id: str, default_currency: str = "CAD"
@@ -80,13 +81,11 @@ class TransactionService:
         if account_id in self._cache:
             return self._cache[account_id]
 
-        ledger_path = self.data_dir / f"{account_id}.csv"
-        if not ledger_path.exists():
+        if not self._ledger_repo.exists(account_id):
             return []
 
         try:
-            text = ledger_path.read_text(encoding="utf-8")
-            groups = load_ledger_csv(text, default_currency=default_currency)
+            groups = self._ledger_repo.load(account_id)
             self._cache[account_id] = groups
             return groups
         except (OSError, ValueError, UnicodeDecodeError) as e:
@@ -115,10 +114,7 @@ class TransactionService:
             finally:
                 conn.close()
 
-        if not self.data_dir.exists():
-            return []
-
-        return sorted([f.stem for f in self.data_dir.glob("*.csv")])
+        return self._ledger_repo.available_account_ids()
 
     def filter_transactions(
         self,
@@ -222,16 +218,11 @@ class TransactionService:
         Returns:
             True if successful, False otherwise
         """
-        from gilt.model.ledger_io import dump_ledger_csv
-
-        ledger_path = self.data_dir / f"{account_id}.csv"
-        if not ledger_path.exists():
+        if not self._ledger_repo.exists(account_id):
             return False
 
         try:
-            # Load ledger
-            text = ledger_path.read_text(encoding="utf-8")
-            groups = load_ledger_csv(text)
+            groups = self._ledger_repo.load(account_id)
 
             # Filter out the transaction
             new_groups = [g for g in groups if g.primary.transaction_id != transaction_id]
@@ -239,9 +230,7 @@ class TransactionService:
             if len(new_groups) == len(groups):
                 return False  # Transaction not found
 
-            # Save back to file
-            updated_csv = dump_ledger_csv(new_groups)
-            ledger_path.write_text(updated_csv, encoding="utf-8")
+            self._ledger_repo.save(account_id, new_groups)
 
             # Clear cache for this account
             if account_id in self._cache:
@@ -263,17 +252,12 @@ class TransactionService:
         Returns:
             True if successful.
         """
-        from gilt.model.ledger_io import dump_ledger_csv
-
         account_id = group.primary.account_id
-        ledger_path = self.data_dir / f"{account_id}.csv"
-        if not ledger_path.exists():
+        if not self._ledger_repo.exists(account_id):
             return False
 
         try:
-            # Load ledger
-            text = ledger_path.read_text(encoding="utf-8")
-            groups = load_ledger_csv(text)
+            groups = self._ledger_repo.load(account_id)
 
             # Find and replace
             found = False
@@ -286,9 +270,7 @@ class TransactionService:
             if not found:
                 return False
 
-            # Save
-            updated_csv = dump_ledger_csv(groups)
-            ledger_path.write_text(updated_csv, encoding="utf-8")
+            self._ledger_repo.save(account_id, groups)
 
             # Clear cache
             if account_id in self._cache:

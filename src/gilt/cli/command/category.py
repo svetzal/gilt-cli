@@ -14,7 +14,7 @@ from gilt.model.category_io import (
     parse_category_path,
     save_categories_config,
 )
-from gilt.model.ledger_io import load_all_ledger_groups
+from gilt.model.ledger_repository import LedgerRepository
 from gilt.services.category_management_service import (
     CategoryManagementService,
 )
@@ -196,7 +196,7 @@ def _handle_remove(
     cat_name, subcat_name = parse_category_path(category_path)
 
     # Load all transactions for usage checking
-    transaction_groups = load_all_ledger_groups(data_dir)
+    transaction_groups = LedgerRepository(data_dir).load_all()
 
     # Use service to plan removal
     service = CategoryManagementService(category_config)
