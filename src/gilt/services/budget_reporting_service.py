@@ -56,6 +56,56 @@ class BudgetReport:
     over_budget_count: int
 
 
+def calculate_budget_for_period(budget: Budget | None, month: int | None) -> float | None:
+    """Return the budget amount adjusted for the report period.
+
+    For a monthly report (month is not None):
+      - monthly budget → use as-is
+      - yearly budget → divide by 12
+
+    For a yearly report (month is None):
+      - yearly budget → use as-is
+      - monthly budget → multiply by 12
+
+    Returns None when no budget is defined.
+    """
+    if not budget:
+        return None
+    if month is not None:
+        if budget.period == BudgetPeriod.monthly:
+            return budget.amount
+        return budget.amount / 12
+    if budget.period == BudgetPeriod.yearly:
+        return budget.amount
+    return budget.amount * 12
+
+
+def aggregate_spending(
+    transactions: list[Transaction],
+    *,
+    year: int | None,
+    month: int | None,
+) -> dict[tuple[str, str | None], float]:
+    """Sum expense amounts by (category, subcategory) for the period.
+
+    Only negative-amount transactions (expenses) are counted.
+    Transactions without a category are skipped.
+
+    Returns a dict mapping (category, subcategory) to total absolute amount.
+    """
+    spending: dict[tuple[str, str | None], float] = defaultdict(float)
+    for txn in transactions:
+        if not txn.category:
+            continue
+        if year is not None and txn.date.year != year:
+            continue
+        if month is not None and txn.date.month != month:
+            continue
+        key = (txn.category, txn.subcategory)
+        spending[key] += abs(txn.amount) if txn.amount < 0 else 0.0
+    return dict(spending)
+
+
 class BudgetReportingService:
     """Pure business logic for budget reporting.
 
@@ -85,17 +135,7 @@ class BudgetReportingService:
 
         Returns a dict mapping (category, subcategory) to total absolute amount.
         """
-        spending: dict[tuple[str, str | None], float] = defaultdict(float)
-        for txn in transactions:
-            if not txn.category:
-                continue
-            if year is not None and txn.date.year != year:
-                continue
-            if month is not None and txn.date.month != month:
-                continue
-            key = (txn.category, txn.subcategory)
-            spending[key] += abs(txn.amount) if txn.amount < 0 else 0.0
-        return dict(spending)
+        return aggregate_spending(transactions, year=year, month=month)
 
     def collect_expense_transactions(
         self,
@@ -152,15 +192,7 @@ class BudgetReportingService:
 
         Returns None when no budget is defined.
         """
-        if not budget:
-            return None
-        if month is not None:
-            if budget.period == BudgetPeriod.monthly:
-                return budget.amount
-            return budget.amount / 12
-        if budget.period == BudgetPeriod.yearly:
-            return budget.amount
-        return budget.amount * 12
+        return calculate_budget_for_period(budget, month)
 
     # ------------------------------------------------------------------
     # Report assembly
@@ -398,4 +430,6 @@ __all__ = [
     "BudgetReportingService",
     "BudgetSummaryLine",
     "ExpenseDetail",
+    "aggregate_spending",
+    "calculate_budget_for_period",
 ]

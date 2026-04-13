@@ -11,9 +11,15 @@ from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
-from gilt.model.category import BudgetPeriod, Category
+from gilt.model.category import Category
 from gilt.model.category_io import load_categories_config
 from gilt.model.ledger_repository import LedgerRepository
+from gilt.services.budget_reporting_service import (
+    aggregate_spending as _aggregate_spending_pure,
+)
+from gilt.services.budget_reporting_service import (
+    calculate_budget_for_period,
+)
 
 
 @dataclass
@@ -188,21 +194,7 @@ class BudgetService:
         Returns:
             Prorated budget amount or None
         """
-        if not category.budget:
-            return None
-
-        if month is not None:
-            # Monthly report: use monthly budget or prorate yearly
-            if category.budget.period == BudgetPeriod.monthly:
-                return category.budget.amount
-            else:  # yearly
-                return category.budget.amount / 12
-        else:
-            # Yearly report: use yearly budget or multiply monthly
-            if category.budget.period == BudgetPeriod.yearly:
-                return category.budget.amount
-            else:  # monthly
-                return category.budget.amount * 12
+        return calculate_budget_for_period(category.budget, month)
 
     def _aggregate_spending(
         self,
@@ -213,6 +205,9 @@ class BudgetService:
         """
         Aggregate spending by category/subcategory for the specified period.
 
+        Loads transactions from the ledger repository (I/O boundary), applies
+        any category filter, then delegates pure computation to aggregate_spending.
+
         Args:
             year: Filter by year
             month: Filter by month
@@ -221,31 +216,12 @@ class BudgetService:
         Returns:
             Dict mapping (category, subcategory) to total amount spent
         """
-        spending: dict[tuple[str, str | None], float] = defaultdict(float)
-
-        for group in LedgerRepository(self.data_dir).load_all():
-            t = group.primary
-
-            # Skip if no category
-            if not t.category:
-                continue
-
-            # Filter by category if specified
-            if category_filter and t.category != category_filter:
-                continue
-
-            # Filter by date
-            if isinstance(t.date, date):
-                if year is not None and t.date.year != year:
-                    continue
-                if month is not None and t.date.month != month:
-                    continue
-
-            # Aggregate (negative amounts are expenses)
-            key = (t.category, t.subcategory)
-            spending[key] += abs(t.amount) if t.amount < 0 else 0.0
-
-        return dict(spending)
+        all_transactions = [
+            group.primary
+            for group in LedgerRepository(self.data_dir).load_all()
+            if not category_filter or group.primary.category == category_filter
+        ]
+        return _aggregate_spending_pure(all_transactions, year=year, month=month)
 
     def get_spending_by_category(
         self,
