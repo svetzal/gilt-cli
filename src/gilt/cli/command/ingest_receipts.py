@@ -9,7 +9,6 @@ Dry-run by default. Use --write to persist events.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from rich.prompt import Prompt
@@ -18,53 +17,13 @@ from rich.table import Table
 from gilt.services.receipt_ingestion_service import (
     DEFAULT_VENDOR_PATTERNS,
     MatchResult,
-    ReceiptData,
+    batch_match_receipts,
     find_already_ingested_invoices,
-    match_receipt_to_transactions,
     scan_receipt_files,
 )
 from gilt.workspace import Workspace
 
 from .util import console, fmt_amount_str, print_dry_run_message
-
-
-def _parse_and_match_receipts(
-    json_paths,
-    ingested_invoices,
-    all_transactions,
-    account,
-) -> tuple[list[MatchResult], int, int]:
-    """Parse receipt files and match to transactions. Returns (results, skipped_ingested, skipped_errors)."""
-    results: list[MatchResult] = []
-    skipped_already_ingested = 0
-    skipped_parse_errors = 0
-
-    for path in json_paths:
-        try:
-            receipt = ReceiptData.from_json_file(path)
-        except (ValueError, json.JSONDecodeError, KeyError) as e:
-            console.print(f"[yellow]Warning:[/yellow] Skipping {path.name}: {e}")
-            skipped_parse_errors += 1
-            continue
-
-        if receipt.amount is None:
-            console.print(f"[yellow]Warning:[/yellow] Skipping {path.name}: no amount")
-            skipped_parse_errors += 1
-            continue
-
-        if receipt.invoice_number and receipt.invoice_number in ingested_invoices:
-            skipped_already_ingested += 1
-            continue
-
-        result = match_receipt_to_transactions(
-            receipt,
-            all_transactions,
-            account_id=account,
-            vendor_patterns=DEFAULT_VENDOR_PATTERNS,
-        )
-        results.append(result)
-
-    return results, skipped_already_ingested, skipped_parse_errors
 
 
 def _display_results_table(results: list[MatchResult]) -> None:
@@ -194,18 +153,21 @@ def run(
     projection_builder = ProjectionBuilder(workspace.projections_path)
     all_transactions = projection_builder.get_all_transactions(include_duplicates=False)
 
-    results, skipped_already_ingested, skipped_parse_errors = _parse_and_match_receipts(
+    batch = batch_match_receipts(
         json_paths,
-        ingested_invoices,
         all_transactions,
-        account,
+        ingested_invoices,
+        account_id=account,
+        vendor_patterns=DEFAULT_VENDOR_PATTERNS,
     )
 
-    matched = [r for r in results if r.status == "matched"]
-    ambiguous = [r for r in results if r.status == "ambiguous"]
-    unmatched = [r for r in results if r.status == "unmatched"]
+    matched = list(batch.matched)
+    ambiguous = list(batch.ambiguous)
+    unmatched = batch.unmatched
+    skipped_already_ingested = batch.skipped_already_ingested
+    skipped_parse_errors = batch.skipped_parse_errors
 
-    _display_results_table(results)
+    _display_results_table(matched + ambiguous + unmatched)
 
     if interactive and ambiguous:
         resolved = _resolve_ambiguous_interactively(ambiguous)

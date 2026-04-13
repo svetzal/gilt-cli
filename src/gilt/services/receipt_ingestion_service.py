@@ -10,6 +10,7 @@ Privacy: All processing is local-only. No network I/O.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
@@ -279,10 +280,75 @@ def match_receipt_to_transactions(
     )
 
 
+@dataclass
+class BatchMatchResult:
+    """Categorised results of a batch receipt matching run."""
+
+    matched: list[MatchResult]
+    ambiguous: list[MatchResult]
+    unmatched: list[MatchResult]
+    skipped_already_ingested: int
+    skipped_parse_errors: int
+
+
+def batch_match_receipts(
+    json_paths: Iterable[Path],
+    transactions: list[dict],
+    ingested_invoices: set[str],
+    *,
+    account_id: str | None = None,
+    vendor_patterns: dict[str, list[str]] | None = None,
+) -> BatchMatchResult:
+    """Parse receipt files and match against transactions.
+
+    This is the core orchestration loop shared by CLI and GUI.
+    """
+    results: list[MatchResult] = []
+    skipped_already_ingested = 0
+    skipped_parse_errors = 0
+
+    for path in json_paths:
+        try:
+            receipt = ReceiptData.from_json_file(path)
+        except Exception:
+            skipped_parse_errors += 1
+            continue
+
+        if receipt.amount is None:
+            skipped_parse_errors += 1
+            continue
+
+        if receipt.invoice_number and receipt.invoice_number in ingested_invoices:
+            skipped_already_ingested += 1
+            continue
+
+        result = match_receipt_to_transactions(
+            receipt,
+            transactions,
+            account_id=account_id,
+            vendor_patterns=vendor_patterns,
+        )
+        results.append(result)
+
+    matched = [r for r in results if r.status == "matched"]
+    ambiguous = [r for r in results if r.status == "ambiguous"]
+    unmatched = [r for r in results if r.status == "unmatched"]
+
+    return BatchMatchResult(
+        matched=matched,
+        ambiguous=ambiguous,
+        unmatched=unmatched,
+        skipped_already_ingested=skipped_already_ingested,
+        skipped_parse_errors=skipped_parse_errors,
+    )
+
+
 __all__ = [
+    "BatchMatchResult",
     "DEFAULT_VENDOR_PATTERNS",
     "MatchResult",
     "ReceiptData",
+    "batch_match_receipts",
     "find_already_ingested_invoices",
     "match_receipt_to_transactions",
     "scan_receipt_files",

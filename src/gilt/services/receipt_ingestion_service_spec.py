@@ -750,6 +750,71 @@ class DescribeMatchConfidencePreference:
         assert result.match_confidence == "pattern-assisted"
 
 
+class DescribeBatchMatchReceipts:
+    def it_should_return_batch_result_with_matched_and_unmatched(self):
+        from gilt.services.receipt_ingestion_service import BatchMatchResult, batch_match_receipts
+
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            # Receipt that matches the transaction (amount + date match)
+            _write_receipt_json(root / "match.json", overrides={"invoice_number": "INV_MATCH"})
+            # Receipt with a wildly different amount — will not match
+            _write_receipt_json(
+                root / "nomatch.json",
+                overrides={
+                    "amount": 999.99,
+                    "invoice_number": "INV_NOMATCH",
+                    "date": "2020-01-01",
+                },
+            )
+
+            # Transaction that matches the first receipt (tax-inclusive total: 35.01+4.03=39.04)
+            transactions = [_make_txn_row(amount="-39.04")]
+
+            result = batch_match_receipts(root.glob("*.json"), transactions, set())
+
+            assert isinstance(result, BatchMatchResult)
+            assert len(result.matched) == 1
+            assert len(result.unmatched) == 1
+            assert result.skipped_already_ingested == 0
+            assert result.skipped_parse_errors == 0
+
+    def it_should_skip_already_ingested_invoices(self):
+        from gilt.services.receipt_ingestion_service import batch_match_receipts
+
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            _write_receipt_json(root / "receipt.json", overrides={"invoice_number": "INV001"})
+
+            result = batch_match_receipts(root.glob("*.json"), [], {"INV001"})
+
+            assert result.skipped_already_ingested == 1
+            assert len(result.matched) == 0
+            assert len(result.unmatched) == 0
+
+    def it_should_count_parse_errors_for_invalid_files(self):
+        from gilt.services.receipt_ingestion_service import batch_match_receipts
+
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / "bad.json").write_text("not valid json", encoding="utf-8")
+
+            result = batch_match_receipts(root.glob("*.json"), [], set())
+
+            assert result.skipped_parse_errors == 1
+
+    def it_should_count_receipts_without_amount_as_parse_errors(self):
+        from gilt.services.receipt_ingestion_service import batch_match_receipts
+
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            _write_receipt_json(root / "receipt.json", overrides={"amount": None})
+
+            result = batch_match_receipts(root.glob("*.json"), [], set())
+
+            assert result.skipped_parse_errors == 1
+
+
 class DescribeDefaultVendorPatterns:
     def it_should_be_importable_from_service_module(self):
         from gilt.services.receipt_ingestion_service import DEFAULT_VENDOR_PATTERNS

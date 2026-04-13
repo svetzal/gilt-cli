@@ -9,11 +9,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from gilt.gui.services.receipt_match_service import (
-    BatchMatchResult,
     ReceiptMatchService,
     _transaction_group_to_dict,
 )
 from gilt.model.account import Transaction, TransactionGroup
+from gilt.services.receipt_ingestion_service import BatchMatchResult
 from gilt.storage.event_store import EventStore
 
 

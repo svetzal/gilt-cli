@@ -7,7 +7,6 @@ matching in the GUI. All processing is local-only.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -15,24 +14,14 @@ from pathlib import Path
 from gilt.model.events import TransactionEnriched
 from gilt.services.receipt_ingestion_service import (
     DEFAULT_VENDOR_PATTERNS,
-    MatchResult,
+    BatchMatchResult,
     ReceiptData,
+    batch_match_receipts,
     find_already_ingested_invoices,
     match_receipt_to_transactions,
     scan_receipt_files,
 )
 from gilt.storage.event_store import EventStore
-
-
-@dataclass
-class BatchMatchResult:
-    """Categorised results of a batch receipt matching run."""
-
-    matched: list[MatchResult]
-    ambiguous: list[MatchResult]
-    unmatched: list[MatchResult]
-    skipped_already_ingested: int
-    skipped_parse_errors: int
 
 
 def _transaction_group_to_dict(group) -> dict:
@@ -120,8 +109,6 @@ class ReceiptMatchService:
         Returns:
             BatchMatchResult with categorised results.
         """
-        import json as _json
-
         json_paths = scan_receipt_files(self.receipts_dir)
         if not json_paths:
             return BatchMatchResult([], [], [], 0, 0)
@@ -131,40 +118,11 @@ class ReceiptMatchService:
 
         txn_dicts = [_transaction_group_to_dict(g) for g in transactions]
 
-        results: list[MatchResult] = []
-        skipped_already_ingested = 0
-        skipped_parse_errors = 0
-
-        for path in json_paths:
-            try:
-                receipt = ReceiptData.from_json_file(path)
-            except (ValueError, _json.JSONDecodeError, KeyError):
-                skipped_parse_errors += 1
-                continue
-            if receipt.amount is None:
-                skipped_parse_errors += 1
-                continue
-            if receipt.invoice_number and receipt.invoice_number in ingested_invoices:
-                skipped_already_ingested += 1
-                continue
-
-            result = match_receipt_to_transactions(
-                receipt,
-                txn_dicts,
-                vendor_patterns=DEFAULT_VENDOR_PATTERNS,
-            )
-            results.append(result)
-
-        matched = [r for r in results if r.status == "matched"]
-        ambiguous = [r for r in results if r.status == "ambiguous"]
-        unmatched = [r for r in results if r.status == "unmatched"]
-
-        return BatchMatchResult(
-            matched=matched,
-            ambiguous=ambiguous,
-            unmatched=unmatched,
-            skipped_already_ingested=skipped_already_ingested,
-            skipped_parse_errors=skipped_parse_errors,
+        return batch_match_receipts(
+            json_paths,
+            txn_dicts,
+            ingested_invoices,
+            vendor_patterns=DEFAULT_VENDOR_PATTERNS,
         )
 
     def apply_match(
