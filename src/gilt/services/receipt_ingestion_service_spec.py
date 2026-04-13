@@ -750,6 +750,26 @@ class DescribeMatchConfidencePreference:
         assert result.match_confidence == "pattern-assisted"
 
 
+class DescribeDefaultVendorPatterns:
+    def it_should_be_importable_from_service_module(self):
+        from gilt.services.receipt_ingestion_service import DEFAULT_VENDOR_PATTERNS
+
+        assert isinstance(DEFAULT_VENDOR_PATTERNS, dict)
+
+    def it_should_contain_expected_vendor_keys(self):
+        from gilt.services.receipt_ingestion_service import DEFAULT_VENDOR_PATTERNS
+
+        assert "apple" in DEFAULT_VENDOR_PATTERNS
+        assert "github" in DEFAULT_VENDOR_PATTERNS
+        assert "anthropic" in DEFAULT_VENDOR_PATTERNS
+
+    def it_should_map_vendors_to_description_substrings(self):
+        from gilt.services.receipt_ingestion_service import DEFAULT_VENDOR_PATTERNS
+
+        assert "APPLE.COM/BILL" in DEFAULT_VENDOR_PATTERNS["apple"]
+        assert "GITHUB" in DEFAULT_VENDOR_PATTERNS["github"]
+
+
 class DescribeFindAlreadyIngestedInvoices:
     def it_should_collect_invoice_numbers_from_events(self):
         class FakeEvent:

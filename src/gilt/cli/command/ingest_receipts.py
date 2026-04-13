@@ -16,6 +16,7 @@ from rich.prompt import Prompt
 from rich.table import Table
 
 from gilt.services.receipt_ingestion_service import (
+    DEFAULT_VENDOR_PATTERNS,
     MatchResult,
     ReceiptData,
     find_already_ingested_invoices,
@@ -23,26 +24,6 @@ from gilt.services.receipt_ingestion_service import (
     scan_receipt_files,
 )
 from gilt.workspace import Workspace
-
-# Default vendor → description-substring map for receipt matching.
-# When a receipt's vendor matches a key here, exact and FX strategies
-# require the bank description to contain at least one substring.
-_DEFAULT_VENDOR_PATTERNS: dict[str, list[str]] = {
-    "apple": ["APPLE.COM/BILL", "APPLE.COM"],
-    "github": ["GITHUB"],
-    "paddle": ["PADDLE"],
-    "zoom": ["ZOOM"],
-    "suno": ["SUNO"],
-    "costco": ["COSTCO"],
-    "vevor": ["VEVOR"],
-    "lyft": ["LYFT"],
-    "feel heal grow": ["FEELHEALGRO"],
-    "anthropic": ["ANTHROPIC", "CLAUDE"],
-    "paypal": ["PAYPAL"],
-    "microsoft": ["MICROSOFT"],
-    "canadian tire": ["CANADIAN TIRE"],
-    "best buy": ["BEST BUY"],
-}
 
 from .util import console, fmt_amount_str, print_dry_run_message
 
@@ -79,7 +60,7 @@ def _parse_and_match_receipts(
             receipt,
             all_transactions,
             account_id=account,
-            vendor_patterns=_DEFAULT_VENDOR_PATTERNS,
+            vendor_patterns=DEFAULT_VENDOR_PATTERNS,
         )
         results.append(result)
 

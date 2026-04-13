@@ -14,6 +14,7 @@ from pathlib import Path
 
 from gilt.model.events import TransactionEnriched
 from gilt.services.receipt_ingestion_service import (
+    DEFAULT_VENDOR_PATTERNS,
     MatchResult,
     ReceiptData,
     find_already_ingested_invoices,
@@ -21,24 +22,6 @@ from gilt.services.receipt_ingestion_service import (
     scan_receipt_files,
 )
 from gilt.storage.event_store import EventStore
-
-# Shared vendor patterns — same as CLI uses.
-DEFAULT_VENDOR_PATTERNS: dict[str, list[str]] = {
-    "apple": ["APPLE.COM/BILL", "APPLE.COM"],
-    "github": ["GITHUB"],
-    "paddle": ["PADDLE"],
-    "zoom": ["ZOOM"],
-    "suno": ["SUNO"],
-    "costco": ["COSTCO"],
-    "vevor": ["VEVOR"],
-    "lyft": ["LYFT"],
-    "feel heal grow": ["FEELHEALGRO"],
-    "anthropic": ["ANTHROPIC", "CLAUDE"],
-    "paypal": ["PAYPAL"],
-    "microsoft": ["MICROSOFT"],
-    "canadian tire": ["CANADIAN TIRE"],
-    "best buy": ["BEST BUY"],
-}
 
 
 @dataclass

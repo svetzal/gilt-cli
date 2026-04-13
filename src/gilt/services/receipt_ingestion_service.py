@@ -159,6 +159,23 @@ def _resolve_candidates(
         )
 
 
+DEFAULT_VENDOR_PATTERNS: dict[str, list[str]] = {
+    "apple": ["APPLE.COM/BILL", "APPLE.COM"],
+    "github": ["GITHUB"],
+    "paddle": ["PADDLE"],
+    "zoom": ["ZOOM"],
+    "suno": ["SUNO"],
+    "costco": ["COSTCO"],
+    "vevor": ["VEVOR"],
+    "lyft": ["LYFT"],
+    "feel heal grow": ["FEELHEALGRO"],
+    "anthropic": ["ANTHROPIC", "CLAUDE"],
+    "paypal": ["PAYPAL"],
+    "microsoft": ["MICROSOFT"],
+    "canadian tire": ["CANADIAN TIRE"],
+    "best buy": ["BEST BUY"],
+}
+
 _FX_AMOUNT_PCT = Decimal("0.08")  # 8% tolerance for FX matches
 _FX_DATE_WINDOW = 2
 _PATTERN_AMOUNT_PCT = Decimal("0.08")  # 8% tolerance for vendor-pattern matches
@@ -260,3 +277,13 @@ def match_receipt_to_transactions(
         status="unmatched",
         candidate_count=0,
     )
+
+
+__all__ = [
+    "DEFAULT_VENDOR_PATTERNS",
+    "MatchResult",
+    "ReceiptData",
+    "find_already_ingested_invoices",
+    "match_receipt_to_transactions",
+    "scan_receipt_files",
+]
