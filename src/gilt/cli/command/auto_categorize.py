@@ -12,8 +12,7 @@ from rich.table import Table
 from gilt.ml.categorization_classifier import CategorizationClassifier
 from gilt.model.account import Transaction
 from gilt.model.category_io import load_categories_config, parse_category_path
-from gilt.model.ledger_repository import LedgerRepository
-from gilt.services.categorization_service import CategorizationService
+from gilt.services.categorization_persistence_service import CategorizationUpdate
 from gilt.services.rule_inference_service import RuleInferenceService
 from gilt.workspace import Workspace
 
@@ -22,6 +21,7 @@ from .util import (
     fmt_amount_str,
     print_dry_run_message,
     require_event_sourcing,
+    require_persistence_service,
     require_projections,
 )
 
@@ -82,39 +82,27 @@ def _load_uncategorized(workspace, account, limit):
     return projection_builder, uncategorized_txns
 
 
-def _write_categorizations(approved, workspace, category_config, event_store, projection_builder):
-    """Apply categorizations and write back to CSV files."""
+def _write_categorizations(approved, workspace, event_store, projection_builder):
+    """Apply categorizations: emit events, update CSVs, rebuild projections."""
     console.print("\n[dim]Applying categorizations...[/dim]")
-    categorization_service = CategorizationService(category_config, event_store=event_store)
-    ledger_repo = LedgerRepository(workspace.ledger_data_dir)
 
-    by_account: dict[str, list[tuple[str, str]]] = {}
-    for account_id, txn_id, _, category, _ in approved:
-        by_account.setdefault(account_id, []).append((txn_id, category))
+    persistence_svc = require_persistence_service(event_store, projection_builder, workspace)
+    updates = []
+    for account_id, txn_id, _, category_path, confidence in approved:
+        cat_name, subcat_name = parse_category_path(category_path)
+        updates.append(
+            CategorizationUpdate(
+                transaction_id=txn_id,
+                account_id=account_id,
+                category=cat_name,
+                subcategory=subcat_name,
+                source="llm",
+                confidence=confidence,
+            )
+        )
 
-    for account_id, items in by_account.items():
-        if not ledger_repo.exists(account_id):
-            console.print(f"[yellow]Warning: Ledger not found for {account_id}[/yellow]")
-            continue
-
-        groups = ledger_repo.load(account_id)
-
-        updates = {}
-        for txn_id, category_path in items:
-            cat_name, subcat_name = parse_category_path(category_path)
-            updates[txn_id] = (cat_name, subcat_name)
-
-        for i, g in enumerate(groups):
-            if g.primary.transaction_id in updates:
-                cat_name, subcat_name = updates[g.primary.transaction_id]
-                result = categorization_service.apply_categorization([g], cat_name, subcat_name)
-                groups[i] = result.updated_transactions[0]
-
-        ledger_repo.save(account_id, groups)
-
-    console.print("\n[dim]Updating projections...[/dim]")
-    projection_builder.rebuild_incremental(event_store)
-    console.print(f"[green]✓[/green] Categorized {len(approved)} transaction(s)")
+    result = persistence_svc.persist_categorizations(updates)
+    console.print(f"[green]✓[/green] Categorized {result.transactions_updated} transaction(s)")
 
 
 def _apply_rules_first(workspace, uncategorized_txns):
@@ -244,7 +232,7 @@ def run(
         print_dry_run_message(detail=f"{len(approved)} transaction(s)")
         return 0
 
-    _write_categorizations(approved, workspace, category_config, event_store, projection_builder)
+    _write_categorizations(approved, workspace, event_store, projection_builder)
     return 0
 
 

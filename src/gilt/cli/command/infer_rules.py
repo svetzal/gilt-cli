@@ -6,6 +6,9 @@ import json
 
 from rich.table import Table
 
+from gilt.services.categorization_persistence_service import (
+    categorization_updates_from_rule_matches,
+)
 from gilt.services.rule_inference_service import RuleInferenceService
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
@@ -75,20 +78,8 @@ def _display_matches(matches):
 
 def _write_matches(matches, workspace, event_store, projection_builder):
     """Apply rule-based categorizations: emit events, update CSVs, rebuild projections."""
-    from gilt.services.categorization_persistence_service import CategorizationUpdate
-
     persistence_svc = require_persistence_service(event_store, projection_builder, workspace)
-    updates = [
-        CategorizationUpdate(
-            transaction_id=m.transaction["transaction_id"],
-            account_id=m.transaction.get("account_id", ""),
-            category=m.rule.category,
-            subcategory=m.rule.subcategory,
-            source="rule",
-            confidence=m.rule.confidence,
-        )
-        for m in matches
-    ]
+    updates = categorization_updates_from_rule_matches(matches)
     console.print("[dim]Updating projections...[/dim]")
     persistence_svc.persist_categorizations(updates)
     console.print(f"[green]Categorized {len(matches)} transaction(s) via rules[/green]")

@@ -19,12 +19,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from gilt.model.account import TransactionGroup
 from gilt.model.events import TransactionCategorized
 from gilt.model.ledger_repository import LedgerRepository
 from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
+
+if TYPE_CHECKING:
+    from gilt.services.rule_inference_service import RuleMatch
 
 
 @dataclass
@@ -272,10 +276,36 @@ def persist_note_update(
     ledger_repo.save(account_id, groups)
 
 
+def categorization_updates_from_rule_matches(
+    matches: list[RuleMatch],
+) -> list[CategorizationUpdate]:
+    """Convert a list of RuleMatch objects into CategorizationUpdate objects.
+
+    Args:
+        matches: Rule matches from RuleInferenceService.apply_rules().
+
+    Returns:
+        List of CategorizationUpdate objects ready to pass to
+        CategorizationPersistenceService.persist_categorizations().
+    """
+    return [
+        CategorizationUpdate(
+            transaction_id=m.transaction["transaction_id"],
+            account_id=m.transaction.get("account_id", ""),
+            category=m.rule.category,
+            subcategory=m.rule.subcategory,
+            source="rule",
+            confidence=m.rule.confidence,
+        )
+        for m in matches
+    ]
+
+
 __all__ = [
     "CategorizationUpdate",
     "CategorizationPersistenceResult",
     "CategorizationPersistenceService",
+    "categorization_updates_from_rule_matches",
     "persist_note_update",
     "write_categorizations_to_csv",
 ]

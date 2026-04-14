@@ -192,9 +192,14 @@ def _confirm_and_apply(
         subcategory,
     )
 
+    account_by_txn_id = {group.primary.transaction_id: acct for acct, group in all_matches}
+    updated_pairs = [
+        (account_by_txn_id.get(group.primary.transaction_id, ""), group)
+        for group in result.updated_transactions
+    ]
+
     _persist_categorizations(
-        all_matches,
-        result.updated_transactions,
+        updated_pairs,
         workspace,
         ready.event_store,
         ready.projection_builder,
@@ -205,8 +210,7 @@ def _confirm_and_apply(
 
 
 def _persist_categorizations(
-    all_matches: list[tuple[str, TransactionGroup]],
-    updated_transactions: list[TransactionGroup],
+    updated_pairs: list[tuple[str, TransactionGroup]],
     workspace: Workspace,
     event_store,
     projection_builder,
@@ -215,20 +219,16 @@ def _persist_categorizations(
     from gilt.services.categorization_persistence_service import CategorizationUpdate
 
     persistence_svc = require_persistence_service(event_store, projection_builder, workspace)
-
-    account_by_txn_id = {
-        group.primary.transaction_id: account_id for account_id, group in all_matches
-    }
     updates = [
         CategorizationUpdate(
             transaction_id=group.primary.transaction_id,
-            account_id=account_by_txn_id.get(group.primary.transaction_id, ""),
+            account_id=account_id,
             category=group.primary.category or "",
             subcategory=group.primary.subcategory,
             source="user",
             confidence=1.0,
         )
-        for group in updated_transactions
+        for account_id, group in updated_pairs
     ]
     persistence_svc.persist_categorizations(updates)
 

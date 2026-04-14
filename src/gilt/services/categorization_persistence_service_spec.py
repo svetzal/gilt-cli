@@ -289,6 +289,75 @@ class DescribeWriteCategorizationsToCsv:
         write_categorizations_to_csv(updates, LedgerRepository(ledger_dir))
 
 
+class DescribeCategorizationUpdatesFromRuleMatches:
+    def it_should_convert_rule_matches_to_categorization_updates(self):
+        from gilt.services.categorization_persistence_service import (
+            categorization_updates_from_rule_matches,
+        )
+        from gilt.services.rule_inference_service import InferredRule, RuleMatch
+
+        rule = InferredRule(
+            description="EXAMPLE UTILITY",
+            category="Housing",
+            subcategory="Utilities",
+            evidence_count=10,
+            total_count=10,
+            confidence=0.95,
+        )
+        match = RuleMatch(
+            transaction={
+                "transaction_id": "abc12345",
+                "account_id": "MYBANK_CHQ",
+                "canonical_description": "EXAMPLE UTILITY",
+                "amount": -50.0,
+            },
+            rule=rule,
+        )
+
+        updates = categorization_updates_from_rule_matches([match])
+
+        assert len(updates) == 1
+        assert updates[0].transaction_id == "abc12345"
+        assert updates[0].account_id == "MYBANK_CHQ"
+        assert updates[0].category == "Housing"
+        assert updates[0].subcategory == "Utilities"
+        assert updates[0].source == "rule"
+        assert updates[0].confidence == 0.95
+
+    def it_should_default_account_id_to_empty_string_when_missing(self):
+        from gilt.services.categorization_persistence_service import (
+            categorization_updates_from_rule_matches,
+        )
+        from gilt.services.rule_inference_service import InferredRule, RuleMatch
+
+        rule = InferredRule(
+            description="SAMPLE STORE",
+            category="Shopping",
+            subcategory=None,
+            evidence_count=5,
+            total_count=5,
+            confidence=1.0,
+        )
+        match = RuleMatch(
+            transaction={
+                "transaction_id": "def67890",
+                "canonical_description": "SAMPLE STORE",
+                "amount": -25.0,
+            },
+            rule=rule,
+        )
+
+        updates = categorization_updates_from_rule_matches([match])
+        assert updates[0].account_id == ""
+
+    def it_should_return_empty_list_for_empty_input(self):
+        from gilt.services.categorization_persistence_service import (
+            categorization_updates_from_rule_matches,
+        )
+
+        assert categorization_updates_from_rule_matches([]) == []
+
+
 class DescribePersistNoteUpdate:
     """Tests for persist_note_update standalone function."""
 

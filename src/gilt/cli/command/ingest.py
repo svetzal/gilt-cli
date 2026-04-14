@@ -5,6 +5,9 @@ from pathlib import Path
 
 from gilt.ingest import load_accounts_config, normalize_file
 from gilt.model.ledger_repository import LedgerRepository
+from gilt.services.categorization_persistence_service import (
+    categorization_updates_from_rule_matches,
+)
 from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.services.ingestion_service import IngestionService
 from gilt.services.rule_inference_service import RuleInferenceService
@@ -98,20 +101,8 @@ def _apply_auto_categorizations(matches, workspace, event_store, projection_buil
 
     console.print("[bold]Auto-categorizing via inferred rules[/]")
 
-    from gilt.services.categorization_persistence_service import CategorizationUpdate
-
     persistence_svc = require_persistence_service(event_store, projection_builder, workspace)
-    updates = [
-        CategorizationUpdate(
-            transaction_id=m.transaction["transaction_id"],
-            account_id=m.transaction.get("account_id", ""),
-            category=m.rule.category,
-            subcategory=m.rule.subcategory,
-            source="rule",
-            confidence=m.rule.confidence,
-        )
-        for m in matches
-    ]
+    updates = categorization_updates_from_rule_matches(matches)
     persistence_svc.persist_categorizations(updates)
     console.print(f"[green][ok][/green] Auto-categorized {len(matches)} transaction(s) via rules")
 
