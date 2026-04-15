@@ -81,7 +81,7 @@ class Transaction(BaseModel):
     date: date
     description: str = ""
     amount: float
-    currency: str = "CAD"
+    currency: str | None = "CAD"
     account_id: str
     counterparty: str | None = None
     category: str | None = None

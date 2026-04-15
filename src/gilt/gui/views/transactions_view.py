@@ -7,7 +7,7 @@ Provides filter controls and transaction table for comprehensive transaction man
 """
 
 import contextlib
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 from PySide6.QtCore import QDate, Qt, QThread, Signal
@@ -136,10 +136,32 @@ class IntelligenceWorker(QThread):
                 return None
             if not txn.category and txn.transaction_id not in rule_matched_ids:
                 fragment = scan_service.predict_categories([txn], self.smart_category_service)
-                metadata.update(fragment)
+                for tid, data in fragment.items():
+                    if tid in metadata:
+                        metadata[tid].update(data)
+                    else:
+                        metadata[tid] = data
                 completed += 1
                 self.progress.emit(completed, total_units)
         return completed
+
+
+def compute_date_range(selection: str, today: date) -> tuple[date | None, date | None]:
+    """Compute (start_date, end_date) from a date range preset selection.
+
+    Returns (None, None) for unrecognized selections (including 'All' and 'Custom').
+    """
+    if selection == "This Month":
+        return date(today.year, today.month, 1), today
+    if selection == "Last Month":
+        first_of_current = date(today.year, today.month, 1)
+        end = first_of_current - timedelta(days=1)
+        return date(end.year, end.month, 1), end
+    if selection == "This Year":
+        return date(today.year, 1, 1), today
+    if selection == "Last Year":
+        return date(today.year - 1, 1, 1), date(today.year - 1, 12, 31)
+    return None, None
 
 
 class TransactionsView(QWidget):
@@ -411,7 +433,6 @@ class TransactionsView(QWidget):
     def _on_date_range_changed(self, index: int):
         """Handle date range preset change."""
         preset = self.date_range_combo.currentText()
-        today = QDate.currentDate()
 
         if preset == "Custom":
             self._set_custom_dates_visible(True)
@@ -419,27 +440,19 @@ class TransactionsView(QWidget):
 
         self._set_custom_dates_visible(False)
 
-        if preset == "This Month":
-            start = QDate(today.year(), today.month(), 1)
-            end = today
-        elif preset == "Last Month":
-            first_of_month = QDate(today.year(), today.month(), 1)
-            end = first_of_month.addDays(-1)
-            start = QDate(end.year(), end.month(), 1)
-        elif preset == "This Year":
-            start = QDate(today.year(), 1, 1)
-            end = today
-        elif preset == "Last Year":
-            start = QDate(today.year() - 1, 1, 1)
-            end = QDate(today.year() - 1, 12, 31)
-        elif preset == "All":
+        if preset == "All":
             self.apply_filters()
             return
-        else:
+
+        today = QDate.currentDate()
+        today_py = date(today.year(), today.month(), today.day())
+        start, end = compute_date_range(preset, today_py)
+
+        if start is None:
             return
 
-        self.start_date_edit.setDate(start)
-        self.end_date_edit.setDate(end)
+        self.start_date_edit.setDate(QDate(start.year, start.month, start.day))
+        self.end_date_edit.setDate(QDate(end.year, end.month, end.day))
         self.apply_filters()
 
     def _connect_signals(self):

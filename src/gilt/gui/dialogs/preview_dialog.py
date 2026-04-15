@@ -6,7 +6,6 @@ Preview Dialog - Base class for preview-before-commit dialogs
 Shows a table of changes before applying them, maintaining privacy and safety.
 """
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QCheckBox,
     QDialog,
@@ -113,7 +112,7 @@ class PreviewDialog(QDialog):
 
     def _on_confirm_changed(self, state):
         """Enable/disable apply button based on confirmation checkbox."""
-        self.apply_btn.setEnabled(state == Qt.Checked)
+        self.apply_btn.setEnabled(self.confirm_check.isChecked())
 
     def add_row(self, values: list[str], highlight_columns: list[int] = None):
         """

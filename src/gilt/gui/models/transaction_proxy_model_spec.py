@@ -10,6 +10,7 @@ pytest.importorskip("PySide6")
 
 from datetime import date
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 from gilt.gui.models.transaction_model import TransactionTableModel
@@ -261,7 +262,7 @@ class DescribeTransactionSortFilterProxyModelLessThan:
             _make_group(transaction_id="a002" + "0" * 12, account_id="MYBANK_CHQ", amount=-50.0),
         ]
         proxy = _make_proxy_with_groups(groups)
-        proxy.sort(TransactionTableModel.COL_AMOUNT, TransactionTableModel.SortRole)
+        proxy.sort(TransactionTableModel.COL_AMOUNT, Qt.AscendingOrder)
         visible = _all_visible_transactions(proxy)
         # After ascending sort, -200 should come before -50
         assert visible[0].amount < visible[1].amount
