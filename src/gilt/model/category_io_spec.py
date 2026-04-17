@@ -9,6 +9,7 @@ from tempfile import TemporaryDirectory
 
 from gilt.model.category import Budget, BudgetPeriod, Category, CategoryConfig, Subcategory
 from gilt.model.category_io import (
+    format_category_path,
     load_categories_config,
     parse_category_path,
     save_categories_config,
@@ -164,3 +165,19 @@ class DescribeParseCategoryPath:
         category, subcategory = parse_category_path(":")
         assert category == ""
         assert subcategory == ""
+
+
+class DescribeFormatCategoryPath:
+    """Tests for format_category_path function."""
+
+    def it_should_format_category_with_subcategory(self):
+        result = format_category_path("Housing", "Utilities")
+        assert result == "Housing:Utilities"
+
+    def it_should_format_category_only_when_subcategory_is_none(self):
+        result = format_category_path("Housing", None)
+        assert result == "Housing"
+
+    def it_should_format_category_only_when_subcategory_is_empty(self):
+        result = format_category_path("Housing", "")
+        assert result == "Housing"

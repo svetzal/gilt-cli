@@ -11,7 +11,7 @@ from rich.table import Table
 
 from gilt.ml.categorization_classifier import CategorizationClassifier
 from gilt.model.account import Transaction
-from gilt.model.category_io import load_categories_config, parse_category_path
+from gilt.model.category_io import format_category_path, load_categories_config, parse_category_path
 from gilt.services.categorization_persistence_service import CategorizationUpdate
 from gilt.services.rule_inference_service import RuleInferenceService
 from gilt.workspace import Workspace
@@ -141,9 +141,7 @@ def _apply_rules_first(workspace, uncategorized_txns):
     txn_by_id = {t.transaction_id: t for t in uncategorized_txns}
     for m in matches:
         txn = txn_by_id[m.transaction["transaction_id"]]
-        cat_path = m.rule.category
-        if m.rule.subcategory:
-            cat_path = f"{m.rule.category}:{m.rule.subcategory}"
+        cat_path = format_category_path(m.rule.category, m.rule.subcategory)
         rule_approved.append((txn.account_id, txn.transaction_id, txn, cat_path, m.rule.confidence))
 
     remaining = [t for t in uncategorized_txns if t.transaction_id not in matched_ids]

@@ -19,6 +19,7 @@ from gilt.gui.dialogs.preview_dialog import PreviewDialog
 from gilt.gui.services.category_service import CategoryService
 from gilt.gui.widgets.smart_category_combo import SmartCategoryComboBox
 from gilt.model.account import TransactionGroup
+from gilt.model.category_io import format_category_path
 
 
 class CategorizeDialog(PreviewDialog):
@@ -170,10 +171,7 @@ class CategorizeDialog(PreviewDialog):
 
         # Build new category string
         if category_name:
-            if subcategory_name:
-                new_category = f"{category_name}:{subcategory_name}"
-            else:
-                new_category = category_name
+            new_category = format_category_path(category_name, subcategory_name)
         else:
             new_category = "(none)"
 
@@ -182,11 +180,8 @@ class CategorizeDialog(PreviewDialog):
             txn = group.primary
 
             # Current category
-            current = ""
             if txn.category:
-                current = txn.category
-                if txn.subcategory:
-                    current += f":{txn.subcategory}"
+                current = format_category_path(txn.category, txn.subcategory)
             else:
                 current = "(none)"
 

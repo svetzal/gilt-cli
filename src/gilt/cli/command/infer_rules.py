@@ -6,6 +6,7 @@ import json
 
 from rich.table import Table
 
+from gilt.model.category_io import format_category_path
 from gilt.services.categorization_persistence_service import (
     categorization_updates_from_rule_matches,
 )
@@ -33,9 +34,7 @@ def _display_rules(rules):
     table.add_column("Confidence", style="blue", justify="right")
 
     for rule in rules:
-        cat_display = rule.category
-        if rule.subcategory:
-            cat_display = f"{rule.category}:{rule.subcategory}"
+        cat_display = format_category_path(rule.category, rule.subcategory)
         table.add_row(
             rule.description[:60],
             cat_display,
@@ -59,9 +58,7 @@ def _display_matches(matches):
 
     for m in matches:
         txn = m.transaction
-        cat_display = m.rule.category
-        if m.rule.subcategory:
-            cat_display = f"{m.rule.category}:{m.rule.subcategory}"
+        cat_display = format_category_path(m.rule.category, m.rule.subcategory)
         table.add_row(
             txn.get("account_id", ""),
             txn["transaction_id"][:8],

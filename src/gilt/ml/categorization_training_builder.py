@@ -9,6 +9,7 @@ from __future__ import annotations
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 
+from gilt.model.category_io import format_category_path
 from gilt.model.events import TransactionCategorized, TransactionImported
 from gilt.storage.event_store import EventStore
 
@@ -87,13 +88,7 @@ class CategorizationTrainingBuilder:
                 }
                 transaction_data.append(txn_data)
 
-                # Build category label
-                if event.subcategory:
-                    label = f"{event.category}:{event.subcategory}"
-                else:
-                    label = event.category
-
-                category_labels.append(label)
+                category_labels.append(format_category_path(event.category, event.subcategory))
 
         return transaction_data, category_labels
 

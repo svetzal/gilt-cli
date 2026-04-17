@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 
 from gilt.model.account import TransactionGroup
 from gilt.model.category import Budget, BudgetPeriod, Category, CategoryConfig, Subcategory
+from gilt.model.category_io import format_category_path
 
 
 @dataclass
@@ -171,7 +172,7 @@ class CategoryManagementService:
                         transaction_ids=[],
                     ),
                     has_subcategories=False,
-                    warnings=[f"Subcategory '{category}:{subcategory}' not found"],
+                    warnings=[f"Subcategory '{format_category_path(category, subcategory)}' not found"],
                 )
 
             # Count usage
@@ -254,7 +255,7 @@ class CategoryManagementService:
                 return AdditionResult(
                     success=False,
                     already_exists=True,
-                    errors=[f"Subcategory '{category}:{subcategory}' already exists"],
+                    errors=[f"Subcategory '{format_category_path(category, subcategory)}' already exists"],
                 )
 
             # Add subcategory

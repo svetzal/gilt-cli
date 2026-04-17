@@ -10,6 +10,7 @@ import typer
 
 from gilt.model.category import BudgetPeriod
 from gilt.model.category_io import (
+    format_category_path,
     load_categories_config,
     parse_category_path,
     save_categories_config,
@@ -129,7 +130,7 @@ def _handle_add(
     # Handle already exists case (not an error)
     if result.already_exists:
         if subcat_name:
-            console.print(f"[yellow]Subcategory '{cat_name}:{subcat_name}' already exists[/]")
+            console.print(f"[yellow]Subcategory '{format_category_path(cat_name, subcat_name)}' already exists[/]")
         else:
             console.print(f"[yellow]Category '{cat_name}' already exists[/]")
         return 0
@@ -144,7 +145,7 @@ def _handle_add(
 
     # Success - display what will be added
     if subcat_name:
-        console.print(f"[bold]Adding subcategory:[/] {cat_name}:{subcat_name}")
+        console.print(f"[bold]Adding subcategory:[/] {format_category_path(cat_name, subcat_name)}")
     else:
         console.print(f"[bold]Adding category:[/] {cat_name}")
 
@@ -211,7 +212,7 @@ def _handle_remove(
 
     # Display what will be removed
     if subcat_name:
-        console.print(f"[bold]Removing subcategory:[/] {cat_name}:{subcat_name}")
+        console.print(f"[bold]Removing subcategory:[/] {format_category_path(cat_name, subcat_name)}")
     else:
         console.print(f"[bold]Removing category:[/] {cat_name}")
 

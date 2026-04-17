@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from gilt.model.category_io import format_category_path
 from gilt.services.rule_inference_service import RuleInferenceService
 
 
@@ -84,10 +85,7 @@ class IntelligenceScanService:
             tid = m.transaction["transaction_id"]
             if tid not in metadata:
                 metadata[tid] = {}
-            cat_display = m.rule.category
-            if m.rule.subcategory:
-                cat_display = f"{m.rule.category}:{m.rule.subcategory}"
-            metadata[tid]["predicted_category"] = cat_display
+            metadata[tid]["predicted_category"] = format_category_path(m.rule.category, m.rule.subcategory)
             metadata[tid]["confidence"] = m.rule.confidence
             metadata[tid]["prediction_source"] = "rule"
         return metadata

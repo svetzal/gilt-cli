@@ -10,6 +10,7 @@ from datetime import date
 
 from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.category import Category, Subcategory
+from gilt.model.category_io import format_category_path
 
 
 def _make_group(
@@ -55,13 +56,13 @@ class DescribeCategorizeDialogDataLogic:
     def it_should_build_category_and_subcategory_string_with_both_parts(self):
         category_name = "Groceries"
         subcategory_name = "Fresh"
-        result = f"{category_name}:{subcategory_name}"
+        result = format_category_path(category_name, subcategory_name)
         assert result == "Groceries:Fresh"
 
     def it_should_use_category_only_when_no_subcategory(self):
         category_name = "Transport"
         subcategory_name = None
-        result = category_name if not subcategory_name else f"{category_name}:{subcategory_name}"
+        result = format_category_path(category_name, subcategory_name)
         assert result == "Transport"
 
     def it_should_detect_recategorization_when_any_transaction_has_category(self):
@@ -87,9 +88,7 @@ class DescribeCategorizeDialogDataLogic:
 
     def it_should_build_current_category_string_with_subcategory(self):
         txn = _make_group(category="Groceries", subcategory="Fresh").primary
-        current = txn.category
-        if txn.subcategory:
-            current += f":{txn.subcategory}"
+        current = format_category_path(txn.category, txn.subcategory)
         assert current == "Groceries:Fresh"
 
     def it_should_build_none_label_when_no_category_assigned(self):
@@ -154,7 +153,5 @@ class DescribePopulatePreviewRows:
     def it_should_show_category_with_subcategory_in_current_column(self):
         group = _make_group(category="Transport", subcategory=None)
         txn = group.primary
-        current = txn.category
-        if txn.subcategory:
-            current += f":{txn.subcategory}"
+        current = format_category_path(txn.category, txn.subcategory)
         assert current == "Transport"

@@ -84,6 +84,21 @@ def save_categories_config(path: Path, config: CategoryConfig) -> None:
         )
 
 
+def format_category_path(category: str, subcategory: str | None) -> str:
+    """Format a category and optional subcategory into a path string.
+
+    Args:
+        category: Category name
+        subcategory: Optional subcategory name
+
+    Returns:
+        "Category:Subcategory" if subcategory is non-empty, otherwise "Category"
+    """
+    if subcategory:
+        return f"{category}:{subcategory}"
+    return category
+
+
 def parse_category_path(category_path: str) -> tuple[str, str | None]:
     """Parse a category path string into category and optional subcategory.
 
@@ -107,4 +122,5 @@ __all__ = [
     "load_categories_config",
     "save_categories_config",
     "parse_category_path",
+    "format_category_path",
 ]
