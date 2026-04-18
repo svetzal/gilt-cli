@@ -21,7 +21,7 @@ from rich.table import Table
 from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.workspace import Workspace
 
-from .util import console
+from .util import console, print_error
 
 
 def run(
@@ -49,7 +49,7 @@ def run(
     # Check if event store exists
     event_store_status = es_service.check_event_store_status()
     if not event_store_status.exists:
-        console.print(f"[red]Error:[/red] Event store not found: {event_store_status.path}")
+        print_error(f"Event store not found: {event_store_status.path}")
         console.print("[dim]Run 'gilt ingest --write' first to create events.[/dim]")
         return 1
 
@@ -132,7 +132,7 @@ def run(
         return 0
 
     except (OSError, ValueError) as e:
-        console.print(f"[red]Error rebuilding projections:[/red] {e}")
+        print_error(f"Error rebuilding projections: {e}")
         return 1
 
 

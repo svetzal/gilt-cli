@@ -18,7 +18,7 @@ from gilt.services.duplicate_review_service import DuplicateReviewService
 from gilt.services.transaction_operations_service import TransactionOperationsService
 from gilt.workspace import Workspace
 
-from .util import console, require_event_sourcing, require_projections
+from .util import console, print_error, require_event_sourcing, require_projections
 
 
 def _resolve_prefix(
@@ -32,15 +32,15 @@ def _resolve_prefix(
     if result.transaction is not None:
         return result.transaction
     if result.error == "prefix_too_short":
-        console.print(
-            f"[red]Error:[/red] Transaction ID prefix must be at least 8 characters "
+        print_error(
+            f"Transaction ID prefix must be at least 8 characters "
             f"(got {len(txid_prefix)})"
         )
     elif result.error == "not_found":
-        console.print(f"[red]Error:[/red] No transaction found with ID prefix: {txid_prefix}")
+        print_error(f"No transaction found with ID prefix: {txid_prefix}")
     elif result.error == "ambiguous":
-        console.print(
-            f"[red]Error:[/red] Ambiguous transaction ID prefix '{txid_prefix}' "
+        print_error(
+            f"Ambiguous transaction ID prefix '{txid_prefix}' "
             f"matches {len(result.ambiguous_matches)} transactions:"
         )
         for tid in result.ambiguous_matches or []:
@@ -51,7 +51,7 @@ def _resolve_prefix(
 def _display_validation_results(validation, write: bool) -> None:
     """Display validation errors and warnings to the console."""
     for error in validation.errors:
-        console.print(f"[red]Error:[/red] {error}")
+        print_error(error)
 
     for warning in validation.warnings:
         console.print(f"[yellow]Warning:[/yellow] {warning}")
@@ -88,7 +88,7 @@ def run(
         gilt mark-duplicate --primary a1b2c3d4 --duplicate e5f6g7h8 --write
     """
     if not workspace.ledger_data_dir.exists():
-        console.print(f"[red]Error:[/red] Data directory not found: {workspace.ledger_data_dir}")
+        print_error(f"Data directory not found: {workspace.ledger_data_dir}")
         return 1
 
     projection_builder = require_projections(workspace)
@@ -97,7 +97,7 @@ def run(
 
     # Validate input
     if primary_txid == duplicate_txid:
-        console.print("[red]Error:[/red] Primary and duplicate transaction IDs must be different")
+        print_error("Primary and duplicate transaction IDs must be different")
         return 1
 
     # Initialize services

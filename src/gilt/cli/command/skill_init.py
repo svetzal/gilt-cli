@@ -6,7 +6,7 @@ import re
 from importlib.metadata import version
 from pathlib import Path
 
-from .util import console
+from .util import console, print_error
 
 _SKILL_SOURCE_DIR = Path(__file__).resolve().parent.parent.parent / "skills" / "gilt"
 
@@ -106,7 +106,7 @@ def run(
     pkg_version = _get_package_version()
 
     if not _SKILL_SOURCE_DIR.exists():
-        console.print("[red]Error:[/] Skill source directory not found.")
+        print_error("Skill source directory not found.")
         console.print(f"  Expected: {_SKILL_SOURCE_DIR}")
         return 1
 

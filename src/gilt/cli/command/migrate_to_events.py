@@ -27,7 +27,7 @@ from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.storage.budget_projection import BudgetProjectionBuilder
 from gilt.workspace import Workspace
 
-from .util import console
+from .util import console, print_error, print_error_list
 
 
 def _check_preconditions(
@@ -44,7 +44,7 @@ def _check_preconditions(
 
     ledger_files = list(data_dir.glob("*.csv"))
     if not ledger_files:
-        console.print(f"[red]Error:[/red] No CSV files found in {data_dir}")
+        print_error(f"No CSV files found in {data_dir}")
         console.print("[dim]Nothing to migrate.[/dim]")
         return 1
 
@@ -110,10 +110,10 @@ def _backfill_events(
                 event_store.append_event(event)
                 transaction_events += 1
             for error in event_errors:
-                console.print(f"[red]  • {error}[/]")
+                print_error(error)
                 errors += 1
         except (OSError, ValueError, UnicodeDecodeError) as e:
-            console.print(f"[red]Error processing {ledger_path.name}: {e}[/]")
+            print_error(f"Error processing {ledger_path.name}: {e}")
             errors += 1
 
     console.print(f"[green]✓[/green] Created {transaction_events} transaction event(s)")
@@ -127,7 +127,7 @@ def _backfill_events(
                 budget_events += 1
             console.print(f"[green]✓[/green] Created {budget_events} budget event(s)")
         except (OSError, ValueError) as e:
-            console.print(f"[red]Error creating budget events: {e}[/]")
+            print_error(f"Error creating budget events: {e}")
             errors += 1
 
     return transaction_events, budget_events, errors
@@ -150,7 +150,7 @@ def _build_projections(
             f"[green]✓[/green] Built transaction projections ({tx_count} events processed)"
         )
     except (OSError, ValueError) as e:
-        console.print(f"[red]Error building transaction projections: {e}[/]")
+        print_error(f"Error building transaction projections: {e}")
         return 1
 
     budget_builder = None
@@ -162,7 +162,7 @@ def _build_projections(
                 f"[green]✓[/green] Built budget projections ({budget_count} events processed)"
             )
         except (OSError, ValueError) as e:
-            console.print(f"[red]Error building budget projections: {e}[/]")
+            print_error(f"Error building budget projections: {e}")
             return 1
 
     return tx_builder, budget_builder
@@ -209,12 +209,11 @@ def _validate_migration(
         if result.sample_transactions_match:
             console.print("[green]✓[/green] Sample transaction validation passed")
         if result.errors:
-            console.print("\n[red]Validation errors:[/]")
-            for error in result.errors:
-                console.print(f"  • {error}")
+            console.print()
+            print_error_list("Validation errors", result.errors)
             return 1
     except (OSError, ValueError) as e:
-        console.print(f"[red]Validation failed: {e}[/]")
+        print_error(f"Validation failed: {e}")
         return 1
 
     return 0

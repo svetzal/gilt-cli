@@ -26,7 +26,7 @@ from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.storage.budget_projection import BudgetProjectionBuilder
 from gilt.workspace import Workspace
 
-from .util import console
+from .util import console, print_error, print_error_list
 
 
 def run(
@@ -105,7 +105,7 @@ def run(
     console.print(f"BudgetCreated events: {stats.budget_created}")
 
     if stats.errors > 0:
-        console.print(f"[red]Errors: {stats.errors}[/]")
+        print_error(f"Errors: {stats.errors}")
 
     total_events = stats.transaction_imported + stats.transaction_categorized + stats.budget_created
     console.print(f"\n[bold]Total events: {total_events}[/]")
@@ -128,7 +128,7 @@ def run(
         )
 
         if not validation_passed:
-            console.print("[red]✗ Validation failed[/]")
+            print_error("✗ Validation failed")
             return 1
 
     return 0
@@ -182,11 +182,11 @@ def _backfill_transactions(
 
                 # Report errors
                 for error in errors:
-                    console.print(f"[red]{error}[/]")
+                    print_error(error)
                     stats.errors += 1
 
             except (OSError, ValueError, UnicodeDecodeError) as e:
-                console.print(f"[red]Error processing {ledger_path.name}: {e}[/]")
+                print_error(f"Error processing {ledger_path.name}: {e}")
                 stats.errors += 1
 
             progress.advance(task)
@@ -211,7 +211,7 @@ def _backfill_budgets(
     try:
         config = load_categories_config(categories_config)
     except (OSError, ValueError) as e:
-        console.print(f"[red]Error loading categories config: {e}[/]")
+        print_error(f"Error loading categories config: {e}")
         stats.errors += 1
         return
 
@@ -277,7 +277,7 @@ def _validate_projections(
     try:
         config = load_categories_config(categories_config)
     except (OSError, ValueError) as e:
-        console.print(f"[red]Error loading categories config: {e}[/]")
+        print_error(f"Error loading categories config: {e}")
         return False
 
     # Use service to validate
@@ -299,9 +299,8 @@ def _validate_projections(
 
     # Display errors if any
     if result.errors:
-        console.print("\n[red]Validation Errors:[/]")
-        for error in result.errors:
-            console.print(f"  • {error}")
+        console.print()
+        print_error_list("Validation Errors", result.errors)
         return False
 
     console.print("\n[green]✓ All validations passed[/]")

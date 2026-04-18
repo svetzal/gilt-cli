@@ -21,7 +21,7 @@ from gilt.services.category_management_service import (
 )
 from gilt.workspace import Workspace
 
-from .util import console, fmt_amount_str, print_dry_run_message
+from .util import console, fmt_amount_str, print_dry_run_message, print_error
 
 
 def run(
@@ -59,7 +59,7 @@ def run(
     # Validate action
     actions = [add, remove, set_budget]
     if sum(a is not None for a in actions) != 1:
-        console.print("[red]Error:[/] Specify exactly one action: --add, --remove, or --set-budget")
+        print_error("Specify exactly one action: --add, --remove, or --set-budget")
         return 1
 
     # Load config
@@ -89,16 +89,16 @@ def run(
     # Handle --set-budget
     if set_budget:
         if amount is None:
-            console.print("[red]Error:[/] --amount is required with --set-budget")
+            print_error("--amount is required with --set-budget")
             return 1
         if amount <= 0:
-            console.print("[red]Error:[/] Budget amount must be positive")
+            print_error("Budget amount must be positive")
             return 1
 
         try:
             budget_period = BudgetPeriod(period)
         except ValueError:
-            console.print(f"[red]Error:[/] Invalid period '{period}'. Use 'monthly' or 'yearly'")
+            print_error(f"Invalid period '{period}'. Use 'monthly' or 'yearly'")
             return 1
 
         return _handle_set_budget(
@@ -138,7 +138,7 @@ def _handle_add(
     # Handle validation errors
     if not result.success:
         for error in result.errors:
-            console.print(f"[red]Error:[/] {error}")
+            print_error(error)
         if "does not exist" in " ".join(result.errors):
             console.print(f"Create parent category first: gilt category --add '{cat_name}' --write")
         return 1
@@ -252,7 +252,7 @@ def _handle_set_budget(
     cat_name, subcat_name = parse_category_path(category_path)
 
     if subcat_name:
-        console.print("[red]Error:[/] Budgets can only be set at category level, not subcategory")
+        print_error("Budgets can only be set at category level, not subcategory")
         return 1
 
     # Use service for business logic
@@ -262,7 +262,7 @@ def _handle_set_budget(
     # Handle errors
     if not result.success:
         for error in result.errors:
-            console.print(f"[red]Error:[/] {error}")
+            print_error(error)
         if "not found" in " ".join(result.errors):
             console.print(f"Create it first: gilt category --add '{cat_name}' --write")
         return 1

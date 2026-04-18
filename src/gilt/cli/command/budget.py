@@ -11,7 +11,7 @@ from rich.table import Table
 from gilt.services.budget_service import BudgetItem, BudgetService
 from gilt.workspace import Workspace
 
-from .util import console, fmt_amount_str
+from .util import console, fmt_amount_str, print_error
 
 
 def run(
@@ -41,11 +41,11 @@ def run(
 
     # Validate month requires year
     if month is not None and year is None:
-        console.print("[red]Error:[/] --month requires --year")
+        print_error("--month requires --year")
         return 1
 
     if month is not None and (month < 1 or month > 12):
-        console.print("[red]Error:[/] --month must be between 1 and 12")
+        print_error("--month must be between 1 and 12")
         return 1
 
     # Use BudgetService to get budget summary
@@ -58,7 +58,7 @@ def run(
             category_filter=category,
         )
     except (OSError, ValueError) as e:
-        console.print(f"[red]Error:[/] Failed to generate budget report: {e}")
+        print_error(f"Failed to generate budget report: {e}")
         return 1
 
     # Display report

@@ -23,7 +23,7 @@ from gilt.services.receipt_ingestion_service import (
 )
 from gilt.workspace import Workspace
 
-from .util import console, fmt_amount_str, print_dry_run_message
+from .util import console, fmt_amount_str, print_dry_run_message, print_error
 
 
 def _display_results_table(results: list[MatchResult]) -> None:
@@ -138,7 +138,7 @@ def run(
     from gilt.storage.projection import ProjectionBuilder
 
     if not source.is_dir():
-        console.print(f"[red]Error:[/red] Source directory not found: {source}")
+        print_error(f"Source directory not found: {source}")
         return 1
 
     json_paths = scan_receipt_files(source, year=year)

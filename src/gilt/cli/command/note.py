@@ -10,7 +10,13 @@ from gilt.services.transaction_operations_service import (
 )
 from gilt.workspace import Workspace
 
-from .util import console, create_transaction_table, print_dry_run_message, print_transaction_table
+from .util import (
+    console,
+    create_transaction_table,
+    print_dry_run_message,
+    print_error,
+    print_transaction_table,
+)
 
 
 def _highlight_prefix(desc: str, prefix: str, style: str = "bold yellow") -> str:
@@ -67,9 +73,7 @@ def _find_single_transaction(
     """Find a single transaction by ID prefix. Returns matches or exit code."""
     prefix = txid.strip().lower()
     if len(prefix) < 8:
-        console.print(
-            f"[red]Error:[/red] Transaction ID prefix must be at least 8 characters. Got: {len(prefix)}"
-        )
+        print_error(f"Transaction ID prefix must be at least 8 characters. Got: {len(prefix)}")
         return 2
 
     result = service.find_by_id_prefix(prefix, groups)
@@ -107,8 +111,8 @@ def _find_batch_transactions(
 ) -> list[TransactionGroup] | int:
     """Find transactions by batch criteria. Returns matches or exit code."""
     if not any([description, desc_prefix, pattern]):
-        console.print(
-            "[red]Error:[/red] Must specify either --txid/-t for single mode, "
+        print_error(
+            "Must specify either --txid/-t for single mode, "
             "or one of --description/-d, --desc-prefix/-p, --pattern for batch mode."
         )
         return 1
@@ -119,7 +123,7 @@ def _find_batch_transactions(
         try:
             re.compile(pattern)
         except re.error as e:
-            console.print(f"[red]Invalid regex pattern:[/red] {e}")
+            print_error(f"Invalid regex pattern: {e}")
             return 2
 
     criteria = SearchCriteria(
@@ -195,13 +199,13 @@ def run(
     ledger_repo = LedgerRepository(workspace.ledger_data_dir)
 
     if not ledger_repo.exists(account):
-        console.print(f"[red]Error:[/red] Ledger not found: {ledger_repo.ledger_path(account)}")
+        print_error(f"Ledger not found: {ledger_repo.ledger_path(account)}")
         return 1
 
     try:
         groups = ledger_repo.load(account)
     except ValueError as e:
-        console.print(f"[red]Error loading ledger:[/red] {e}")
+        print_error(f"Error loading ledger: {e}")
         return 1
 
     if not groups:

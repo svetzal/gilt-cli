@@ -11,6 +11,7 @@ from .util import (
     create_transaction_table,
     fmt_amount_str,
     print_dry_run_message,
+    print_error,
     print_transaction_table,
     require_event_sourcing,
     require_persistence_service,
@@ -52,11 +53,11 @@ def run(
     to_cat, to_subcat = parse_category_path(to_category)
 
     if not from_cat:
-        console.print("[red]Error:[/] --from category cannot be empty")
+        print_error("--from category cannot be empty")
         return 1
 
     if not to_cat:
-        console.print("[red]Error:[/] --to category cannot be empty")
+        print_error("--to category cannot be empty")
         return 1
 
     projection_builder = require_projections(workspace)

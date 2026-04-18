@@ -8,7 +8,10 @@ from rich.table import Table
 
 from gilt.cli.command.util import (
     create_transaction_table,
+    print_error,
+    print_error_list,
     print_transaction_table,
+    print_warning,
     require_event_sourcing,
     require_persistence_service,
     require_projections,
@@ -19,6 +22,61 @@ from gilt.services.event_sourcing_service import EventSourcingReadyResult
 from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
+
+
+class DescribePrintError:
+    def it_should_print_error_with_red_prefix(self, mocker):
+        mock_console = mocker.patch("gilt.cli.command.util.console")
+
+        print_error("something went wrong")
+
+        mock_console.print.assert_called_once_with("[red]Error:[/] something went wrong")
+
+    def it_should_include_the_message_verbatim(self, mocker):
+        mock_console = mocker.patch("gilt.cli.command.util.console")
+
+        print_error("file not found: /data/foo.csv")
+
+        args = mock_console.print.call_args[0][0]
+        assert "file not found: /data/foo.csv" in args
+
+
+class DescribePrintWarning:
+    def it_should_print_warning_with_yellow_prefix(self, mocker):
+        mock_console = mocker.patch("gilt.cli.command.util.console")
+
+        print_warning("deprecated feature used")
+
+        mock_console.print.assert_called_once_with("[yellow]Warning:[/] deprecated feature used")
+
+    def it_should_include_the_message_verbatim(self, mocker):
+        mock_console = mocker.patch("gilt.cli.command.util.console")
+
+        print_warning("only 3 items found")
+
+        args = mock_console.print.call_args[0][0]
+        assert "only 3 items found" in args
+
+
+class DescribePrintErrorList:
+    def it_should_print_heading_and_bullets(self, mocker):
+        mock_console = mocker.patch("gilt.cli.command.util.console")
+
+        print_error_list("Validation errors", ["field required", "value out of range"])
+
+        calls = [c[0][0] for c in mock_console.print.call_args_list]
+        assert calls[0] == "[red]Validation errors:[/]"
+        assert calls[1] == "  • field required"
+        assert calls[2] == "  • value out of range"
+
+    def it_should_print_nothing_for_empty_list(self, mocker):
+        mock_console = mocker.patch("gilt.cli.command.util.console")
+
+        print_error_list("No errors", [])
+
+        calls = [c[0][0] for c in mock_console.print.call_args_list]
+        assert len(calls) == 1
+        assert calls[0] == "[red]No errors:[/]"
 
 
 class DescribeCreateTransactionTable:

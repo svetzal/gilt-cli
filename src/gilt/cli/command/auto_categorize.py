@@ -20,6 +20,7 @@ from .util import (
     console,
     fmt_amount_str,
     print_dry_run_message,
+    print_error,
     require_event_sourcing,
     require_persistence_service,
     require_projections,
@@ -39,7 +40,7 @@ def _train_classifier(workspace, min_samples):
         classifier = CategorizationClassifier(event_store, min_samples_per_category=min_samples)
         metrics = classifier.train()
     except ValueError as e:
-        console.print(f"[red]Error:[/red] {e}")
+        print_error(str(e))
         console.print(f"\nNeed at least {min_samples} categorized transactions per category.")
         console.print("Categorize more transactions first using:")
         console.print("  [cyan]gilt categorize --desc-prefix PATTERN --category CAT --write[/cyan]")
@@ -280,13 +281,13 @@ def _handle_modify_choice(category_config, default_category: str) -> str | None:
     cat_obj = next((c for c in category_config.categories if c.name == cat_name), None)
 
     if not cat_obj:
-        console.print(f"[red]Invalid category: {cat_name}[/red]")
+        print_error(f"Invalid category: {cat_name}")
         return None
 
     if subcat_name:
         subcat_obj = next((s for s in (cat_obj.subcategories or []) if s.name == subcat_name), None)
         if not subcat_obj:
-            console.print(f"[red]Invalid subcategory: {subcat_name}[/red]")
+            print_error(f"Invalid subcategory: {subcat_name}")
             return None
 
     return new_category

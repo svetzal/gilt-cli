@@ -20,6 +20,7 @@ from .util import (
     create_transaction_table,
     fmt_amount_str,
     print_dry_run_message,
+    print_error,
     print_transaction_table,
     require_event_sourcing,
     require_persistence_service,
@@ -68,9 +69,8 @@ def _validate_mode_selection(
         [single_mode, description is not None, desc_prefix is not None, pattern is not None]
     )
     if modes_selected != 1:
-        console.print(
-            "[red]Error:[/] Specify exactly one of --txid, "
-            "--description, --desc-prefix, or --pattern"
+        print_error(
+            "Specify exactly one of --txid, --description, --desc-prefix, or --pattern"
         )
         return None
     return single_mode
@@ -90,11 +90,11 @@ def _load_and_filter_transactions(
     if account:
         all_transactions = [row for row in all_transactions if row["account_id"] == account]
         if not all_transactions:
-            console.print(f"[red]Error:[/] No transactions found for account '{account}'")
+            print_error(f"No transactions found for account '{account}'")
             return None
 
     if not all_transactions:
-        console.print("[red]Error:[/] No transactions found in projections database")
+        print_error("No transactions found in projections database")
         return None
 
     return all_transactions
@@ -123,7 +123,7 @@ def _find_matches(
             preview = service.find_by_criteria(criteria, groups)
 
             if preview.invalid_pattern:
-                console.print(f"[red]Invalid regex pattern:[/] {pattern}")
+                print_error(f"Invalid regex pattern: {pattern}")
                 return None
 
             if preview.used_sign_insensitive:
@@ -318,7 +318,7 @@ def run(
     validation = categorization_service.validate_category(category, subcategory)
     if not validation.is_valid:
         for error in validation.errors:
-            console.print(f"[red]Error:[/red] {error}")
+            print_error(error)
         console.print(f"Add it first: gilt category --add '{category}' --write")
         return 1
 

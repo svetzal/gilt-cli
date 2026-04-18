@@ -17,7 +17,7 @@ from gilt.services.budget_reporting_service import BudgetReportingService
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
-from .util import console, print_dry_run_message
+from .util import console, print_dry_run_message, print_error
 
 
 def _check_pandoc() -> bool:
@@ -64,12 +64,12 @@ def _convert_to_docx(markdown_path: Path, docx_path: Path) -> bool:
         )
 
         if result.returncode != 0:
-            console.print(f"[red]Pandoc conversion failed:[/] {result.stderr}")
+            print_error(f"Pandoc conversion failed: {result.stderr}")
             return False
 
         return True
     except subprocess.SubprocessError as e:
-        console.print(f"[red]Error running pandoc:[/] {e}")
+        print_error(f"Error running pandoc: {e}")
         return False
 
 
@@ -103,7 +103,7 @@ def _write_report_files(
         markdown_path.write_text(markdown_content, encoding="utf-8")
         console.print(f"[green]✓[/] Written markdown report: [cyan]{markdown_path}[/]")
     except OSError as e:
-        console.print(f"[red]Error writing markdown file:[/] {e}")
+        print_error(f"Error writing markdown file: {e}")
         return 1
 
     if has_pandoc:
@@ -138,11 +138,11 @@ def run(
         year = date.today().year
 
     if month is not None and year is None:
-        console.print("[red]Error:[/] --month requires --year")
+        print_error("--month requires --year")
         return 1
 
     if month is not None and (month < 1 or month > 12):
-        console.print("[red]Error:[/] --month must be between 1 and 12")
+        print_error("--month must be between 1 and 12")
         return 1
 
     has_pandoc = _check_pandoc()

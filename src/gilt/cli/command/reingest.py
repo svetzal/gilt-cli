@@ -13,7 +13,7 @@ from gilt.services.reingestion_service import ReingestionService
 from gilt.transfer.linker import link_transfers
 from gilt.workspace import Workspace
 
-from .util import console, print_dry_run_message, require_event_sourcing
+from .util import console, print_dry_run_message, print_error, require_event_sourcing
 
 
 def run(
@@ -36,7 +36,7 @@ def run(
             break
 
     if not target:
-        console.print(f"[red]Account '{account}' not found in config[/]")
+        print_error(f"Account '{account}' not found in config")
         return 1
 
     # Find source files for this account
@@ -107,7 +107,7 @@ def run(
             console.print(f"[green][ok][/] Wrote {out_path}")
             written += 1
         except (OSError, ValueError, UnicodeDecodeError) as e:
-            console.print(f"[red][error][/] Failed to normalize {p.name}: {e}")
+            print_error(f"Failed to normalize {p.name}: {e}")
 
     # 6. Link transfers
     modified = link_transfers(processed_dir=output_dir, write=True)

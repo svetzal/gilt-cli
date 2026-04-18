@@ -16,6 +16,20 @@ from gilt.workspace import Workspace
 console = Console()
 
 
+def print_error(message: str) -> None:
+    console.print(f"[red]Error:[/] {message}")
+
+
+def print_warning(message: str) -> None:
+    console.print(f"[yellow]Warning:[/] {message}")
+
+
+def print_error_list(heading: str, errors: list[str]) -> None:
+    console.print(f"[red]{heading}:[/]")
+    for error in errors:
+        console.print(f"  • {error}")
+
+
 def create_transaction_table(title: str, extra_columns: list[tuple[str, dict]]) -> Table:
     """Create a Rich Table with 5 standard transaction columns plus any extra columns.
 

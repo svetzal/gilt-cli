@@ -15,7 +15,7 @@ from gilt.storage.event_store import EventStore
 from gilt.transfer.linker import link_transfers
 from gilt.workspace import Workspace
 
-from .util import console, require_persistence_service
+from .util import console, print_error, require_persistence_service
 
 
 def _print_plan(plan: Iterable[tuple[Path, str | None]], total_files: int) -> None:
@@ -65,7 +65,7 @@ def _perform_normalization(
             console.print(f"[green][ok][/green] Wrote {out_path}")
             written += 1
         except (OSError, ValueError, UnicodeDecodeError) as e:
-            console.print(f"[red][error][/red] Failed to normalize {p.name}: {e}")
+            print_error(f"Failed to normalize {p.name}: {e}")
             skipped += 1
     return written, skipped
 

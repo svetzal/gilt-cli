@@ -19,7 +19,7 @@ from gilt.ml.training_data_builder import TrainingDataBuilder
 from gilt.transfer.duplicate_detector import DuplicateDetector
 from gilt.workspace import Workspace
 
-from .util import console, fmt_amount_str, require_event_sourcing
+from .util import console, fmt_amount_str, print_error, require_event_sourcing
 
 
 def run(
@@ -55,7 +55,7 @@ def run(
     elif mode == "features":
         return show_features(console, builder)
     else:
-        console.print(f"[red]Error:[/red] Unknown mode '{mode}'")
+        print_error(f"Unknown mode '{mode}'")
         console.print("Valid modes: summary, training, predictions, features")
         return 1
 
