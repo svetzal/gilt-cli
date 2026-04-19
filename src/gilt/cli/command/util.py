@@ -30,6 +30,16 @@ def print_error_list(heading: str, errors: list[str]) -> None:
         console.print(f"  • {error}")
 
 
+def filter_uncategorized(rows: list[dict]) -> list[dict]:
+    return [row for row in rows if not row.get("category")]
+
+
+def filter_by_account(rows: list[dict], account: str | None) -> list[dict]:
+    if account is None:
+        return rows
+    return [row for row in rows if row.get("account_id") == account]
+
+
 def create_transaction_table(title: str, extra_columns: list[tuple[str, dict]]) -> Table:
     """Create a Rich Table with 5 standard transaction columns plus any extra columns.
 

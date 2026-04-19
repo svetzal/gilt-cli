@@ -18,6 +18,8 @@ from gilt.workspace import Workspace
 
 from .util import (
     console,
+    filter_by_account,
+    filter_uncategorized,
     fmt_amount_str,
     print_dry_run_message,
     print_error,
@@ -63,11 +65,7 @@ def _load_uncategorized(workspace, account, limit):
     console.print("\n[dim]Loading uncategorized transactions...[/dim]")
     all_transactions = projection_builder.get_all_transactions(include_duplicates=False)
 
-    uncategorized_rows = [
-        row
-        for row in all_transactions
-        if row.get("category") is None and (account is None or row.get("account_id") == account)
-    ]
+    uncategorized_rows = filter_by_account(filter_uncategorized(all_transactions), account)
 
     if not uncategorized_rows:
         console.print("[green]✓[/green] No uncategorized transactions found")

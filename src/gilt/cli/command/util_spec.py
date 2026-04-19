@@ -8,6 +8,8 @@ from rich.table import Table
 
 from gilt.cli.command.util import (
     create_transaction_table,
+    filter_by_account,
+    filter_uncategorized,
     print_error,
     print_error_list,
     print_transaction_table,
@@ -22,6 +24,52 @@ from gilt.services.event_sourcing_service import EventSourcingReadyResult
 from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
+
+
+class DescribeFilterUncategorized:
+    def it_should_filter_uncategorized_rows(self):
+        rows = [
+            {"account_id": "ACC1", "category": "Food"},
+            {"account_id": "ACC2", "category": None},
+            {"account_id": "ACC3"},
+        ]
+
+        result = filter_uncategorized(rows)
+
+        assert result == [{"account_id": "ACC2", "category": None}, {"account_id": "ACC3"}]
+
+    def it_should_return_empty_when_all_categorized(self):
+        rows = [
+            {"account_id": "ACC1", "category": "Food"},
+            {"account_id": "ACC2", "category": "Transport"},
+        ]
+
+        result = filter_uncategorized(rows)
+
+        assert result == []
+
+
+class DescribeFilterByAccount:
+    def it_should_filter_by_account(self):
+        rows = [
+            {"account_id": "ACC1", "amount": -100},
+            {"account_id": "ACC2", "amount": -200},
+            {"account_id": "ACC1", "amount": -50},
+        ]
+
+        result = filter_by_account(rows, "ACC1")
+
+        assert result == [{"account_id": "ACC1", "amount": -100}, {"account_id": "ACC1", "amount": -50}]
+
+    def it_should_return_all_when_account_is_none(self):
+        rows = [
+            {"account_id": "ACC1", "amount": -100},
+            {"account_id": "ACC2", "amount": -200},
+        ]
+
+        result = filter_by_account(rows, None)
+
+        assert result == rows
 
 
 class DescribePrintError:

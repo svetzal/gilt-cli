@@ -18,6 +18,7 @@ from gilt.workspace import Workspace
 from .util import (
     console,
     create_transaction_table,
+    filter_by_account,
     fmt_amount_str,
     print_dry_run_message,
     print_error,
@@ -87,11 +88,10 @@ def _load_and_filter_transactions(
 
     all_transactions = projection_builder.get_all_transactions(include_duplicates=False)
 
-    if account:
-        all_transactions = [row for row in all_transactions if row["account_id"] == account]
-        if not all_transactions:
-            print_error(f"No transactions found for account '{account}'")
-            return None
+    all_transactions = filter_by_account(all_transactions, account)
+    if account and not all_transactions:
+        print_error(f"No transactions found for account '{account}'")
+        return None
 
     if not all_transactions:
         print_error("No transactions found in projections database")

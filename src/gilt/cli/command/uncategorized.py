@@ -5,12 +5,17 @@ Display uncategorized transactions.
 """
 
 
-from rich.table import Table
-
 from gilt.model.account import Transaction
 from gilt.workspace import Workspace
 
-from .util import console, fmt_amount_str, require_projections
+from .util import (
+    console,
+    create_transaction_table,
+    filter_by_account,
+    filter_uncategorized,
+    fmt_amount_str,
+    require_projections,
+)
 
 
 def run(
@@ -45,20 +50,13 @@ def run(
     # Load all transactions from projections (excludes duplicates)
     all_transactions = projection_builder.get_all_transactions(include_duplicates=False)
 
-    # Filter for uncategorized transactions
+    # Filter for uncategorized transactions and by account
+    filtered_rows = filter_by_account(filter_uncategorized(all_transactions), account)
+
+    # Apply year and min_amount filters (unique to this command) and convert to Transaction objects
     uncategorized = []
-
-    for row in all_transactions:
-        # Must not have category
-        if row.get("category"):
-            continue
-
-        # Convert to Transaction object for filtered rows
+    for row in filtered_rows:
         txn = Transaction.from_projection_row(row)
-
-        # Filter by account if specified
-        if account and txn.account_id != account:
-            continue
 
         # Filter by year if specified
         if year is not None and txn.date.year != year:
@@ -90,13 +88,7 @@ def run(
     if year:
         title += f" ({year})"
 
-    table = Table(title=title, show_lines=False)
-    table.add_column("Account", style="cyan", no_wrap=True)
-    table.add_column("TxnID", style="blue", no_wrap=True)
-    table.add_column("Date", style="white")
-    table.add_column("Description", style="white")
-    table.add_column("Amount", style="yellow", justify="right")
-    table.add_column("Notes", style="dim")
+    table = create_transaction_table(title, [("Notes", {"style": "dim"})])
 
     for txn in displayed:
         table.add_row(
