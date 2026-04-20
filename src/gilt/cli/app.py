@@ -50,7 +50,14 @@ def skill_init(
     global_install: bool = typer.Option(
         False, "--global", help="Install to ~/.claude/skills/gilt/ (global)"
     ),
-    force: bool = typer.Option(False, "--force", help="Bypass version guard"),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help="Bypass version guard (overrides the refusal to overwrite a newer installed version)",
+    ),
+    json_output: bool = typer.Option(
+        False, "--json", help="Emit machine-readable JSON output to stdout"
+    ),
 ):
     """Install gilt skill files for Claude Code.
 
@@ -59,17 +66,20 @@ def skill_init(
     into the installed SKILL.md frontmatter.
 
     A version guard prevents overwriting a newer installed version unless --force is used.
+    Use --force to downgrade or overwrite a newer installed version.
 
     Examples:
       gilt skill-init
       gilt skill-init --global
       gilt skill-init --force
+      gilt skill-init --json
     """
     from gilt.cli.command import skill_init as cmd_skill_init
 
     code = cmd_skill_init.run(
         global_install=global_install,
         force=force,
+        json_output=json_output,
     )
     raise typer.Exit(code=code)
 

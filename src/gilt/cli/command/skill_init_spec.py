@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -131,7 +132,7 @@ class DescribeSkillInit:
             content = skill_md.read_text(encoding="utf-8")
             assert _parse_frontmatter_version(content) == "9.9.9"
             assert "Old content" in content
-            assert rc == 0
+            assert rc == 1  # skipped file → non-zero exit
 
     def it_should_overwrite_newer_version_with_force(self):
         with TemporaryDirectory() as tmpdir:
@@ -193,3 +194,123 @@ class DescribeSkillInit:
                 rc = run()
 
             assert rc == 0
+
+    def it_should_return_1_when_any_file_is_skipped(self):
+        """Exit code 1 in Rich mode when the version guard skips a file."""
+        with TemporaryDirectory() as tmpdir:
+            target = Path(tmpdir)
+            skill_dir = target / ".claude" / "skills" / "gilt"
+            skill_dir.mkdir(parents=True)
+            skill_md = skill_dir / "SKILL.md"
+            skill_md.write_text(
+                "---\nname: gilt\ngilt-version: 9.9.9\n---\nOld content\n",
+                encoding="utf-8",
+            )
+
+            with (
+                patch("gilt.cli.command.skill_init._get_package_version", return_value="0.4.1"),
+                patch("gilt.cli.command.skill_init.Path.cwd", return_value=target),
+            ):
+                rc = run()
+
+            assert rc == 1
+
+
+class DescribeJsonOutput:
+    def it_should_emit_json_with_expected_top_level_keys(self, capsys):
+        with TemporaryDirectory() as tmpdir:
+            target = Path(tmpdir)
+            with (
+                patch("gilt.cli.command.skill_init._get_package_version", return_value="0.4.1"),
+                patch("gilt.cli.command.skill_init.Path.cwd", return_value=target),
+            ):
+                run(json_output=True)
+
+            captured = capsys.readouterr()
+            payload = json.loads(captured.out)
+            assert "success" in payload
+            assert "message" in payload
+            assert "version" in payload
+            assert "files" in payload
+            assert isinstance(payload["files"], list)
+            for entry in payload["files"]:
+                assert "path" in entry
+                assert "action" in entry
+
+    def it_should_report_success_true_on_clean_install(self, capsys):
+        with TemporaryDirectory() as tmpdir:
+            target = Path(tmpdir)
+            with (
+                patch("gilt.cli.command.skill_init._get_package_version", return_value="0.4.1"),
+                patch("gilt.cli.command.skill_init.Path.cwd", return_value=target),
+            ):
+                rc = run(json_output=True)
+
+            captured = capsys.readouterr()
+            payload = json.loads(captured.out)
+            assert rc == 0
+            assert payload["success"] is True
+            assert payload["version"] == "0.4.1"
+            assert all(e["action"] == "created" for e in payload["files"])
+
+    def it_should_report_success_false_when_any_file_skipped(self, capsys):
+        with TemporaryDirectory() as tmpdir:
+            target = Path(tmpdir)
+            skill_dir = target / ".claude" / "skills" / "gilt"
+            skill_dir.mkdir(parents=True)
+            skill_md = skill_dir / "SKILL.md"
+            skill_md.write_text(
+                "---\nname: gilt\ngilt-version: 9.9.9\n---\nOld content\n",
+                encoding="utf-8",
+            )
+
+            with (
+                patch("gilt.cli.command.skill_init._get_package_version", return_value="0.4.1"),
+                patch("gilt.cli.command.skill_init.Path.cwd", return_value=target),
+            ):
+                rc = run(json_output=True)
+
+            captured = capsys.readouterr()
+            payload = json.loads(captured.out)
+            assert rc == 1
+            assert payload["success"] is False
+            skill_entry = next(e for e in payload["files"] if e["path"] == "SKILL.md")
+            assert skill_entry["action"] == "skipped"
+
+    def it_should_report_up_to_date_as_success(self, capsys):
+        with TemporaryDirectory() as tmpdir:
+            target = Path(tmpdir)
+            # First install — drain capsys so only the second run's JSON is captured
+            with (
+                patch("gilt.cli.command.skill_init._get_package_version", return_value="0.4.1"),
+                patch("gilt.cli.command.skill_init.Path.cwd", return_value=target),
+            ):
+                run(json_output=True)
+            capsys.readouterr()  # discard first-install output
+
+            # Second install — should be up-to-date
+            with (
+                patch("gilt.cli.command.skill_init._get_package_version", return_value="0.4.1"),
+                patch("gilt.cli.command.skill_init.Path.cwd", return_value=target),
+            ):
+                rc = run(json_output=True)
+
+            captured = capsys.readouterr()
+            payload = json.loads(captured.out)
+            assert rc == 0
+            assert payload["success"] is True
+            assert all(e["action"] == "up-to-date" for e in payload["files"])
+
+    def it_should_not_emit_rich_markup_in_json_mode(self, capsys):
+        with TemporaryDirectory() as tmpdir:
+            target = Path(tmpdir)
+            with (
+                patch("gilt.cli.command.skill_init._get_package_version", return_value="0.4.1"),
+                patch("gilt.cli.command.skill_init.Path.cwd", return_value=target),
+            ):
+                run(json_output=True)
+
+            captured = capsys.readouterr()
+            # Output must parse as valid JSON — no Rich markup (e.g. [bold cyan]) leaking in
+            payload = json.loads(captured.out)
+            assert payload is not None

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from importlib.metadata import version
 from pathlib import Path
@@ -11,6 +12,8 @@ from .util import console, print_error
 _SKILL_SOURCE_DIR = Path(__file__).resolve().parent.parent.parent / "skills" / "gilt"
 
 _VERSION_FRONTMATTER_RE = re.compile(r"^(---\n.*?)(---\n)", re.DOTALL)
+
+_SUCCESS_ACTIONS = frozenset({"created", "updated", "up-to-date"})
 
 
 def _get_package_version() -> str:
@@ -57,7 +60,7 @@ def _install_file(
     force: bool,
     stamp: bool,
 ) -> str:
-    """Install a single file. Returns status string."""
+    """Install a single file. Returns status: created | updated | up-to-date | skipped | missing."""
     if not source.exists():
         return "missing"
 
@@ -89,25 +92,51 @@ def _install_file(
     return "created"
 
 
+def _build_message(file_entries: list[dict[str, str]]) -> str:
+    """Build a human-readable summary from file entries, omitting zero-count actions."""
+    counts: dict[str, int] = {}
+    for entry in file_entries:
+        action = entry["action"]
+        counts[action] = counts.get(action, 0) + 1
+
+    parts = []
+    for action in ("created", "updated", "up-to-date", "skipped", "missing"):
+        if counts.get(action, 0) > 0:
+            parts.append(f"{counts[action]} {action}")
+
+    return "Skill files installed: " + (", ".join(parts) if parts else "nothing to do")
+
+
 def run(
     *,
     global_install: bool = False,
     force: bool = False,
+    json_output: bool = False,
 ) -> int:
     """Install gilt skill files for Claude Code.
 
     Args:
         global_install: Install to ~/.claude/skills/gilt/ instead of ./.claude/skills/gilt/
-        force: Bypass version guard
+        force: Bypass version guard (overrides the refusal to overwrite a newer installed version)
+        json_output: Emit machine-readable JSON to stdout instead of Rich console output
 
     Returns:
-        Exit code (0 = success, 1 = error)
+        Exit code (0 = all files succeeded, 1 = any file skipped/missing or source error)
     """
     pkg_version = _get_package_version()
 
     if not _SKILL_SOURCE_DIR.exists():
-        print_error("Skill source directory not found.")
-        console.print(f"  Expected: {_SKILL_SOURCE_DIR}")
+        if json_output:
+            payload = {
+                "success": False,
+                "message": f"Skill source directory not found: {_SKILL_SOURCE_DIR}",
+                "version": pkg_version,
+                "files": [],
+            }
+            print(json.dumps(payload))
+        else:
+            print_error("Skill source directory not found.")
+            console.print(f"  Expected: {_SKILL_SOURCE_DIR}")
         return 1
 
     if global_install:
@@ -115,42 +144,58 @@ def run(
     else:
         target_dir = Path.cwd() / ".claude" / "skills" / "gilt"
 
-    console.print(f"[bold cyan]Installing gilt skill[/] v{pkg_version}")
-    console.print(f"  Target: {target_dir}\n")
-
     # Files to install: (relative_path, stamp_version)
     files = [
         (Path("SKILL.md"), True),
         (Path("references") / "command-reference.md", False),
     ]
 
-    results: dict[str, list[str]] = {
-        "created": [],
-        "updated": [],
-        "up-to-date": [],
-        "skipped": [],
-    }
+    file_entries: list[dict[str, str]] = []
 
     for rel_path, stamp in files:
         source = _SKILL_SOURCE_DIR / rel_path
         dest = target_dir / rel_path
-        status = _install_file(source, dest, pkg_version, force, stamp)
-        if status in results:
-            results[status].append(str(rel_path))
+        action = _install_file(source, dest, pkg_version, force, stamp)
+        file_entries.append({"path": str(rel_path), "action": action})
 
-    _report_results(results)
-    return 0
+    success = all(entry["action"] in _SUCCESS_ACTIONS for entry in file_entries)
+    message = _build_message(file_entries)
+
+    if json_output:
+        payload = {
+            "success": success,
+            "message": message,
+            "version": pkg_version,
+            "files": file_entries,
+        }
+        print(json.dumps(payload))
+    else:
+        console.print(f"[bold cyan]Installing gilt skill[/] v{pkg_version}")
+        console.print(f"  Target: {target_dir}\n")
+        _report_results(file_entries)
+
+    return 0 if success else 1
 
 
-def _report_results(results: dict[str, list[str]]) -> None:
-    _report_group(results["created"], "[green]Created:[/]", "")
-    _report_group(results["updated"], "[green]Updated:[/]", "")
-    _report_group(results["up-to-date"], "[dim]Up-to-date:[/dim]", "[dim]", suffix="[/dim]")
-    if results["skipped"]:
+def _report_results(file_entries: list[dict[str, str]]) -> None:
+    created = [e["path"] for e in file_entries if e["action"] == "created"]
+    updated = [e["path"] for e in file_entries if e["action"] == "updated"]
+    up_to_date = [e["path"] for e in file_entries if e["action"] == "up-to-date"]
+    skipped = [e["path"] for e in file_entries if e["action"] == "skipped"]
+    missing = [e["path"] for e in file_entries if e["action"] == "missing"]
+
+    _report_group(created, "[green]Created:[/]", "")
+    _report_group(updated, "[green]Updated:[/]", "")
+    _report_group(up_to_date, "[dim]Up-to-date:[/dim]", "[dim]", suffix="[/dim]")
+    if skipped:
         console.print("[yellow]Skipped (installed version is newer):[/yellow]")
-        for f in results["skipped"]:
+        for f in skipped:
             console.print(f"  [yellow]{f}[/yellow]")
         console.print("[dim]  Use --force to overwrite.[/dim]")
+    if missing:
+        console.print("[red]Missing source files:[/red]")
+        for f in missing:
+            console.print(f"  [red]{f}[/red]")
 
 
 def _report_group(files: list[str], header: str, prefix: str, suffix: str = "") -> None:
