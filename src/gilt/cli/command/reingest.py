@@ -8,6 +8,7 @@ clears cached intelligence, then re-runs ingestion for that account only.
 """
 
 from gilt.ingest import load_accounts_config, normalize_file
+from gilt.model.ledger_repository import LEDGER_IO_ERRORS
 from gilt.services.ingestion_service import IngestionService
 from gilt.services.reingestion_service import ReingestionService
 from gilt.transfer.linker import link_transfers
@@ -106,7 +107,7 @@ def run(
             )
             console.print(f"[green][ok][/] Wrote {out_path}")
             written += 1
-        except (OSError, ValueError, UnicodeDecodeError) as e:
+        except LEDGER_IO_ERRORS as e:
             print_error(f"Failed to normalize {p.name}: {e}")
 
     # 6. Link transfers

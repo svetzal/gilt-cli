@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from pathlib import Path
 
 from gilt.ingest import load_accounts_config, normalize_file
-from gilt.model.ledger_repository import LedgerRepository
+from gilt.model.ledger_repository import LEDGER_IO_ERRORS, LedgerRepository
 from gilt.services.categorization_persistence_service import (
     categorization_updates_from_rule_matches,
 )
@@ -33,7 +33,7 @@ def _load_ledger_counts(paths: Iterable[Path]) -> dict[str, int]:
         try:
             groups = repo.load(lp.stem)
             counts[lp.name] = len(groups)
-        except (OSError, ValueError, UnicodeDecodeError):
+        except LEDGER_IO_ERRORS:
             counts[lp.name] = 0
     return counts
 
@@ -64,7 +64,7 @@ def _perform_normalization(
             )
             console.print(f"[green][ok][/green] Wrote {out_path}")
             written += 1
-        except (OSError, ValueError, UnicodeDecodeError) as e:
+        except LEDGER_IO_ERRORS as e:
             print_error(f"Failed to normalize {p.name}: {e}")
             skipped += 1
     return written, skipped

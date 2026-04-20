@@ -33,6 +33,8 @@ except ImportError:  # pragma: no cover
 
 from gilt.model.account import Account
 from gilt.model.ledger_io import STANDARD_FIELDS
+from gilt.model.ledger_repository import LEDGER_IO_ERRORS
+from gilt.model.raw_csv import read_raw_csv
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +139,7 @@ def parse_file(
     - Returns a DataFrame with STANDARD_FIELDS.
     """
     # Read CSV with robust defaults for bank exports (handle BOM and text preservation)
-    df = pd.read_csv(input_path, encoding="utf-8-sig", dtype=str, keep_default_na=False)
+    df = read_raw_csv(input_path)
 
     # Prepare column mapping heuristics (extend as needed)
     cols = list(df.columns)
@@ -325,7 +327,7 @@ def normalize_file(
             out.loc[out["transaction_id"] == txn_id, "category"] = category
 
     # Need original DF for raw data in events
-    df = pd.read_csv(input_path, encoding="utf-8-sig", dtype=str, keep_default_na=False)
+    df = read_raw_csv(input_path)
 
     # Ensure output directory exists
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -337,7 +339,7 @@ def normalize_file(
             existing = pd.read_csv(ledger_path)
         else:
             existing = pd.DataFrame(columns=out.columns)
-    except (OSError, ValueError, UnicodeDecodeError):
+    except LEDGER_IO_ERRORS:
         existing = pd.DataFrame(columns=out.columns)
 
     # Combine avoiding re-adding rows that already exist in the ledger

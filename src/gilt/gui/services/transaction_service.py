@@ -12,7 +12,7 @@ from datetime import date
 from pathlib import Path
 
 from gilt.model.account import TransactionGroup
-from gilt.model.ledger_repository import LedgerRepository
+from gilt.model.ledger_repository import LEDGER_IO_ERRORS, LedgerRepository
 from gilt.storage.projection import ProjectionBuilder
 
 logger = logging.getLogger(__name__)
@@ -88,7 +88,7 @@ class TransactionService:
             groups = self._ledger_repo.load(account_id)
             self._cache[account_id] = groups
             return groups
-        except (OSError, ValueError, UnicodeDecodeError) as e:
+        except LEDGER_IO_ERRORS as e:
             logger.error("Failed to load account %s: %s", account_id, e, exc_info=True)
             return []
 
@@ -238,7 +238,7 @@ class TransactionService:
 
             return True
 
-        except (OSError, ValueError, UnicodeDecodeError) as e:
+        except LEDGER_IO_ERRORS as e:
             logger.error("Failed to delete transaction %s: %s", transaction_id, e, exc_info=True)
             return False
 
@@ -278,6 +278,6 @@ class TransactionService:
 
             return True
 
-        except (OSError, ValueError, UnicodeDecodeError) as e:
+        except LEDGER_IO_ERRORS as e:
             logger.error("Failed to update transaction: %s", e, exc_info=True)
             return False

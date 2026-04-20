@@ -21,6 +21,7 @@ from pathlib import Path
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from gilt.model.category_io import load_categories_config
+from gilt.model.ledger_repository import LEDGER_IO_ERRORS
 from gilt.services.event_migration_service import EventMigrationService, MigrationStats
 from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.storage.budget_projection import BudgetProjectionBuilder
@@ -185,7 +186,7 @@ def _backfill_transactions(
                     print_error(error)
                     stats.errors += 1
 
-            except (OSError, ValueError, UnicodeDecodeError) as e:
+            except LEDGER_IO_ERRORS as e:
                 print_error(f"Error processing {ledger_path.name}: {e}")
                 stats.errors += 1
 

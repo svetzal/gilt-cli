@@ -25,7 +25,8 @@ from gilt.ingest import (
 )
 from gilt.model.account import Account, Transaction
 from gilt.model.duplicate import DuplicateMatch, TransactionPair
-from gilt.model.ledger_repository import LedgerRepository
+from gilt.model.ledger_repository import LEDGER_IO_ERRORS, LedgerRepository
+from gilt.model.raw_csv import read_raw_csv
 from gilt.services.duplicate_service import DuplicateService
 from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.services.smart_category_service import SmartCategoryService
@@ -175,9 +176,7 @@ class ImportService:
         """
         try:
             # Read first few rows
-            df = pd.read_csv(
-                file_path, encoding="utf-8-sig", dtype=str, keep_default_na=False, nrows=max_rows
-            )
+            df = read_raw_csv(file_path, nrows=max_rows)
 
             # Convert to list of dicts
             preview = df.to_dict("records")
@@ -225,7 +224,7 @@ class ImportService:
 
         try:
             return len(ledger_repo.load(account_id))
-        except (OSError, ValueError, UnicodeDecodeError):
+        except LEDGER_IO_ERRORS:
             return 0
 
     def count_duplicates(self, file_path: Path, account_id: str) -> tuple[int, int, str | None]:
@@ -242,7 +241,7 @@ class ImportService:
         try:
             # Read the file and normalize it in memory (dry-run style)
             # This is a simplified version - in reality, we'd need to parse like normalize_file does
-            df = pd.read_csv(file_path, encoding="utf-8-sig", dtype=str, keep_default_na=False)
+            df = read_raw_csv(file_path)
             total_rows = len(df)
 
             # Get existing transaction IDs
@@ -511,7 +510,7 @@ class ImportService:
                 ledger_path=ledger_path,
             )
 
-        except (OSError, ValueError, UnicodeDecodeError) as e:
+        except LEDGER_IO_ERRORS as e:
             return ImportResult(
                 success=False,
                 imported_count=0,

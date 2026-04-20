@@ -15,6 +15,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from gilt.model.ledger_repository import LEDGER_IO_ERRORS
+
 # Tokens and keywords used to assess transfer-like transactions
 DESCRIPTION_TOKENS = [
     "INTERAC",
@@ -86,7 +88,7 @@ def load_normalized(processed_dir: Path) -> list[Txn]:
     for f in files:
         try:
             df = pd.read_csv(f)
-        except (OSError, UnicodeDecodeError):  # pragma: no cover
+        except LEDGER_IO_ERRORS:  # pragma: no cover
             continue
         required = {
             "transaction_id",

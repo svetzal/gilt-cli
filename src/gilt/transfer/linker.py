@@ -25,7 +25,7 @@ import logging
 from pathlib import Path
 
 from gilt.model.account import TransactionGroup
-from gilt.model.ledger_repository import LedgerRepository
+from gilt.model.ledger_repository import LEDGER_IO_ERRORS, LedgerRepository
 from gilt.transfer._constants import (
     ROLE_CREDIT,
     ROLE_DEBIT,
@@ -62,7 +62,7 @@ def _build_indexes(
         csv_path = repo.ledger_path(account_id)
         try:
             groups = repo.load(account_id)
-        except (OSError, ValueError, UnicodeDecodeError):
+        except LEDGER_IO_ERRORS:
             logger.warning("Failed to load ledger %s, skipping", csv_path, exc_info=True)
             groups = []
         file_groups[str(csv_path)] = groups

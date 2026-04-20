@@ -8,6 +8,8 @@ from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
 
 logger = logging.getLogger(__name__)
 
+LEDGER_IO_ERRORS: tuple[type[Exception], ...] = (OSError, ValueError, UnicodeDecodeError)
+
 
 class LedgerRepository:
     """Gateway for all per-account CSV ledger I/O.
@@ -60,7 +62,7 @@ class LedgerRepository:
             try:
                 text = ledger_path.read_text(encoding="utf-8")
                 all_groups.extend(load_ledger_csv(text, default_currency=self._default_currency))
-            except (OSError, ValueError, UnicodeDecodeError):
+            except LEDGER_IO_ERRORS:
                 logger.warning("Skipping unparseable ledger file: %s", ledger_path)
                 continue
         return all_groups
@@ -72,4 +74,4 @@ class LedgerRepository:
         return sorted(p.stem for p in self._data_dir.glob("*.csv"))
 
 
-__all__ = ["LedgerRepository"]
+__all__ = ["LedgerRepository", "LEDGER_IO_ERRORS"]
