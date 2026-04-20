@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.3] - 2026-04-20
+
+### Added
+- `--json` flag for `skill-init` command with corrected exit codes
+
+### Changed
+- Extract ledger I/O to `LedgerRepository` gateway (functional core isolation)
+- Extract canonical rule-match → update conversion to pure function
+- Extract batch receipt matching to service layer
+- Consolidate `DEFAULT_VENDOR_PATTERNS` to service layer
+- Eliminate duplicated budget proration and spending aggregation
+- Refactor date range logic into testable pure function
+- Fix Qt deprecation warnings in GUI views
+
+### Dependencies
+- Upgrade rich from 14.3.4 to 15.0.0
+- Update mojentic, openai, anthropic, PySide6, scipy, and transitive dependencies
+
 ## [0.5.2] - 2026-04-12
 
 ### Fixed
