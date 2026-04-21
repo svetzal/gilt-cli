@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
 from pathlib import Path
+from typing import Any
 
 from rich.console import Console
 from rich.table import Table
@@ -109,14 +111,28 @@ def print_dry_run_message(*, detail: str | None = None) -> None:
     console.print(f"[dim]{msg}[/dim]")
 
 
-def require_event_sourcing(workspace: Workspace) -> EventSourcingReadyResult | None:
+def require_event_sourcing(
+    workspace: Workspace,
+    *,
+    event_store_path: Path | None = None,
+    projections_path: Path | None = None,
+) -> EventSourcingReadyResult | None:
     """Initialize event sourcing or print error and return None.
 
     Calls ensure_ready() which auto-rebuilds projections if needed.
     Uses the error message pattern from the duplicates command (most informative).
+
+    Args:
+        workspace: Workspace for resolving default paths.
+        event_store_path: Override the event store DB path. Defaults to workspace path.
+        projections_path: Override the projections DB path. Defaults to workspace path.
     """
     data_dir = workspace.ledger_data_dir
-    es_service = EventSourcingService(workspace=workspace)
+    es_service = EventSourcingService(
+        workspace=workspace,
+        event_store_path=event_store_path,
+        projections_path=projections_path,
+    )
     result = es_service.ensure_ready(data_dir=data_dir if data_dir.exists() else None)
 
     if not result.ready:
@@ -162,6 +178,30 @@ def require_persistence_service(
         projection_builder=projection_builder,
         ledger_repo=LedgerRepository(workspace.ledger_data_dir),
     )
+
+
+def display_transaction_matches(
+    title: str,
+    extra_columns: list[tuple[str, dict]],
+    matches: Sequence,
+    row_fn: Callable[[Any], tuple],
+    *,
+    display_limit: int = 50,
+) -> None:
+    """Create and print a transaction table for a sequence of matches.
+
+    Args:
+        title: Table title passed to ``create_transaction_table``.
+        extra_columns: Extra column specs passed to ``create_transaction_table``.
+        matches: The full sequence of matches. Only the first ``display_limit`` are rendered.
+        row_fn: Callable that accepts a single match item and returns a tuple of column values
+            matching (account, txn_id_prefix, date, description, amount, *extra_values).
+        display_limit: Maximum rows to render before the overflow message is shown.
+    """
+    table = create_transaction_table(title, extra_columns)
+    for item in matches[:display_limit]:
+        table.add_row(*row_fn(item))
+    print_transaction_table(table, len(matches), display_limit=display_limit)
 
 
 def require_projections(workspace: Workspace) -> ProjectionBuilder | None:

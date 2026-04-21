@@ -16,10 +16,9 @@ from gilt.workspace import Workspace
 
 from .util import (
     console,
-    create_transaction_table,
+    display_transaction_matches,
     fmt_amount_str,
     print_dry_run_message,
-    print_transaction_table,
     require_event_sourcing,
     require_persistence_service,
     require_projections,
@@ -48,18 +47,10 @@ def _display_rules(rules):
 
 
 def _display_matches(matches):
-    table = create_transaction_table(
-        "Transactions Matching Rules",
-        [
-            ("Inferred Category", {"style": "green"}),
-            ("Evidence", {"style": "blue", "justify": "right"}),
-        ],
-    )
-
-    for m in matches:
+    def row_fn(m) -> tuple:
         txn = m.transaction
         cat_display = format_category_path(m.rule.category, m.rule.subcategory)
-        table.add_row(
+        return (
             txn.get("account_id", ""),
             txn["transaction_id"][:8],
             txn.get("transaction_date", ""),
@@ -70,7 +61,15 @@ def _display_matches(matches):
         )
 
     console.print("\n")
-    print_transaction_table(table, len(matches))
+    display_transaction_matches(
+        "Transactions Matching Rules",
+        [
+            ("Inferred Category", {"style": "green"}),
+            ("Evidence", {"style": "blue", "justify": "right"}),
+        ],
+        matches,
+        row_fn,
+    )
 
 
 def _write_matches(matches, workspace, event_store, projection_builder):

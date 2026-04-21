@@ -23,14 +23,14 @@ from PySide6.QtWidgets import (
 )
 
 from gilt.gui.services.enrichment_service import EnrichmentData
+from gilt.gui.widgets.transaction_sections import (
+    build_basics_section,
+    build_enrichment_section,
+    build_transfer_section,
+)
 from gilt.model.account import TransactionGroup
 from gilt.services.receipt_ingestion_service import ReceiptData
-from gilt.transfer import (
-    TRANSFER_COUNTERPARTY_ACCOUNT_ID,
-    TRANSFER_META_KEY,
-    TRANSFER_METHOD,
-    TRANSFER_ROLE,
-)
+from gilt.transfer import TRANSFER_META_KEY
 
 
 class TransactionDetailPanel(QScrollArea):
@@ -104,26 +104,14 @@ class TransactionDetailPanel(QScrollArea):
 
     def _build_basics_section(self, txn) -> QGroupBox:
         """Build the transaction basics group box."""
-        group = QGroupBox("Transaction")
-        form = QFormLayout(group)
-        form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapAllRows)
-        form.addRow("Transaction ID:", self._label(txn.transaction_id))
-        form.addRow("Date:", self._label(str(txn.date)))
-        form.addRow("Account:", self._label(txn.account_id))
-        form.addRow("Description:", self._copyable_label(txn.description or ""))
-        form.addRow("Amount:", self._label(f"{txn.amount:.2f} {txn.currency or 'CAD'}"))
-        if txn.category:
-            cat_text = txn.category
-            if txn.subcategory:
-                cat_text += f": {txn.subcategory}"
-            form.addRow("Category:", self._label(cat_text))
-        if txn.counterparty:
-            form.addRow("Counterparty:", self._label(txn.counterparty))
-        if txn.notes:
-            form.addRow("Notes:", self._label(txn.notes))
-        if txn.source_file:
-            form.addRow("Source file:", self._label(txn.source_file))
-        return group
+        return build_basics_section(
+            self._label,
+            txn,
+            form_setup_fn=lambda form: form.setRowWrapPolicy(
+                QFormLayout.RowWrapPolicy.WrapAllRows
+            ),
+            description_label_fn=self._copyable_label,
+        )
 
     def _build_prediction_section(self, transaction: TransactionGroup, metadata: dict) -> QGroupBox:
         """Build the category prediction group box with apply button."""
@@ -184,41 +172,11 @@ class TransactionDetailPanel(QScrollArea):
         self, enrichment: EnrichmentData, txn_currency: str | None
     ) -> QGroupBox:
         """Build the receipt enrichment group box."""
-        group = QGroupBox("Receipt Enrichment")
-        form = QFormLayout(group)
-        form.addRow("Vendor:", self._label(enrichment.vendor))
-        if enrichment.service:
-            form.addRow("Service:", self._label(enrichment.service))
-        if enrichment.invoice_number:
-            form.addRow("Invoice #:", self._label(enrichment.invoice_number))
-        if enrichment.tax_amount is not None:
-            tax_text = f"{enrichment.tax_amount}"
-            if enrichment.tax_type:
-                tax_text += f" ({enrichment.tax_type})"
-            form.addRow("Tax:", self._label(tax_text))
-        if enrichment.currency and enrichment.currency != (txn_currency or "CAD"):
-            form.addRow("Receipt currency:", self._label(enrichment.currency))
-        if enrichment.receipt_file:
-            form.addRow("Receipt PDF:", self._label(enrichment.receipt_file))
-        if enrichment.source_email:
-            form.addRow("Source email:", self._label(enrichment.source_email))
-        if enrichment.match_confidence:
-            form.addRow("Match confidence:", self._label(enrichment.match_confidence))
-        return group
+        return build_enrichment_section(self._label, enrichment, txn_currency)
 
     def _build_transfer_section(self, transfer: dict) -> QGroupBox:
         """Build the transfer link group box."""
-        group = QGroupBox("Transfer Link")
-        form = QFormLayout(group)
-        if TRANSFER_ROLE in transfer:
-            form.addRow("Role:", self._label(transfer[TRANSFER_ROLE]))
-        if TRANSFER_COUNTERPARTY_ACCOUNT_ID in transfer:
-            form.addRow(
-                "Counterparty account:", self._label(transfer[TRANSFER_COUNTERPARTY_ACCOUNT_ID])
-            )
-        if TRANSFER_METHOD in transfer:
-            form.addRow("Method:", self._label(transfer[TRANSFER_METHOD]))
-        return group
+        return build_transfer_section(self._label, transfer)
 
     def _copyable_label(self, text: str) -> QWidget:
         """Create a label with a copy-to-clipboard button beside it."""

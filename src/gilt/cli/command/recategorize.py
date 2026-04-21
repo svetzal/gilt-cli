@@ -8,11 +8,10 @@ from gilt.workspace import Workspace
 
 from .util import (
     console,
-    create_transaction_table,
+    display_transaction_matches,
     fmt_amount_str,
     print_dry_run_message,
     print_error,
-    print_transaction_table,
     require_event_sourcing,
     require_persistence_service,
     require_projections,
@@ -128,15 +127,11 @@ def _display_matches(
     to_category: str,
 ) -> None:
     """Display matched transactions in a table."""
-    table = create_transaction_table(
-        "Transactions to Recategorize",
-        [("From", {"style": "red"}), ("→ To", {"style": "green"})],
-    )
 
-    for account_id, group in matches[:50]:  # Limit display to 50
+    def row_fn(item: tuple[str, TransactionGroup]) -> tuple:
+        account_id, group = item
         t = group.primary
-
-        table.add_row(
+        return (
             account_id,
             t.transaction_id[:8],
             str(t.date),
@@ -146,7 +141,12 @@ def _display_matches(
             to_category,
         )
 
-    print_transaction_table(table, len(matches))
+    display_transaction_matches(
+        "Transactions to Recategorize",
+        [("From", {"style": "red"}), ("→ To", {"style": "green"})],
+        matches,
+        row_fn,
+    )
 
     console.print(f"\n[bold]Total:[/] {len(matches)} transaction(s)")
 

@@ -12,10 +12,10 @@ from gilt.workspace import Workspace
 
 from .util import (
     console,
-    create_transaction_table,
+    display_transaction_matches,
+    fmt_amount_str,
     print_dry_run_message,
     print_error,
-    print_transaction_table,
 )
 
 
@@ -42,27 +42,27 @@ def _display_matches(
     desc_prefix: str | None = None,
 ) -> None:
     """Display matched transactions in a table."""
-    table = create_transaction_table(
-        "Matched Transactions",
-        [("Current Note", {"style": "dim"}), ("→ New Note", {"style": "green"})],
-    )
 
-    for group in groups[:50]:  # Limit display to 50
+    def row_fn(group: TransactionGroup) -> tuple:
         txn = group.primary
         raw_desc = (txn.description or "").strip()
         desc_display = _highlight_prefix(raw_desc, desc_prefix) if desc_prefix else raw_desc
-
-        table.add_row(
+        return (
             account,
             txn.transaction_id[:8],
             str(txn.date),
             desc_display[:40],
-            f"{txn.amount:,.0f}",
+            fmt_amount_str(txn.amount),
             (txn.notes or "")[:30] if txn.notes else "—",
             note_text[:30],
         )
 
-    print_transaction_table(table, len(groups))
+    display_transaction_matches(
+        "Matched Transactions",
+        [("Current Note", {"style": "dim"}), ("→ New Note", {"style": "green"})],
+        groups,
+        row_fn,
+    )
 
 
 def _find_single_transaction(

@@ -8,6 +8,7 @@ from rich.table import Table
 
 from gilt.cli.command.util import (
     create_transaction_table,
+    display_transaction_matches,
     filter_by_account,
     filter_uncategorized,
     print_error,
@@ -197,6 +198,71 @@ class DescribePrintTransactionTable:
 
         calls = [str(c) for c in mock_console.print.call_args_list]
         assert not any("more" in c for c in calls)
+
+
+class DescribeDisplayTransactionMatches:
+    def it_should_create_and_print_a_table_with_all_matches(self, mocker):
+        mock_console = mocker.patch("gilt.cli.command.util.console")
+        matches = [
+            ("ACC1", "aaaa0001", "2025-01-01", "SAMPLE STORE", "-42.50", "Food"),
+            ("ACC2", "bbbb0002", "2025-01-02", "ACME CORP", "-10.00", "Bills"),
+        ]
+
+        def row_fn(item):
+            return item
+
+        display_transaction_matches(
+            "Test Table",
+            [("Category", {"style": "green"})],
+            matches,
+            row_fn,
+        )
+
+        assert mock_console.print.called
+
+    def it_should_limit_rendered_rows_to_display_limit(self, mocker):
+        mocker.patch("gilt.cli.command.util.console")
+        rendered_rows = []
+        matches = list(range(60))
+
+        def row_fn(item):
+            rendered_rows.append(item)
+            return (str(item), str(item), str(item), str(item), str(item))
+
+        display_transaction_matches(
+            "Test",
+            [],
+            matches,
+            row_fn,
+            display_limit=50,
+        )
+
+        assert len(rendered_rows) == 50
+
+    def it_should_pass_total_count_to_print_transaction_table(self, mocker):
+        mock_print_table = mocker.patch("gilt.cli.command.util.print_transaction_table")
+        mocker.patch("gilt.cli.command.util.create_transaction_table")
+        matches = list(range(55))
+
+        display_transaction_matches(
+            "Test",
+            [],
+            matches,
+            lambda item: (str(item),),
+            display_limit=50,
+        )
+
+        _, kwargs = mock_print_table.call_args
+        assert kwargs.get("display_limit") == 50
+        positional = mock_print_table.call_args[0]
+        assert positional[1] == 55
+
+    def it_should_render_empty_table_when_matches_is_empty(self, mocker):
+        mock_console = mocker.patch("gilt.cli.command.util.console")
+
+        display_transaction_matches("Test", [], [], lambda item: (str(item),))
+
+        assert mock_console.print.called
 
 
 class DescribeRequireProjections:
