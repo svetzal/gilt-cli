@@ -391,7 +391,7 @@ except ValidationError as e:
 try:
     result = service.categorize(txids, category, write=True)
     self.show_success("Categorized successfully")
-except Exception as e:
+except (OSError, ValueError, UnicodeDecodeError) as e:
     QMessageBox.critical(
         self,
         "Categorization Failed",

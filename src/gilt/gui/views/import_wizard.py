@@ -127,7 +127,7 @@ class ImportWorker(QThread):
                 )
             )
 
-        except Exception as e:
+        except (OSError, ValueError, UnicodeDecodeError) as e:
             self.error.emit(str(e))
 
 

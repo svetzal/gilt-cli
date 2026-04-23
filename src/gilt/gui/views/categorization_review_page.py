@@ -62,7 +62,7 @@ class CategorizationScanWorker(QThread):
             self.progress.emit(100)
             self.finished.emit(all_items)
 
-        except Exception as e:
+        except (OSError, ValueError, UnicodeDecodeError) as e:
             self.error.emit(str(e))
 
 

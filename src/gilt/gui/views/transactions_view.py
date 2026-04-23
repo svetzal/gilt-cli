@@ -7,9 +7,12 @@ Provides filter controls and transaction table for comprehensive transaction man
 """
 
 import contextlib
+import logging
+import sqlite3
 from datetime import date, timedelta
 from pathlib import Path
 
+import yaml
 from PySide6.QtCore import QDate, Qt, QThread, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -53,6 +56,8 @@ from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.services.intelligence_scan_service import IntelligenceScanService
 from gilt.services.smart_category_service import SmartCategoryService
 from gilt.storage.event_store import EventStore
+
+logger = logging.getLogger(__name__)
 
 
 class IntelligenceWorker(QThread):
@@ -107,7 +112,7 @@ class IntelligenceWorker(QThread):
                     fragment = scan_service.apply_inferred_rules(all_txns, self.projections_path)
                     metadata.update(fragment)
                     rule_matched_ids = set(fragment.keys())
-                except Exception as e:
+                except (OSError, ValueError, sqlite3.OperationalError) as e:
                     self.status.emit(f"Rule inference skipped: {e}")
                 completed += 1
                 self.progress.emit(completed, total_units)
@@ -124,7 +129,8 @@ class IntelligenceWorker(QThread):
 
             if not self.isInterruptionRequested():
                 self.finished.emit(metadata)
-        except Exception as e:
+        except (OSError, ValueError, UnicodeDecodeError, RuntimeError) as e:
+            logger.error("Intelligence scan failed", exc_info=True)
             self.error.emit(f"Intelligence scan failed: {e}")
 
     def _predict_with_progress(
@@ -749,7 +755,7 @@ class TransactionsView(QWidget):
 
                 # Apply categorization
                 self._apply_categorization(selected, category, subcategory)
-        except Exception as e:
+        except (OSError, ValueError, yaml.YAMLError) as e:
             QMessageBox.critical(self, "Error", f"Failed to open categorize dialog:\n{e}")
 
     def _apply_categorization(
@@ -815,7 +821,7 @@ class TransactionsView(QWidget):
             # Reload transactions
             self.reload_transactions(restore_transaction_id=restore_transaction_id)
 
-        except Exception as e:
+        except (OSError, ValueError, UnicodeDecodeError) as e:
             QMessageBox.critical(self, "Error", f"Failed to categorize transactions:\n{str(e)}")
 
     def _on_note_requested(self):
@@ -866,7 +872,7 @@ class TransactionsView(QWidget):
             # Show success message
             QMessageBox.information(self, "Success", "Note updated successfully")
 
-        except Exception as e:
+        except (FileNotFoundError, OSError, ValueError, UnicodeDecodeError) as e:
             QMessageBox.critical(self, "Error", f"Failed to update note:\n{str(e)}")
 
     def _on_resolve_duplicate_requested(self):
@@ -914,7 +920,7 @@ class TransactionsView(QWidget):
                 # Reload to refresh view and clear warnings
                 self.reload_transactions()
 
-            except Exception as e:
+            except (ValueError, OSError, UnicodeDecodeError) as e:
                 QMessageBox.critical(self, "Error", f"Failed to resolve duplicate:\n{str(e)}")
 
     def _on_manual_merge_requested(self):
@@ -981,7 +987,7 @@ class TransactionsView(QWidget):
                 # Reload to refresh view
                 self.reload_transactions()
 
-            except Exception as e:
+            except (ValueError, OSError, UnicodeDecodeError) as e:
                 QMessageBox.critical(self, "Error", f"Failed to merge transactions:\n{str(e)}")
 
     def _get_receipt_match_service(self) -> ReceiptMatchService | None:
@@ -1133,7 +1139,7 @@ class TransactionsView(QWidget):
         try:
             svc.apply_match(receipt, transaction_id)
             self.reload_transactions(restore_transaction_id=transaction_id)
-        except Exception as e:
+        except (OSError, ValueError, UnicodeDecodeError) as e:
             QMessageBox.critical(self, "Error", f"Failed to apply receipt match:\n{str(e)}")
 
     def toggle_detail_panel(self):

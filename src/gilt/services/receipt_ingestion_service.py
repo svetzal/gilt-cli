@@ -310,7 +310,7 @@ def batch_match_receipts(
     for path in json_paths:
         try:
             receipt = ReceiptData.from_json_file(path)
-        except Exception:
+        except (json.JSONDecodeError, ValueError, OSError, UnicodeDecodeError):
             skipped_parse_errors += 1
             continue
 

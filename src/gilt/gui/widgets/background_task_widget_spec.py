@@ -12,7 +12,7 @@ def _has_display():
         if app is None:
             app = QApplication([])
         return True
-    except Exception:
+    except (RuntimeError, ImportError):
         return False
 
 
