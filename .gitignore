@@ -49,3 +49,6 @@ site/
 config/
 
 .et_env
+
+# Git worktrees
+.worktrees/
