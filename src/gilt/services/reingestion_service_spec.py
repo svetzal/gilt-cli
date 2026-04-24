@@ -19,6 +19,7 @@ import pytest
 from gilt.model.events import TransactionCategorized, TransactionImported
 from gilt.services.reingestion_service import (
     ReingestionService,
+    purge_cache_entries,
 )
 from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
@@ -162,3 +163,29 @@ class DescribeExecutePurge(DescribeReingestionService):
         result = service.execute_purge(plan)
 
         assert result.cache_entries_purged == 0
+
+
+class DescribePurgeCacheEntries:
+    def it_should_remove_entries_matching_txn_ids(self):
+        data = {"txn001": {"result": "x"}, "txn002": {"result": "y"}, "txn003": {"result": "z"}}
+
+        filtered, count = purge_cache_entries(data, {"txn001", "txn002"})
+
+        assert count == 2
+        assert "txn001" not in filtered
+        assert "txn002" not in filtered
+        assert "txn003" in filtered
+
+    def it_should_return_zero_when_no_ids_match(self):
+        data = {"txn999": {"result": "x"}}
+
+        filtered, count = purge_cache_entries(data, {"txn001"})
+
+        assert count == 0
+        assert filtered == data
+
+    def it_should_handle_empty_data(self):
+        filtered, count = purge_cache_entries({}, {"txn001"})
+
+        assert count == 0
+        assert filtered == {}

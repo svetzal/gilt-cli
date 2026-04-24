@@ -10,7 +10,9 @@ from tempfile import TemporaryDirectory
 
 from gilt.services.receipt_ingestion_service import (
     ReceiptData,
+    filter_receipts_by_year,
     find_already_ingested_invoices,
+    load_receipt_file,
     match_receipt_to_transactions,
     scan_receipt_files,
 )
@@ -88,7 +90,7 @@ class DescribeReceiptDataParsing:
             path = Path(tmpdir) / "receipt.json"
             _write_receipt_json(path)
 
-            receipt = ReceiptData.from_json_file(path)
+            receipt = load_receipt_file(path)
 
             assert receipt.vendor == "Acme Corp"
             assert receipt.service == "Widget Pro"
@@ -108,7 +110,7 @@ class DescribeReceiptDataParsing:
             _write_receipt_json(path, overrides={"schema": "unknown.v2"})
 
             try:
-                ReceiptData.from_json_file(path)
+                load_receipt_file(path)
                 raise AssertionError("Should have raised ValueError")
             except ValueError as e:
                 assert "Unsupported schema" in str(e)
@@ -124,7 +126,7 @@ class DescribeReceiptDataParsing:
             }
             path.write_text(json.dumps(data), encoding="utf-8")
 
-            receipt = ReceiptData.from_json_file(path)
+            receipt = load_receipt_file(path)
 
             assert receipt.vendor == "Simple Vendor"
             assert receipt.service is None
@@ -133,6 +135,58 @@ class DescribeReceiptDataParsing:
             assert receipt.invoice_number is None
             assert receipt.source_email is None
             assert receipt.receipt_file is None
+
+
+class DescribeReceiptDataFromDict:
+    def it_should_parse_valid_dict_without_file_io(self):
+        data = {
+            "schema": "mailctl.receipt.v1",
+            "vendor": "Acme Corp",
+            "service": "Widget Pro",
+            "amount": 35.01,
+            "currency": "CAD",
+            "tax": {"amount": 4.03, "type": "HST"},
+            "date": "2025-06-15",
+            "invoice_number": "INV001",
+            "source_email": "billing@acme.example",
+            "receipt_file": "Acme-INV001.pdf",
+        }
+        source_path = Path("/tmp/fake-receipt.json")
+
+        receipt = ReceiptData.from_dict(data, source_path)
+
+        assert receipt.vendor == "Acme Corp"
+        assert receipt.service == "Widget Pro"
+        assert receipt.amount == Decimal("35.01")
+        assert receipt.tax_amount == Decimal("4.03")
+        assert receipt.tax_type == "HST"
+        assert receipt.receipt_date == date(2025, 6, 15)
+        assert receipt.invoice_number == "INV001"
+        assert receipt.source_path == source_path
+
+    def it_should_reject_unsupported_schema(self):
+        data = {"schema": "unknown.v2", "vendor": "X", "amount": 1.0, "date": "2025-01-01"}
+
+        try:
+            ReceiptData.from_dict(data, Path("/tmp/x.json"))
+            raise AssertionError("Should have raised ValueError")
+        except ValueError as e:
+            assert "Unsupported schema" in str(e)
+
+    def it_should_handle_missing_optional_fields(self):
+        data = {
+            "schema": "mailctl.receipt.v1",
+            "vendor": "Simple Vendor",
+            "amount": 10.00,
+            "date": "2025-01-01",
+        }
+
+        receipt = ReceiptData.from_dict(data, Path("/tmp/simple.json"))
+
+        assert receipt.vendor == "Simple Vendor"
+        assert receipt.service is None
+        assert receipt.tax_amount is None
+        assert receipt.invoice_number is None
 
 
 class DescribeScanReceiptFiles:
@@ -149,20 +203,35 @@ class DescribeScanReceiptFiles:
             assert len(paths) == 2
             assert all(p.suffix == ".json" for p in paths)
 
-    def it_should_filter_by_year(self):
-        with TemporaryDirectory() as tmpdir:
-            root = Path(tmpdir)
-            _write_receipt_json(root / "a.json", overrides={"date": "2025-06-15"})
-            _write_receipt_json(root / "b.json", overrides={"date": "2024-06-15"})
-
-            paths = scan_receipt_files(root, year=2025)
-
-            assert len(paths) == 1
-            assert paths[0].name == "a.json"
-
     def it_should_return_empty_for_nonexistent_dir(self):
         paths = scan_receipt_files(Path("/nonexistent/dir"))
         assert paths == []
+
+
+class DescribeFilterReceiptsByYear:
+    def it_should_return_only_receipts_from_given_year(self):
+        r2025 = _make_receipt(date_str="2025-06-15")
+        r2024 = _make_receipt(date_str="2024-06-15")
+
+        result = filter_receipts_by_year([r2025, r2024], 2025)
+
+        assert len(result) == 1
+        assert result[0].receipt_date.year == 2025
+
+    def it_should_return_empty_when_no_receipts_match(self):
+        r2024 = _make_receipt(date_str="2024-06-15")
+
+        result = filter_receipts_by_year([r2024], 2025)
+
+        assert result == []
+
+    def it_should_return_all_when_all_match_year(self):
+        r1 = _make_receipt(date_str="2025-01-01")
+        r2 = _make_receipt(date_str="2025-12-31")
+
+        result = filter_receipts_by_year([r1, r2], 2025)
+
+        assert len(result) == 2
 
 
 class DescribeMatchReceiptToTransactions:
@@ -170,7 +239,7 @@ class DescribeMatchReceiptToTransactions:
         with TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "receipt.json"
             _write_receipt_json(path)
-            receipt = ReceiptData.from_json_file(path)
+            receipt = load_receipt_file(path)
 
             # Bank charges tax-inclusive total: 35.01 + 4.03 HST = 39.04
             transactions = [_make_txn_row(amount="-39.04")]
@@ -184,7 +253,7 @@ class DescribeMatchReceiptToTransactions:
         with TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "receipt.json"
             _write_receipt_json(path, overrides={"amount": 35.01})
-            receipt = ReceiptData.from_json_file(path)
+            receipt = load_receipt_file(path)
 
             # Tax-inclusive total is 39.04; 39.05 is within $0.02 tolerance
             transactions = [_make_txn_row(amount="-39.05")]
@@ -196,7 +265,7 @@ class DescribeMatchReceiptToTransactions:
         with TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "receipt.json"
             _write_receipt_json(path, overrides={"amount": 35.01})
-            receipt = ReceiptData.from_json_file(path)
+            receipt = load_receipt_file(path)
 
             # Tax-inclusive total is 39.04; 39.10 is outside $0.02 tolerance
             transactions = [_make_txn_row(amount="-39.10")]
@@ -208,7 +277,7 @@ class DescribeMatchReceiptToTransactions:
         with TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "receipt.json"
             _write_receipt_json(path, overrides={"date": "2025-06-15"})
-            receipt = ReceiptData.from_json_file(path)
+            receipt = load_receipt_file(path)
 
             # Tax-inclusive total: 35.01 + 4.03 = 39.04
             transactions = [_make_txn_row(amount="-39.04", transaction_date="2025-06-18")]
@@ -220,7 +289,7 @@ class DescribeMatchReceiptToTransactions:
         with TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "receipt.json"
             _write_receipt_json(path, overrides={"date": "2025-06-15"})
-            receipt = ReceiptData.from_json_file(path)
+            receipt = load_receipt_file(path)
 
             # Amount matches but date is 10 days away (outside 3-day window)
             transactions = [_make_txn_row(amount="-39.04", transaction_date="2025-06-25")]
@@ -232,7 +301,7 @@ class DescribeMatchReceiptToTransactions:
         with TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "receipt.json"
             _write_receipt_json(path)
-            receipt = ReceiptData.from_json_file(path)
+            receipt = load_receipt_file(path)
 
             # Tax-inclusive total: 35.01 + 4.03 = 39.04
             transactions = [
@@ -248,7 +317,7 @@ class DescribeMatchReceiptToTransactions:
         with TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "receipt.json"
             _write_receipt_json(path)
-            receipt = ReceiptData.from_json_file(path)
+            receipt = load_receipt_file(path)
 
             # Tax-inclusive total: 35.01 + 4.03 = 39.04
             transactions = [
@@ -268,7 +337,7 @@ class DescribeMatchReceiptToTransactions:
         with TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "receipt.json"
             _write_receipt_json(path)
-            receipt = ReceiptData.from_json_file(path)
+            receipt = load_receipt_file(path)
 
             # Tax-inclusive total: 35.01 + 4.03 = 39.04
             transactions = [_make_txn_row(amount="-39.04")]

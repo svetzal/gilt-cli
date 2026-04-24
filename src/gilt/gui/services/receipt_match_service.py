@@ -18,6 +18,7 @@ from gilt.services.receipt_ingestion_service import (
     ReceiptData,
     batch_match_receipts,
     find_already_ingested_invoices,
+    load_receipt_file,
     match_receipt_to_transactions,
     scan_receipt_files,
 )
@@ -82,7 +83,7 @@ class ReceiptMatchService:
         candidates: list[ReceiptData] = []
         for path in json_paths:
             try:
-                receipt = ReceiptData.from_json_file(path)
+                receipt = load_receipt_file(path)
             except (ValueError, Exception):
                 continue
             if receipt.amount is None:

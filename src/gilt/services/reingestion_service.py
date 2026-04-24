@@ -6,6 +6,12 @@ Centralises the logic for:
 - Executing the purge via proper storage APIs (no raw SQL)
 - Clearing the intelligence cache for removed transactions
 
+Pure functions (no I/O, testable with plain dicts):
+  purge_cache_entries
+
+I/O boundary: cache file read/write is isolated in ReingestionService._purge_intelligence_cache;
+  plan_purge and execute_purge delegate to injected EventStore and ProjectionBuilder.
+
 NO IMPORTS FROM:
 - rich (console, table, prompt)
 - typer
@@ -43,12 +49,27 @@ class PurgeResult:
     cache_entries_purged: int
 
 
+def purge_cache_entries(data: dict, txn_ids: set[str]) -> tuple[dict, int]:
+    """Remove cache entries whose keys match txn_ids. Pure function.
+
+    Args:
+        data: The full cache dict (key = transaction_id).
+        txn_ids: Transaction IDs whose entries should be removed.
+
+    Returns:
+        (filtered_dict, removed_count)
+    """
+    filtered = {k: v for k, v in data.items() if k not in txn_ids}
+    return filtered, len(data) - len(filtered)
+
+
 class ReingestionService:
     """
     Service for planning and executing account reingest purges.
 
-    This is the functional core - pure business logic with no direct SQL or
-    file I/O beyond the injected storage objects.
+    Orchestrates purge logic via injected storage objects. The only direct file I/O
+    is the intelligence cache read/write in _purge_intelligence_cache; all filtering
+    logic is delegated to the pure purge_cache_entries function.
 
     Responsibilities:
     - Collect transaction IDs imported for a given account
@@ -159,12 +180,10 @@ class ReingestionService:
         except (json.JSONDecodeError, OSError):
             return 0
 
-        original_count = len(data)
-        data = {k: v for k, v in data.items() if k not in txn_ids}
-        removed = original_count - len(data)
+        filtered, removed = purge_cache_entries(data, txn_ids)
 
         if removed > 0:
-            self._intelligence_cache_path.write_text(json.dumps(data), encoding="utf-8")
+            self._intelligence_cache_path.write_text(json.dumps(filtered), encoding="utf-8")
 
         return removed
 
@@ -173,4 +192,5 @@ __all__ = [
     "PurgePlan",
     "PurgeResult",
     "ReingestionService",
+    "purge_cache_entries",
 ]

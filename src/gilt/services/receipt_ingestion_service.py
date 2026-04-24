@@ -1,8 +1,12 @@
 """
-Receipt ingestion service — pure logic for matching receipt JSON files to bank transactions.
+Receipt ingestion service — matching receipt JSON files to bank transactions.
 
-Reads mailctl.receipt.v1 JSON sidecar files, matches them to existing bank transactions
-by amount and date, and prepares TransactionEnriched events.
+I/O boundary functions (read files, scan directories):
+  scan_receipt_files, load_receipt_file
+
+Pure business logic (no I/O, fully testable with in-memory data):
+  ReceiptData.from_dict, filter_receipts_by_year, match_receipt_to_transactions,
+  batch_match_receipts, find_already_ingested_invoices
 
 Privacy: All processing is local-only. No network I/O.
 """
@@ -34,16 +38,12 @@ class ReceiptData:
     source_path: Path  # path to the JSON file itself
 
     @classmethod
-    def from_json_file(cls, path: Path) -> ReceiptData:
-        """Parse a mailctl.receipt.v1 JSON file into a ReceiptData.
+    def from_dict(cls, data: dict, source_path: Path) -> ReceiptData:
+        """Parse a mailctl.receipt.v1 dict into a ReceiptData.
 
         Raises:
             ValueError: If schema is not mailctl.receipt.v1 or required fields are missing.
-            json.JSONDecodeError: If file is not valid JSON.
         """
-        text = path.read_text(encoding="utf-8")
-        data = json.loads(text)
-
         schema = data.get("schema")
         if schema != "mailctl.receipt.v1":
             raise ValueError(f"Unsupported schema: {schema}")
@@ -69,8 +69,20 @@ class ReceiptData:
             invoice_number=data.get("invoice_number"),
             source_email=data.get("source_email"),
             receipt_file=data.get("receipt_file"),
-            source_path=path,
+            source_path=source_path,
         )
+
+
+def load_receipt_file(path: Path) -> ReceiptData:
+    """Read and parse a mailctl.receipt.v1 JSON file. I/O boundary function.
+
+    Raises:
+        ValueError: If schema is not mailctl.receipt.v1 or required fields are missing.
+        json.JSONDecodeError: If file is not valid JSON.
+        OSError: If file cannot be read.
+    """
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return ReceiptData.from_dict(data, path)
 
 
 @dataclass
@@ -86,34 +98,31 @@ class MatchResult:
     match_confidence: str | None = None  # "exact", "fx-adjusted", "pattern-assisted"
 
 
-def scan_receipt_files(source_dir: Path, year: int | None = None) -> list[Path]:
-    """Recursively find all JSON files in source_dir.
+def scan_receipt_files(source_dir: Path) -> list[Path]:
+    """Recursively find all JSON files in source_dir. I/O boundary function.
 
     Args:
         source_dir: Root directory to scan.
-        year: If provided, only return receipts from this year (by parsing the JSON).
 
     Returns:
         Sorted list of JSON file paths.
     """
     if not source_dir.is_dir():
         return []
-    paths = sorted(source_dir.rglob("*.json"))
-    if year is None:
-        return paths
+    return sorted(source_dir.rglob("*.json"))
 
-    filtered = []
-    for p in paths:
-        try:
-            data = json.loads(p.read_text(encoding="utf-8"))
-            if data.get("schema") != "mailctl.receipt.v1":
-                continue
-            receipt_date = date.fromisoformat(data["date"])
-            if receipt_date.year == year:
-                filtered.append(p)
-        except (json.JSONDecodeError, KeyError, ValueError):
-            continue
-    return filtered
+
+def filter_receipts_by_year(receipts: list[ReceiptData], year: int) -> list[ReceiptData]:
+    """Return only receipts whose receipt_date falls in the given year. Pure function.
+
+    Args:
+        receipts: Parsed receipt objects to filter.
+        year: Four-digit year to keep.
+
+    Returns:
+        Filtered list preserving input order.
+    """
+    return [r for r in receipts if r.receipt_date.year == year]
 
 
 def find_already_ingested_invoices(enrichment_events: list) -> set[str]:
@@ -309,7 +318,7 @@ def batch_match_receipts(
 
     for path in json_paths:
         try:
-            receipt = ReceiptData.from_json_file(path)
+            receipt = load_receipt_file(path)
         except (json.JSONDecodeError, ValueError, OSError, UnicodeDecodeError):
             skipped_parse_errors += 1
             continue
@@ -349,7 +358,9 @@ __all__ = [
     "MatchResult",
     "ReceiptData",
     "batch_match_receipts",
+    "filter_receipts_by_year",
     "find_already_ingested_invoices",
+    "load_receipt_file",
     "match_receipt_to_transactions",
     "scan_receipt_files",
 ]

@@ -18,7 +18,9 @@ from gilt.services.receipt_ingestion_service import (
     DEFAULT_VENDOR_PATTERNS,
     MatchResult,
     batch_match_receipts,
+    filter_receipts_by_year,
     find_already_ingested_invoices,
+    load_receipt_file,
     scan_receipt_files,
 )
 from gilt.workspace import Workspace
@@ -141,7 +143,15 @@ def run(
         print_error(f"Source directory not found: {source}")
         return 1
 
-    json_paths = scan_receipt_files(source, year=year)
+    json_paths = scan_receipt_files(source)
+    if year is not None:
+        all_receipts = []
+        for p in json_paths:
+            try:
+                all_receipts.append(load_receipt_file(p))
+            except Exception:
+                continue
+        json_paths = [r.source_path for r in filter_receipts_by_year(all_receipts, year)]
     if not json_paths:
         console.print("[yellow]No receipt JSON files found.[/yellow]")
         return 0

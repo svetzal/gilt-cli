@@ -13,7 +13,7 @@ from gilt.gui.services.receipt_match_service import (
     _transaction_group_to_dict,
 )
 from gilt.model.account import Transaction, TransactionGroup
-from gilt.services.receipt_ingestion_service import BatchMatchResult
+from gilt.services.receipt_ingestion_service import BatchMatchResult, load_receipt_file
 from gilt.storage.event_store import EventStore
 
 
@@ -193,9 +193,7 @@ class DescribeReceiptMatchServiceApplyMatch:
             svc = ReceiptMatchService(receipts_dir, store)
 
             # Find candidate and apply
-            from gilt.services.receipt_ingestion_service import ReceiptData
-
-            receipt = ReceiptData.from_json_file(receipts_dir / "acme.json")
+            receipt = load_receipt_file(receipts_dir / "acme.json")
             svc.apply_match(receipt, "abcd1234abcd1234")
 
             # Verify event was written
@@ -216,9 +214,7 @@ class DescribeReceiptMatchServiceApplyMatch:
 
             svc = ReceiptMatchService(receipts_dir, store)
 
-            from gilt.services.receipt_ingestion_service import ReceiptData
-
-            receipt = ReceiptData.from_json_file(receipts_dir / "acme.json")
+            receipt = load_receipt_file(receipts_dir / "acme.json")
             svc.apply_match(receipt, "abcd1234abcd1234", match_confidence="exact")
 
             events = store.get_events_by_type("TransactionEnriched")
