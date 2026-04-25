@@ -9,6 +9,7 @@ Dry-run by default. Use --write to persist events.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from rich.prompt import Prompt
@@ -125,6 +126,21 @@ def _resolve_ambiguous_interactively(ambiguous: list[MatchResult]) -> list[Match
     return resolved
 
 
+def _filter_paths_by_year(json_paths: list[Path], year: int) -> list[Path]:
+    """Load and filter receipt files by year, warning on any that fail to parse."""
+    all_receipts = []
+    skip_count = 0
+    for p in json_paths:
+        try:
+            all_receipts.append(load_receipt_file(p))
+        except (json.JSONDecodeError, OSError, ValueError) as e:
+            console.print(f"[yellow]Warning: skipping {p.name} — {e}[/yellow]")
+            skip_count += 1
+    if skip_count:
+        console.print(f"[yellow]Skipped {skip_count} receipt file(s) due to errors.[/yellow]")
+    return [r.source_path for r in filter_receipts_by_year(all_receipts, year)]
+
+
 def run(
     *,
     workspace: Workspace,
@@ -145,13 +161,7 @@ def run(
 
     json_paths = scan_receipt_files(source)
     if year is not None:
-        all_receipts = []
-        for p in json_paths:
-            try:
-                all_receipts.append(load_receipt_file(p))
-            except Exception:
-                continue
-        json_paths = [r.source_path for r in filter_receipts_by_year(all_receipts, year)]
+        json_paths = _filter_paths_by_year(json_paths, year)
     if not json_paths:
         console.print("[yellow]No receipt JSON files found.[/yellow]")
         return 0

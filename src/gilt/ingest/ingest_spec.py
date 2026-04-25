@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import textwrap
 from pathlib import Path
+from unittest.mock import Mock, patch
 
 from gilt.ingest import (
     compute_transaction_id_fields,
     infer_account_for_file,
     load_accounts_config,
+    normalize_file,
     parse_file,
     plan_normalization,
 )
@@ -264,3 +267,63 @@ class DescribeParseFileAmountSign:
         # Re-parse should produce the same transaction_id
         df2 = parse_file(csv, "MYBANK_CC", amount_sign="expenses_positive")
         assert df["transaction_id"].iloc[0] == df2["transaction_id"].iloc[0]
+
+
+class DescribeNormalizeFileEventSourcing:
+    def it_should_log_warning_when_description_observed_event_creation_fails(
+        self, tmp_path, caplog
+    ):
+        input_path = _write_csv(
+            tmp_path,
+            """\
+            date,description,amount,currency
+            2025-01-15,NEW DESCRIPTION,-50.0,CAD
+            """,
+            filename="import.csv",
+        )
+
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+
+        existing_ledger = (
+            "transaction_id,date,description,amount,currency,account_id,"
+            "counterparty,category,subcategory,notes,source_file\n"
+            "aaaa1234bbbb5678,2025-01-15,OLD DESCRIPTION,-50.0,CAD,MYBANK_CHQ,"
+            ",,,,existing.csv\n"
+        )
+        (output_dir / "MYBANK_CHQ.csv").write_text(existing_ledger, encoding="utf-8")
+
+        with patch(
+            "gilt.model.events.TransactionDescriptionObserved",
+            side_effect=ValueError("test event creation failure"),
+        ):
+            with caplog.at_level(logging.WARNING, logger="gilt.ingest"):
+                normalize_file(input_path, "MYBANK_CHQ", output_dir, event_store=Mock())
+
+        assert "Skipped TransactionDescriptionObserved" in caplog.text
+        assert (output_dir / "MYBANK_CHQ.csv").exists()
+
+    def it_should_log_warning_when_transaction_imported_event_creation_fails(
+        self, tmp_path, caplog
+    ):
+        input_path = _write_csv(
+            tmp_path,
+            """\
+            date,description,amount,currency
+            2025-01-15,SAMPLE STORE,-50.0,CAD
+            """,
+            filename="import.csv",
+        )
+
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+
+        with patch(
+            "gilt.model.events.TransactionImported",
+            side_effect=ValueError("test event creation failure"),
+        ):
+            with caplog.at_level(logging.WARNING, logger="gilt.ingest"):
+                normalize_file(input_path, "MYBANK_CHQ", output_dir, event_store=Mock())
+
+        assert "Skipped TransactionImported" in caplog.text
+        assert (output_dir / "MYBANK_CHQ.csv").exists()

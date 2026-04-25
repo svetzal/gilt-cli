@@ -280,7 +280,8 @@ class TransactionsView(QWidget):
         try:
             events = self.event_store.get_events_by_type("TransactionEnriched")
             self.enrichment_service = EnrichmentService(events)
-        except (OSError, ValueError):
+        except (OSError, ValueError) as e:
+            logger.warning("Enrichment data unavailable: %s", e)
             self.enrichment_service = None
 
     def _init_ui(self):

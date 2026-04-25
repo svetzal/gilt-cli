@@ -12,6 +12,7 @@ Tests cover:
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from decimal import Decimal
 from unittest.mock import Mock
@@ -619,6 +620,17 @@ class DescribeInferImportTimestamp:
         # Assert
         now_after = datetime.now()
         assert now_before <= timestamp <= now_after
+
+    def it_should_log_warning_when_transaction_date_is_unparseable(self, caplog):
+        service = EventMigrationService()
+
+        with caplog.at_level(
+            logging.WARNING, logger="gilt.services.event_migration_service"
+        ):
+            timestamp = service._infer_import_timestamp("invalid.csv", "not-a-date")
+
+        assert isinstance(timestamp, datetime)
+        assert "Could not parse transaction_date" in caplog.text
 
 
 class DescribeEdgeCases:

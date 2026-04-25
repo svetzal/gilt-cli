@@ -377,6 +377,23 @@ class DescribeIngestReceiptsCommand:
             enrichment_events = store.get_events_by_type("TransactionEnriched")
             assert len(enrichment_events) == 0
 
+    def it_should_warn_and_continue_when_receipt_file_is_malformed_during_year_filter(self):
+        with TemporaryDirectory() as tmpdir:
+            ws = _setup_workspace(Path(tmpdir))
+            store = EventStore(str(ws.event_store_path))
+            builder = ProjectionBuilder(ws.projections_path)
+            _add_transaction(store, builder)
+
+            source = Path(tmpdir) / "receipts"
+            source.mkdir()
+
+            _write_receipt(source / "good.json", overrides={"date": "2025-06-15"})
+            (source / "bad.json").write_text("not valid json", encoding="utf-8")
+
+            rc = run(workspace=ws, source=source, write=False, year=2025)
+
+            assert rc == 0
+
     def it_should_not_persist_interactive_selection_in_dry_run(self):
         with TemporaryDirectory() as tmpdir:
             ws = _setup_workspace(Path(tmpdir))

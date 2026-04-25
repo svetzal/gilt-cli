@@ -395,8 +395,13 @@ def normalize_file(
                             amount=Decimal(str(row["amount"])),
                         )
                         event_store.append_event(event)
-                    except (ValueError, TypeError):
-                        pass  # Skip events that can't be created
+                    except (ValueError, TypeError) as e:
+                        logger.warning(
+                            "Skipped TransactionDescriptionObserved for txn %s (%r): %s",
+                            txn_id,
+                            original_desc,
+                            e,
+                        )
 
             # Only emit TransactionImported events for new transactions
             if txn_id not in existing_ids:
@@ -414,8 +419,13 @@ def normalize_file(
                         raw_data=raw_row,
                     )
                     event_store.append_event(event)
-                except (ValueError, TypeError):
-                    # Skip events that can't be created (invalid data)
+                except (ValueError, TypeError) as e:
+                    logger.warning(
+                        "Skipped TransactionImported for txn %s (amount=%s): %s",
+                        txn_id,
+                        row["amount"],
+                        e,
+                    )
                     continue
 
     combined.to_csv(ledger_path, index=False)

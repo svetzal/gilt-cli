@@ -17,9 +17,12 @@ from __future__ import annotations
 
 import csv
 import io
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
+
+logger = logging.getLogger(__name__)
 
 from gilt.model.category import CategoryConfig
 from gilt.model.events import (
@@ -282,14 +285,22 @@ class EventMigrationService:
                 # Use noon as reasonable default time
                 return datetime(year, month, day, 12, 0, 0)
             except (ValueError, IndexError):
-                pass
+                logger.debug(
+                    "Could not parse date from filename %r; falling back to transaction date",
+                    source_file,
+                )
 
         # Fallback: use transaction date + noon
         try:
             dt = datetime.fromisoformat(transaction_date)
             return dt.replace(hour=12, minute=0, second=0)
-        except (ValueError, TypeError):
-            # Last resort: current time
+        except (ValueError, TypeError) as e:
+            logger.warning(
+                "Could not parse transaction_date %r from %r: %s; using current time",
+                transaction_date,
+                source_file,
+                e,
+            )
             return datetime.now()
 
     def _count_original_transactions(self, ledger_texts: dict[str, str]) -> int:
