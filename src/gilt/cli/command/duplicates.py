@@ -36,6 +36,8 @@ logging.getLogger("mojentic").setLevel(logging.WARNING)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
+from dataclasses import dataclass, field
+
 from rich.progress import (
     BarColumn,
     Progress,
@@ -57,6 +59,16 @@ from gilt.transfer.duplicate_detector import DuplicateDetector
 from gilt.workspace import Workspace
 
 from .util import console, require_event_sourcing
+
+
+@dataclass
+class ReviewContext:
+    console: object
+    review_service: object
+    detector: object
+    es_service: object
+    event_store: object
+    feedback: list = field(default_factory=list)
 
 
 def _analyze_candidates(console, detector, candidates, detection_method):
@@ -86,19 +98,8 @@ def _analyze_candidates(console, detector, candidates, detection_method):
     return matches
 
 
-def _display_and_review_match(
-    console,
-    i,
-    total,
-    match,
-    review_service,
-    detector,
-    es_service,
-    event_store,
-    suggestion_event_id,
-    feedback,
-):
-    """Display a single match and handle interactive review. Returns updated feedback list."""
+def _display_and_review_match(ctx: ReviewContext, i: int, total: int, match, suggestion_event_id: str):
+    """Display a single match and handle interactive review. Appends result to ctx.feedback."""
     pair = match.pair
     assessment = match.assessment
 
@@ -122,18 +123,18 @@ def _display_and_review_match(
         src2 = pair.txn2_source_file or "[dim]unknown[/dim]"
         table.add_row("Source File", src2, src1)
 
-    console.print(table)
-    console.print(f"[dim]LLM Reasoning:[/dim] {assessment.reasoning}")
-    console.print()
+    ctx.console.print(table)
+    ctx.console.print(f"[dim]LLM Reasoning:[/dim] {assessment.reasoning}")
+    ctx.console.print()
 
-    smart_default = review_service.calculate_smart_default(detector.learned_patterns)
-    console.print("[yellow]Are these duplicates?[/yellow]")
+    smart_default = ctx.review_service.calculate_smart_default(ctx.detector.learned_patterns)
+    ctx.console.print("[yellow]Are these duplicates?[/yellow]")
     hint1 = smart_default.hint if smart_default.default_choice == "1" else ""
     hint2 = smart_default.hint if smart_default.default_choice == "2" else ""
-    console.print(f"  1) Yes, use latest description (bank's current format){hint1}")
-    console.print(f"  2) Yes, use original description{hint2}")
-    console.print("  N) No, these are separate transactions")
-    console.print()
+    ctx.console.print(f"  1) Yes, use latest description (bank's current format){hint1}")
+    ctx.console.print(f"  2) Yes, use original description{hint2}")
+    ctx.console.print("  N) No, these are separate transactions")
+    ctx.console.print()
 
     choice = Prompt.ask(
         "Choice [1/2/N]",
@@ -144,31 +145,31 @@ def _display_and_review_match(
     rationale = Prompt.ask("Rationale (optional)", default="")
 
     decision = UserDecision(choice=choice, rationale=rationale if rationale else None)
-    event, action = review_service.process_user_decision(
+    event, action = ctx.review_service.process_user_decision(
         decision=decision,
         pair=pair,
         assessment=assessment,
         suggestion_id=suggestion_event_id,
     )
-    feedback.append((decision, event, action))
+    ctx.feedback.append((decision, event, action))
 
     if action == "confirmed":
         from gilt.model.events import DuplicateConfirmed
 
         assert isinstance(event, DuplicateConfirmed)
-        console.print(
+        ctx.console.print(
             f"[green]✓ Duplicate confirmed (using: {event.canonical_description})[/green]"
         )
     else:
-        console.print("[green]✓ Rejection recorded[/green]")
+        ctx.console.print("[green]✓ Rejection recorded[/green]")
 
-    events_processed = es_service.ensure_projections_up_to_date(event_store)
+    events_processed = ctx.es_service.ensure_projections_up_to_date(ctx.event_store)
     if events_processed > 0:
-        console.print("[dim]✓ Projection updated[/dim]")
-    console.print()
+        ctx.console.print("[dim]✓ Projection updated[/dim]")
+    ctx.console.print()
 
-    if detector.prompt_manager:
-        detector.prompt_manager.add_feedback(
+    if ctx.detector.prompt_manager:
+        ctx.detector.prompt_manager.add_feedback(
             pair=pair,
             llm_said_duplicate=assessment.is_duplicate,
             llm_confidence=assessment.confidence,
@@ -324,7 +325,13 @@ def run(
     )
     console.print()
 
-    feedback = []
+    review_ctx = ReviewContext(
+        console=console,
+        review_service=review_service,
+        detector=detector,
+        es_service=es_service,
+        event_store=event_store,
+    )
 
     for i, match in enumerate(filtered_matches, 1):
         pair = match.pair
@@ -346,18 +353,7 @@ def run(
             console.print()
         else:
             try:
-                _display_and_review_match(
-                    console,
-                    i,
-                    len(filtered_matches),
-                    match,
-                    review_service,
-                    detector,
-                    es_service,
-                    event_store,
-                    event_id,
-                    feedback,
-                )
+                _display_and_review_match(review_ctx, i, len(filtered_matches), match, event_id)
             except KeyboardInterrupt:
                 console.print("\n[yellow]Interrupted by user[/yellow]")
                 break
@@ -373,7 +369,7 @@ def run(
         )
 
     _display_summary(
-        console, filtered_matches, feedback, use_llm, detector, interactive, review_service
+        console, filtered_matches, review_ctx.feedback, use_llm, detector, interactive, review_service
     )
 
     return 0

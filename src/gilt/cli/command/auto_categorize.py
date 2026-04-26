@@ -6,6 +6,8 @@ as a fallback for transactions that don't match any inferred rule.
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+
 from rich.prompt import Prompt
 from rich.table import Table
 
@@ -29,11 +31,25 @@ from .util import (
 )
 
 
-def _train_classifier(workspace, min_samples):
-    """Train the ML classifier. Returns (event_store, classifier) or exit code."""
+@dataclass
+class _TrainResult:
+    exit_code: int | None
+    event_store: object = None
+    classifier: object = None
+
+
+@dataclass
+class _LoadResult:
+    exit_code: int | None
+    projection_builder: object = None
+    uncategorized_txns: list = field(default_factory=list)
+
+
+def _train_classifier(workspace, min_samples) -> _TrainResult:
+    """Train the ML classifier. Returns a _TrainResult with exit_code=None on success."""
     ready = require_event_sourcing(workspace)
     if ready is None:
-        return 1
+        return _TrainResult(exit_code=1)
 
     console.print("[dim]Loading categorization history...[/dim]")
     event_store = ready.event_store
@@ -46,21 +62,21 @@ def _train_classifier(workspace, min_samples):
         console.print(f"\nNeed at least {min_samples} categorized transactions per category.")
         console.print("Categorize more transactions first using:")
         console.print("  [cyan]gilt categorize --desc-prefix PATTERN --category CAT --write[/cyan]")
-        return 1
+        return _TrainResult(exit_code=1)
 
     console.print("[green]✓[/green] Classifier trained successfully")
     console.print(f"  Categories: {metrics['num_categories']}")
     console.print(f"  Training samples: {metrics['total_samples']}")
     console.print(f"  Test accuracy: {metrics['test_accuracy']:.1%}")
 
-    return event_store, classifier
+    return _TrainResult(exit_code=None, event_store=event_store, classifier=classifier)
 
 
-def _load_uncategorized(workspace, account, limit):
-    """Load uncategorized transactions. Returns (projection_builder, txns) or exit code."""
+def _load_uncategorized(workspace, account, limit) -> _LoadResult:
+    """Load uncategorized transactions. Returns a _LoadResult with exit_code=None on success."""
     projection_builder = require_projections(workspace)
     if projection_builder is None:
-        return 1
+        return _LoadResult(exit_code=1)
 
     console.print("\n[dim]Loading uncategorized transactions...[/dim]")
     all_transactions = projection_builder.get_all_transactions(include_duplicates=False)
@@ -69,7 +85,7 @@ def _load_uncategorized(workspace, account, limit):
 
     if not uncategorized_rows:
         console.print("[green]✓[/green] No uncategorized transactions found")
-        return 0
+        return _LoadResult(exit_code=0)
 
     if limit and len(uncategorized_rows) > limit:
         uncategorized_rows = uncategorized_rows[:limit]
@@ -78,7 +94,7 @@ def _load_uncategorized(workspace, account, limit):
     console.print(f"Found {len(uncategorized_rows)} uncategorized transaction(s)")
 
     uncategorized_txns = [Transaction.from_projection_row(row) for row in uncategorized_rows]
-    return projection_builder, uncategorized_txns
+    return _LoadResult(exit_code=None, projection_builder=projection_builder, uncategorized_txns=uncategorized_txns)
 
 
 def _write_categorizations(approved, workspace, event_store, projection_builder):
@@ -165,16 +181,18 @@ def run(
 ) -> int:
     """Auto-categorize uncategorized transactions using rules then ML."""
     train_result = _train_classifier(workspace, min_samples)
-    if isinstance(train_result, int):
-        return train_result
-    event_store, classifier = train_result
+    if train_result.exit_code is not None:
+        return train_result.exit_code
+    event_store = train_result.event_store
+    classifier = train_result.classifier
 
     category_config = load_categories_config(workspace.categories_config)
 
     load_result = _load_uncategorized(workspace, account, limit)
-    if isinstance(load_result, int):
-        return load_result
-    projection_builder, uncategorized_txns = load_result
+    if load_result.exit_code is not None:
+        return load_result.exit_code
+    projection_builder = load_result.projection_builder
+    uncategorized_txns = load_result.uncategorized_txns
 
     # Phase 1: Apply inferred rules (deterministic, high confidence)
     rule_approved, remaining_txns = _apply_rules_first(workspace, uncategorized_txns)

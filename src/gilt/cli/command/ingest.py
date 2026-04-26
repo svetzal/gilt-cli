@@ -107,6 +107,25 @@ def _apply_auto_categorizations(matches, workspace, event_store, projection_buil
     console.print(f"[green][ok][/green] Auto-categorized {len(matches)} transaction(s) via rules")
 
 
+def _run_post_ingest(workspace, output_dir, event_store, es_service) -> None:
+    """Link transfers, rebuild projections, auto-categorize, and report stats."""
+    _link_transfers_and_report(output_dir)
+
+    console.print("[bold]Rebuilding projections from events[/]")
+    projection_builder = es_service.get_projection_builder()
+    events_processed = es_service.ensure_projections_up_to_date(event_store, projection_builder)
+    console.print(f"[green][ok][/green] Processed {events_processed} new event(s)")
+
+    transactions = projection_builder.get_all_transactions(include_duplicates=False)
+    console.print(f"[dim]Projections: {len(transactions)} total transactions[/dim]")
+
+    matches = _plan_auto_categorizations(workspace, transactions)
+    _apply_auto_categorizations(matches, workspace, event_store, projection_builder)
+
+    latest_seq = event_store.get_latest_sequence_number()
+    console.print(f"[dim]Event store: {latest_seq} events total[/]")
+
+
 def run(
     *,
     workspace: Workspace,
@@ -161,26 +180,7 @@ def run(
             sign = "+" if delta >= 0 else ""
             console.print(f"  - {name}: {cnt} groups ({sign}{delta} change)")
 
-    # 4) Identify and mark transfers between accounts
-    _link_transfers_and_report(output_dir)
-
-    # 5) Rebuild projections to reflect new events
-    console.print("[bold]Rebuilding projections from events[/]")
-    projection_builder = es_service.get_projection_builder()
-    events_processed = es_service.ensure_projections_up_to_date(event_store, projection_builder)
-    console.print(f"[green][ok][/green] Processed {events_processed} new event(s)")
-
-    # Show projection stats
-    transactions = projection_builder.get_all_transactions(include_duplicates=False)
-    console.print(f"[dim]Projections: {len(transactions)} total transactions[/dim]")
-
-    # 6) Auto-categorize new transactions using inferred rules
-    matches = _plan_auto_categorizations(workspace, transactions)
-    _apply_auto_categorizations(matches, workspace, event_store, projection_builder)
-
-    # Report event store stats
-    latest_seq = event_store.get_latest_sequence_number()
-    console.print(f"[dim]Event store: {latest_seq} events total[/]")
+    _run_post_ingest(workspace, output_dir, event_store, es_service)
 
     console.print(f"Done. Written={written}, Skipped={skipped}")
     return 0

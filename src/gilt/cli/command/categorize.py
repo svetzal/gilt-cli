@@ -138,6 +138,24 @@ def _find_matches(
     return all_matches
 
 
+def _confirm_batch(total_matched: int, single_mode: bool, assume_yes: bool, write: bool) -> bool:
+    """Returns True if processing should proceed, False if the user cancelled."""
+    if single_mode or total_matched <= 1 or assume_yes:
+        return True
+    if not write:
+        console.print(
+            f"[yellow]Batch mode:[/] {total_matched} transactions would be categorized. "
+            f"Use --yes to auto-confirm (dry-run)"
+        )
+        return True
+    import sys
+
+    if sys.stdin.isatty() and not typer.confirm(f"Categorize {total_matched} transaction(s)?"):
+        console.print("Cancelled")
+        return False
+    return True
+
+
 def _confirm_and_apply(
     all_matches: list[tuple[str, TransactionGroup]],
     category: str,
@@ -162,20 +180,8 @@ def _confirm_and_apply(
             f"and will be re-categorized"
         )
 
-    if not single_mode and total_matched > 1 and not assume_yes:
-        if not write:
-            console.print(
-                f"[yellow]Batch mode:[/] {total_matched} transactions would be categorized. "
-                f"Use --yes to auto-confirm (dry-run)"
-            )
-        else:
-            import sys
-
-            if sys.stdin.isatty() and not typer.confirm(
-                f"Categorize {total_matched} transaction(s)?"
-            ):
-                console.print("Cancelled")
-                return 0
+    if not _confirm_batch(total_matched, single_mode, assume_yes, write):
+        return 0
 
     if not write:
         print_dry_run_message()
