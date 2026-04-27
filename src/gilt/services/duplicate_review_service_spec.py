@@ -22,6 +22,7 @@ from gilt.services.duplicate_review_service import (
     DuplicateReviewService,
     UserDecision,
 )
+from gilt.testing.fixtures import make_match
 
 
 class DescribeDuplicateReviewService:
@@ -581,22 +582,12 @@ class DescribeDuplicateFiltering(DescribeDuplicateReviewService):
     """Tests for filter_by_confidence and exclude_already_processed methods."""
 
     def _make_match(self, confidence: float, is_duplicate: bool = True) -> DuplicateMatch:
-        pair = TransactionPair(
+        return make_match(
+            confidence=confidence,
+            is_duplicate=is_duplicate,
             txn1_id=f"txn1_{confidence}",
-            txn1_date=date(2025, 1, 1),
-            txn1_description="EXAMPLE UTILITY",
-            txn1_amount=-50.0,
-            txn1_account="MYBANK_CHQ",
             txn2_id=f"txn2_{confidence}",
-            txn2_date=date(2025, 1, 1),
-            txn2_description="EXAMPLE UTILITY",
-            txn2_amount=-50.0,
-            txn2_account="MYBANK_CHQ",
         )
-        assessment = DuplicateAssessment(
-            is_duplicate=is_duplicate, confidence=confidence, reasoning="test"
-        )
-        return DuplicateMatch(pair=pair, assessment=assessment)
 
     def it_should_filter_matches_below_confidence_threshold(self, service):
         """Should return only matches with confidence >= min_confidence."""

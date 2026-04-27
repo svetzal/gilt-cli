@@ -5,20 +5,9 @@ from __future__ import annotations
 from datetime import date
 from unittest.mock import Mock, patch
 
-from gilt.model.account import Transaction
 from gilt.model.duplicate import DuplicateAssessment, DuplicateMatch, TransactionPair
 from gilt.services.intelligence_scan_service import IntelligenceScanService
-
-
-def _make_transaction(tid: str, description: str = "DESC", category: str | None = None):
-    return Transaction(
-        transaction_id=tid,
-        date=date(2025, 1, 1),
-        description=description,
-        amount=-10.00,
-        account_id="MYBANK_CHQ",
-        category=category,
-    )
+from gilt.testing.fixtures import make_transaction
 
 
 class DescribeScanDuplicates:
@@ -26,7 +15,7 @@ class DescribeScanDuplicates:
         svc = IntelligenceScanService()
         mock_dup = Mock()
         mock_dup.scan_transactions.return_value = []
-        txns = [_make_transaction("abc123")]
+        txns = [make_transaction(transaction_id="abc123")]
         result = svc.scan_duplicates(txns, mock_dup)
         assert result == {}
 
@@ -50,7 +39,7 @@ class DescribeScanDuplicates:
         )
         mock_dup = Mock()
         mock_dup.scan_transactions.return_value = [match]
-        txns = [_make_transaction("t1"), _make_transaction("t2")]
+        txns = [make_transaction(transaction_id="t1"), make_transaction(transaction_id="t2")]
 
         result = svc.scan_duplicates(txns, mock_dup)
 
@@ -65,7 +54,7 @@ class DescribeApplyInferredRules:
     def it_should_return_empty_dict_when_no_rules(self, tmp_path):
         svc = IntelligenceScanService()
         fake_projections = tmp_path / "projections.db"
-        txns = [_make_transaction("t1")]
+        txns = [make_transaction(transaction_id="t1")]
 
         with patch("gilt.services.intelligence_scan_service.RuleInferenceService") as mock_rule_cls:
             mock_rule_svc = Mock()
@@ -79,7 +68,7 @@ class DescribeApplyInferredRules:
     def it_should_populate_metadata_for_rule_matched_transactions(self, tmp_path):
         svc = IntelligenceScanService()
         fake_projections = tmp_path / "projections.db"
-        txns = [_make_transaction("t1", description="EXAMPLE UTILITY")]
+        txns = [make_transaction(transaction_id="t1", description="EXAMPLE UTILITY")]
 
         mock_rule = Mock()
         mock_rule.category = "Utilities"
@@ -107,7 +96,7 @@ class DescribeApplyInferredRules:
 class DescribePredictCategories:
     def it_should_skip_already_categorized_transactions(self):
         svc = IntelligenceScanService()
-        txns = [_make_transaction("t1", category="Food")]
+        txns = [make_transaction(transaction_id="t1", category="Food")]
         mock_smart = Mock()
 
         result = svc.predict_categories(txns, mock_smart)
@@ -117,7 +106,7 @@ class DescribePredictCategories:
 
     def it_should_skip_transactions_in_skip_ids(self):
         svc = IntelligenceScanService()
-        txns = [_make_transaction("t1")]
+        txns = [make_transaction(transaction_id="t1")]
         mock_smart = Mock()
 
         result = svc.predict_categories(txns, mock_smart, skip_ids={"t1"})
@@ -127,7 +116,7 @@ class DescribePredictCategories:
 
     def it_should_predict_for_uncategorized_transactions(self):
         svc = IntelligenceScanService()
-        txns = [_make_transaction("t1")]
+        txns = [make_transaction(transaction_id="t1")]
         mock_smart = Mock()
         mock_smart.predict_category.return_value = ("Food", 0.88)
 

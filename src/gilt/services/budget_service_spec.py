@@ -11,40 +11,10 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from gilt.cli.command.conftest import write_ledger
-from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.category import Budget, BudgetPeriod, Category, CategoryConfig, Subcategory
 from gilt.model.category_io import save_categories_config
 from gilt.services.budget_service import BudgetService
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _make_transaction(
-    *,
-    transaction_id: str,
-    txn_date: str,
-    description: str,
-    amount: float,
-    account_id: str = "MYBANK_CHQ",
-    category: str | None = None,
-    subcategory: str | None = None,
-) -> TransactionGroup:
-    return TransactionGroup(
-        group_id=transaction_id,
-        primary=Transaction(
-            transaction_id=transaction_id,
-            date=txn_date,
-            description=description,
-            amount=amount,
-            currency="CAD",
-            account_id=account_id,
-            category=category,
-            subcategory=subcategory,
-        ),
-    )
-
+from gilt.testing.fixtures import make_group  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # get_spending_by_category
@@ -75,16 +45,16 @@ class DescribeGetSpendingByCategory:
             save_categories_config(cats_path, CategoryConfig(categories=[]))
 
             groups = [
-                _make_transaction(
+                make_group(
                     transaction_id="aaaa0001aaaa0001",
-                    txn_date="2025-03-10",
+                    date="2025-03-10",
                     description="EXAMPLE UTILITY",
                     amount=-150.0,
                     category="Housing",
                 ),
-                _make_transaction(
+                make_group(
                     transaction_id="aaaa0002aaaa0002",
-                    txn_date="2025-03-15",
+                    date="2025-03-15",
                     description="SAMPLE STORE",
                     amount=-50.0,
                     category="Housing",
@@ -105,9 +75,9 @@ class DescribeGetSpendingByCategory:
             save_categories_config(cats_path, CategoryConfig(categories=[]))
 
             groups = [
-                _make_transaction(
+                make_group(
                     transaction_id="bbbb0001bbbb0001",
-                    txn_date="2025-01-05",
+                    date="2025-01-05",
                     description="Payroll deposit",
                     amount=3000.0,  # positive income — not an expense
                     category="Income",
@@ -128,16 +98,16 @@ class DescribeGetSpendingByCategory:
             save_categories_config(cats_path, CategoryConfig(categories=[]))
 
             groups = [
-                _make_transaction(
+                make_group(
                     transaction_id="cccc0001cccc0001",
-                    txn_date="2025-01-10",
+                    date="2025-01-10",
                     description="ACME CORP",
                     amount=-30.0,
                     category="Shopping",
                 ),
-                _make_transaction(
+                make_group(
                     transaction_id="cccc0002cccc0002",
-                    txn_date="2025-02-10",
+                    date="2025-02-10",
                     description="ACME CORP",
                     amount=-40.0,
                     category="Shopping",
@@ -160,9 +130,9 @@ class DescribeGetSpendingByCategory:
             save_categories_config(cats_path, CategoryConfig(categories=[]))
 
             groups = [
-                _make_transaction(
+                make_group(
                     transaction_id="dddd0001dddd0001",
-                    txn_date="2025-04-01",
+                    date="2025-04-01",
                     description="SAMPLE STORE",
                     amount=-25.0,
                     category=None,  # uncategorized
@@ -192,16 +162,16 @@ class DescribeGetTotalSpending:
             save_categories_config(cats_path, CategoryConfig(categories=[]))
 
             groups = [
-                _make_transaction(
+                make_group(
                     transaction_id="eeee0001eeee0001",
-                    txn_date="2025-05-10",
+                    date="2025-05-10",
                     description="EXAMPLE UTILITY",
                     amount=-100.0,
                     category="Housing",
                 ),
-                _make_transaction(
+                make_group(
                     transaction_id="eeee0002eeee0002",
-                    txn_date="2025-05-20",
+                    date="2025-05-20",
                     description="ACME CORP",
                     amount=-60.0,
                     category="Shopping",
@@ -243,16 +213,16 @@ class DescribeGetUncategorizedCount:
             save_categories_config(cats_path, CategoryConfig(categories=[]))
 
             groups = [
-                _make_transaction(
+                make_group(
                     transaction_id="ffff0001ffff0001",
-                    txn_date="2025-06-01",
+                    date="2025-06-01",
                     description="SAMPLE STORE",
                     amount=-25.0,
                     category=None,
                 ),
-                _make_transaction(
+                make_group(
                     transaction_id="ffff0002ffff0002",
-                    txn_date="2025-06-02",
+                    date="2025-06-02",
                     description="ACME CORP",
                     amount=-50.0,
                     category="Shopping",  # categorized
@@ -273,9 +243,9 @@ class DescribeGetUncategorizedCount:
             save_categories_config(cats_path, CategoryConfig(categories=[]))
 
             groups = [
-                _make_transaction(
+                make_group(
                     transaction_id="gggg0001gggg0001",
-                    txn_date="2025-06-10",
+                    date="2025-06-10",
                     description="EXAMPLE UTILITY",
                     amount=-100.0,
                     category="Housing",
@@ -315,9 +285,9 @@ class DescribeGetBudgetSummary:
             # Write a transaction for the current year
             current_year = date.today().year
             groups = [
-                _make_transaction(
+                make_group(
                     transaction_id="hhhh0001hhhh0001",
-                    txn_date=f"{current_year}-01-10",
+                    date=f"{current_year}-01-10",
                     description="EXAMPLE UTILITY",
                     amount=-500.0,
                     category="Housing",
@@ -393,9 +363,9 @@ class DescribeGetBudgetSummary:
 
             # Spending exceeds budget
             groups = [
-                _make_transaction(
+                make_group(
                     transaction_id="iiii0001iiii0001",
-                    txn_date="2025-09-05",
+                    date="2025-09-05",
                     description="EXAMPLE UTILITY",
                     amount=-600.0,
                     category="Housing",
@@ -425,9 +395,9 @@ class DescribeGetBudgetSummary:
             save_categories_config(cats_path, config)
 
             groups = [
-                _make_transaction(
+                make_group(
                     transaction_id="jjjj0001jjjj0001",
-                    txn_date="2025-10-01",
+                    date="2025-10-01",
                     description="SAMPLE STORE",
                     amount=-50.0,
                     category="Misc",
@@ -463,17 +433,17 @@ class DescribeGetBudgetSummary:
             save_categories_config(cats_path, config)
 
             groups = [
-                _make_transaction(
+                make_group(
                     transaction_id="kkkk0001kkkk0001",
-                    txn_date="2025-11-01",
+                    date="2025-11-01",
                     description="Rent payment",
                     amount=-1500.0,
                     category="Housing",
                     subcategory="Rent",
                 ),
-                _make_transaction(
+                make_group(
                     transaction_id="kkkk0002kkkk0002",
-                    txn_date="2025-11-10",
+                    date="2025-11-10",
                     description="EXAMPLE UTILITY",
                     amount=-200.0,
                     category="Housing",

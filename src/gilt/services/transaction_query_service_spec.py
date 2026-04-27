@@ -6,11 +6,11 @@ Specs for TransactionQueryService - pure filtering and aggregation logic.
 All tests use Transaction objects directly — no projections DB, no file I/O.
 """
 
-from gilt.model.account import Transaction
 from gilt.services.transaction_query_service import (
     TransactionQueryService,
     TransactionTotals,
 )
+from gilt.testing.fixtures import make_transaction
 from gilt.transfer import (
     ROLE_CREDIT,
     ROLE_DEBIT,
@@ -20,40 +20,13 @@ from gilt.transfer import (
 )
 
 
-def _make_transaction(
-    *,
-    transaction_id: str = "abcd1234abcd1234",
-    txn_date: str = "2025-10-01",
-    description: str = "EXAMPLE UTILITY",
-    amount: float = -100.00,
-    currency: str = "CAD",
-    account_id: str = "MYBANK_CHQ",
-    category: str | None = None,
-    subcategory: str | None = None,
-    notes: str | None = None,
-    metadata: dict | None = None,
-) -> Transaction:
-    return Transaction(
-        transaction_id=transaction_id,
-        date=txn_date,
-        description=description,
-        amount=amount,
-        currency=currency,
-        account_id=account_id,
-        category=category,
-        subcategory=subcategory,
-        notes=notes,
-        metadata=metadata or {},
-    )
-
-
 class DescribeFilterTransactions:
     def it_should_filter_by_account_id(self):
         service = TransactionQueryService()
         transactions = [
-            _make_transaction(transaction_id="t1", account_id="MYBANK_CHQ"),
-            _make_transaction(transaction_id="t2", account_id="MYBANK_CC"),
-            _make_transaction(transaction_id="t3", account_id="MYBANK_CHQ"),
+            make_transaction(transaction_id="t1", account_id="MYBANK_CHQ"),
+            make_transaction(transaction_id="t2", account_id="MYBANK_CC"),
+            make_transaction(transaction_id="t3", account_id="MYBANK_CHQ"),
         ]
         result = service.filter_transactions(
             transactions, account_id="MYBANK_CHQ", year=None, limit=None
@@ -64,9 +37,9 @@ class DescribeFilterTransactions:
     def it_should_filter_by_year(self):
         service = TransactionQueryService()
         transactions = [
-            _make_transaction(transaction_id="t1", txn_date="2025-03-15", account_id="MYBANK_CHQ"),
-            _make_transaction(transaction_id="t2", txn_date="2024-03-15", account_id="MYBANK_CHQ"),
-            _make_transaction(transaction_id="t3", txn_date="2025-11-01", account_id="MYBANK_CHQ"),
+            make_transaction(transaction_id="t1", date="2025-03-15", account_id="MYBANK_CHQ"),
+            make_transaction(transaction_id="t2", date="2024-03-15", account_id="MYBANK_CHQ"),
+            make_transaction(transaction_id="t3", date="2025-11-01", account_id="MYBANK_CHQ"),
         ]
         result = service.filter_transactions(
             transactions, account_id="MYBANK_CHQ", year=2025, limit=None
@@ -77,19 +50,19 @@ class DescribeFilterTransactions:
     def it_should_sort_by_date_then_transaction_id(self):
         service = TransactionQueryService()
         transactions = [
-            _make_transaction(
+            make_transaction(
                 transaction_id="zzzzzzzzzzzzzzzz",
-                txn_date="2025-10-05",
+                date="2025-10-05",
                 account_id="MYBANK_CHQ",
             ),
-            _make_transaction(
+            make_transaction(
                 transaction_id="aaaaaaaaaaaaaaaa",
-                txn_date="2025-10-05",
+                date="2025-10-05",
                 account_id="MYBANK_CHQ",
             ),
-            _make_transaction(
+            make_transaction(
                 transaction_id="mmmmmmmmmmmmmmmm",
-                txn_date="2025-10-01",
+                date="2025-10-01",
                 account_id="MYBANK_CHQ",
             ),
         ]
@@ -103,8 +76,8 @@ class DescribeFilterTransactions:
     def it_should_apply_limit(self):
         service = TransactionQueryService()
         transactions = [
-            _make_transaction(
-                transaction_id=f"t{i:016d}", txn_date="2025-10-01", account_id="MYBANK_CHQ"
+            make_transaction(
+                transaction_id=f"t{i:016d}", date="2025-10-01", account_id="MYBANK_CHQ"
             )
             for i in range(5)
         ]
@@ -116,7 +89,7 @@ class DescribeFilterTransactions:
     def it_should_return_empty_list_for_no_matches(self):
         service = TransactionQueryService()
         transactions = [
-            _make_transaction(transaction_id="t1", account_id="MYBANK_CC"),
+            make_transaction(transaction_id="t1", account_id="MYBANK_CC"),
         ]
         result = service.filter_transactions(
             transactions, account_id="MYBANK_CHQ", year=None, limit=None
@@ -128,9 +101,9 @@ class DescribeCalculateTotals:
     def it_should_calculate_credits_debits_and_net(self):
         service = TransactionQueryService()
         transactions = [
-            _make_transaction(transaction_id="t1", amount=500.00),  # credit
-            _make_transaction(transaction_id="t2", amount=-100.00),  # debit
-            _make_transaction(transaction_id="t3", amount=-50.00),  # debit
+            make_transaction(transaction_id="t1", amount=500.00),  # credit
+            make_transaction(transaction_id="t2", amount=-100.00),  # debit
+            make_transaction(transaction_id="t3", amount=-50.00),  # debit
         ]
         totals = service.calculate_totals(transactions)
         assert totals.credits == 500.00
@@ -149,20 +122,20 @@ class DescribeCalculateTotals:
 class DescribeBuildDisplayNotes:
     def it_should_include_category_with_subcategory(self):
         service = TransactionQueryService()
-        txn = _make_transaction(category="Groceries", subcategory="Produce")
+        txn = make_transaction(category="Groceries", subcategory="Produce")
         notes = service.build_display_notes(txn)
         assert "Groceries:Produce" in notes
 
     def it_should_include_category_without_subcategory(self):
         service = TransactionQueryService()
-        txn = _make_transaction(category="Groceries", subcategory=None)
+        txn = make_transaction(category="Groceries", subcategory=None)
         notes = service.build_display_notes(txn)
         assert "Groceries" in notes
         assert ":" not in notes
 
     def it_should_include_transfer_info(self):
         service = TransactionQueryService()
-        txn = _make_transaction(
+        txn = make_transaction(
             metadata={
                 TRANSFER_META_KEY: {
                     TRANSFER_ROLE: ROLE_DEBIT,
@@ -175,7 +148,7 @@ class DescribeBuildDisplayNotes:
 
     def it_should_include_transfer_from_for_credit_role(self):
         service = TransactionQueryService()
-        txn = _make_transaction(
+        txn = make_transaction(
             metadata={
                 TRANSFER_META_KEY: {
                     TRANSFER_ROLE: ROLE_CREDIT,
@@ -188,13 +161,13 @@ class DescribeBuildDisplayNotes:
 
     def it_should_include_user_notes(self):
         service = TransactionQueryService()
-        txn = _make_transaction(notes="Paid by cheque")
+        txn = make_transaction(notes="Paid by cheque")
         notes = service.build_display_notes(txn)
         assert "Paid by cheque" in notes
 
     def it_should_combine_multiple_note_parts_with_pipe_separator(self):
         service = TransactionQueryService()
-        txn = _make_transaction(category="Utilities", notes="Monthly bill")
+        txn = make_transaction(category="Utilities", notes="Monthly bill")
         notes = service.build_display_notes(txn)
         assert " | " in notes
         assert "Utilities" in notes
@@ -202,6 +175,6 @@ class DescribeBuildDisplayNotes:
 
     def it_should_return_empty_string_when_no_notes(self):
         service = TransactionQueryService()
-        txn = _make_transaction(category=None, notes=None)
+        txn = make_transaction(category=None, notes=None)
         notes = service.build_display_notes(txn)
         assert notes == ""

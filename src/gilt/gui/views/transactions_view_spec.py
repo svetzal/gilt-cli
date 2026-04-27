@@ -17,6 +17,7 @@ from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.duplicate import DuplicateAssessment, DuplicateMatch, TransactionPair
 from gilt.services.duplicate_service import DuplicateService
 from gilt.services.smart_category_service import SmartCategoryService
+from gilt.testing.fixtures import make_group
 
 
 class DescribeIntelligenceWorker:
@@ -143,16 +144,6 @@ class DescribeComputeDateRange:
         assert end is None
 
 
-def _make_group() -> tuple[Transaction, TransactionGroup]:
-    txn = Transaction(
-        transaction_id="t1",
-        date=date(2025, 1, 15),
-        amount=-50.0,
-        description="SAMPLE STORE",
-        account_id="MYBANK_CHQ",
-    )
-    group = TransactionGroup(group_id="g1", primary=txn)
-    return txn, group
 
 
 class DescribeApplyCategorization:
@@ -161,7 +152,7 @@ class DescribeApplyCategorization:
         view.event_store = MagicMock()
         view.es_service = MagicMock()
         view.smart_category_service = None
-        _, group = _make_group()
+        group = make_group(transaction_id="t1", date=date(2025, 1, 15), amount=-50.0, description="SAMPLE STORE")
 
         with patch("gilt.gui.views.transactions_view.LedgerRepository"), patch(
             "gilt.gui.views.transactions_view.CategorizationPersistenceService"
@@ -175,7 +166,7 @@ class DescribeApplyCategorization:
         view = MagicMock()
         view.event_store = None
         view.smart_category_service = None
-        _, group = _make_group()
+        group = make_group(transaction_id="t1", date=date(2025, 1, 15), amount=-50.0, description="SAMPLE STORE")
 
         with patch("gilt.gui.views.transactions_view.LedgerRepository"), patch(
             "gilt.services.categorization_persistence_service.write_categorizations_to_csv"
@@ -191,7 +182,8 @@ class DescribeApplyCategorization:
         view.event_store = MagicMock()
         view.es_service = MagicMock()
         view.smart_category_service = MagicMock()
-        txn, group = _make_group()
+        group = make_group(transaction_id="t1", date=date(2025, 1, 15), amount=-50.0, description="SAMPLE STORE")
+        txn = group.primary
 
         with patch("gilt.gui.views.transactions_view.LedgerRepository"), patch(
             "gilt.gui.views.transactions_view.CategorizationPersistenceService"
@@ -214,7 +206,7 @@ class DescribeApplyNote:
     def it_should_persist_sync_and_reload(self):
         view = MagicMock()
         view.service.data_dir = Path("/tmp/test_data")
-        _, group = _make_group()
+        group = make_group(transaction_id="t1", date=date(2025, 1, 15), amount=-50.0, description="SAMPLE STORE")
 
         with patch("gilt.gui.views.transactions_view.LedgerRepository"), patch(
             "gilt.gui.views.transactions_view.QMessageBox"
@@ -231,7 +223,7 @@ class DescribeApplyNote:
     def it_should_convert_empty_note_to_none(self):
         view = MagicMock()
         view.service.data_dir = Path("/tmp/test_data")
-        _, group = _make_group()
+        group = make_group(transaction_id="t1", date=date(2025, 1, 15), amount=-50.0, description="SAMPLE STORE")
 
         with patch("gilt.gui.views.transactions_view.LedgerRepository"), patch(
             "gilt.gui.views.transactions_view.QMessageBox"

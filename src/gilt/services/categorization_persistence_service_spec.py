@@ -16,7 +16,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.events import TransactionCategorized
 from gilt.model.ledger_io import dump_ledger_csv
 from gilt.model.ledger_repository import LedgerRepository
@@ -24,22 +23,7 @@ from gilt.services.categorization_persistence_service import (
     CategorizationPersistenceService,
     CategorizationUpdate,
 )
-
-
-def _make_group(txn_id: str, account_id: str, category: str | None = None) -> TransactionGroup:
-    """Create a minimal TransactionGroup for testing."""
-    return TransactionGroup(
-        group_id=txn_id,
-        primary=Transaction(
-            transaction_id=txn_id,
-            date="2025-01-10",
-            description="EXAMPLE UTILITY",
-            amount=-50.0,
-            currency="CAD",
-            account_id=account_id,
-            category=category,
-        ),
-    )
+from gilt.testing.fixtures import make_group
 
 
 class DescribeCategorizationPersistenceService:
@@ -83,7 +67,7 @@ class DescribePersistCategorizations(DescribeCategorizationPersistenceService):
         self, service, mock_event_store, ledger_dir
     ):
         """Should emit one TransactionCategorized event per update."""
-        group = _make_group("abc123", "MYBANK_CHQ")
+        group = make_group(transaction_id="abc123", account_id="MYBANK_CHQ")
         ledger_path = ledger_dir / "MYBANK_CHQ.csv"
         ledger_path.write_text(dump_ledger_csv([group]), encoding="utf-8")
 
@@ -109,8 +93,8 @@ class DescribePersistCategorizations(DescribeCategorizationPersistenceService):
 
     def it_should_update_csv_ledgers_grouped_by_account(self, service, ledger_dir):
         """Should update the CSV file for each affected account."""
-        group_a = _make_group("txn001", "MYBANK_CHQ")
-        group_b = _make_group("txn002", "MYBANK_CC")
+        group_a = make_group(transaction_id="txn001", account_id="MYBANK_CHQ")
+        group_b = make_group(transaction_id="txn002", account_id="MYBANK_CC")
 
         (ledger_dir / "MYBANK_CHQ.csv").write_text(dump_ledger_csv([group_a]), encoding="utf-8")
         (ledger_dir / "MYBANK_CC.csv").write_text(dump_ledger_csv([group_b]), encoding="utf-8")
@@ -142,7 +126,7 @@ class DescribePersistCategorizations(DescribeCategorizationPersistenceService):
         self, service, mock_projection_builder, mock_event_store, ledger_dir
     ):
         """Should call rebuild_incremental after writing all CSV updates."""
-        group = _make_group("txn001", "MYBANK_CHQ")
+        group = make_group(transaction_id="txn001", account_id="MYBANK_CHQ")
         (ledger_dir / "MYBANK_CHQ.csv").write_text(dump_ledger_csv([group]), encoding="utf-8")
 
         updates = [
@@ -162,8 +146,8 @@ class DescribePersistCategorizations(DescribeCategorizationPersistenceService):
 
     def it_should_return_count_of_updated_transactions(self, service, ledger_dir):
         """Should return the number of transactions processed."""
-        group_a = _make_group("txn001", "MYBANK_CHQ")
-        group_b = _make_group("txn002", "MYBANK_CHQ")
+        group_a = make_group(transaction_id="txn001", account_id="MYBANK_CHQ")
+        group_b = make_group(transaction_id="txn002", account_id="MYBANK_CHQ")
         (ledger_dir / "MYBANK_CHQ.csv").write_text(
             dump_ledger_csv([group_a, group_b]), encoding="utf-8"
         )
@@ -217,8 +201,8 @@ class DescribePersistCategoryRename(DescribeCategorizationPersistenceService):
 
     def it_should_persist_category_rename_across_accounts(self, service, ledger_dir):
         """Should update all matched groups and emit events for each."""
-        group_a = _make_group("txn001", "MYBANK_CHQ", category="OldName")
-        group_b = _make_group("txn002", "MYBANK_CC", category="OldName")
+        group_a = make_group(transaction_id="txn001", account_id="MYBANK_CHQ", category="OldName")
+        group_b = make_group(transaction_id="txn002", account_id="MYBANK_CC", category="OldName")
 
         (ledger_dir / "MYBANK_CHQ.csv").write_text(dump_ledger_csv([group_a]), encoding="utf-8")
         (ledger_dir / "MYBANK_CC.csv").write_text(dump_ledger_csv([group_b]), encoding="utf-8")
@@ -247,7 +231,7 @@ class DescribeWriteCategorizationsToCsv:
 
         ledger_dir = tmp_path / "accounts"
         ledger_dir.mkdir()
-        group = _make_group("txn001", "MYBANK_CHQ")
+        group = make_group(transaction_id="txn001", account_id="MYBANK_CHQ")
         (ledger_dir / "MYBANK_CHQ.csv").write_text(dump_ledger_csv([group]), encoding="utf-8")
 
         from gilt.model.ledger_io import load_ledger_csv
@@ -366,7 +350,7 @@ class DescribePersistNoteUpdate:
 
         ledger_dir = tmp_path / "accounts"
         ledger_dir.mkdir()
-        group = _make_group("txn001", "MYBANK_CHQ")
+        group = make_group(transaction_id="txn001", account_id="MYBANK_CHQ")
         (ledger_dir / "MYBANK_CHQ.csv").write_text(dump_ledger_csv([group]), encoding="utf-8")
 
         persist_note_update(
@@ -387,7 +371,7 @@ class DescribePersistNoteUpdate:
 
         ledger_dir = tmp_path / "accounts"
         ledger_dir.mkdir()
-        group = _make_group("txn001", "MYBANK_CHQ")
+        group = make_group(transaction_id="txn001", account_id="MYBANK_CHQ")
         group.primary.notes = "old note"
         (ledger_dir / "MYBANK_CHQ.csv").write_text(dump_ledger_csv([group]), encoding="utf-8")
 

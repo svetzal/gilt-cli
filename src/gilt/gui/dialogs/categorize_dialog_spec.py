@@ -6,33 +6,9 @@ import pytest
 
 PySide6 = pytest.importorskip("PySide6")
 
-from datetime import date
-
-from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.category import Category, Subcategory
 from gilt.model.category_io import format_category_path
-
-
-def _make_group(
-    transaction_id: str = "aabb1122ccdd3344",
-    txn_date: date = date(2025, 1, 15),
-    description: str = "SAMPLE STORE ANYTOWN",
-    amount: float = -50.00,
-    account_id: str = "MYBANK_CHQ",
-    category: str | None = None,
-    subcategory: str | None = None,
-) -> TransactionGroup:
-    txn = Transaction(
-        transaction_id=transaction_id,
-        date=txn_date,
-        description=description,
-        amount=amount,
-        currency="CAD",
-        account_id=account_id,
-        category=category,
-        subcategory=subcategory,
-    )
-    return TransactionGroup(group_id=transaction_id, primary=txn)
+from gilt.testing.fixtures import make_group
 
 
 def _make_categories() -> list[Category]:
@@ -67,32 +43,32 @@ class DescribeCategorizeDialogDataLogic:
 
     def it_should_detect_recategorization_when_any_transaction_has_category(self):
         groups = [
-            _make_group(category="OldCategory"),
-            _make_group(transaction_id="bbcc2233ddee4455", category=None),
+            make_group(category="OldCategory"),
+            make_group(transaction_id="bbcc2233ddee4455", category=None),
         ]
         recategorizing = any(t.primary.category and t.primary.category.strip() for t in groups)
         assert recategorizing is True
 
     def it_should_not_flag_recategorization_when_no_transactions_have_category(self):
         groups = [
-            _make_group(category=None),
-            _make_group(transaction_id="ccdd3344eeff5566", category=None),
+            make_group(category=None),
+            make_group(transaction_id="ccdd3344eeff5566", category=None),
         ]
         recategorizing = any(t.primary.category and t.primary.category.strip() for t in groups)
         assert recategorizing is False
 
     def it_should_not_flag_recategorization_for_whitespace_only_category(self):
-        groups = [_make_group(category="   ")]
+        groups = [make_group(category="   ")]
         recategorizing = any(t.primary.category and t.primary.category.strip() for t in groups)
         assert recategorizing is False
 
     def it_should_build_current_category_string_with_subcategory(self):
-        txn = _make_group(category="Groceries", subcategory="Fresh").primary
+        txn = make_group(category="Groceries", subcategory="Fresh").primary
         current = format_category_path(txn.category, txn.subcategory)
         assert current == "Groceries:Fresh"
 
     def it_should_build_none_label_when_no_category_assigned(self):
-        txn = _make_group(category=None).primary
+        txn = make_group(category=None).primary
         current = txn.category if txn.category else "(none)"
         assert current == "(none)"
 
@@ -125,9 +101,9 @@ class DescribePopulatePreviewRows:
 
     def it_should_produce_one_row_per_transaction(self):
         groups = [
-            _make_group(transaction_id="aaaa1111bbbb2222"),
-            _make_group(transaction_id="cccc3333dddd4444"),
-            _make_group(transaction_id="eeee5555ffff6666"),
+            make_group(transaction_id="aaaa1111bbbb2222"),
+            make_group(transaction_id="cccc3333dddd4444"),
+            make_group(transaction_id="eeee5555ffff6666"),
         ]
         # Simulate _populate_preview row generation
         rows = []
@@ -140,18 +116,18 @@ class DescribePopulatePreviewRows:
         assert len(rows) == 3
 
     def it_should_format_amount_to_two_decimal_places(self):
-        group = _make_group(amount=-1234.5)
+        group = make_group(amount=-1234.5)
         txn = group.primary
         formatted = f"{txn.amount:.2f}"
         assert formatted == "-1234.50"
 
     def it_should_include_date_string_in_row(self):
-        group = _make_group(txn_date=date(2025, 6, 30))
+        group = make_group(date="2025-06-30")
         txn = group.primary
         assert str(txn.date) == "2025-06-30"
 
     def it_should_show_category_with_subcategory_in_current_column(self):
-        group = _make_group(category="Transport", subcategory=None)
+        group = make_group(category="Transport", subcategory=None)
         txn = group.primary
         current = format_category_path(txn.category, txn.subcategory)
         assert current == "Transport"

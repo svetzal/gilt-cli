@@ -36,38 +36,6 @@ def _write_accounts_yml(path: Path) -> None:
     path.write_text(yaml.safe_dump(data))
 
 
-def _make_pair(
-    txn1_id: str = "existing_txn_001",
-    txn2_id: str = "new_transaction_1",
-    txn1_date: date = date(2025, 6, 1),
-    txn2_date: date = date(2025, 6, 2),
-    txn1_desc: str = "SAMPLE STORE",
-    txn2_desc: str = "SAMPLE STORE ANYTOWN",
-    txn1_source: str = "existing.csv",
-    txn2_source: str = "import.csv",
-) -> TransactionPair:
-    return TransactionPair(
-        txn1_id=txn1_id,
-        txn1_date=txn1_date,
-        txn1_description=txn1_desc,
-        txn1_amount=-50.0,
-        txn1_account="MYBANK_CHQ",
-        txn1_source_file=txn1_source,
-        txn2_id=txn2_id,
-        txn2_date=txn2_date,
-        txn2_description=txn2_desc,
-        txn2_amount=-50.0,
-        txn2_account="MYBANK_CHQ",
-        txn2_source_file=txn2_source,
-    )
-
-
-def _make_match(pair: TransactionPair) -> DuplicateMatch:
-    return DuplicateMatch(
-        pair=pair,
-        assessment=DuplicateAssessment(is_duplicate=True, confidence=0.9, reasoning="Same"),
-    )
-
 
 def _make_parse_row(txn_id: str = "txn001", description: str = "SAMPLE STORE") -> pd.DataFrame:
     return pd.DataFrame(
@@ -205,7 +173,7 @@ class DescribeImportServiceDuplicateScanning:
             txn2_amount=-50.0,
             txn2_account="MYBANK_CHQ",
         )
-        mock_duplicate_service.scan_transactions.return_value = [_make_match(existing_pair)]
+        mock_duplicate_service.scan_transactions.return_value = [DuplicateMatch(pair=existing_pair, assessment=DuplicateAssessment(is_duplicate=True, confidence=0.9, reasoning="Same"))]
 
         with patch("gilt.gui.services.import_service.parse_file") as mock_parse:
             mock_parse.return_value = new_df
@@ -231,7 +199,7 @@ class DescribeImportServiceDuplicateScanning:
             txn2_amount=-50.0,
             txn2_account="MYBANK_CHQ",
         )
-        mock_duplicate_service.scan_transactions.return_value = [_make_match(pair)]
+        mock_duplicate_service.scan_transactions.return_value = [DuplicateMatch(pair=pair, assessment=DuplicateAssessment(is_duplicate=True, confidence=0.9, reasoning="Same"))]
 
         with patch("gilt.gui.services.import_service.parse_file") as mock_parse:
             mock_parse.return_value = new_df
@@ -275,7 +243,7 @@ class DescribeImportServiceDuplicateScanning:
             txn2_account="MYBANK_CHQ",
             txn2_source_file="import.csv",
         )
-        mock_duplicate_service.scan_transactions.return_value = [_make_match(pair)]
+        mock_duplicate_service.scan_transactions.return_value = [DuplicateMatch(pair=pair, assessment=DuplicateAssessment(is_duplicate=True, confidence=0.9, reasoning="Same"))]
 
         with patch("gilt.gui.services.import_service.parse_file") as mock_parse:
             mock_parse.return_value = new_df

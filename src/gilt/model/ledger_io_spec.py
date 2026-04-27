@@ -9,7 +9,7 @@ Privacy: all data is synthetic — no real bank names, account IDs, or merchant 
 import csv
 import io
 
-from gilt.model.account import SplitLine, Transaction, TransactionGroup
+from gilt.model.account import SplitLine
 from gilt.model.ledger_io import (
     LEDGER_COLUMNS,
     ROW_TYPE_PRIMARY,
@@ -18,53 +18,7 @@ from gilt.model.ledger_io import (
     dump_ledger_csv,
     load_ledger_csv,
 )
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _make_primary(
-    *,
-    transaction_id: str = "aaaa1111aaaa1111",
-    date: str = "2025-01-15",
-    description: str = "SAMPLE STORE",
-    amount: float = -50.0,
-    currency: str = "CAD",
-    account_id: str = "MYBANK_CHQ",
-    category: str | None = None,
-    subcategory: str | None = None,
-    notes: str | None = None,
-    source_file: str | None = None,
-    metadata: dict | None = None,
-) -> Transaction:
-    return Transaction(
-        transaction_id=transaction_id,
-        date=date,
-        description=description,
-        amount=amount,
-        currency=currency,
-        account_id=account_id,
-        category=category,
-        subcategory=subcategory,
-        notes=notes,
-        source_file=source_file,
-        metadata=metadata or {},
-    )
-
-
-def _make_group(
-    primary: Transaction,
-    splits: list[SplitLine] | None = None,
-    group_id: str | None = None,
-    tolerance: float = 0.01,
-) -> TransactionGroup:
-    return TransactionGroup(
-        group_id=group_id or primary.transaction_id,
-        primary=primary,
-        splits=splits or [],
-        tolerance=tolerance,
-    )
+from gilt.testing.fixtures import make_group, make_transaction
 
 
 def _csv_rows(text: str) -> list[dict]:
@@ -119,32 +73,32 @@ class DescribeDumpLedgerCsv:
             assert col in header_line
 
     def it_should_emit_one_primary_row_per_group_with_no_splits(self):
-        group = _make_group(_make_primary())
+        group = make_group(primary=make_transaction())
         text = dump_ledger_csv([group])
         rows = _csv_rows(text)
         assert len(rows) == 1
         assert rows[0]["row_type"] == ROW_TYPE_PRIMARY
-        assert rows[0]["transaction_id"] == "aaaa1111aaaa1111"
+        assert rows[0]["transaction_id"] == "aabbccdd11223344"
 
     def it_should_write_amount_as_integer_string_for_whole_numbers(self):
-        group = _make_group(_make_primary(amount=-50.0))
+        group = make_group(primary=make_transaction(amount=-50.0))
         text = dump_ledger_csv([group])
         rows = _csv_rows(text)
         assert rows[0]["amount"] == "-50"
 
     def it_should_write_amount_as_decimal_string_for_fractional_values(self):
-        group = _make_group(_make_primary(amount=-9.99))
+        group = make_group(primary=make_transaction(amount=-9.99))
         text = dump_ledger_csv([group])
         rows = _csv_rows(text)
         assert rows[0]["amount"] == "-9.99"
 
     def it_should_emit_split_rows_after_primary(self):
-        primary = _make_primary(amount=-100.0)
+        primary = make_transaction(amount=-100.0)
         splits = [
             SplitLine(amount=-60.0, category="Groceries", memo="food"),
             SplitLine(amount=-40.0, category="Household", memo="cleaning"),
         ]
-        group = _make_group(primary, splits=splits, tolerance=0.1)
+        group = make_group(primary=primary, splits=splits, tolerance=0.1)
         text = dump_ledger_csv([group])
         rows = _csv_rows(text)
         assert len(rows) == 3
@@ -153,9 +107,9 @@ class DescribeDumpLedgerCsv:
         assert rows[2]["row_type"] == ROW_TYPE_SPLIT
 
     def it_should_write_split_category_to_split_category_column(self):
-        primary = _make_primary(amount=-100.0)
+        primary = make_transaction(amount=-100.0)
         splits = [SplitLine(amount=-100.0, category="Groceries", subcategory="Fresh")]
-        group = _make_group(primary, splits=splits)
+        group = make_group(primary=primary, splits=splits)
         text = dump_ledger_csv([group])
         rows = _csv_rows(text)
         split_row = rows[1]
@@ -166,8 +120,8 @@ class DescribeDumpLedgerCsv:
         assert split_row["subcategory"] == ""
 
     def it_should_serialize_metadata_as_json(self):
-        primary = _make_primary(metadata={"transfer": {"role": "source", "amount": 200}})
-        group = _make_group(primary)
+        primary = make_transaction(metadata={"transfer": {"role": "source", "amount": 200}})
+        group = make_group(primary=primary)
         text = dump_ledger_csv([group])
         rows = _csv_rows(text)
         import json
@@ -176,14 +130,14 @@ class DescribeDumpLedgerCsv:
         assert meta["transfer"]["role"] == "source"
 
     def it_should_use_group_id_for_group_id_column(self):
-        primary = _make_primary(transaction_id="txid0000txid0000")
-        group = _make_group(primary, group_id="custom-group-id")
+        primary = make_transaction(transaction_id="txid0000txid0000")
+        group = make_group(primary=primary, group_id="custom-group-id")
         text = dump_ledger_csv([group])
         rows = _csv_rows(text)
         assert rows[0]["group_id"] == "custom-group-id"
 
     def it_should_emit_empty_string_for_split_fields_on_primary_row(self):
-        group = _make_group(_make_primary())
+        group = make_group(primary=make_transaction())
         text = dump_ledger_csv([group])
         rows = _csv_rows(text)
         assert rows[0]["line_id"] == ""
@@ -206,14 +160,14 @@ class DescribeLoadLedgerCsv:
         assert result == []
 
     def it_should_parse_a_single_primary_row(self):
-        primary = _make_primary(
+        primary = make_transaction(
             transaction_id="bbbb2222bbbb2222",
             date="2025-03-10",
             description="ACME CORP",
             amount=-75.0,
             account_id="MYBANK_CC",
         )
-        group = _make_group(primary)
+        group = make_group(primary=primary)
         text = dump_ledger_csv([group])
         result = load_ledger_csv(text)
         assert len(result) == 1
@@ -254,12 +208,12 @@ class DescribeLoadLedgerCsv:
         assert result[0].primary.currency == "USD"
 
     def it_should_parse_splits_and_associate_with_primary(self):
-        primary = _make_primary(amount=-100.0)
+        primary = make_transaction(amount=-100.0)
         splits = [
             SplitLine(amount=-60.0, category="Groceries"),
             SplitLine(amount=-40.0, category="Household"),
         ]
-        group = _make_group(primary, splits=splits, tolerance=0.1)
+        group = make_group(primary=primary, splits=splits, tolerance=0.1)
         text = dump_ledger_csv([group])
         result = load_ledger_csv(text)
         assert len(result) == 1
@@ -341,26 +295,26 @@ class DescribeLoadLedgerCsv:
         assert result == []
 
     def it_should_sort_groups_by_date_then_account_then_amount_then_group_id(self):
-        t1 = _make_primary(
+        t1 = make_transaction(
             transaction_id="aaaa0001aaaa0001",
             date="2025-01-01",
             amount=-10.0,
             account_id="MYBANK_CHQ",
         )
-        t2 = _make_primary(
+        t2 = make_transaction(
             transaction_id="bbbb0002bbbb0002",
             date="2025-01-01",
             amount=-5.0,
             account_id="MYBANK_CHQ",
         )
-        t3 = _make_primary(
+        t3 = make_transaction(
             transaction_id="cccc0003cccc0003",
             date="2025-01-02",
             amount=-20.0,
             account_id="MYBANK_CHQ",
         )
         # Dump in reverse order to verify sorting
-        text = dump_ledger_csv([_make_group(t3), _make_group(t1), _make_group(t2)])
+        text = dump_ledger_csv([make_group(primary=t3), make_group(primary=t1), make_group(primary=t2)])
         result = load_ledger_csv(text)
         dates = [str(g.primary.date) for g in result]
         assert dates[0] == "2025-01-01"
@@ -371,8 +325,8 @@ class DescribeLoadLedgerCsv:
         assert amounts == sorted(amounts)
 
     def it_should_parse_metadata_json_into_dict(self):
-        primary = _make_primary(metadata={"key": "value", "num": 42})
-        group = _make_group(primary)
+        primary = make_transaction(metadata={"key": "value", "num": 42})
+        group = make_group(primary=primary)
         text = dump_ledger_csv([group])
         result = load_ledger_csv(text)
         assert result[0].primary.metadata == {"key": "value", "num": 42}
@@ -418,7 +372,7 @@ class DescribeRoundTrip:
     """Specs verifying dump → load fidelity."""
 
     def it_should_preserve_primary_fields_through_round_trip(self):
-        primary = _make_primary(
+        primary = make_transaction(
             transaction_id="rtrp1111rtrp1111",
             date="2025-08-15",
             description="EXAMPLE UTILITY",
@@ -430,7 +384,7 @@ class DescribeRoundTrip:
             notes="monthly bill",
             source_file="mybank_export.csv",
         )
-        group = _make_group(primary)
+        group = make_group(primary=primary)
         text = dump_ledger_csv([group])
         result = load_ledger_csv(text)
         assert len(result) == 1
@@ -447,7 +401,7 @@ class DescribeRoundTrip:
         assert t.source_file == "mybank_export.csv"
 
     def it_should_preserve_splits_through_round_trip(self):
-        primary = _make_primary(amount=-100.0)
+        primary = make_transaction(amount=-100.0)
         splits = [
             SplitLine(
                 line_id="L1",
@@ -465,7 +419,7 @@ class DescribeRoundTrip:
                 percent=30.0,
             ),
         ]
-        group = _make_group(primary, splits=splits, tolerance=0.1)
+        group = make_group(primary=primary, splits=splits, tolerance=0.1)
         text = dump_ledger_csv([group])
         result = load_ledger_csv(text)
         assert len(result[0].splits) == 2
@@ -479,8 +433,8 @@ class DescribeRoundTrip:
 
     def it_should_preserve_multiple_groups_through_round_trip(self):
         groups = [
-            _make_group(
-                _make_primary(
+            make_group(
+                primary=make_transaction(
                     transaction_id=f"tx{i:014d}",
                     date=f"2025-01-{i:02d}",
                     amount=-float(i * 10),

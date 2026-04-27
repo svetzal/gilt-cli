@@ -8,35 +8,12 @@ All tests use Transaction objects directly — no projections DB, no file I/O.
 
 from datetime import date
 
-from gilt.model.account import Transaction
 from gilt.model.category import Budget, BudgetPeriod, Category, CategoryConfig, Subcategory
 from gilt.services.budget_reporting_service import (
     BudgetReportingService,
     ExpenseDetail,
 )
-
-
-def _make_transaction(
-    *,
-    transaction_id: str = "abc1234567890abc",
-    txn_date: str = "2025-10-01",
-    description: str = "EXAMPLE UTILITY",
-    amount: float = -100.00,
-    currency: str = "CAD",
-    account_id: str = "MYBANK_CHQ",
-    category: str | None = "Utilities",
-    subcategory: str | None = None,
-) -> Transaction:
-    return Transaction(
-        transaction_id=transaction_id,
-        date=txn_date,
-        description=description,
-        amount=amount,
-        currency=currency,
-        account_id=account_id,
-        category=category,
-        subcategory=subcategory,
-    )
+from gilt.testing.fixtures import make_transaction
 
 
 def _make_service(categories: list[Category] | None = None) -> BudgetReportingService:
@@ -48,19 +25,19 @@ class DescribeSpendingAggregation:
     def it_should_aggregate_expenses_by_category_and_subcategory(self):
         service = _make_service()
         transactions = [
-            _make_transaction(
+            make_transaction(
                 transaction_id="t1",
                 amount=-100.00,
                 category="Utilities",
                 subcategory="Electric",
             ),
-            _make_transaction(
+            make_transaction(
                 transaction_id="t2",
                 amount=-50.00,
                 category="Utilities",
                 subcategory="Water",
             ),
-            _make_transaction(
+            make_transaction(
                 transaction_id="t3",
                 amount=-200.00,
                 category="Groceries",
@@ -75,8 +52,8 @@ class DescribeSpendingAggregation:
     def it_should_skip_transactions_without_category(self):
         service = _make_service()
         transactions = [
-            _make_transaction(transaction_id="t1", amount=-100.00, category=None),
-            _make_transaction(transaction_id="t2", amount=-50.00, category="Groceries"),
+            make_transaction(transaction_id="t1", amount=-100.00, category=None),
+            make_transaction(transaction_id="t2", amount=-50.00, category="Groceries"),
         ]
         result = service.aggregate_spending(transactions, year=None, month=None)
         assert len(result) == 1
@@ -85,11 +62,11 @@ class DescribeSpendingAggregation:
     def it_should_filter_by_year(self):
         service = _make_service()
         transactions = [
-            _make_transaction(
-                transaction_id="t1", txn_date="2025-03-01", amount=-100.00, category="Groceries"
+            make_transaction(
+                transaction_id="t1", date="2025-03-01", amount=-100.00, category="Groceries"
             ),
-            _make_transaction(
-                transaction_id="t2", txn_date="2024-03-01", amount=-200.00, category="Groceries"
+            make_transaction(
+                transaction_id="t2", date="2024-03-01", amount=-200.00, category="Groceries"
             ),
         ]
         result = service.aggregate_spending(transactions, year=2025, month=None)
@@ -98,11 +75,11 @@ class DescribeSpendingAggregation:
     def it_should_filter_by_year_and_month(self):
         service = _make_service()
         transactions = [
-            _make_transaction(
-                transaction_id="t1", txn_date="2025-10-01", amount=-100.00, category="Groceries"
+            make_transaction(
+                transaction_id="t1", date="2025-10-01", amount=-100.00, category="Groceries"
             ),
-            _make_transaction(
-                transaction_id="t2", txn_date="2025-11-01", amount=-200.00, category="Groceries"
+            make_transaction(
+                transaction_id="t2", date="2025-11-01", amount=-200.00, category="Groceries"
             ),
         ]
         result = service.aggregate_spending(transactions, year=2025, month=10)
@@ -120,17 +97,17 @@ class DescribeCollectExpenseTransactions:
     def it_should_group_expense_transactions_by_category(self):
         service = _make_service()
         transactions = [
-            _make_transaction(
+            make_transaction(
                 transaction_id="t1",
-                txn_date="2025-10-01",
+                date="2025-10-01",
                 description="EXAMPLE UTILITY",
                 amount=-100.00,
                 category="Utilities",
                 subcategory="Electric",
             ),
-            _make_transaction(
+            make_transaction(
                 transaction_id="t2",
-                txn_date="2025-10-05",
+                date="2025-10-05",
                 description="SAMPLE STORE",
                 amount=-50.00,
                 category="Groceries",
@@ -148,12 +125,12 @@ class DescribeCollectExpenseTransactions:
     def it_should_exclude_income_transactions(self):
         service = _make_service()
         transactions = [
-            _make_transaction(
+            make_transaction(
                 transaction_id="t1",
                 amount=500.00,  # positive = income
                 category="Income",
             ),
-            _make_transaction(
+            make_transaction(
                 transaction_id="t2",
                 amount=-100.00,
                 category="Groceries",
@@ -166,23 +143,23 @@ class DescribeCollectExpenseTransactions:
     def it_should_sort_transactions_deterministically(self):
         service = _make_service()
         transactions = [
-            _make_transaction(
+            make_transaction(
                 transaction_id="t3",
-                txn_date="2025-10-05",
+                date="2025-10-05",
                 description="Beta",
                 amount=-30.00,
                 category="Groceries",
             ),
-            _make_transaction(
+            make_transaction(
                 transaction_id="t1",
-                txn_date="2025-10-01",
+                date="2025-10-01",
                 description="Alpha",
                 amount=-10.00,
                 category="Groceries",
             ),
-            _make_transaction(
+            make_transaction(
                 transaction_id="t2",
-                txn_date="2025-10-01",
+                date="2025-10-01",
                 description="Gamma",
                 amount=-20.00,
                 category="Groceries",
@@ -245,15 +222,15 @@ class DescribeGenerateReport:
         ]
         service = _make_service(categories)
         transactions = [
-            _make_transaction(
+            make_transaction(
                 transaction_id="t1",
-                txn_date="2025-10-10",
+                date="2025-10-10",
                 amount=-300.00,
                 category="Groceries",
             ),
-            _make_transaction(
+            make_transaction(
                 transaction_id="t2",
-                txn_date="2025-10-15",
+                date="2025-10-15",
                 amount=-150.00,
                 category="Utilities",
             ),
@@ -280,13 +257,15 @@ class DescribeGenerateReport:
         ]
         service = _make_service(categories)
         transactions = [
-            _make_transaction(
+            make_transaction(
                 transaction_id="t1",
+                date="2025-10-01",
                 amount=-300.00,
                 category="Groceries",  # over budget
             ),
-            _make_transaction(
+            make_transaction(
                 transaction_id="t2",
+                date="2025-10-01",
                 amount=-100.00,
                 category="Utilities",  # under budget
             ),
@@ -303,8 +282,9 @@ class DescribeGenerateReport:
         ]
         service = _make_service(categories)
         transactions = [
-            _make_transaction(
+            make_transaction(
                 transaction_id="t1",
+                date="2025-10-01",
                 amount=-300.00,
                 category="Groceries",
             ),
@@ -325,9 +305,9 @@ class DescribeMarkdownRendering:
         ]
         service = _make_service(categories)
         transactions = [
-            _make_transaction(
+            make_transaction(
                 transaction_id="t1",
-                txn_date="2025-10-10",
+                date="2025-10-10",
                 amount=-300.00,
                 category="Groceries",
             ),
@@ -353,9 +333,9 @@ class DescribeMarkdownRendering:
         ]
         service = _make_service(categories)
         transactions = [
-            _make_transaction(
+            make_transaction(
                 transaction_id="t1",
-                txn_date="2025-10-01",
+                date="2025-10-01",
                 description="Fuel Station",
                 amount=-200.00,
                 category="Transportation",
@@ -380,8 +360,9 @@ class DescribeMarkdownRendering:
         ]
         service = _make_service(categories)
         transactions = [
-            _make_transaction(
+            make_transaction(
                 transaction_id="t1",
+                date="2025-10-01",
                 amount=-300.00,  # over budget
                 category="Groceries",
             ),
@@ -393,7 +374,7 @@ class DescribeMarkdownRendering:
 
     def it_should_include_report_header_with_period(self):
         service = _make_service()
-        transactions: list[Transaction] = []
+        transactions: list = []
         report = service.generate_report(transactions, year=2025, month=10)
         markdown = service.render_markdown(report)
         assert "# Budget Report - 2025-10" in markdown

@@ -1,29 +1,10 @@
 from __future__ import annotations
 
-from datetime import date
 from pathlib import Path
 
 from gilt.gui.services.intelligence_cache import IntelligenceCache
-from gilt.model.duplicate import DuplicateAssessment, DuplicateMatch, TransactionPair
-
-
-def _make_match() -> DuplicateMatch:
-    pair = TransactionPair(
-        txn1_id="aaa11111",
-        txn1_date=date(2025, 3, 1),
-        txn1_description="SAMPLE STORE",
-        txn1_amount=-10.0,
-        txn1_account="MYBANK_CHQ",
-        txn2_id="bbb22222",
-        txn2_date=date(2025, 3, 1),
-        txn2_description="SAMPLE STORE ANYTOWN",
-        txn2_amount=-10.0,
-        txn2_account="MYBANK_CHQ",
-    )
-    assessment = DuplicateAssessment(
-        is_duplicate=True, confidence=0.9, reasoning="Same store same day"
-    )
-    return DuplicateMatch(pair=pair, assessment=assessment)
+from gilt.model.duplicate import DuplicateMatch
+from gilt.testing.fixtures import make_match
 
 
 class DescribeIntelligenceCache:
@@ -42,18 +23,18 @@ class DescribeIntelligenceCache:
 
     def it_should_store_and_retrieve_duplicate_match(self, tmp_path: Path):
         cache = IntelligenceCache(tmp_path / "cache.json")
-        match = _make_match()
+        match = make_match()
         metadata = {
-            "aaa11111": {"risk": True, "duplicate_match": match},
+            "aaaa111100000001": {"risk": True, "duplicate_match": match},
         }
         cache.update(metadata)
 
         loaded = IntelligenceCache(tmp_path / "cache.json")
-        entry = loaded.get("aaa11111")
+        entry = loaded.get("aaaa111100000001")
         assert entry is not None
         assert entry["risk"] is True
         assert isinstance(entry["duplicate_match"], DuplicateMatch)
-        assert entry["duplicate_match"].pair.txn1_id == "aaa11111"
+        assert entry["duplicate_match"].pair.txn1_id == "aaaa111100000001"
 
     def it_should_identify_uncached_transactions(self, tmp_path: Path):
         cache = IntelligenceCache(tmp_path / "cache.json")

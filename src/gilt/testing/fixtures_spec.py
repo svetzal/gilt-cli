@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from gilt.testing.fixtures import make_group, make_match, make_transaction
+from gilt.testing.fixtures import make_group, make_match, make_pair, make_transaction
 
 
 class DescribeFixtures:
@@ -44,6 +44,25 @@ class DescribeFixtures:
         group = make_group(primary=txn, group_id="custom-group-id", tolerance=0.05)
         assert group.group_id == "custom-group-id"
         assert group.tolerance == 0.05
+
+    def it_should_create_default_pair(self):
+        pair = make_pair()
+        assert pair.txn1_id == "aaaa111100000001"
+        assert pair.txn1_date == date(2025, 4, 10)
+        assert pair.txn1_description == "ACME CORP PAYMENT"
+        assert pair.txn1_amount == -200.00
+        assert pair.txn1_account == "MYBANK_CHQ"
+        assert pair.txn2_id == "bbbb222200000002"
+        assert pair.txn2_description == "ACME CORP PMT"
+        assert pair.txn1_source_file is None
+        assert pair.txn2_source_file is None
+
+    def it_should_override_pair_fields(self):
+        pair = make_pair(txn1_id="custom001", txn1_amount=-50.00, txn2_description="CUSTOM DESC")
+        assert pair.txn1_id == "custom001"
+        assert pair.txn1_amount == -50.00
+        assert pair.txn2_description == "CUSTOM DESC"
+        assert pair.txn2_id == "bbbb222200000002"
 
     def it_should_create_default_match(self):
         match = make_match()

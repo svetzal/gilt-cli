@@ -11,24 +11,9 @@ from pathlib import Path
 
 import pytest
 
-from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.ledger_io import dump_ledger_csv
 from gilt.model.ledger_repository import LedgerRepository
-
-
-def _make_group(txn_id: str, account_id: str, date: str = "2025-01-15") -> TransactionGroup:
-    """Create a minimal TransactionGroup for testing."""
-    return TransactionGroup(
-        group_id=txn_id,
-        primary=Transaction(
-            transaction_id=txn_id,
-            date=date,
-            description="EXAMPLE UTILITY",
-            amount=-42.00,
-            currency="CAD",
-            account_id=account_id,
-        ),
-    )
+from gilt.testing.fixtures import make_group
 
 
 class DescribeLedgerRepository:
@@ -43,7 +28,7 @@ class DescribeLedgerRepository:
         return LedgerRepository(data_dir)
 
     def it_should_load_groups_for_an_existing_account(self, repo, data_dir):
-        group = _make_group("txn001", "MYBANK_CHQ")
+        group = make_group(transaction_id="txn001", account_id="MYBANK_CHQ")
         (data_dir / "MYBANK_CHQ.csv").write_text(dump_ledger_csv([group]), encoding="utf-8")
 
         groups = repo.load("MYBANK_CHQ")
@@ -57,7 +42,7 @@ class DescribeLedgerRepository:
         assert groups == []
 
     def it_should_save_groups_to_csv(self, repo, data_dir):
-        group = _make_group("txn002", "MYBANK_CC")
+        group = make_group(transaction_id="txn002", account_id="MYBANK_CC")
 
         repo.save("MYBANK_CC", [group])
 
@@ -66,7 +51,7 @@ class DescribeLedgerRepository:
         assert "txn002" in text
 
     def it_should_round_trip_load_and_save(self, repo):
-        group = _make_group("txn003", "BANK2_BIZ")
+        group = make_group(transaction_id="txn003", account_id="BANK2_BIZ")
         repo.save("BANK2_BIZ", [group])
 
         loaded = repo.load("BANK2_BIZ")
@@ -74,11 +59,11 @@ class DescribeLedgerRepository:
         assert len(loaded) == 1
         assert loaded[0].primary.transaction_id == "txn003"
         assert loaded[0].primary.account_id == "BANK2_BIZ"
-        assert loaded[0].primary.description == "EXAMPLE UTILITY"
-        assert loaded[0].primary.amount == -42.00
+        assert loaded[0].primary.description == "SAMPLE STORE ANYTOWN"
+        assert loaded[0].primary.amount == -42.50
 
     def it_should_report_exists_true_for_existing_ledger(self, repo, data_dir):
-        group = _make_group("txn004", "MYBANK_CHQ")
+        group = make_group(transaction_id="txn004", account_id="MYBANK_CHQ")
         (data_dir / "MYBANK_CHQ.csv").write_text(dump_ledger_csv([group]), encoding="utf-8")
 
         assert repo.exists("MYBANK_CHQ") is True
@@ -92,8 +77,8 @@ class DescribeLedgerRepository:
         assert path == data_dir / "MYBANK_CHQ.csv"
 
     def it_should_load_all_account_groups(self, repo, data_dir):
-        group_a = _make_group("txn005", "MYBANK_CHQ")
-        group_b = _make_group("txn006", "MYBANK_CC")
+        group_a = make_group(transaction_id="txn005", account_id="MYBANK_CHQ")
+        group_b = make_group(transaction_id="txn006", account_id="MYBANK_CC")
         (data_dir / "MYBANK_CHQ.csv").write_text(dump_ledger_csv([group_a]), encoding="utf-8")
         (data_dir / "MYBANK_CC.csv").write_text(dump_ledger_csv([group_b]), encoding="utf-8")
 
@@ -103,7 +88,7 @@ class DescribeLedgerRepository:
         assert ids == {"txn005", "txn006"}
 
     def it_should_skip_unparseable_files_when_loading_all(self, repo, data_dir):
-        group = _make_group("txn007", "MYBANK_CHQ")
+        group = make_group(transaction_id="txn007", account_id="MYBANK_CHQ")
         (data_dir / "MYBANK_CHQ.csv").write_text(dump_ledger_csv([group]), encoding="utf-8")
         (data_dir / "CORRUPT.csv").write_text("not,valid,csv\nbad data here\n", encoding="utf-8")
 
@@ -121,8 +106,8 @@ class DescribeLedgerRepository:
         assert groups == []
 
     def it_should_list_available_account_ids(self, repo, data_dir):
-        group_a = _make_group("txn008", "MYBANK_CHQ")
-        group_b = _make_group("txn009", "BANK2_BIZ")
+        group_a = make_group(transaction_id="txn008", account_id="MYBANK_CHQ")
+        group_b = make_group(transaction_id="txn009", account_id="BANK2_BIZ")
         (data_dir / "MYBANK_CHQ.csv").write_text(dump_ledger_csv([group_a]), encoding="utf-8")
         (data_dir / "BANK2_BIZ.csv").write_text(dump_ledger_csv([group_b]), encoding="utf-8")
 

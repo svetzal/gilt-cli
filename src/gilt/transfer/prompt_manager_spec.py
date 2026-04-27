@@ -7,29 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from gilt.model.duplicate import TransactionPair
+from gilt.testing.fixtures import make_pair
 from gilt.transfer.prompt_manager import PromptManager
-
-
-def _make_pair(
-    txn1_id: str = "txn001",
-    txn2_id: str = "txn002",
-    txn1_desc: str = "SAMPLE STORE EXAMPLEVILLE",
-    txn2_desc: str = "SAMPLE STORE ANYTOWN",
-    amount: float = 50.0,
-) -> TransactionPair:
-    return TransactionPair(
-        txn1_id=txn1_id,
-        txn1_date=date(2025, 6, 1),
-        txn1_description=txn1_desc,
-        txn1_amount=amount,
-        txn1_account="MYBANK_CHQ",
-        txn2_id=txn2_id,
-        txn2_date=date(2025, 6, 1),
-        txn2_description=txn2_desc,
-        txn2_amount=amount,
-        txn2_account="MYBANK_CHQ",
-    )
 
 
 class DescribePromptManagerInitialization:
@@ -70,7 +49,7 @@ class DescribePromptManagerInitialization:
 
     def it_should_persist_feedback_to_json_round_trip(self, temp_dir):
         manager = PromptManager(temp_dir)
-        pair = _make_pair()
+        pair = make_pair()
         manager.add_feedback(pair, llm_said_duplicate=True, llm_confidence=0.9, user_confirmed=True)
         manager2 = PromptManager(temp_dir)
         assert len(manager2.feedback_history) == 1
@@ -80,7 +59,7 @@ class DescribePromptManagerInitialization:
         with tempfile.TemporaryDirectory() as base:
             nested_dir = Path(base) / "subdir" / "deeper"
             manager = PromptManager(nested_dir)
-            pair = _make_pair()
+            pair = make_pair()
             manager.add_feedback(
                 pair, llm_said_duplicate=True, llm_confidence=0.8, user_confirmed=False
             )
@@ -98,7 +77,16 @@ class DescribePromptManagerFeedback:
         return PromptManager(temp_dir)
 
     def it_should_append_feedback_entry_with_all_fields(self, manager):
-        pair = _make_pair()
+        pair = make_pair(
+            txn1_id="txn001",
+            txn2_id="txn002",
+            txn1_date=date(2025, 6, 1),
+            txn1_description="SAMPLE STORE EXAMPLEVILLE",
+            txn1_amount=50.0,
+            txn2_date=date(2025, 6, 1),
+            txn2_description="SAMPLE STORE ANYTOWN",
+            txn2_amount=50.0,
+        )
         manager.add_feedback(
             pair,
             llm_said_duplicate=True,
@@ -120,7 +108,7 @@ class DescribePromptManagerFeedback:
         assert entry["llm_reasoning"] == "Same transaction"
 
     def it_should_save_to_disk_after_each_feedback(self, manager, temp_dir):
-        pair = _make_pair()
+        pair = make_pair()
         manager.add_feedback(pair, llm_said_duplicate=True, llm_confidence=0.9, user_confirmed=True)
         prompt_file = temp_dir / "duplicate_detection_prompt.json"
         assert prompt_file.exists()
@@ -143,7 +131,7 @@ class DescribePromptManagerLearnedPatterns:
         assert result == ""
 
     def it_should_include_false_positive_section_when_fp_exists(self, manager):
-        pair = _make_pair(txn1_desc="SAMPLE STORE EXAMPLEVILLE", txn2_desc="SAMPLE STORE ANYTOWN")
+        pair = make_pair(txn1_description="SAMPLE STORE EXAMPLEVILLE", txn2_description="SAMPLE STORE ANYTOWN")
         manager.add_feedback(
             pair, llm_said_duplicate=True, llm_confidence=0.9, user_confirmed=False
         )
@@ -151,14 +139,14 @@ class DescribePromptManagerLearnedPatterns:
         assert "FALSE POSITIVES" in result
 
     def it_should_include_confirmed_duplicate_section(self, manager):
-        pair = _make_pair(txn1_desc="ACME CORP", txn2_desc="ACME CORP")
+        pair = make_pair(txn1_description="ACME CORP", txn2_description="ACME CORP")
         manager.add_feedback(pair, llm_said_duplicate=True, llm_confidence=0.9, user_confirmed=True)
         result = manager._generate_learned_patterns()
         assert "TRUE DUPLICATES" in result
         assert "ACME CORP" in result
 
     def it_should_include_missed_duplicates_section(self, manager):
-        pair = _make_pair(txn1_desc="EXAMPLE UTILITY", txn2_desc="EXAMPLE UTIL")
+        pair = make_pair(txn1_description="EXAMPLE UTILITY", txn2_description="EXAMPLE UTIL")
         manager.add_feedback(
             pair, llm_said_duplicate=False, llm_confidence=0.2, user_confirmed=True
         )
@@ -166,9 +154,9 @@ class DescribePromptManagerLearnedPatterns:
         assert "previously missed duplicates" in result
 
     def it_should_detect_location_pattern_from_symmetric_difference(self, manager):
-        pair = _make_pair(
-            txn1_desc="SAMPLE STORE EXAMPLEVILLE",
-            txn2_desc="SAMPLE STORE ANYTOWN",
+        pair = make_pair(
+            txn1_description="SAMPLE STORE EXAMPLEVILLE",
+            txn2_description="SAMPLE STORE ANYTOWN",
         )
         manager.add_feedback(
             pair, llm_said_duplicate=True, llm_confidence=0.8, user_confirmed=False
@@ -198,16 +186,16 @@ class DescribePromptManagerStats:
 
     def it_should_calculate_tp_fp_tn_fn_correctly(self, manager):
         manager.add_feedback(
-            _make_pair("a", "b"), llm_said_duplicate=True, llm_confidence=0.9, user_confirmed=True
+            make_pair(txn1_id="a", txn2_id="b"), llm_said_duplicate=True, llm_confidence=0.9, user_confirmed=True
         )
         manager.add_feedback(
-            _make_pair("c", "d"), llm_said_duplicate=True, llm_confidence=0.8, user_confirmed=False
+            make_pair(txn1_id="c", txn2_id="d"), llm_said_duplicate=True, llm_confidence=0.8, user_confirmed=False
         )
         manager.add_feedback(
-            _make_pair("e", "f"), llm_said_duplicate=False, llm_confidence=0.1, user_confirmed=False
+            make_pair(txn1_id="e", txn2_id="f"), llm_said_duplicate=False, llm_confidence=0.1, user_confirmed=False
         )
         manager.add_feedback(
-            _make_pair("g", "h"), llm_said_duplicate=False, llm_confidence=0.2, user_confirmed=True
+            make_pair(txn1_id="g", txn2_id="h"), llm_said_duplicate=False, llm_confidence=0.2, user_confirmed=True
         )
         stats = manager.get_stats()
         assert stats["true_positives"] == 1
@@ -218,16 +206,16 @@ class DescribePromptManagerStats:
 
     def it_should_calculate_accuracy_as_correct_over_total(self, manager):
         manager.add_feedback(
-            _make_pair("a", "b"), llm_said_duplicate=True, llm_confidence=0.9, user_confirmed=True
+            make_pair(txn1_id="a", txn2_id="b"), llm_said_duplicate=True, llm_confidence=0.9, user_confirmed=True
         )
         manager.add_feedback(
-            _make_pair("c", "d"), llm_said_duplicate=True, llm_confidence=0.9, user_confirmed=True
+            make_pair(txn1_id="c", txn2_id="d"), llm_said_duplicate=True, llm_confidence=0.9, user_confirmed=True
         )
         manager.add_feedback(
-            _make_pair("e", "f"), llm_said_duplicate=True, llm_confidence=0.8, user_confirmed=False
+            make_pair(txn1_id="e", txn2_id="f"), llm_said_duplicate=True, llm_confidence=0.8, user_confirmed=False
         )
         manager.add_feedback(
-            _make_pair("g", "h"), llm_said_duplicate=False, llm_confidence=0.2, user_confirmed=False
+            make_pair(txn1_id="g", txn2_id="h"), llm_said_duplicate=False, llm_confidence=0.2, user_confirmed=False
         )
         stats = manager.get_stats()
         assert stats["accuracy"] == pytest.approx(0.75)
@@ -257,7 +245,7 @@ class DescribePromptManagerPromptAssembly:
         assert "{txn2_description}" in prompt
 
     def it_should_embed_learned_patterns_into_template(self, manager):
-        pair = _make_pair(txn1_desc="ACME CORP", txn2_desc="ACME CORP")
+        pair = make_pair(txn1_description="ACME CORP", txn2_description="ACME CORP")
         manager.add_feedback(pair, llm_said_duplicate=True, llm_confidence=0.9, user_confirmed=True)
         prompt = manager.get_prompt()
         assert "ACME CORP" in prompt

@@ -10,47 +10,31 @@ import pytest
 from pydantic import ValidationError
 
 from gilt.model.duplicate import DuplicateAssessment, DuplicateMatch, TransactionPair
-
-
-def _make_pair(**kwargs) -> TransactionPair:
-    defaults = dict(
-        txn1_id="aabbccdd11223344",
-        txn1_date=date(2025, 1, 10),
-        txn1_description="EXAMPLE UTILITY PAYMENT",
-        txn1_amount=-120.00,
-        txn1_account="MYBANK_CHQ",
-        txn2_id="eeff00112233aabb",
-        txn2_date=date(2025, 1, 10),
-        txn2_description="EXAMPLE UTILITY PMT",
-        txn2_amount=-120.00,
-        txn2_account="MYBANK_CHQ",
-    )
-    defaults.update(kwargs)
-    return TransactionPair(**defaults)
+from gilt.testing.fixtures import make_pair
 
 
 class DescribeTransactionPair:
     """Validation behaviour of the TransactionPair model."""
 
     def it_should_create_valid_pair_with_all_required_fields(self):
-        pair = _make_pair()
-        assert pair.txn1_id == "aabbccdd11223344"
-        assert pair.txn2_id == "eeff00112233aabb"
-        assert pair.txn1_amount == -120.00
-        assert pair.txn2_amount == -120.00
+        pair = make_pair()
+        assert pair.txn1_id == "aaaa111100000001"
+        assert pair.txn2_id == "bbbb222200000002"
+        assert pair.txn1_amount == -200.00
+        assert pair.txn2_amount == -200.00
 
     def it_should_allow_optional_source_file_fields(self):
-        pair = _make_pair(txn1_source_file="2025-01-mybank.csv", txn2_source_file=None)
+        pair = make_pair(txn1_source_file="2025-01-mybank.csv", txn2_source_file=None)
         assert pair.txn1_source_file == "2025-01-mybank.csv"
         assert pair.txn2_source_file is None
 
     def it_should_default_source_file_fields_to_none(self):
-        pair = _make_pair()
+        pair = make_pair()
         assert pair.txn1_source_file is None
         assert pair.txn2_source_file is None
 
     def it_should_accept_date_objects_for_transaction_dates(self):
-        pair = _make_pair(txn1_date=date(2025, 6, 15), txn2_date=date(2025, 6, 16))
+        pair = make_pair(txn1_date=date(2025, 6, 15), txn2_date=date(2025, 6, 16))
         assert pair.txn1_date == date(2025, 6, 15)
         assert pair.txn2_date == date(2025, 6, 16)
 
@@ -69,7 +53,7 @@ class DescribeTransactionPair:
             )
 
     def it_should_store_float_amounts(self):
-        pair = _make_pair(txn1_amount=-42.75, txn2_amount=-42.75)
+        pair = make_pair(txn1_amount=-42.75, txn2_amount=-42.75)
         assert pair.txn1_amount == -42.75
         assert pair.txn2_amount == -42.75
 
@@ -124,7 +108,7 @@ class DescribeDuplicateMatch:
 
     @pytest.fixture
     def match(self):
-        pair = _make_pair()
+        pair = make_pair()
         assessment = DuplicateAssessment(
             is_duplicate=True, confidence=0.85, reasoning="High similarity"
         )
@@ -134,13 +118,13 @@ class DescribeDuplicateMatch:
         assert match.confidence_pct == pytest.approx(85.0)
 
     def it_should_return_100_for_full_confidence(self):
-        pair = _make_pair()
+        pair = make_pair()
         assessment = DuplicateAssessment(is_duplicate=True, confidence=1.0, reasoning="Exact")
         m = DuplicateMatch(pair=pair, assessment=assessment)
         assert m.confidence_pct == pytest.approx(100.0)
 
     def it_should_return_0_for_zero_confidence(self):
-        pair = _make_pair()
+        pair = make_pair()
         assessment = DuplicateAssessment(
             is_duplicate=False, confidence=0.0, reasoning="Not a match"
         )
@@ -149,11 +133,11 @@ class DescribeDuplicateMatch:
 
     def it_should_compute_confidence_pct_as_int_times_100(self):
         """Verify the property formula: confidence * 100."""
-        pair = _make_pair()
+        pair = make_pair()
         assessment = DuplicateAssessment(is_duplicate=True, confidence=0.73, reasoning="Likely")
         m = DuplicateMatch(pair=pair, assessment=assessment)
         assert m.confidence_pct == pytest.approx(73.0)
 
     def it_should_expose_pair_and_assessment(self, match):
-        assert match.pair.txn1_id == "aabbccdd11223344"
+        assert match.pair.txn1_id == "aaaa111100000001"
         assert match.assessment.is_duplicate is True

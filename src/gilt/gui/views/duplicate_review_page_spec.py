@@ -6,49 +6,14 @@ import pytest
 
 PySide6 = pytest.importorskip("PySide6")
 
-from datetime import date
-
-from gilt.model.duplicate import DuplicateAssessment, DuplicateMatch, TransactionPair
-
-
-def _make_match(
-    txn1_id: str = "aaaa111100000001",
-    txn2_id: str = "bbbb222200000002",
-    txn1_date: date = date(2025, 4, 10),
-    txn2_date: date = date(2025, 4, 10),
-    txn1_desc: str = "ACME CORP PAYMENT",
-    txn2_desc: str = "ACME CORP PMT",
-    txn1_amount: float = -200.00,
-    txn2_amount: float = -200.00,
-    txn1_account: str = "MYBANK_CHQ",
-    txn2_account: str = "MYBANK_CHQ",
-    confidence: float = 0.88,
-) -> DuplicateMatch:
-    pair = TransactionPair(
-        txn1_id=txn1_id,
-        txn1_date=txn1_date,
-        txn1_description=txn1_desc,
-        txn1_amount=txn1_amount,
-        txn1_account=txn1_account,
-        txn2_id=txn2_id,
-        txn2_date=txn2_date,
-        txn2_description=txn2_desc,
-        txn2_amount=txn2_amount,
-        txn2_account=txn2_account,
-    )
-    assessment = DuplicateAssessment(
-        is_duplicate=True,
-        confidence=confidence,
-        reasoning="Same amount on same date with similar descriptions.",
-    )
-    return DuplicateMatch(pair=pair, assessment=assessment)
+from gilt.testing.fixtures import make_match
 
 
 class DescribeOnConfirmDuplicate:
     """Tests for _on_confirm_duplicate state recording logic."""
 
     def it_should_add_txn1_id_to_exclude_set_when_confirming_duplicate(self):
-        match = _make_match()
+        match = make_match()
         exclude_ids: set[str] = set()
 
         # txn1 is the new incoming transaction, txn2 is the existing ledger entry
@@ -57,7 +22,7 @@ class DescribeOnConfirmDuplicate:
         assert "aaaa111100000001" in exclude_ids
 
     def it_should_not_add_txn2_id_when_confirming_duplicate(self):
-        match = _make_match()
+        match = make_match()
         exclude_ids: set[str] = set()
         exclude_ids.add(match.pair.txn1_id)
         assert "bbbb222200000002" not in exclude_ids
@@ -94,13 +59,13 @@ class DescribeMarkResolved:
         assert 2 in resolved_indices
 
     def it_should_advance_selection_to_next_row_when_not_last(self):
-        matches = [_make_match(), _make_match(txn1_id="cccc333300000003")]
+        matches = [make_match(), make_match(txn1_id="cccc333300000003")]
         current_row = 0
         next_row = current_row + 1 if current_row + 1 < len(matches) else current_row
         assert next_row == 1
 
     def it_should_stay_on_current_row_when_already_at_last(self):
-        matches = [_make_match()]
+        matches = [make_match()]
         current_row = 0
         next_row = current_row + 1 if current_row + 1 < len(matches) else current_row
         assert next_row == 0
@@ -109,7 +74,7 @@ class DescribeMarkResolved:
         i = 0
         resolved_indices = {0}
         status = " [Resolved]" if i in resolved_indices else ""
-        match = _make_match(confidence=0.88)
+        match = make_match(confidence=0.88)
         label = f"Match {i + 1} ({match.confidence_pct:.0f}%){status}"
         assert "[Resolved]" in label
         assert "Match 1" in label
@@ -118,7 +83,7 @@ class DescribeMarkResolved:
         i = 1
         resolved_indices: set[int] = set()
         status = " [Resolved]" if i in resolved_indices else ""
-        match = _make_match(confidence=0.88)
+        match = make_match(confidence=0.88)
         label = f"Match {i + 1} ({match.confidence_pct:.0f}%){status}"
         assert "[Resolved]" not in label
 

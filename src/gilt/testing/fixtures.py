@@ -56,6 +56,27 @@ def make_group(**kwargs) -> TransactionGroup:
     )
 
 
+def make_pair(**kwargs) -> TransactionPair:
+    """Factory for TransactionPair with sensible synthetic defaults.
+
+    Accepts keyword arguments to override any TransactionPair field.
+    """
+    defaults = dict(
+        txn1_id="aaaa111100000001",
+        txn1_date=date(2025, 4, 10),
+        txn1_description="ACME CORP PAYMENT",
+        txn1_amount=-200.00,
+        txn1_account="MYBANK_CHQ",
+        txn2_id="bbbb222200000002",
+        txn2_date=date(2025, 4, 10),
+        txn2_description="ACME CORP PMT",
+        txn2_amount=-200.00,
+        txn2_account="MYBANK_CHQ",
+    )
+    defaults.update(kwargs)
+    return TransactionPair(**defaults)
+
+
 def make_match(**kwargs) -> DuplicateMatch:
     """Factory for DuplicateMatch with sensible synthetic defaults.
 
@@ -107,5 +128,6 @@ def make_match(**kwargs) -> DuplicateMatch:
 __all__ = [
     "make_transaction",
     "make_group",
+    "make_pair",
     "make_match",
 ]
