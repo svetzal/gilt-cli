@@ -7,7 +7,7 @@ from datetime import datetime
 from decimal import Decimal
 
 import pytest
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from gilt.model.events import (
     BudgetCreated,
@@ -16,12 +16,40 @@ from gilt.model.events import (
     DuplicateRejected,
     DuplicateSuggested,
     Event,
+    OptionalSerializedDecimal,
     PromptUpdated,
+    SerializedDecimal,
     TransactionCategorized,
     TransactionDescriptionObserved,
     TransactionEnriched,
     TransactionImported,
 )
+
+
+class DescribeDecimalSerialization:
+    def it_should_round_trip_required_decimal(self):
+        class M(BaseModel):
+            amount: SerializedDecimal
+
+        m = M(amount=Decimal("12.345"))
+        restored = M.model_validate_json(m.model_dump_json())
+        assert restored.amount == Decimal("12.345")
+
+    def it_should_round_trip_optional_decimal_with_value(self):
+        class M(BaseModel):
+            amount: OptionalSerializedDecimal = None
+
+        m = M(amount=Decimal("9.99"))
+        restored = M.model_validate_json(m.model_dump_json())
+        assert restored.amount == Decimal("9.99")
+
+    def it_should_round_trip_optional_decimal_as_none(self):
+        class M(BaseModel):
+            amount: OptionalSerializedDecimal = None
+
+        m = M(amount=None)
+        restored = M.model_validate_json(m.model_dump_json())
+        assert restored.amount is None
 
 
 class DescribeEvent:

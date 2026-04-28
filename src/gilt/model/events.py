@@ -18,10 +18,46 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from typing import Annotated, Any
 from uuid import uuid4
 
-from pydantic import BaseModel, Field, field_serializer, field_validator
+from pydantic import BaseModel, Field, PlainSerializer, field_serializer, field_validator
+from pydantic.functional_validators import BeforeValidator
+
+
+def _parse_decimal(value: Any) -> Decimal:
+    if isinstance(value, Decimal):
+        return value
+    return Decimal(str(value))
+
+
+def _serialize_decimal(value: Decimal) -> str:
+    return str(value)
+
+
+def _parse_optional_decimal(value: Any) -> Decimal | None:
+    if value is None:
+        return None
+    if isinstance(value, Decimal):
+        return value
+    return Decimal(str(value))
+
+
+def _serialize_optional_decimal(value: Decimal | None) -> str | None:
+    return str(value) if value is not None else None
+
+
+SerializedDecimal = Annotated[
+    Decimal,
+    BeforeValidator(_parse_decimal),
+    PlainSerializer(_serialize_decimal, return_type=str),
+]
+
+OptionalSerializedDecimal = Annotated[
+    Decimal | None,
+    BeforeValidator(_parse_optional_decimal),
+    PlainSerializer(_serialize_optional_decimal, return_type=str | None),
+]
 
 
 class Event(BaseModel):
@@ -68,7 +104,7 @@ class TransactionImported(Event):
     source_file: str
     source_account: str
     raw_description: str
-    amount: Decimal
+    amount: SerializedDecimal
     currency: str = "CAD"
     raw_data: dict[str, Any]  # Complete CSV row for reconstruction
     aggregate_id: str | None = None
@@ -78,19 +114,6 @@ class TransactionImported(Event):
         if "aggregate_id" not in data and "transaction_id" in data:
             data["aggregate_id"] = data["transaction_id"]
         super().__init__(**data)
-
-    @field_serializer("amount")
-    def serialize_amount(self, value: Decimal) -> str:
-        """Serialize Decimal to string to preserve precision."""
-        return str(value)
-
-    @field_validator("amount", mode="before")
-    @classmethod
-    def parse_amount(cls, value: Any) -> Decimal:
-        """Parse amount from string or number."""
-        if isinstance(value, str):
-            return Decimal(value)
-        return Decimal(str(value))
 
 
 class TransactionDescriptionObserved(Event):
@@ -111,7 +134,7 @@ class TransactionDescriptionObserved(Event):
     new_description: str
     source_file: str
     source_account: str
-    amount: Decimal
+    amount: SerializedDecimal
     aggregate_id: str | None = None
 
     def __init__(self, **data):
@@ -119,17 +142,6 @@ class TransactionDescriptionObserved(Event):
         if "aggregate_id" not in data and "original_transaction_id" in data:
             data["aggregate_id"] = data["original_transaction_id"]
         super().__init__(**data)
-
-    @field_serializer("amount")
-    def serialize_amount(self, value: Decimal) -> str:
-        return str(value)
-
-    @field_validator("amount", mode="before")
-    @classmethod
-    def parse_amount(cls, value: Any) -> Decimal:
-        if isinstance(value, str):
-            return Decimal(value)
-        return Decimal(str(value))
 
 
 class DuplicateSuggested(Event):
@@ -293,7 +305,7 @@ class BudgetCreated(Event):
     subcategory: str | None = None
     period_type: str  # e.g., "monthly", "quarterly", "annual"
     start_date: str  # ISO format
-    amount: Decimal
+    amount: SerializedDecimal
     currency: str = "CAD"
     aggregate_id: str | None = None
 
@@ -302,17 +314,6 @@ class BudgetCreated(Event):
         if "aggregate_id" not in data and "budget_id" in data:
             data["aggregate_id"] = data["budget_id"]
         super().__init__(**data)
-
-    @field_serializer("amount")
-    def serialize_amount(self, value: Decimal) -> str:
-        return str(value)
-
-    @field_validator("amount", mode="before")
-    @classmethod
-    def parse_amount(cls, value: Any) -> Decimal:
-        if isinstance(value, str):
-            return Decimal(value)
-        return Decimal(str(value))
 
 
 class BudgetUpdated(Event):
@@ -328,8 +329,8 @@ class BudgetUpdated(Event):
     budget_id: str
     category: str
     subcategory: str | None = None
-    new_amount: Decimal | None = None
-    previous_amount: Decimal | None = None
+    new_amount: OptionalSerializedDecimal = None
+    previous_amount: OptionalSerializedDecimal = None
     new_period_type: str | None = None
     previous_period_type: str | None = None
     new_start_date: str | None = None  # ISO format
@@ -343,19 +344,6 @@ class BudgetUpdated(Event):
         if "aggregate_id" not in data and "budget_id" in data:
             data["aggregate_id"] = data["budget_id"]
         super().__init__(**data)
-
-    @field_serializer("new_amount", "previous_amount")
-    def serialize_amount(self, value: Decimal | None) -> str | None:
-        return str(value) if value is not None else None
-
-    @field_validator("new_amount", "previous_amount", mode="before")
-    @classmethod
-    def parse_amount(cls, value: Any) -> Decimal | None:
-        if value is None:
-            return None
-        if isinstance(value, str):
-            return Decimal(value)
-        return Decimal(str(value))
 
 
 class BudgetDeleted(Event):
@@ -371,7 +359,7 @@ class BudgetDeleted(Event):
     budget_id: str
     category: str
     subcategory: str | None = None
-    final_amount: Decimal  # Last known amount before deletion
+    final_amount: SerializedDecimal  # Last known amount before deletion
     final_period_type: str
     final_start_date: str  # ISO format
     currency: str = "CAD"
@@ -383,17 +371,6 @@ class BudgetDeleted(Event):
         if "aggregate_id" not in data and "budget_id" in data:
             data["aggregate_id"] = data["budget_id"]
         super().__init__(**data)
-
-    @field_serializer("final_amount")
-    def serialize_amount(self, value: Decimal) -> str:
-        return str(value)
-
-    @field_validator("final_amount", mode="before")
-    @classmethod
-    def parse_amount(cls, value: Any) -> Decimal:
-        if isinstance(value, str):
-            return Decimal(value)
-        return Decimal(str(value))
 
 
 class TransactionEnriched(Event):
@@ -412,7 +389,7 @@ class TransactionEnriched(Event):
     vendor: str  # Proper company name, e.g. 'Zoom Communications, Inc.'
     service: str | None = None  # Specific product/plan
     invoice_number: str | None = None
-    tax_amount: Decimal | None = None
+    tax_amount: OptionalSerializedDecimal = None
     tax_type: str | None = None  # e.g. 'HST', 'GST', None
     currency: str = "CAD"
     receipt_file: str | None = None  # Relative path to PDF
@@ -426,19 +403,6 @@ class TransactionEnriched(Event):
         if "aggregate_id" not in data and "transaction_id" in data:
             data["aggregate_id"] = data["transaction_id"]
         super().__init__(**data)
-
-    @field_serializer("tax_amount")
-    def serialize_tax_amount(self, value: Decimal | None) -> str | None:
-        return str(value) if value is not None else None
-
-    @field_validator("tax_amount", mode="before")
-    @classmethod
-    def parse_tax_amount(cls, value: Any) -> Decimal | None:
-        if value is None:
-            return None
-        if isinstance(value, str):
-            return Decimal(value)
-        return Decimal(str(value))
 
 
 class PromptUpdated(Event):
@@ -465,6 +429,8 @@ class PromptUpdated(Event):
 
 
 __all__ = [
+    "SerializedDecimal",
+    "OptionalSerializedDecimal",
     "Event",
     "TransactionImported",
     "TransactionDescriptionObserved",
