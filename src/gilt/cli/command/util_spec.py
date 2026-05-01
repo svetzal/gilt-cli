@@ -345,10 +345,9 @@ class DescribeRequireEventSourcing:
 
 class DescribeRequirePersistenceService:
     def it_should_return_categorization_persistence_service(self, tmp_path):
-        event_store = Mock()
-        projection_builder = Mock()
+        ready = Mock(spec=EventSourcingReadyResult)
         workspace = Workspace(root=tmp_path)
 
-        result = require_persistence_service(event_store, projection_builder, workspace)
+        result = require_persistence_service(ready, workspace)
 
         assert isinstance(result, CategorizationPersistenceService)

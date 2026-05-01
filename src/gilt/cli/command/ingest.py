@@ -6,6 +6,7 @@ from pathlib import Path
 from gilt.ingest import load_accounts_config, normalize_file
 from gilt.model.ledger_repository import LEDGER_IO_ERRORS, LedgerRepository
 from gilt.services.categorization_persistence_service import (
+    CategorizationPersistenceService,
     categorization_updates_from_rule_matches,
 )
 from gilt.services.event_sourcing_service import EventSourcingService
@@ -15,7 +16,7 @@ from gilt.storage.event_store import EventStore
 from gilt.transfer.linker import link_transfers
 from gilt.workspace import Workspace
 
-from .util import console, print_error, require_persistence_service
+from .util import console, print_error
 
 
 def _print_plan(plan: Iterable[tuple[Path, str | None]], total_files: int) -> None:
@@ -101,7 +102,11 @@ def _apply_auto_categorizations(matches, workspace, event_store, projection_buil
 
     console.print("[bold]Auto-categorizing via inferred rules[/]")
 
-    persistence_svc = require_persistence_service(event_store, projection_builder, workspace)
+    persistence_svc = CategorizationPersistenceService(
+        event_store=event_store,
+        projection_builder=projection_builder,
+        ledger_repo=LedgerRepository(workspace.ledger_data_dir),
+    )
     updates = categorization_updates_from_rule_matches(matches)
     persistence_svc.persist_categorizations(updates)
     console.print(f"[green][ok][/green] Auto-categorized {len(matches)} transaction(s) via rules")

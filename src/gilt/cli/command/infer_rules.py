@@ -72,9 +72,9 @@ def _display_matches(matches):
     )
 
 
-def _write_matches(matches, workspace, event_store, projection_builder):
+def _write_matches(matches, ready, workspace):
     """Apply rule-based categorizations: emit events, update CSVs, rebuild projections."""
-    persistence_svc = require_persistence_service(event_store, projection_builder, workspace)
+    persistence_svc = require_persistence_service(ready, workspace)
     updates = categorization_updates_from_rule_matches(matches)
     console.print("[dim]Updating projections...[/dim]")
     persistence_svc.persist_categorizations(updates)
@@ -146,7 +146,7 @@ def run(
     if ready is None:
         return 1
 
-    _write_matches(matches, workspace, ready.event_store, ready.projection_builder)
+    _write_matches(matches, ready, workspace)
     return 0
 
 

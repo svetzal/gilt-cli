@@ -205,9 +205,8 @@ def _confirm_and_apply(
 
     _persist_categorizations(
         updated_pairs,
+        ready,
         workspace,
-        ready.event_store,
-        ready.projection_builder,
     )
 
     console.print(f"[green]✓[/] Categorized {total_matched} transaction(s)")
@@ -216,14 +215,13 @@ def _confirm_and_apply(
 
 def _persist_categorizations(
     updated_pairs: list[tuple[str, TransactionGroup]],
+    ready,
     workspace: Workspace,
-    event_store,
-    projection_builder,
 ) -> None:
     """Emit events, update CSVs, and rebuild projections for categorized transactions."""
     from gilt.services.categorization_persistence_service import CategorizationUpdate
 
-    persistence_svc = require_persistence_service(event_store, projection_builder, workspace)
+    persistence_svc = require_persistence_service(ready, workspace)
     updates = [
         CategorizationUpdate(
             transaction_id=group.primary.transaction_id,

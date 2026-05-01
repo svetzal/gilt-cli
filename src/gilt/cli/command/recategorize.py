@@ -114,7 +114,7 @@ def run(
 
     # Apply renaming by account
     _apply_renaming(
-        all_matches, to_cat, to_subcat, workspace, ready.event_store, ready.projection_builder
+        all_matches, to_cat, to_subcat, ready, workspace
     )
 
     console.print(f"[green]✓[/] Renamed category in {total_matched} transaction(s)")
@@ -155,12 +155,11 @@ def _apply_renaming(
     matches: list[tuple[str, TransactionGroup]],
     to_cat: str,
     to_subcat: str | None,
+    ready,
     workspace: Workspace,
-    event_store,
-    projection_builder,
 ) -> None:
     """Apply category renaming to matched transactions."""
-    persistence_svc = require_persistence_service(event_store, projection_builder, workspace)
+    persistence_svc = require_persistence_service(ready, workspace)
     persistence_svc.persist_category_rename(
         matches=matches,
         to_category=to_cat,

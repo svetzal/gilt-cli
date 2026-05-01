@@ -15,6 +15,7 @@ from gilt.ml.categorization_classifier import CategorizationClassifier
 from gilt.model.account import Transaction
 from gilt.model.category_io import format_category_path, load_categories_config, parse_category_path
 from gilt.services.categorization_persistence_service import CategorizationUpdate
+from gilt.services.event_sourcing_service import EventSourcingReadyResult
 from gilt.services.rule_inference_service import RuleInferenceService
 from gilt.workspace import Workspace
 
@@ -34,7 +35,7 @@ from .util import (
 @dataclass
 class _TrainResult:
     exit_code: int | None
-    event_store: object = None
+    ready: EventSourcingReadyResult | None = None
     classifier: object = None
 
 
@@ -52,10 +53,9 @@ def _train_classifier(workspace, min_samples) -> _TrainResult:
         return _TrainResult(exit_code=1)
 
     console.print("[dim]Loading categorization history...[/dim]")
-    event_store = ready.event_store
 
     try:
-        classifier = CategorizationClassifier(event_store, min_samples_per_category=min_samples)
+        classifier = CategorizationClassifier(ready.event_store, min_samples_per_category=min_samples)
         metrics = classifier.train()
     except ValueError as e:
         print_error(str(e))
@@ -69,7 +69,7 @@ def _train_classifier(workspace, min_samples) -> _TrainResult:
     console.print(f"  Training samples: {metrics['total_samples']}")
     console.print(f"  Test accuracy: {metrics['test_accuracy']:.1%}")
 
-    return _TrainResult(exit_code=None, event_store=event_store, classifier=classifier)
+    return _TrainResult(exit_code=None, ready=ready, classifier=classifier)
 
 
 def _load_uncategorized(workspace, account, limit) -> _LoadResult:
@@ -97,11 +97,11 @@ def _load_uncategorized(workspace, account, limit) -> _LoadResult:
     return _LoadResult(exit_code=None, projection_builder=projection_builder, uncategorized_txns=uncategorized_txns)
 
 
-def _write_categorizations(approved, workspace, event_store, projection_builder):
+def _write_categorizations(approved, ready, workspace):
     """Apply categorizations: emit events, update CSVs, rebuild projections."""
     console.print("\n[dim]Applying categorizations...[/dim]")
 
-    persistence_svc = require_persistence_service(event_store, projection_builder, workspace)
+    persistence_svc = require_persistence_service(ready, workspace)
     updates = []
     for account_id, txn_id, _, category_path, confidence in approved:
         cat_name, subcat_name = parse_category_path(category_path)
@@ -183,7 +183,7 @@ def run(
     train_result = _train_classifier(workspace, min_samples)
     if train_result.exit_code is not None:
         return train_result.exit_code
-    event_store = train_result.event_store
+    ready = train_result.ready
     classifier = train_result.classifier
 
     category_config = load_categories_config(workspace.categories_config)
@@ -191,7 +191,6 @@ def run(
     load_result = _load_uncategorized(workspace, account, limit)
     if load_result.exit_code is not None:
         return load_result.exit_code
-    projection_builder = load_result.projection_builder
     uncategorized_txns = load_result.uncategorized_txns
 
     # Phase 1: Apply inferred rules (deterministic, high confidence)
@@ -247,7 +246,7 @@ def run(
         print_dry_run_message(detail=f"{len(approved)} transaction(s)")
         return 0
 
-    _write_categorizations(approved, workspace, event_store, projection_builder)
+    _write_categorizations(approved, ready, workspace)
     return 0
 
 

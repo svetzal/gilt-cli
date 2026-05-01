@@ -11,7 +11,6 @@ from rich.text import Text
 from gilt.model.ledger_repository import LedgerRepository
 from gilt.services.categorization_persistence_service import CategorizationPersistenceService
 from gilt.services.event_sourcing_service import EventSourcingReadyResult, EventSourcingService
-from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
@@ -168,14 +167,13 @@ def require_event_sourcing(
 
 
 def require_persistence_service(
-    event_store: EventStore,
-    projection_builder: ProjectionBuilder,
+    ready: EventSourcingReadyResult,
     workspace: Workspace,
 ) -> CategorizationPersistenceService:
     """Construct a CategorizationPersistenceService from components."""
     return CategorizationPersistenceService(
-        event_store=event_store,
-        projection_builder=projection_builder,
+        event_store=ready.event_store,
+        projection_builder=ready.projection_builder,
         ledger_repo=LedgerRepository(workspace.ledger_data_dir),
     )
 
