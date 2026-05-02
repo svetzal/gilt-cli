@@ -55,7 +55,7 @@ class CategorizationPersistenceResult:
 def write_categorizations_to_csv(
     updates: list[CategorizationUpdate],
     ledger_repo: LedgerRepository,
-) -> None:
+) -> list[str]:
     """Write category updates directly to per-account CSV ledger files.
 
     Groups updates by account_id, loads each ledger, applies the updates in memory,
@@ -66,11 +66,15 @@ def write_categorizations_to_csv(
     Args:
         updates: Categorization changes to apply.
         ledger_repo: Repository providing ledger I/O for each account.
+
+    Returns:
+        List of account IDs whose ledger files were written.
     """
     by_account: dict[str, list[CategorizationUpdate]] = {}
     for update in updates:
         by_account.setdefault(update.account_id, []).append(update)
 
+    accounts_written: list[str] = []
     for account_id, acct_updates in by_account.items():
         if not ledger_repo.exists(account_id):
             continue
@@ -86,6 +90,9 @@ def write_categorizations_to_csv(
                 group.primary.subcategory = u.subcategory
 
         ledger_repo.save(account_id, groups)
+        accounts_written.append(account_id)
+
+    return accounts_written
 
 
 class CategorizationPersistenceService:
@@ -134,28 +141,8 @@ class CategorizationPersistenceService:
             )
             self._event_store.append_event(event)
 
-        # 2. Group updates by account and write CSVs
-        by_account: dict[str, list[CategorizationUpdate]] = {}
-        for update in updates:
-            by_account.setdefault(update.account_id, []).append(update)
-
-        accounts_written: list[str] = []
-        for account_id, acct_updates in by_account.items():
-            if not self._ledger_repo.exists(account_id):
-                continue
-
-            groups = self._ledger_repo.load(account_id)
-
-            update_map = {u.transaction_id: u for u in acct_updates}
-            for group in groups:
-                txn_id = group.primary.transaction_id
-                if txn_id in update_map:
-                    u = update_map[txn_id]
-                    group.primary.category = u.category
-                    group.primary.subcategory = u.subcategory
-
-            self._ledger_repo.save(account_id, groups)
-            accounts_written.append(account_id)
+        # 2. Write CSVs grouped by account
+        accounts_written = write_categorizations_to_csv(updates, self._ledger_repo)
 
         # 3. Rebuild projections
         self._projection_builder.rebuild_incremental(self._event_store)
@@ -185,28 +172,19 @@ class CategorizationPersistenceService:
         Returns:
             Result with counts of what was changed.
         """
-        # Group by account
-        by_account: dict[str, list[TransactionGroup]] = {}
-        for account_id, group in matches:
-            by_account.setdefault(account_id, []).append(group)
-
-        # 1. Update CSVs
-        accounts_written: list[str] = []
-        for account_id, matched_groups in by_account.items():
-            if not self._ledger_repo.exists(account_id):
-                continue
-
-            all_groups = self._ledger_repo.load(account_id)
-
-            matched_ids = {g.primary.transaction_id for g in matched_groups}
-            for group in all_groups:
-                if group.primary.transaction_id in matched_ids:
-                    group.primary.category = to_category
-                    if to_subcategory is not None:
-                        group.primary.subcategory = to_subcategory
-
-            self._ledger_repo.save(account_id, all_groups)
-            accounts_written.append(account_id)
+        # 1. Convert matches to CategorizationUpdate objects and write CSVs
+        updates = [
+            CategorizationUpdate(
+                transaction_id=group.primary.transaction_id,
+                account_id=account_id,
+                category=to_category,
+                subcategory=to_subcategory if to_subcategory is not None else group.primary.subcategory,
+                source="user",
+                confidence=1.0,
+            )
+            for account_id, group in matches
+        ]
+        accounts_written = write_categorizations_to_csv(updates, self._ledger_repo)
 
         # 2. Emit events for all matched groups
         for _account_id, group in matches:

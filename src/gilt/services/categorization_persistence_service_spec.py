@@ -222,6 +222,31 @@ class DescribePersistCategoryRename(DescribeCategorizationPersistenceService):
         assert result.events_emitted == 2
         assert set(result.accounts_written) == {"MYBANK_CHQ", "MYBANK_CC"}
 
+    def it_should_preserve_existing_subcategory_when_to_subcategory_is_none(
+        self, service, ledger_dir
+    ):
+        """Should keep the transaction's existing subcategory when to_subcategory is None."""
+        from gilt.model.ledger_io import load_ledger_csv
+
+        group = make_group(
+            transaction_id="txn001",
+            account_id="MYBANK_CHQ",
+            category="OldCategory",
+            subcategory="OriginalSub",
+        )
+        (ledger_dir / "MYBANK_CHQ.csv").write_text(dump_ledger_csv([group]), encoding="utf-8")
+
+        service.persist_category_rename(
+            matches=[("MYBANK_CHQ", group)],
+            to_category="NewCategory",
+            to_subcategory=None,
+        )
+
+        text = (ledger_dir / "MYBANK_CHQ.csv").read_text(encoding="utf-8")
+        result = load_ledger_csv(text)
+        assert result[0].primary.category == "NewCategory"
+        assert result[0].primary.subcategory == "OriginalSub"
+
 
 class DescribeWriteCategorizationsToCsv:
     """Tests for write_categorizations_to_csv standalone function."""
