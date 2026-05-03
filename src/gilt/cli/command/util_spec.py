@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from datetime import date
 from decimal import Decimal
 from unittest.mock import Mock
 
@@ -18,10 +19,20 @@ from gilt.cli.command.util import (
     require_event_sourcing,
     require_persistence_service,
     require_projections,
+    resolve_id_prefix,
+    search_by_criteria,
+    validate_single_vs_batch_mode,
 )
+from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.events import TransactionImported
 from gilt.services.categorization_persistence_service import CategorizationPersistenceService
 from gilt.services.event_sourcing_service import EventSourcingReadyResult
+from gilt.services.transaction_operations_service import (
+    BatchPreview,
+    MatchResult,
+    SearchCriteria,
+    TransactionOperationsService,
+)
 from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
@@ -351,3 +362,208 @@ class DescribeRequirePersistenceService:
         result = require_persistence_service(ready, workspace)
 
         assert isinstance(result, CategorizationPersistenceService)
+
+
+def _make_group(transaction_id: str, description: str = "Test", amount: float = -10.0) -> TransactionGroup:
+    return TransactionGroup(
+        group_id=transaction_id,
+        primary=Transaction(
+            transaction_id=transaction_id,
+            date=date(2025, 1, 1),
+            description=description,
+            amount=amount,
+            currency="CAD",
+            account_id="TEST_CHQ",
+        ),
+    )
+
+
+class DescribeValidateSingleVsBatchMode:
+    def it_should_return_true_for_single_mode(self, mocker):
+        mocker.patch("gilt.cli.command.util.console")
+
+        result = validate_single_vs_batch_mode("abcd1234", None, None, None)
+
+        assert result is True
+
+    def it_should_return_false_for_batch_mode_with_description(self, mocker):
+        mocker.patch("gilt.cli.command.util.console")
+
+        result = validate_single_vs_batch_mode(None, "SAMPLE STORE", None, None)
+
+        assert result is False
+
+    def it_should_return_false_for_batch_mode_with_desc_prefix(self, mocker):
+        mocker.patch("gilt.cli.command.util.console")
+
+        result = validate_single_vs_batch_mode(None, None, "SAMPLE", None)
+
+        assert result is False
+
+    def it_should_return_false_for_batch_mode_with_pattern(self, mocker):
+        mocker.patch("gilt.cli.command.util.console")
+
+        result = validate_single_vs_batch_mode(None, None, None, r"\d+")
+
+        assert result is False
+
+    def it_should_return_none_when_no_mode_specified(self, mocker):
+        mock_console = mocker.patch("gilt.cli.command.util.console")
+
+        result = validate_single_vs_batch_mode(None, None, None, None)
+
+        assert result is None
+        mock_console.print.assert_called_once()
+
+    def it_should_return_none_when_multiple_modes_specified(self, mocker):
+        mock_console = mocker.patch("gilt.cli.command.util.console")
+
+        result = validate_single_vs_batch_mode("abcd1234", "SAMPLE STORE", None, None)
+
+        assert result is None
+        mock_console.print.assert_called_once()
+
+    def it_should_print_error_message_on_failure(self, mocker):
+        mock_console = mocker.patch("gilt.cli.command.util.console")
+
+        validate_single_vs_batch_mode(None, None, None, None)
+
+        args = mock_console.print.call_args[0][0]
+        assert "--txid" in args
+        assert "--description" in args
+
+
+class DescribeResolveIdPrefix:
+    def it_should_return_error_string_when_prefix_too_short(self):
+        service = Mock(spec=TransactionOperationsService)
+        groups = [_make_group("abcd1234abcd1234")]
+
+        result = resolve_id_prefix(service, "abc", groups)
+
+        assert isinstance(result, str)
+        assert "8 characters" in result
+        service.find_by_id_prefix.assert_not_called()
+
+    def it_should_return_error_string_when_not_found(self):
+        service = Mock(spec=TransactionOperationsService)
+        service.find_by_id_prefix.return_value = MatchResult(type="not_found", matches=[])
+        groups = [_make_group("abcd1234abcd1234")]
+
+        result = resolve_id_prefix(service, "zzzzzzzz", groups)
+
+        assert isinstance(result, str)
+        assert "No transaction found" in result
+
+    def it_should_return_error_string_when_ambiguous(self):
+        g1 = _make_group("abcd1234abcd1234", description="First")
+        g2 = _make_group("abcd1234eeff5566", description="Second")
+        service = Mock(spec=TransactionOperationsService)
+        service.find_by_id_prefix.return_value = MatchResult(
+            type="ambiguous", matches=[g1, g2]
+        )
+
+        result = resolve_id_prefix(service, "abcd1234", [g1, g2])
+
+        assert isinstance(result, str)
+        assert "Ambiguous" in result
+        assert "2" in result
+
+    def it_should_return_matched_groups_on_exact_match(self):
+        group = _make_group("abcd1234abcd1234")
+        service = Mock(spec=TransactionOperationsService)
+        service.find_by_id_prefix.return_value = MatchResult(
+            type="match", transaction=group, matches=[]
+        )
+
+        result = resolve_id_prefix(service, "abcd1234", [group])
+
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0] is group
+
+    def it_should_normalize_prefix_to_lowercase(self):
+        group = _make_group("abcd1234abcd1234")
+        service = Mock(spec=TransactionOperationsService)
+        service.find_by_id_prefix.return_value = MatchResult(
+            type="match", transaction=group, matches=[]
+        )
+
+        resolve_id_prefix(service, "ABCD1234", [group])
+
+        call_prefix = service.find_by_id_prefix.call_args[0][0]
+        assert call_prefix == "abcd1234"
+
+
+class DescribeSearchByCriteria:
+    def it_should_return_preview_on_valid_search(self, mocker):
+        mocker.patch("gilt.cli.command.util.console")
+        group = _make_group("abcd1234abcd1234", description="SAMPLE STORE")
+        criteria = SearchCriteria(description="SAMPLE STORE")
+        preview = BatchPreview(
+            matched_groups=[group],
+            total_count=1,
+            criteria=criteria,
+        )
+        service = Mock(spec=TransactionOperationsService)
+        service.find_by_criteria.return_value = preview
+
+        result = search_by_criteria(service, criteria, [group], None)
+
+        assert result is preview
+
+    def it_should_return_none_on_invalid_pattern(self, mocker):
+        mock_console = mocker.patch("gilt.cli.command.util.console")
+        criteria = SearchCriteria(pattern=r"[invalid")
+        preview = BatchPreview(
+            matched_groups=[],
+            total_count=0,
+            criteria=criteria,
+            invalid_pattern=True,
+        )
+        service = Mock(spec=TransactionOperationsService)
+        service.find_by_criteria.return_value = preview
+
+        result = search_by_criteria(service, criteria, [], r"[invalid")
+
+        assert result is None
+        mock_console.print.assert_called_once()
+        args = mock_console.print.call_args[0][0]
+        assert "Invalid regex pattern" in args
+
+    def it_should_print_sign_insensitive_note_when_applicable(self, mocker):
+        mock_console = mocker.patch("gilt.cli.command.util.console")
+        group = _make_group("abcd1234abcd1234", description="SAMPLE STORE", amount=-10.0)
+        criteria = SearchCriteria(description="SAMPLE STORE", amount=10.0)
+        preview = BatchPreview(
+            matched_groups=[group],
+            total_count=1,
+            criteria=criteria,
+            used_sign_insensitive=True,
+        )
+        service = Mock(spec=TransactionOperationsService)
+        service.find_by_criteria.return_value = preview
+
+        result = search_by_criteria(service, criteria, [group], None)
+
+        assert result is preview
+        mock_console.print.assert_called_once()
+        args = mock_console.print.call_args[0][0]
+        assert "absolute amount" in args
+
+    def it_should_not_print_note_when_sign_sensitive_match(self, mocker):
+        mock_console = mocker.patch("gilt.cli.command.util.console")
+        group = _make_group("abcd1234abcd1234", description="SAMPLE STORE", amount=-10.0)
+        criteria = SearchCriteria(description="SAMPLE STORE", amount=-10.0)
+        preview = BatchPreview(
+            matched_groups=[group],
+            total_count=1,
+            criteria=criteria,
+            used_sign_insensitive=False,
+        )
+        service = Mock(spec=TransactionOperationsService)
+        service.find_by_criteria.return_value = preview
+
+        result = search_by_criteria(service, criteria, [group], None)
+
+        assert result is preview
+        mock_console.print.assert_not_called()

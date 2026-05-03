@@ -16,6 +16,9 @@ from .util import (
     fmt_amount_str,
     print_dry_run_message,
     print_error,
+    resolve_id_prefix,
+    search_by_criteria,
+    validate_single_vs_batch_mode,
 )
 
 
@@ -71,33 +74,16 @@ def _find_single_transaction(
     groups: list[TransactionGroup],
 ) -> list[TransactionGroup] | int:
     """Find a single transaction by ID prefix. Returns matches or exit code."""
-    prefix = txid.strip().lower()
-    if len(prefix) < 8:
-        print_error(f"Transaction ID prefix must be at least 8 characters. Got: {len(prefix)}")
-        return 2
+    resolved = resolve_id_prefix(service, txid, groups)
+    if isinstance(resolved, str):
+        print_error(resolved)
+        return 1 if resolved.startswith("No transaction found") else 2
 
-    result = service.find_by_id_prefix(prefix, groups)
-
-    if result.type == "not_found":
-        console.print(f"[yellow]No transaction found matching ID prefix[/] [bold]{prefix}[/]")
+    if not resolved:
         return 1
 
-    if result.type == "ambiguous":
-        sample = []
-        for g in result.matches[:5]:
-            t = g.primary
-            sample.append(
-                f"{t.date} id={t.transaction_id[:8]} amt={t.amount} desc='{(t.description or '').strip()}'"
-            )
-        console.print(
-            f"[yellow]Ambiguous prefix[/] [bold]{prefix}[/]: matches {len(result.matches)} transactions. "
-            + (" Examples: " + "; ".join(sample) if sample else "")
-        )
-        console.print("Refine --txid with more characters to disambiguate.")
-        return 2
-
-    console.print(f"Will set note for transaction {result.transaction.primary.transaction_id[:8]}")
-    return [result.transaction]
+    console.print(f"Will set note for transaction {resolved[0].primary.transaction_id[:8]}")
+    return resolved
 
 
 def _find_batch_transactions(
@@ -110,36 +96,20 @@ def _find_batch_transactions(
     amount: float | None,
 ) -> list[TransactionGroup] | int:
     """Find transactions by batch criteria. Returns matches or exit code."""
-    if not any([description, desc_prefix, pattern]):
-        print_error(
-            "Must specify either --txid/-t for single mode, "
-            "or one of --description/-d, --desc-prefix/-p, --pattern for batch mode."
-        )
+    mode_result = validate_single_vs_batch_mode(None, description, desc_prefix, pattern)
+    if mode_result is None:
         return 1
-
-    if pattern:
-        import re
-
-        try:
-            re.compile(pattern)
-        except re.error as e:
-            print_error(f"Invalid regex pattern: {e}")
-            return 2
 
     criteria = SearchCriteria(
         description=description, desc_prefix=desc_prefix, pattern=pattern, amount=amount
     )
-    preview = service.find_by_criteria(criteria, groups)
+    preview = search_by_criteria(service, criteria, groups, pattern)
+    if preview is None:
+        return 2
 
     if not preview.matched_groups:
         console.print("[yellow]No transactions matched the specified criteria.[/yellow]")
         return 1
-
-    if preview.used_sign_insensitive:
-        console.print(
-            "[dim]Note: matched by absolute amount since no signed matches were found. "
-            "Ledger stores debits as negative amounts.[/dim]"
-        )
 
     criteria_parts = []
     if description:

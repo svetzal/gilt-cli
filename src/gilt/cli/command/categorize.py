@@ -25,6 +25,9 @@ from .util import (
     require_event_sourcing,
     require_persistence_service,
     require_projections,
+    resolve_id_prefix,
+    search_by_criteria,
+    validate_single_vs_batch_mode,
 )
 
 """Categorize transactions (single or batch mode)."""
@@ -57,23 +60,6 @@ def _parse_and_validate_category(category: str, subcategory: str | None) -> tupl
     return category, subcategory
 
 
-def _validate_mode_selection(
-    txid: str | None,
-    description: str | None,
-    desc_prefix: str | None,
-    pattern: str | None,
-) -> tuple[bool, bool] | None:
-    """Validate exactly one mode is selected. Returns (single_mode, ok) or None on error."""
-    single_mode = bool((txid or "").strip())
-    modes_selected = sum(
-        [single_mode, description is not None, desc_prefix is not None, pattern is not None]
-    )
-    if modes_selected != 1:
-        print_error(
-            "Specify exactly one of --txid, --description, --desc-prefix, or --pattern"
-        )
-        return None
-    return single_mode
 
 
 def _load_and_filter_transactions(
@@ -107,31 +93,23 @@ def _find_matches(
     pattern: str | None,
     service: TransactionOperationsService,
 ) -> list[tuple[str, TransactionGroup]] | None:
-    """Find matching transactions. Returns None on error (invalid pattern)."""
+    """Find matching transactions. Returns None on error (invalid pattern or ambiguous)."""
     all_matches: list[tuple[str, TransactionGroup]] = []
 
     for account_id, groups in groups_by_account.items():
         if single_mode:
-            result = service.find_by_id_prefix(txid or "", groups)
-            if result.is_match and result.transaction:
-                all_matches.append((account_id, result.transaction))
-            elif result.is_ambiguous and result.matches:
-                for match in result.matches:
+            resolved = resolve_id_prefix(service, txid or "", groups)
+            if isinstance(resolved, str):
+                if resolved:
+                    print_error(resolved)
+                    return None
+            else:
+                for match in resolved:
                     all_matches.append((account_id, match))
         else:
-            preview = service.find_by_criteria(criteria, groups)
-
-            if preview.invalid_pattern:
-                print_error(f"Invalid regex pattern: {pattern}")
+            preview = search_by_criteria(service, criteria, groups, pattern)
+            if preview is None:
                 return None
-
-            if preview.used_sign_insensitive:
-                console.print(
-                    "[yellow]Note:[/] matched by absolute amount "
-                    "since no signed matches were found. "
-                    "Ledger stores debits as negative amounts."
-                )
-
             for match in preview.matched_groups:
                 all_matches.append((account_id, match))
 
@@ -306,7 +284,7 @@ def run(
 
     category, subcategory = _parse_and_validate_category(category, subcategory)
 
-    mode_result = _validate_mode_selection(txid, description, desc_prefix, pattern)
+    mode_result = validate_single_vs_batch_mode(txid, description, desc_prefix, pattern)
     if mode_result is None:
         return 1
     single_mode = mode_result
