@@ -49,6 +49,16 @@ class LedgerRepository:
         path = self.ledger_path(account_id)
         path.write_text(dump_ledger_csv(groups), encoding="utf-8")
 
+    def ledger_paths(self) -> list[Path]:
+        """Return sorted list of all CSV ledger paths in the data directory."""
+        if not self._data_dir.exists():
+            return []
+        return sorted(self._data_dir.glob("*.csv"))
+
+    def load_all_raw_texts(self) -> dict[str, str]:
+        """Return mapping of filename to raw UTF-8 text for all ledger CSVs."""
+        return {p.name: p.read_text(encoding="utf-8") for p in self.ledger_paths()}
+
     def load_all(self) -> list[TransactionGroup]:
         """Load and combine all CSV ledger files from the data directory.
 
@@ -56,9 +66,7 @@ class LedgerRepository:
         files that fail to parse.
         """
         all_groups: list[TransactionGroup] = []
-        if not self._data_dir.exists():
-            return all_groups
-        for ledger_path in sorted(self._data_dir.glob("*.csv")):
+        for ledger_path in self.ledger_paths():
             try:
                 text = ledger_path.read_text(encoding="utf-8")
                 all_groups.extend(load_ledger_csv(text, default_currency=self._default_currency))
@@ -69,9 +77,7 @@ class LedgerRepository:
 
     def available_account_ids(self) -> list[str]:
         """Return sorted list of account IDs that have ledger files."""
-        if not self._data_dir.exists():
-            return []
-        return sorted(p.stem for p in self._data_dir.glob("*.csv"))
+        return [p.stem for p in self.ledger_paths()]
 
 
 __all__ = ["LedgerRepository", "LEDGER_IO_ERRORS"]

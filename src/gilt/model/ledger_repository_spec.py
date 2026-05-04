@@ -121,3 +121,30 @@ class DescribeLedgerRepository:
         account_ids = repo.available_account_ids()
 
         assert account_ids == []
+
+    def it_should_return_sorted_ledger_paths(self, repo, data_dir):
+        group_a = make_group(transaction_id="txn010", account_id="MYBANK_CHQ")
+        group_b = make_group(transaction_id="txn011", account_id="BANK2_BIZ")
+        (data_dir / "MYBANK_CHQ.csv").write_text(dump_ledger_csv([group_a]), encoding="utf-8")
+        (data_dir / "BANK2_BIZ.csv").write_text(dump_ledger_csv([group_b]), encoding="utf-8")
+
+        paths = repo.ledger_paths()
+
+        assert paths == [data_dir / "BANK2_BIZ.csv", data_dir / "MYBANK_CHQ.csv"]
+
+    def it_should_return_empty_paths_when_dir_missing(self, tmp_path):
+        repo = LedgerRepository(tmp_path / "nonexistent")
+
+        assert repo.ledger_paths() == []
+
+    def it_should_load_raw_texts_keyed_by_filename(self, repo, data_dir):
+        group_a = make_group(transaction_id="txn012", account_id="MYBANK_CHQ")
+        group_b = make_group(transaction_id="txn013", account_id="BANK2_BIZ")
+        (data_dir / "MYBANK_CHQ.csv").write_text(dump_ledger_csv([group_a]), encoding="utf-8")
+        (data_dir / "BANK2_BIZ.csv").write_text(dump_ledger_csv([group_b]), encoding="utf-8")
+
+        texts = repo.load_all_raw_texts()
+
+        assert set(texts.keys()) == {"MYBANK_CHQ.csv", "BANK2_BIZ.csv"}
+        assert "txn012" in texts["MYBANK_CHQ.csv"]
+        assert "txn013" in texts["BANK2_BIZ.csv"]

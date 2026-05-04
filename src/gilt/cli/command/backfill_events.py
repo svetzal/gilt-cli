@@ -21,7 +21,7 @@ from pathlib import Path
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from gilt.model.category_io import load_categories_config
-from gilt.model.ledger_repository import LEDGER_IO_ERRORS
+from gilt.model.ledger_repository import LEDGER_IO_ERRORS, LedgerRepository
 from gilt.services.event_migration_service import EventMigrationService, MigrationStats
 from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.storage.budget_projection import BudgetProjectionBuilder
@@ -151,7 +151,7 @@ def _backfill_transactions(
         stats: Statistics object to update
         dry_run: If True, don't actually write events
     """
-    ledger_files = sorted(data_dir.glob("*.csv"))
+    ledger_files = LedgerRepository(data_dir).ledger_paths()
 
     if not ledger_files:
         console.print("[yellow]No ledger files found[/]")
@@ -283,7 +283,7 @@ def _validate_projections(
 
     # Use service to validate
     console.print("\n  Running validation checks...")
-    ledger_texts = {p.name: p.read_text(encoding="utf-8") for p in sorted(data_dir.glob("*.csv"))}
+    ledger_texts = LedgerRepository(data_dir).load_all_raw_texts()
     result = service.validate_migration(
         event_store, ledger_texts, config, tx_builder, budget_builder
     )

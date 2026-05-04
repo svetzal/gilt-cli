@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from gilt.model.ledger_repository import LEDGER_IO_ERRORS
+from gilt.model.ledger_repository import LEDGER_IO_ERRORS, LedgerRepository
 
 # Tokens and keywords used to assess transfer-like transactions
 DESCRIPTION_TOKENS = [
@@ -84,7 +84,7 @@ def load_normalized(processed_dir: Path) -> list[Txn]:
     This expects the standardized processed schema columns to be present.
     """
     txns: list[Txn] = []
-    files = sorted(processed_dir.glob("*.csv"))
+    files = LedgerRepository(processed_dir).ledger_paths()
     for f in files:
         try:
             df = pd.read_csv(f)

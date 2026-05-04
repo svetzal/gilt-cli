@@ -7,6 +7,7 @@ import typer
 
 from gilt.model.account import TransactionGroup
 from gilt.model.category_io import load_categories_config, parse_category_path
+from gilt.model.ledger_repository import LedgerRepository
 from gilt.services.categorization_service import CategorizationService
 from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.services.transaction_operations_service import (
@@ -37,14 +38,13 @@ logger = logging.getLogger(__name__)
 
 def _find_account_ledgers(data_dir: Path, account: str | None) -> list[Path]:
     """Find ledger files to process."""
+    repo = LedgerRepository(data_dir)
     if account:
-        ledger_path = data_dir / f"{account}.csv"
-        if not ledger_path.exists():
+        if not repo.exists(account):
             return []
-        return [ledger_path]
+        return [repo.ledger_path(account)]
     else:
-        # All accounts
-        return sorted(data_dir.glob("*.csv"))
+        return repo.ledger_paths()
 
 
 def _parse_and_validate_category(category: str, subcategory: str | None) -> tuple[str, str | None]:

@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from gilt.model.account import Account
+from gilt.model.ledger_repository import LedgerRepository
 
 
 @dataclass
@@ -149,7 +150,7 @@ class IngestionService:
                 seen.add(p)
 
         # Also include any other CSV files present (unmanaged accounts)
-        for p in sorted(output_dir.glob("*.csv")):
+        for p in LedgerRepository(output_dir).ledger_paths():
             if p not in seen:
                 paths.append(p)
                 seen.add(p)

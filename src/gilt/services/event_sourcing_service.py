@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from gilt.workspace import Workspace
 
+from gilt.model.ledger_repository import LedgerRepository
 from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
 
@@ -119,10 +120,9 @@ class EventSourcingService:
         exists = self.event_store_path.exists()
 
         csv_count = None
-        if not exists and data_dir and data_dir.exists():
-            # Check for CSV files to provide helpful migration message
-            csv_files = list(data_dir.glob("*.csv"))
-            csv_count = len(csv_files)
+        if not exists and data_dir:
+            csv_files = LedgerRepository(data_dir).ledger_paths()
+            csv_count = len(csv_files) if csv_files else None
 
         return EventStoreStatus(
             exists=exists, path=self.event_store_path, csv_files_count=csv_count

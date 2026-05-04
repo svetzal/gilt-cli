@@ -6,6 +6,7 @@ from pathlib import Path
 from rich.table import Table
 
 from gilt.ingest import load_accounts_config
+from gilt.model.ledger_repository import LedgerRepository
 from gilt.workspace import Workspace
 
 from .util import console
@@ -42,8 +43,7 @@ def _collect_accounts(config_path: Path, data_dir: Path) -> dict[str, str]:
 
     # 2) Unmanaged ledgers present on disk
     try:
-        for p in sorted(data_dir.glob("*.csv")):
-            aid = p.stem
+        for aid in LedgerRepository(data_dir).available_account_ids():
             if aid not in id_to_desc:
                 id_to_desc[aid] = aid
     except OSError:

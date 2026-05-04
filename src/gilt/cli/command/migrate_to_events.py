@@ -22,7 +22,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from gilt.model.category_io import load_categories_config
-from gilt.model.ledger_repository import LEDGER_IO_ERRORS
+from gilt.model.ledger_repository import LEDGER_IO_ERRORS, LedgerRepository
 from gilt.services.event_migration_service import EventMigrationService
 from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.storage.budget_projection import BudgetProjectionBuilder
@@ -43,7 +43,7 @@ def _check_preconditions(
     """Check migration preconditions. Returns (ledger_files, has_categories) or exit code on failure."""
     console.print("[bold]Step 1: Checking preconditions[/]")
 
-    ledger_files = list(data_dir.glob("*.csv"))
+    ledger_files = LedgerRepository(data_dir).ledger_paths()
     if not ledger_files:
         print_error(f"No CSV files found in {data_dir}")
         console.print("[dim]Nothing to migrate.[/dim]")
@@ -186,9 +186,7 @@ def _validate_migration(
 
         if has_categories:
             config = load_categories_config(categories_config)
-            ledger_texts = {
-                p.name: p.read_text(encoding="utf-8") for p in sorted(data_dir.glob("*.csv"))
-            }
+            ledger_texts = LedgerRepository(data_dir).load_all_raw_texts()
             result = service.validate_migration(
                 event_store, ledger_texts, config, tx_builder, budget_builder
             )
