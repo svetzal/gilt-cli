@@ -26,7 +26,7 @@ from gilt.ingest import (
 from gilt.model.account import Account, Transaction
 from gilt.model.duplicate import DuplicateMatch, TransactionPair
 from gilt.model.ledger_repository import LEDGER_IO_ERRORS, LedgerRepository
-from gilt.model.raw_csv import read_raw_csv
+from gilt.model.raw_csv import load_raw_csv
 from gilt.services.duplicate_service import DuplicateService
 from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.services.smart_category_service import SmartCategoryService
@@ -176,7 +176,7 @@ class ImportService:
         """
         try:
             # Read first few rows
-            df = read_raw_csv(file_path, nrows=max_rows)
+            df = load_raw_csv(file_path, nrows=max_rows)
 
             # Convert to list of dicts
             preview = df.to_dict("records")
@@ -241,7 +241,7 @@ class ImportService:
         try:
             # Read the file and normalize it in memory (dry-run style)
             # This is a simplified version - in reality, we'd need to parse like normalize_file does
-            df = read_raw_csv(file_path)
+            df = load_raw_csv(file_path)
             total_rows = len(df)
 
             # Get existing transaction IDs

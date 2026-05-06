@@ -103,7 +103,7 @@ class TransactionOperationsService:
     - Format output for display
     """
 
-    def find_by_prefix(
+    def find_projection_by_prefix(
         self,
         txid_prefix: str,
         transactions: list[dict],

@@ -257,6 +257,23 @@ The gilt skill for Claude Code is distributed alongside the CLI package.
 
 **Pre-release checklist addition**: After bumping version in `pyproject.toml`, verify `gilt skill-init` stamps the correct version.
 
+## Naming Conventions
+
+Function verb prefixes are standardised across the codebase. Follow these rules when naming new functions or renaming existing ones:
+
+| Operation | Standard verb | Rationale |
+|---|---|---|
+| Read from disk / DB | `load_` | All file/DB reads; `read_` is a violation |
+| Query in-memory state | `get_` | Accessors, computed properties, in-memory lookups |
+| Search / filter a collection | `find_` | Semantically distinct from `get_`; implies a search |
+| Serialize to string / format | `dump_` | Pure serialization, no I/O side-effect |
+| Write to disk (I/O-inclusive) | `save_` | When the call itself writes a file |
+| Write + emit event + rebuild | `persist_` | The three-step write-through mutation pattern |
+| Orchestrate a domain action | `run_` | Service-level orchestration; use instead of `execute_` or `process_` |
+| Construct objects from data | `build_` | Logic-bearing factory; `make_` for test helpers only |
+
+The `find_projection_by_prefix` / `find_by_id_prefix` split in `TransactionOperationsService` exemplifies the rule that two methods doing similar things on *different types* must have names that reveal the type they operate on.
+
 ## Anti-Patterns
 
 - **No real financial data in tracked files** — no real bank names, account IDs, merchant names, employer names, budget amounts, or locations in source, tests, or docs

@@ -66,7 +66,7 @@ def print_transaction_table(
         console.print(f"[dim]... and {total_count - display_limit} more[/]")
 
 
-def read_ledger_text(ledger_path: Path) -> str:
+def load_ledger_text(ledger_path: Path) -> str:
     if not ledger_path.exists():
         raise FileNotFoundError(f"Ledger file not found: {ledger_path}")
     return ledger_path.read_text(encoding="utf-8")

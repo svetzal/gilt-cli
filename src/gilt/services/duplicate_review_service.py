@@ -166,7 +166,7 @@ class DuplicateReviewService:
         Returns:
             MarkPreparation on success, or a non-empty error string on failure.
         """
-        primary_result = tx_service.find_by_prefix(primary_txid_prefix, all_txns)
+        primary_result = tx_service.find_projection_by_prefix(primary_txid_prefix, all_txns)
         if primary_result.transaction is None:
             if primary_result.error == "prefix_too_short":
                 return (
@@ -183,7 +183,7 @@ class DuplicateReviewService:
                 )
             return f"Unexpected error resolving prefix: {primary_txid_prefix}"
 
-        duplicate_result = tx_service.find_by_prefix(duplicate_txid_prefix, all_txns)
+        duplicate_result = tx_service.find_projection_by_prefix(duplicate_txid_prefix, all_txns)
         if duplicate_result.transaction is None:
             if duplicate_result.error == "prefix_too_short":
                 return (
@@ -261,7 +261,7 @@ class DuplicateReviewService:
         self.event_store.append_event(event)
         return event, event.event_id
 
-    def process_user_decision(
+    def apply_user_decision(
         self,
         decision: UserDecision,
         pair: TransactionPair,

@@ -169,7 +169,7 @@ class DescribeApplyCategorization:
         group = make_group(transaction_id="t1", date=date(2025, 1, 15), amount=-50.0, description="SAMPLE STORE")
 
         with patch("gilt.gui.views.transactions_view.LedgerRepository"), patch(
-            "gilt.services.categorization_persistence_service.write_categorizations_to_csv"
+            "gilt.services.categorization_persistence_service.persist_categorizations_to_csv"
         ) as mock_write:
             TransactionsView._apply_categorization(view, [group], "Food", None)
 

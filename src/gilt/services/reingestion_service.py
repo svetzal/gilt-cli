@@ -10,7 +10,7 @@ Pure functions (no I/O, testable with plain dicts):
   purge_cache_entries
 
 I/O boundary: cache file read/write is isolated in ReingestionService._purge_intelligence_cache;
-  plan_purge and execute_purge delegate to injected EventStore and ProjectionBuilder.
+  plan_purge and run_purge delegate to injected EventStore and ProjectionBuilder.
 
 NO IMPORTS FROM:
 - rich (console, table, prompt)
@@ -138,7 +138,7 @@ class ReingestionService:
 
         return plan
 
-    def execute_purge(self, plan: PurgePlan) -> PurgeResult:
+    def run_purge(self, plan: PurgePlan) -> PurgeResult:
         """Execute a purge plan, removing events, projections, and cache entries.
 
         Args:

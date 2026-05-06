@@ -115,15 +115,15 @@ class DescribePlanPurge(DescribeReingestionService):
         assert len(plan.event_ids) == 0
 
 
-class DescribeExecutePurge(DescribeReingestionService):
-    """Tests for execute_purge method."""
+class DescribeRunPurge(DescribeReingestionService):
+    """Tests for run_purge method."""
 
     def it_should_purge_events_via_event_store_api(self, service, event_store):
         """Should delete events using EventStore.delete_events."""
         event_store.append_event(_make_import_event("txn001", "MYBANK_CHQ"))
         plan = service.plan_purge("MYBANK_CHQ")
 
-        result = service.execute_purge(plan)
+        result = service.run_purge(plan)
 
         assert result.events_purged == len(plan.event_ids)
         assert event_store.get_events_by_type("TransactionImported") == []
@@ -137,7 +137,7 @@ class DescribeExecutePurge(DescribeReingestionService):
         assert len(projection_builder.get_all_transactions()) == 1
 
         plan = service.plan_purge("MYBANK_CHQ")
-        service.execute_purge(plan)
+        service.run_purge(plan)
 
         assert len(projection_builder.get_all_transactions()) == 0
 
@@ -149,7 +149,7 @@ class DescribeExecutePurge(DescribeReingestionService):
 
         event_store.append_event(_make_import_event("txn001", "MYBANK_CHQ"))
         plan = service.plan_purge("MYBANK_CHQ")
-        result = service.execute_purge(plan)
+        result = service.run_purge(plan)
 
         assert result.cache_entries_purged == 1
         remaining = json.loads(cache_path.read_text(encoding="utf-8"))
@@ -160,7 +160,7 @@ class DescribeExecutePurge(DescribeReingestionService):
         """Should return 0 cache entries purged when cache file does not exist."""
         event_store.append_event(_make_import_event("txn001", "MYBANK_CHQ"))
         plan = service.plan_purge("MYBANK_CHQ")
-        result = service.execute_purge(plan)
+        result = service.run_purge(plan)
 
         assert result.cache_entries_purged == 0
 

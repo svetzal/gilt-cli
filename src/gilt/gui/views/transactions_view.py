@@ -800,10 +800,10 @@ class TransactionsView(QWidget):
                 persistence_svc.persist_categorizations(updates)
             else:
                 from gilt.services.categorization_persistence_service import (
-                    write_categorizations_to_csv,
+                    persist_categorizations_to_csv,
                 )
 
-                write_categorizations_to_csv(updates, ledger_repo)
+                persist_categorizations_to_csv(updates, ledger_repo)
                 self._sync_projections()
 
             # Record categorization events for ML training

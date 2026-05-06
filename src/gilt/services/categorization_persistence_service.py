@@ -52,7 +52,7 @@ class CategorizationPersistenceResult:
     accounts_written: list[str] = field(default_factory=list)
 
 
-def write_categorizations_to_csv(
+def persist_categorizations_to_csv(
     updates: list[CategorizationUpdate],
     ledger_repo: LedgerRepository,
 ) -> list[str]:
@@ -142,7 +142,7 @@ class CategorizationPersistenceService:
             self._event_store.append_event(event)
 
         # 2. Write CSVs grouped by account
-        accounts_written = write_categorizations_to_csv(updates, self._ledger_repo)
+        accounts_written = persist_categorizations_to_csv(updates, self._ledger_repo)
 
         # 3. Rebuild projections
         self._projection_builder.rebuild_incremental(self._event_store)
@@ -184,7 +184,7 @@ class CategorizationPersistenceService:
             )
             for account_id, group in matches
         ]
-        accounts_written = write_categorizations_to_csv(updates, self._ledger_repo)
+        accounts_written = persist_categorizations_to_csv(updates, self._ledger_repo)
 
         # 2. Emit events for all matched groups
         for _account_id, group in matches:
@@ -285,5 +285,5 @@ __all__ = [
     "CategorizationPersistenceService",
     "categorization_updates_from_rule_matches",
     "persist_note_update",
-    "write_categorizations_to_csv",
+    "persist_categorizations_to_csv",
 ]

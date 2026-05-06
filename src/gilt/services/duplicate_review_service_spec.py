@@ -151,7 +151,7 @@ class DescribeSuggestionEventCreation(DescribeDuplicateReviewService):
 
 
 class DescribeUserDecisionProcessing(DescribeDuplicateReviewService):
-    """Tests for process_user_decision method."""
+    """Tests for apply_user_decision method."""
 
     def it_should_create_confirmed_event_for_use_latest_choice(
         self, service, mock_event_store, sample_pair, sample_assessment
@@ -160,7 +160,7 @@ class DescribeUserDecisionProcessing(DescribeDuplicateReviewService):
         decision = UserDecision(choice="1", rationale="Latest format is clearer")
         suggestion_id = "suggestion-event-123"
 
-        event, action = service.process_user_decision(
+        event, action = service.apply_user_decision(
             decision=decision,
             pair=sample_pair,
             assessment=sample_assessment,
@@ -200,7 +200,7 @@ class DescribeUserDecisionProcessing(DescribeDuplicateReviewService):
         decision = UserDecision(choice="2", rationale=None)
         suggestion_id = "suggestion-event-456"
 
-        event, action = service.process_user_decision(
+        event, action = service.apply_user_decision(
             decision=decision,
             pair=sample_pair,
             assessment=sample_assessment,
@@ -226,7 +226,7 @@ class DescribeUserDecisionProcessing(DescribeDuplicateReviewService):
         decision = UserDecision(choice="N", rationale="Different purchases")
         suggestion_id = "suggestion-event-789"
 
-        event, action = service.process_user_decision(
+        event, action = service.apply_user_decision(
             decision=decision,
             pair=sample_pair,
             assessment=sample_assessment,
@@ -263,7 +263,7 @@ class DescribeUserDecisionProcessing(DescribeDuplicateReviewService):
         decision = UserDecision(choice="n", rationale=None)
         suggestion_id = "suggestion-event-999"
 
-        event, action = service.process_user_decision(
+        event, action = service.apply_user_decision(
             decision=decision,
             pair=sample_pair,
             assessment=sample_assessment,
@@ -510,7 +510,7 @@ class DescribeEdgeCases(DescribeDuplicateReviewService):
         """Should handle empty/None rationale in user decision."""
         decision = UserDecision(choice="1", rationale=None)
 
-        event, _ = service.process_user_decision(
+        event, _ = service.apply_user_decision(
             decision=decision,
             pair=sample_pair,
             assessment=sample_assessment,
@@ -707,7 +707,7 @@ class DescribeValidateAndPrepareMark(DescribeDuplicateReviewService):
         self, service, mock_tx_service, primary_txn, duplicate_txn
     ):
         """Should return MarkPreparation when both transactions resolve and the pair is valid."""
-        mock_tx_service.find_by_prefix.side_effect = [
+        mock_tx_service.find_projection_by_prefix.side_effect = [
             TransactionLookupResult(transaction=primary_txn),
             TransactionLookupResult(transaction=duplicate_txn),
         ]
@@ -725,7 +725,7 @@ class DescribeValidateAndPrepareMark(DescribeDuplicateReviewService):
         self, service, mock_tx_service, primary_txn, duplicate_txn
     ):
         """Should return an error string when the primary prefix is too short."""
-        mock_tx_service.find_by_prefix.return_value = TransactionLookupResult(
+        mock_tx_service.find_projection_by_prefix.return_value = TransactionLookupResult(
             transaction=None, error="prefix_too_short"
         )
 
@@ -740,7 +740,7 @@ class DescribeValidateAndPrepareMark(DescribeDuplicateReviewService):
         self, service, mock_tx_service, primary_txn, duplicate_txn
     ):
         """Should return an error string when the primary transaction is not found."""
-        mock_tx_service.find_by_prefix.return_value = TransactionLookupResult(
+        mock_tx_service.find_projection_by_prefix.return_value = TransactionLookupResult(
             transaction=None, error="not_found"
         )
 
@@ -755,7 +755,7 @@ class DescribeValidateAndPrepareMark(DescribeDuplicateReviewService):
         self, service, mock_tx_service, primary_txn, duplicate_txn
     ):
         """Should return an error string when the primary prefix matches multiple transactions."""
-        mock_tx_service.find_by_prefix.return_value = TransactionLookupResult(
+        mock_tx_service.find_projection_by_prefix.return_value = TransactionLookupResult(
             transaction=None,
             error="ambiguous",
             ambiguous_matches=["abc12345678", "abc12345999"],
@@ -772,7 +772,7 @@ class DescribeValidateAndPrepareMark(DescribeDuplicateReviewService):
         self, service, mock_tx_service, primary_txn, duplicate_txn
     ):
         """Should return an error string when the duplicate transaction is not found."""
-        mock_tx_service.find_by_prefix.side_effect = [
+        mock_tx_service.find_projection_by_prefix.side_effect = [
             TransactionLookupResult(transaction=primary_txn),
             TransactionLookupResult(transaction=None, error="not_found"),
         ]
@@ -788,7 +788,7 @@ class DescribeValidateAndPrepareMark(DescribeDuplicateReviewService):
         self, service, mock_tx_service, primary_txn
     ):
         """Should return an error string when both prefixes resolve to the same transaction."""
-        mock_tx_service.find_by_prefix.side_effect = [
+        mock_tx_service.find_projection_by_prefix.side_effect = [
             TransactionLookupResult(transaction=primary_txn),
             TransactionLookupResult(transaction=primary_txn),
         ]
@@ -805,7 +805,7 @@ class DescribeValidateAndPrepareMark(DescribeDuplicateReviewService):
     ):
         """Should include the validation result so callers can inspect errors and warnings."""
         cross_account_dup = {**duplicate_txn, "account_id": "OTHER_ACCT"}
-        mock_tx_service.find_by_prefix.side_effect = [
+        mock_tx_service.find_projection_by_prefix.side_effect = [
             TransactionLookupResult(transaction=primary_txn),
             TransactionLookupResult(transaction=cross_account_dup),
         ]

@@ -86,7 +86,7 @@ def run(
         console.print(f"[green][ok][/] Removed ledger: {ledger_path.name}")
 
     # 2-4. Purge events, projections, and intelligence cache via service
-    purge_result = reingest_svc.execute_purge(purge_plan)
+    purge_result = reingest_svc.run_purge(purge_plan)
     console.print(f"[green][ok][/] Purged {purge_result.events_purged} events")
     console.print(f"[green][ok][/] Purged {purge_result.projections_purged} projections")
     console.print(

@@ -128,7 +128,7 @@ def _display_and_review_match(ctx: ReviewContext, i: int, total: int, match, sug
     rationale = Prompt.ask("Rationale (optional)", default="")
 
     decision = UserDecision(choice=choice, rationale=rationale if rationale else None)
-    event, action = ctx.review_service.process_user_decision(
+    event, action = ctx.review_service.apply_user_decision(
         decision=decision,
         pair=pair,
         assessment=assessment,

@@ -248,11 +248,11 @@ class DescribePersistCategoryRename(DescribeCategorizationPersistenceService):
         assert result[0].primary.subcategory == "OriginalSub"
 
 
-class DescribeWriteCategorizationsToCsv:
-    """Tests for write_categorizations_to_csv standalone function."""
+class DescribePersistCategorizationsToCsv:
+    """Tests for persist_categorizations_to_csv standalone function."""
 
     def it_should_update_category_in_csv_for_each_update(self, tmp_path):
-        from gilt.services.categorization_persistence_service import write_categorizations_to_csv
+        from gilt.services.categorization_persistence_service import persist_categorizations_to_csv
 
         ledger_dir = tmp_path / "accounts"
         ledger_dir.mkdir()
@@ -271,7 +271,7 @@ class DescribeWriteCategorizationsToCsv:
                 confidence=1.0,
             )
         ]
-        write_categorizations_to_csv(updates, LedgerRepository(ledger_dir))
+        persist_categorizations_to_csv(updates, LedgerRepository(ledger_dir))
 
         text = (ledger_dir / "MYBANK_CHQ.csv").read_text(encoding="utf-8")
         result = load_ledger_csv(text)
@@ -279,7 +279,7 @@ class DescribeWriteCategorizationsToCsv:
         assert result[0].primary.subcategory == "Fresh"
 
     def it_should_skip_missing_ledger_files(self, tmp_path):
-        from gilt.services.categorization_persistence_service import write_categorizations_to_csv
+        from gilt.services.categorization_persistence_service import persist_categorizations_to_csv
 
         ledger_dir = tmp_path / "accounts"
         ledger_dir.mkdir()
@@ -295,7 +295,7 @@ class DescribeWriteCategorizationsToCsv:
             )
         ]
         # Should not raise
-        write_categorizations_to_csv(updates, LedgerRepository(ledger_dir))
+        persist_categorizations_to_csv(updates, LedgerRepository(ledger_dir))
 
 
 class DescribeCategorizationUpdatesFromRuleMatches:
