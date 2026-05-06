@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 from gilt.model.duplicate import DuplicateAssessment, DuplicateMatch, TransactionPair
 from gilt.model.events import DuplicateConfirmed, DuplicateRejected, DuplicateSuggested, Event
 from gilt.model.validation import ValidationResult
+from gilt.services.transaction_operations_service import TransactionOperationsService
 from gilt.storage.event_store import EventStore
 
 
@@ -32,6 +33,15 @@ class DuplicateValidationResult(ValidationResult):
     """Result of validating a duplicate transaction pair."""
 
     warnings: list[str] = field(default_factory=list)
+
+
+@dataclass
+class MarkPreparation:
+    """The result of validating and preparing a manual duplicate mark operation."""
+
+    primary_txn: dict
+    duplicate_txn: dict
+    validation: DuplicateValidationResult
 
 
 @dataclass
@@ -136,6 +146,71 @@ class DuplicateReviewService:
             is_valid=len(errors) == 0,
             errors=errors,
             warnings=warnings,
+        )
+
+    def validate_and_prepare_mark(
+        self,
+        primary_txid_prefix: str,
+        duplicate_txid_prefix: str,
+        tx_service: TransactionOperationsService,
+        all_txns: list[dict],
+    ) -> MarkPreparation | str:
+        """Resolve both transactions by prefix and validate the pair.
+
+        Args:
+            primary_txid_prefix: ID prefix for the transaction to keep (8+ chars).
+            duplicate_txid_prefix: ID prefix for the transaction to mark duplicate (8+ chars).
+            tx_service: Service used to resolve transactions by prefix.
+            all_txns: Full list of projection transaction dicts to search within.
+
+        Returns:
+            MarkPreparation on success, or a non-empty error string on failure.
+        """
+        primary_result = tx_service.find_by_prefix(primary_txid_prefix, all_txns)
+        if primary_result.transaction is None:
+            if primary_result.error == "prefix_too_short":
+                return (
+                    f"Transaction ID prefix must be at least 8 characters "
+                    f"(got {len(primary_txid_prefix)})"
+                )
+            if primary_result.error == "not_found":
+                return f"No transaction found with ID prefix: {primary_txid_prefix}"
+            if primary_result.error == "ambiguous":
+                ids = ", ".join(primary_result.ambiguous_matches or [])
+                return (
+                    f"Ambiguous transaction ID prefix '{primary_txid_prefix}' "
+                    f"matches multiple transactions: {ids}"
+                )
+            return f"Unexpected error resolving prefix: {primary_txid_prefix}"
+
+        duplicate_result = tx_service.find_by_prefix(duplicate_txid_prefix, all_txns)
+        if duplicate_result.transaction is None:
+            if duplicate_result.error == "prefix_too_short":
+                return (
+                    f"Transaction ID prefix must be at least 8 characters "
+                    f"(got {len(duplicate_txid_prefix)})"
+                )
+            if duplicate_result.error == "not_found":
+                return f"No transaction found with ID prefix: {duplicate_txid_prefix}"
+            if duplicate_result.error == "ambiguous":
+                ids = ", ".join(duplicate_result.ambiguous_matches or [])
+                return (
+                    f"Ambiguous transaction ID prefix '{duplicate_txid_prefix}' "
+                    f"matches multiple transactions: {ids}"
+                )
+            return f"Unexpected error resolving prefix: {duplicate_txid_prefix}"
+
+        primary_txn = primary_result.transaction
+        duplicate_txn = duplicate_result.transaction
+
+        if primary_txn["transaction_id"] == duplicate_txn["transaction_id"]:
+            return "Primary and duplicate transaction IDs must be different"
+
+        validation = self.validate_duplicate_pair(primary_txn, duplicate_txn)
+        return MarkPreparation(
+            primary_txn=primary_txn,
+            duplicate_txn=duplicate_txn,
+            validation=validation,
         )
 
     def create_suggestion_event(
@@ -386,6 +461,7 @@ class DuplicateReviewService:
 __all__ = [
     "DuplicateReviewService",
     "DuplicateValidationResult",
+    "MarkPreparation",
     "ReviewSummary",
     "UserDecision",
     "SmartDefault",

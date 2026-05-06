@@ -26,8 +26,6 @@ from .util import (
     require_event_sourcing,
     require_persistence_service,
     require_projections,
-    resolve_id_prefix,
-    search_by_criteria,
     validate_single_vs_batch_mode,
 )
 
@@ -97,23 +95,57 @@ def _find_matches(
     all_matches: list[tuple[str, TransactionGroup]] = []
 
     for account_id, groups in groups_by_account.items():
-        if single_mode:
-            resolved = resolve_id_prefix(service, txid or "", groups)
-            if isinstance(resolved, str):
-                if resolved:
-                    print_error(resolved)
-                    return None
-            else:
-                for match in resolved:
-                    all_matches.append((account_id, match))
-        else:
-            preview = search_by_criteria(service, criteria, groups, pattern)
-            if preview is None:
-                return None
-            for match in preview.matched_groups:
-                all_matches.append((account_id, match))
+        result = service.resolve_transaction_targets(
+            groups,
+            txid=txid if single_mode else None,
+            description=criteria.description,
+            desc_prefix=criteria.desc_prefix,
+            pattern=criteria.pattern,
+            amount=criteria.amount,
+        )
+        if isinstance(result, str):
+            if result:
+                print_error(result)
+            return None
+        for match in result:
+            all_matches.append((account_id, match))
 
     return all_matches
+
+
+def _group_by_account(transactions: list[dict]) -> dict[str, list[TransactionGroup]]:
+    """Group projection rows into TransactionGroup lists keyed by account_id."""
+    groups_by_account: dict[str, list[TransactionGroup]] = {}
+    for row in transactions:
+        account_id = row["account_id"]
+        groups_by_account.setdefault(account_id, []).append(
+            TransactionGroup.from_projection_row(row)
+        )
+    return groups_by_account
+
+
+def _resolve_targets(
+    all_transactions: list[dict],
+    single_mode: bool,
+    txid: str | None,
+    description: str | None,
+    desc_prefix: str | None,
+    pattern: str | None,
+    amount: float | None,
+    service: TransactionOperationsService,
+) -> list[tuple[str, TransactionGroup]] | None:
+    """Build groups, apply search criteria, and return matched (account_id, group) pairs.
+
+    Returns None on error (invalid pattern, ambiguous ID, etc.).
+    """
+    criteria = SearchCriteria(
+        description=description,
+        desc_prefix=desc_prefix,
+        pattern=pattern,
+        amount=amount,
+    )
+    groups_by_account = _group_by_account(all_transactions)
+    return _find_matches(groups_by_account, single_mode, txid, criteria, pattern, service)
 
 
 def _confirm_batch(total_matched: int, single_mode: bool, assume_yes: bool, write: bool) -> bool:
@@ -276,25 +308,13 @@ def run(
     Returns:
         Exit code (0 success, 1 error)
     """
-    service, categorization_service = _init_services(
-        workspace,
-        service,
-        categorization_service,
-    )
-
+    service, categorization_service = _init_services(workspace, service, categorization_service)
     category, subcategory = _parse_and_validate_category(category, subcategory)
 
     mode_result = validate_single_vs_batch_mode(txid, description, desc_prefix, pattern)
     if mode_result is None:
         return 1
     single_mode = mode_result
-
-    criteria = SearchCriteria(
-        description=description,
-        desc_prefix=desc_prefix,
-        pattern=pattern,
-        amount=amount,
-    )
 
     validation = categorization_service.validate_category(category, subcategory)
     if not validation.is_valid:
@@ -307,14 +327,9 @@ def run(
     if all_transactions is None:
         return 1
 
-    groups_by_account: dict[str, list[TransactionGroup]] = {}
-    for row in all_transactions:
-        account_id = row["account_id"]
-        groups_by_account.setdefault(account_id, []).append(
-            TransactionGroup.from_projection_row(row)
-        )
-
-    all_matches = _find_matches(groups_by_account, single_mode, txid, criteria, pattern, service)
+    all_matches = _resolve_targets(
+        all_transactions, single_mode, txid, description, desc_prefix, pattern, amount, service
+    )
     if all_matches is None:
         return 1
 
@@ -330,14 +345,8 @@ def run(
         return 1
 
     return _confirm_and_apply(
-        all_matches,
-        category,
-        subcategory,
-        single_mode,
-        assume_yes,
-        write,
-        workspace,
-        categorization_service,
+        all_matches, category, subcategory, single_mode, assume_yes, write,
+        workspace, categorization_service,
     )
 
 

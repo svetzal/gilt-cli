@@ -20,7 +20,12 @@ from gilt.model.duplicate import DuplicateAssessment, DuplicateMatch, Transactio
 from gilt.model.events import DuplicateConfirmed, DuplicateRejected, DuplicateSuggested
 from gilt.services.duplicate_review_service import (
     DuplicateReviewService,
+    MarkPreparation,
     UserDecision,
+)
+from gilt.services.transaction_operations_service import (
+    TransactionLookupResult,
+    TransactionOperationsService,
 )
 from gilt.testing.fixtures import make_match
 
@@ -671,3 +676,144 @@ class DescribeMarkManualDuplicate(DescribeDuplicateReviewService):
         event = mock_event_store.append_event.call_args[0][0]
         assert isinstance(event, DuplicateConfirmed)
         assert event.primary_transaction_id == "abc123def456"
+
+
+class DescribeValidateAndPrepareMark(DescribeDuplicateReviewService):
+    """Tests for validate_and_prepare_mark method."""
+
+    @pytest.fixture
+    def mock_tx_service(self):
+        return Mock(spec=TransactionOperationsService)
+
+    @pytest.fixture
+    def primary_txn(self):
+        return {
+            "transaction_id": "abc12345678901234567890",
+            "account_id": "MYBANK_CHQ",
+            "amount": -50.0,
+            "is_duplicate": 0,
+        }
+
+    @pytest.fixture
+    def duplicate_txn(self):
+        return {
+            "transaction_id": "def98765432109876543210",
+            "account_id": "MYBANK_CHQ",
+            "amount": -50.0,
+            "is_duplicate": 0,
+        }
+
+    def it_should_return_mark_preparation_when_both_found_and_valid(
+        self, service, mock_tx_service, primary_txn, duplicate_txn
+    ):
+        """Should return MarkPreparation when both transactions resolve and the pair is valid."""
+        mock_tx_service.find_by_prefix.side_effect = [
+            TransactionLookupResult(transaction=primary_txn),
+            TransactionLookupResult(transaction=duplicate_txn),
+        ]
+
+        result = service.validate_and_prepare_mark(
+            "abc12345", "def98765", mock_tx_service, [primary_txn, duplicate_txn]
+        )
+
+        assert isinstance(result, MarkPreparation)
+        assert result.primary_txn is primary_txn
+        assert result.duplicate_txn is duplicate_txn
+        assert result.validation.is_valid
+
+    def it_should_return_error_string_when_primary_prefix_too_short(
+        self, service, mock_tx_service, primary_txn, duplicate_txn
+    ):
+        """Should return an error string when the primary prefix is too short."""
+        mock_tx_service.find_by_prefix.return_value = TransactionLookupResult(
+            transaction=None, error="prefix_too_short"
+        )
+
+        result = service.validate_and_prepare_mark(
+            "abc123", "def98765", mock_tx_service, [primary_txn, duplicate_txn]
+        )
+
+        assert isinstance(result, str)
+        assert "at least 8 characters" in result
+
+    def it_should_return_error_string_when_primary_not_found(
+        self, service, mock_tx_service, primary_txn, duplicate_txn
+    ):
+        """Should return an error string when the primary transaction is not found."""
+        mock_tx_service.find_by_prefix.return_value = TransactionLookupResult(
+            transaction=None, error="not_found"
+        )
+
+        result = service.validate_and_prepare_mark(
+            "abc12345", "def98765", mock_tx_service, [primary_txn, duplicate_txn]
+        )
+
+        assert isinstance(result, str)
+        assert "No transaction found" in result
+
+    def it_should_return_error_string_when_primary_ambiguous(
+        self, service, mock_tx_service, primary_txn, duplicate_txn
+    ):
+        """Should return an error string when the primary prefix matches multiple transactions."""
+        mock_tx_service.find_by_prefix.return_value = TransactionLookupResult(
+            transaction=None,
+            error="ambiguous",
+            ambiguous_matches=["abc12345678", "abc12345999"],
+        )
+
+        result = service.validate_and_prepare_mark(
+            "abc12345", "def98765", mock_tx_service, [primary_txn, duplicate_txn]
+        )
+
+        assert isinstance(result, str)
+        assert "Ambiguous" in result
+
+    def it_should_return_error_string_when_duplicate_not_found(
+        self, service, mock_tx_service, primary_txn, duplicate_txn
+    ):
+        """Should return an error string when the duplicate transaction is not found."""
+        mock_tx_service.find_by_prefix.side_effect = [
+            TransactionLookupResult(transaction=primary_txn),
+            TransactionLookupResult(transaction=None, error="not_found"),
+        ]
+
+        result = service.validate_and_prepare_mark(
+            "abc12345", "def98765", mock_tx_service, [primary_txn, duplicate_txn]
+        )
+
+        assert isinstance(result, str)
+        assert "No transaction found" in result
+
+    def it_should_return_error_string_when_both_ids_resolve_to_same_transaction(
+        self, service, mock_tx_service, primary_txn
+    ):
+        """Should return an error string when both prefixes resolve to the same transaction."""
+        mock_tx_service.find_by_prefix.side_effect = [
+            TransactionLookupResult(transaction=primary_txn),
+            TransactionLookupResult(transaction=primary_txn),
+        ]
+
+        result = service.validate_and_prepare_mark(
+            "abc12345", "abc12345", mock_tx_service, [primary_txn]
+        )
+
+        assert isinstance(result, str)
+        assert "must be different" in result
+
+    def it_should_include_validation_result_in_preparation(
+        self, service, mock_tx_service, primary_txn, duplicate_txn
+    ):
+        """Should include the validation result so callers can inspect errors and warnings."""
+        cross_account_dup = {**duplicate_txn, "account_id": "OTHER_ACCT"}
+        mock_tx_service.find_by_prefix.side_effect = [
+            TransactionLookupResult(transaction=primary_txn),
+            TransactionLookupResult(transaction=cross_account_dup),
+        ]
+
+        result = service.validate_and_prepare_mark(
+            "abc12345", "def98765", mock_tx_service, [primary_txn, cross_account_dup]
+        )
+
+        assert isinstance(result, MarkPreparation)
+        assert result.validation.is_valid
+        assert any("different account" in w for w in result.validation.warnings)

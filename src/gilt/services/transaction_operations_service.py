@@ -282,6 +282,74 @@ class TransactionOperationsService:
             splits=group.splits,
         )
 
+    def resolve_transaction_targets(
+        self,
+        groups: list[TransactionGroup],
+        *,
+        txid: str | None = None,
+        description: str | None = None,
+        desc_prefix: str | None = None,
+        pattern: str | None = None,
+        amount: float | None = None,
+    ) -> list[TransactionGroup] | str:
+        """Resolve target transactions from groups based on CLI criteria.
+
+        If ``txid`` is provided, searches by ID prefix and returns the single
+        matched group in a list.  For description / desc_prefix / pattern /
+        amount criteria, delegates to ``find_by_criteria`` and returns all
+        matched groups.
+
+        This function is pure — it never prints to the console.  All failure
+        conditions are communicated by returning a non-empty error string
+        instead of a list.
+
+        Args:
+            groups: Transaction groups to search within.
+            txid: Transaction ID prefix (single-target mode).
+            description: Exact description to match (batch mode).
+            desc_prefix: Description prefix to match (batch mode).
+            pattern: Regex pattern to match against descriptions (batch mode).
+            amount: Optional amount filter applied on top of description match.
+
+        Returns:
+            A list of matched ``TransactionGroup`` objects on success, or a
+            non-empty error string describing the problem.
+        """
+        if txid is not None:
+            normalized = txid.strip().lower()
+            if len(normalized) < 8:
+                return (
+                    f"Transaction ID prefix must be at least 8 characters. Got: {len(normalized)}"
+                )
+            result = self.find_by_id_prefix(normalized, groups)
+            if result.is_not_found:
+                return f"No transaction found matching ID prefix '{normalized}'"
+            if result.is_ambiguous:
+                sample = []
+                for g in (result.matches or [])[:5]:
+                    t = g.primary
+                    sample.append(
+                        f"{t.date} id={t.transaction_id[:8]} amt={t.amount}"
+                        f" desc='{(t.description or '').strip()}'"
+                    )
+                detail = (" Examples: " + "; ".join(sample)) if sample else ""
+                return (
+                    f"Ambiguous prefix '{normalized}': matches"
+                    f" {len(result.matches or [])} transactions." + detail
+                )
+            return [result.transaction] if result.transaction else []
+
+        criteria = SearchCriteria(
+            description=description,
+            desc_prefix=desc_prefix,
+            pattern=pattern,
+            amount=amount,
+        )
+        preview = self.find_by_criteria(criteria, groups)
+        if preview.invalid_pattern:
+            return f"Invalid regex pattern: {pattern}"
+        return preview.matched_groups
+
     def preview_batch_update(
         self,
         matches: list[TransactionGroup],

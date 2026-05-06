@@ -2,19 +2,17 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from gilt.ingest import load_accounts_config, normalize_file
 from gilt.model.ledger_repository import LEDGER_IO_ERRORS, LedgerRepository
-from gilt.services.categorization_persistence_service import (
-    CategorizationPersistenceService,
-    categorization_updates_from_rule_matches,
-)
 from gilt.services.event_sourcing_service import EventSourcingService
+from gilt.services.ingestion_orchestration_service import IngestionOrchestrationService
 from gilt.services.ingestion_service import IngestionService
-from gilt.services.rule_inference_service import RuleInferenceService
-from gilt.storage.event_store import EventStore
-from gilt.transfer.linker import link_transfers
 from gilt.workspace import Workspace
+
+if TYPE_CHECKING:
+    from gilt.storage.event_store import EventStore
 
 from .util import console, print_error
 
@@ -71,64 +69,45 @@ def _perform_normalization(
     return written, skipped
 
 
-def _link_transfers_and_report(output_dir: Path) -> int:
-    console.print("[bold]Linking transfers across ledgers[/]")
-    modified = link_transfers(processed_dir=output_dir, write=True)
-    if modified:
-        console.print(
-            f"[green][ok][/green] Updated {modified} ledger file(s) with transfer metadata"
-        )
-    else:
-        console.print("[dim]No transfer links identified or no updates needed[/]")
-    return modified
-
-
-def _plan_auto_categorizations(workspace, all_transactions):
-    """Find uncategorized transactions that match inferred rules. No I/O.
-
-    Returns a list of RuleMatch objects (empty list when nothing to do).
-    """
-    service = RuleInferenceService(workspace.projections_path)
-    rules = service.infer_rules(min_evidence=3, min_confidence=0.9)
-    if not rules:
-        return []
-    return service.apply_rules(all_transactions, rules)
-
-
-def _apply_auto_categorizations(matches, workspace, event_store, projection_builder):
-    """Emit categorization events, update CSVs, and rebuild projections."""
-    if not matches:
+def _print_pre_counts(counts: dict[str, int]) -> None:
+    if not counts:
         return
+    console.print("[bold]Loaded existing ledgers (pre-ingest)[/]")
+    for name, cnt in sorted(counts.items()):
+        console.print(f"  - {name}: {cnt} transactions (groups)")
 
-    console.print("[bold]Auto-categorizing via inferred rules[/]")
 
-    persistence_svc = CategorizationPersistenceService(
-        event_store=event_store,
-        projection_builder=projection_builder,
-        ledger_repo=LedgerRepository(workspace.ledger_data_dir),
-    )
-    updates = categorization_updates_from_rule_matches(matches)
-    persistence_svc.persist_categorizations(updates)
-    console.print(f"[green][ok][/green] Auto-categorized {len(matches)} transaction(s) via rules")
+def _print_post_counts(counts: dict[str, int], pre_counts: dict[str, int]) -> None:
+    if not counts:
+        return
+    console.print("[bold]Reloaded ledgers (post-ingest)[/]")
+    for name, cnt in sorted(counts.items()):
+        delta = cnt - pre_counts.get(name, 0)
+        sign = "+" if delta >= 0 else ""
+        console.print(f"  - {name}: {cnt} groups ({sign}{delta} change)")
 
 
 def _run_post_ingest(workspace, output_dir, event_store, es_service) -> None:
     """Link transfers, rebuild projections, auto-categorize, and report stats."""
-    _link_transfers_and_report(output_dir)
+    orch = IngestionOrchestrationService(workspace)
+    result = orch.run_post_ingest(output_dir, event_store, es_service)
 
-    console.print("[bold]Rebuilding projections from events[/]")
-    projection_builder = es_service.get_projection_builder()
-    events_processed = es_service.ensure_projections_up_to_date(event_store, projection_builder)
-    console.print(f"[green][ok][/green] Processed {events_processed} new event(s)")
+    if result.modified_transfer_count:
+        console.print(
+            f"[green][ok][/green] Updated {result.modified_transfer_count} ledger file(s) with transfer metadata"
+        )
+    else:
+        console.print("[dim]No transfer links identified or no updates needed[/]")
 
-    transactions = projection_builder.get_all_transactions(include_duplicates=False)
-    console.print(f"[dim]Projections: {len(transactions)} total transactions[/dim]")
+    console.print(f"[green][ok][/green] Processed {result.events_processed} new event(s)")
+    console.print(f"[dim]Projections: {result.total_transactions} total transactions[/dim]")
 
-    matches = _plan_auto_categorizations(workspace, transactions)
-    _apply_auto_categorizations(matches, workspace, event_store, projection_builder)
+    if result.auto_categorized_count:
+        console.print(
+            f"[green][ok][/green] Auto-categorized {result.auto_categorized_count} transaction(s) via rules"
+        )
 
-    latest_seq = event_store.get_latest_sequence_number()
-    console.print(f"[dim]Event store: {latest_seq} events total[/]")
+    console.print(f"[dim]Event store: {result.latest_event_sequence} events total[/]")
 
 
 def run(
@@ -140,50 +119,30 @@ def run(
 
     Dry-run by default (write=False). Returns an exit code.
     """
-    config = workspace.accounts_config
-    ingest_dir = workspace.ingest_dir
-    output_dir = workspace.ledger_data_dir
-
-    # Load account config (best-effort)
-    accounts = load_accounts_config(config)
-
-    # Use service to plan ingestion
-    ingestion_service = IngestionService(accounts=accounts)
-    ingestion_plan = ingestion_service.plan_ingestion(ingest_dir)
+    ingestion_service = IngestionService(accounts=load_accounts_config(workspace.accounts_config))
+    ingestion_plan = ingestion_service.plan_ingestion(workspace.ingest_dir)
 
     if not write:
         _print_plan(ingestion_plan.files, ingestion_plan.total_files)
         return 0
 
-    # Write mode
-    # Initialize event sourcing service for dual-write pattern
+    output_dir = workspace.ledger_data_dir
     es_service = EventSourcingService(workspace=workspace)
     event_store = es_service.get_event_store()
     console.print(f"[dim]Event store: {es_service.event_store_path}[/]")
 
-    # 1) Load existing ledgers from disk into models for all accounts (validation-only)
     output_dir.mkdir(parents=True, exist_ok=True)
     ledger_paths = ingestion_service.discover_ledger_paths(output_dir)
 
     pre_counts = _load_ledger_counts(ledger_paths)
-    if pre_counts:
-        console.print("[bold]Loaded existing ledgers (pre-ingest)[/]")
-        for name, cnt in sorted(pre_counts.items()):
-            console.print(f"  - {name}: {cnt} transactions (groups)")
+    _print_pre_counts(pre_counts)
 
-    # 2) Perform normalization/writes with event store
     written, skipped = _perform_normalization(
         ingestion_plan.files, output_dir, ingestion_service, event_store=event_store
     )
 
-    # 3) Reload ledgers after ingest to ensure serialization back to disk
     post_counts = _load_ledger_counts(ledger_paths)
-    if post_counts:
-        console.print("[bold]Reloaded ledgers (post-ingest)[/]")
-        for name, cnt in sorted(post_counts.items()):
-            delta = cnt - pre_counts.get(name, 0)
-            sign = "+" if delta >= 0 else ""
-            console.print(f"  - {name}: {cnt} groups ({sign}{delta} change)")
+    _print_post_counts(post_counts, pre_counts)
 
     _run_post_ingest(workspace, output_dir, event_store, es_service)
 

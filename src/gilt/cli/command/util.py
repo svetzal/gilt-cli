@@ -8,6 +8,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
+from gilt.cli.presentation import create_transaction_table
 from gilt.model.account import TransactionGroup
 from gilt.model.ledger_repository import LedgerRepository
 from gilt.services.categorization_persistence_service import CategorizationPersistenceService
@@ -45,28 +46,6 @@ def filter_by_account(rows: list[dict], account: str | None) -> list[dict]:
     if account is None:
         return rows
     return [row for row in rows if row.get("account_id") == account]
-
-
-def create_transaction_table(title: str, extra_columns: list[tuple[str, dict]]) -> Table:
-    """Create a Rich Table with 5 standard transaction columns plus any extra columns.
-
-    The standard columns are: Account (cyan/no_wrap), TxnID (blue/no_wrap),
-    Date (white), Description (white), Amount (yellow/right).
-
-    Args:
-        title: The table title.
-        extra_columns: List of (header, kwargs) pairs appended after the base columns.
-            kwargs are keyword arguments for ``Table.add_column`` (e.g. ``{"style": "green"}``).
-    """
-    table = Table(title=title, show_lines=False)
-    table.add_column("Account", style="cyan", no_wrap=True)
-    table.add_column("TxnID", style="blue", no_wrap=True)
-    table.add_column("Date", style="white")
-    table.add_column("Description", style="white")
-    table.add_column("Amount", style="yellow", justify="right")
-    for header, kwargs in extra_columns:
-        table.add_column(header, **kwargs)
-    return table
 
 
 def print_transaction_table(

@@ -47,8 +47,8 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 from rich.prompt import Prompt
-from rich.table import Table
 
+from gilt.cli.presentation import create_duplicate_pair_table
 from gilt.config import DEFAULT_OLLAMA_MODEL
 from gilt.services.duplicate_review_service import (
     DuplicateReviewService,
@@ -103,26 +103,9 @@ def _display_and_review_match(ctx: ReviewContext, i: int, total: int, match, sug
     pair = match.pair
     assessment = match.assessment
 
-    table = Table(
-        title=f"Match {i}/{total} - Confidence: {match.confidence_pct:.1f}%",
-        show_header=True,
-        show_lines=True,
+    table = create_duplicate_pair_table(
+        f"Match {i}/{total} - Confidence: {match.confidence_pct:.1f}%", pair
     )
-    table.add_column("Field", style="cyan")
-    table.add_column("Latest (1)", style="magenta")
-    table.add_column("Original (2)", style="yellow")
-
-    table.add_row("ID", pair.txn2_id[:8], pair.txn1_id[:8])
-    table.add_row("Date", str(pair.txn2_date), str(pair.txn1_date))
-    table.add_row("Account", pair.txn2_account, pair.txn1_account)
-    table.add_row("Amount", f"{pair.txn2_amount:.2f}", f"{pair.txn1_amount:.2f}")
-    table.add_row("Description", pair.txn2_description, pair.txn1_description)
-
-    if hasattr(pair, "txn1_source_file") and hasattr(pair, "txn2_source_file"):
-        src1 = pair.txn1_source_file or "[dim]unknown[/dim]"
-        src2 = pair.txn2_source_file or "[dim]unknown[/dim]"
-        table.add_row("Source File", src2, src1)
-
     ctx.console.print(table)
     ctx.console.print(f"[dim]LLM Reasoning:[/dim] {assessment.reasoning}")
     ctx.console.print()
@@ -248,6 +231,67 @@ def _print_detection_info(
     console.print()
 
 
+def _scan_for_candidates(detector, data_dir, max_days_apart, amount_tolerance):
+    """Load transactions and find candidate duplicate pairs. Returns (transactions, candidates)."""
+    console.print("[yellow]Loading transactions from projections...[/yellow]")
+    transactions = detector.load_all_transactions(data_dir)
+    console.print(f"[green]Loaded {len(transactions)} transactions[/green]")
+
+    console.print("[yellow]Finding candidate pairs...[/yellow]")
+    candidates = detector.find_potential_duplicates(
+        transactions,
+        max_days_apart=max_days_apart,
+        amount_tolerance=amount_tolerance,
+    )
+    console.print(f"[green]Found {len(candidates)} candidate pairs[/green]")
+    return transactions, candidates
+
+
+def _filter_matches(detector, review_service, candidates, detection_method, min_confidence, projection_builder):
+    """Analyze, confidence-filter, and exclude already-processed matches.
+
+    Returns (filtered_matches, skipped_count).
+    """
+    matches = _analyze_candidates(console, detector, candidates, detection_method)
+    console.print()
+
+    filtered_matches = review_service.filter_by_confidence(matches, min_confidence)
+    if not filtered_matches:
+        return [], 0
+
+    filtered_matches, skipped_count = review_service.exclude_already_processed(
+        filtered_matches, projection_builder
+    )
+    return filtered_matches, skipped_count
+
+
+def _run_review_loop(review_ctx: ReviewContext, filtered_matches, review_service, detector, model, interactive):
+    """Iterate over matches, emit suggestion events, and run interactive review if enabled."""
+    for i, match in enumerate(filtered_matches, 1):
+        pair = match.pair
+
+        _, event_id = review_service.create_suggestion_event(
+            pair=pair,
+            assessment=match.assessment,
+            model=model,
+            prompt_version=detector.prompt_version,
+        )
+
+        if not interactive:
+            console.print(
+                f"[bold]Match {i}/{len(filtered_matches)}[/] - Confidence: {match.confidence_pct:.1f}%"
+            )
+            console.print(f"  {pair.txn2_id[:8]} vs {pair.txn1_id[:8]}: {pair.txn2_description}")
+            console.print(f"  [dim]{match.assessment.reasoning}[/dim]")
+            console.print()
+        else:
+            try:
+                _display_and_review_match(review_ctx, i, len(filtered_matches), match, event_id)
+            except KeyboardInterrupt:
+                console.print("\n[yellow]Interrupted by user[/yellow]")
+                break
+
+
 def run(
     workspace: Workspace,
     model: str = DEFAULT_OLLAMA_MODEL,
@@ -290,34 +334,19 @@ def run(
         interactive,
     )
 
-    console.print("[yellow]Loading transactions from projections...[/yellow]")
-    transactions = detector.load_all_transactions(data_dir)
-    console.print(f"[green]Loaded {len(transactions)} transactions[/green]")
-
-    console.print("[yellow]Finding candidate pairs...[/yellow]")
-    candidates = detector.find_potential_duplicates(
-        transactions,
-        max_days_apart=max_days_apart,
-        amount_tolerance=amount_tolerance,
-    )
-    console.print(f"[green]Found {len(candidates)} candidate pairs[/green]")
+    _, candidates = _scan_for_candidates(detector, data_dir, max_days_apart, amount_tolerance)
 
     if not candidates:
         console.print("[green]No potential duplicates found![/green]")
         return 0
 
-    matches = _analyze_candidates(console, detector, candidates, detection_method)
-    console.print()
+    filtered_matches, skipped_count = _filter_matches(
+        detector, review_service, candidates, detection_method, min_confidence, projection_builder
+    )
 
-    filtered_matches = review_service.filter_by_confidence(matches, min_confidence)
     if not filtered_matches:
         console.print(f"[green]No duplicates found with confidence >= {min_confidence:.0%}[/green]")
         return 0
-
-    # Remove pairs already processed (either side already marked as duplicate)
-    filtered_matches, skipped_count = review_service.exclude_already_processed(
-        filtered_matches, projection_builder
-    )
 
     console.print(
         f"[cyan]Found {len(filtered_matches)} potential duplicate(s) "
@@ -333,30 +362,7 @@ def run(
         event_store=event_store,
     )
 
-    for i, match in enumerate(filtered_matches, 1):
-        pair = match.pair
-
-        _, event_id = review_service.create_suggestion_event(
-            pair=pair,
-            assessment=match.assessment,
-            model=model,
-            prompt_version=detector.prompt_version,
-        )
-
-        if not interactive:
-            # Display non-interactive match info
-            console.print(
-                f"[bold]Match {i}/{len(filtered_matches)}[/] - Confidence: {match.confidence_pct:.1f}%"
-            )
-            console.print(f"  {pair.txn2_id[:8]} vs {pair.txn1_id[:8]}: {pair.txn2_description}")
-            console.print(f"  [dim]{match.assessment.reasoning}[/dim]")
-            console.print()
-        else:
-            try:
-                _display_and_review_match(review_ctx, i, len(filtered_matches), match, event_id)
-            except KeyboardInterrupt:
-                console.print("\n[yellow]Interrupted by user[/yellow]")
-                break
+    _run_review_loop(review_ctx, filtered_matches, review_service, detector, model, interactive)
 
     if detector.prompt_manager:
         detector.prompt_manager._save_prompt()

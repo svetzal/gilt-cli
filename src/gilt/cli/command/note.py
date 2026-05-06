@@ -4,10 +4,7 @@ from __future__ import annotations
 
 from gilt.model.account import TransactionGroup
 from gilt.model.ledger_repository import LedgerRepository
-from gilt.services.transaction_operations_service import (
-    SearchCriteria,
-    TransactionOperationsService,
-)
+from gilt.services.transaction_operations_service import TransactionOperationsService
 from gilt.workspace import Workspace
 
 from .util import (
@@ -16,8 +13,6 @@ from .util import (
     fmt_amount_str,
     print_dry_run_message,
     print_error,
-    resolve_id_prefix,
-    search_by_criteria,
     validate_single_vs_batch_mode,
 )
 
@@ -68,64 +63,62 @@ def _display_matches(
     )
 
 
-def _find_single_transaction(
-    service: TransactionOperationsService,
-    txid: str,
-    groups: list[TransactionGroup],
-) -> list[TransactionGroup] | int:
-    """Find a single transaction by ID prefix. Returns matches or exit code."""
-    resolved = resolve_id_prefix(service, txid, groups)
-    if isinstance(resolved, str):
-        print_error(resolved)
-        return 1 if resolved.startswith("No transaction found") else 2
-
-    if not resolved:
-        return 1
-
-    console.print(f"Will set note for transaction {resolved[0].primary.transaction_id[:8]}")
-    return resolved
-
-
-def _find_batch_transactions(
+def _resolve_note_targets(
     service: TransactionOperationsService,
     groups: list[TransactionGroup],
     account: str,
+    txid: str | None,
     description: str | None,
     desc_prefix: str | None,
     pattern: str | None,
     amount: float | None,
 ) -> list[TransactionGroup] | int:
-    """Find transactions by batch criteria. Returns matches or exit code."""
-    mode_result = validate_single_vs_batch_mode(None, description, desc_prefix, pattern)
-    if mode_result is None:
+    """Resolve which transactions to annotate, printing appropriate messages.
+
+    Delegates pure matching to the service and handles console output for
+    success/failure feedback.  Returns the matched groups or an exit code.
+    """
+    if validate_single_vs_batch_mode(txid, description, desc_prefix, pattern) is None:
         return 1
 
-    criteria = SearchCriteria(
-        description=description, desc_prefix=desc_prefix, pattern=pattern, amount=amount
+    result = service.resolve_transaction_targets(
+        groups,
+        txid=txid,
+        description=description,
+        desc_prefix=desc_prefix,
+        pattern=pattern,
+        amount=amount,
     )
-    preview = search_by_criteria(service, criteria, groups, pattern)
-    if preview is None:
-        return 2
 
-    if not preview.matched_groups:
+    if isinstance(result, str):
+        print_error(result)
+        # Exit 2 for bad-input errors (too short, ambiguous, invalid pattern);
+        # exit 1 for "not found" (valid query, no matches).
+        not_found = result.startswith("No transaction found")
+        return 1 if not_found else 2
+
+    if not result:
         console.print("[yellow]No transactions matched the specified criteria.[/yellow]")
         return 1
 
-    criteria_parts = []
-    if description:
-        criteria_parts.append(f"description='{description}'")
-    if desc_prefix:
-        criteria_parts.append(f"description_prefix='{desc_prefix}'")
-    if pattern:
-        criteria_parts.append(f"pattern='{pattern}'")
-    if amount is not None:
-        criteria_parts.append(f"amount={amount}")
+    if txid:
+        console.print(f"Will set note for transaction {result[0].primary.transaction_id[:8]}")
+    else:
+        criteria_parts = []
+        if description:
+            criteria_parts.append(f"description='{description}'")
+        if desc_prefix:
+            criteria_parts.append(f"description_prefix='{desc_prefix}'")
+        if pattern:
+            criteria_parts.append(f"pattern='{pattern}'")
+        if amount is not None:
+            criteria_parts.append(f"amount={amount}")
+        console.print(
+            f"Will set note for {len(result)} transactions in {account} "
+            f"matching {' and '.join(criteria_parts)}."
+        )
 
-    console.print(
-        f"Will set note for {len(preview.matched_groups)} transactions in {account} "
-        f"matching {' and '.join(criteria_parts)}."
-    )
-    return preview.matched_groups
+    return result
 
 
 def _apply_and_write_notes(
@@ -186,13 +179,9 @@ def run(
 
     service = TransactionOperationsService()
 
-    if txid:
-        result = _find_single_transaction(service, txid, groups)
-    else:
-        result = _find_batch_transactions(
-            service, groups, account, description, desc_prefix, pattern, amount
-        )
-
+    result = _resolve_note_targets(
+        service, groups, account, txid, description, desc_prefix, pattern, amount
+    )
     if isinstance(result, int):
         return result
     groups_to_update = result
