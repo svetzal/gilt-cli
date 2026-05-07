@@ -135,6 +135,18 @@ def run(
     return 0
 
 
+def _display_validation_results(result) -> None:
+    """Display the successful validation check lines."""
+    if result.transaction_count_match:
+        console.print("  ✓ Transaction count matches")
+
+    if result.budget_count_match:
+        console.print("  ✓ Budget count matches")
+
+    if result.sample_transactions_match:
+        console.print("  ✓ Sample transaction validation passed")
+
+
 def _backfill_transactions(
     data_dir: Path,
     event_store,
@@ -289,14 +301,7 @@ def _validate_projections(
     )
 
     # Display results
-    if result.transaction_count_match:
-        console.print("  ✓ Transaction count matches")
-
-    if result.budget_count_match:
-        console.print("  ✓ Budget count matches")
-
-    if result.sample_transactions_match:
-        console.print("  ✓ Sample transaction validation passed")
+    _display_validation_results(result)
 
     # Display errors if any
     if result.errors:

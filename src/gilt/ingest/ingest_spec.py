@@ -6,6 +6,8 @@ import textwrap
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+import pandas as pd
+
 from gilt.ingest import (
     compute_transaction_id_fields,
     infer_account_for_file,
@@ -14,6 +16,7 @@ from gilt.ingest import (
     parse_file,
     plan_normalization,
 )
+from gilt.ingest import _detect_columns, _detect_rbc_overrides
 from gilt.model.account import Account
 
 
@@ -327,3 +330,120 @@ class DescribeNormalizeFileEventSourcing:
 
         assert "Skipped TransactionImported" in caplog.text
         assert (output_dir / "MYBANK_CHQ.csv").exists()
+
+
+class DescribeDetectColumns:
+    """Behaviour of _detect_columns() column-role mapping."""
+
+    def it_should_map_standard_columns_to_their_logical_roles(self):
+        cols = ["Date", "Description", "Amount", "Currency"]
+
+        result = _detect_columns(cols)
+
+        assert result["date"] == "Date"
+        assert result["desc1"] == "Description"
+        assert result["desc2"] is None
+        assert result["amount"] == "Amount"
+        assert result["usd"] is None
+        assert result["currency"] == "Currency"
+
+    def it_should_map_rbc_style_columns(self):
+        cols = [
+            "Account Type",
+            "Account Number",
+            "Transaction Date",
+            "Cheque Number",
+            "Description 1",
+            "Description 2",
+            "CAD$",
+            "USD$",
+        ]
+
+        result = _detect_columns(cols)
+
+        assert result["date"] == "Transaction Date"
+        assert result["desc1"] == "Description 1"
+        assert result["desc2"] == "Description 2"
+        assert result["amount"] == "CAD$"
+        assert result["usd"] == "USD$"
+
+    def it_should_return_none_for_all_roles_when_no_recognised_columns_present(self):
+        cols = ["col_a", "col_b", "col_c"]
+
+        result = _detect_columns(cols)
+
+        assert result["date"] is None
+        assert result["desc1"] is None
+        assert result["desc2"] is None
+        assert result["amount"] is None
+        assert result["usd"] is None
+        assert result["currency"] is None
+
+    def it_should_match_column_names_case_insensitively(self):
+        cols = ["DATE", "DESCRIPTION", "AMOUNT"]
+
+        result = _detect_columns(cols)
+
+        assert result["date"] == "DATE"
+        assert result["desc1"] == "DESCRIPTION"
+        assert result["amount"] == "AMOUNT"
+
+    def it_should_prefer_cad_over_plain_amount(self):
+        cols = ["Date", "Description", "Amount", "CAD$"]
+
+        result = _detect_columns(cols)
+
+        assert result["amount"] == "CAD$"
+
+
+class DescribeDetectRbcOverrides:
+    """Behaviour of _detect_rbc_overrides() RBC quirk detection."""
+
+    def it_should_return_empty_dict_for_non_rbc_columns(self):
+        df = pd.DataFrame({"Date": ["2025-01-15"], "Description": ["SAMPLE STORE"], "Amount": ["-42.50"]})
+        cols = list(df.columns)
+
+        result = _detect_rbc_overrides(df, cols)
+
+        assert result == {}
+
+    def it_should_return_empty_dict_when_rbc_columns_present_but_dates_not_shifted(self):
+        df = pd.DataFrame({
+            "Account Type": ["Chequing"],
+            "Account Number": ["12345678"],
+            "Transaction Date": ["1/15/2025"],
+            "Cheque Number": [""],
+            "Description 1": ["SAMPLE STORE"],
+            "Description 2": [""],
+            "CAD$": ["-42.50"],
+            "USD$": [""],
+        })
+        cols = list(df.columns)
+
+        result = _detect_rbc_overrides(df, cols)
+
+        assert result == {}
+
+    def it_should_return_override_series_when_rbc_date_shift_quirk_detected(self):
+        df = pd.DataFrame({
+            "Account Type": ["Chequing"],
+            "Account Number": ["1/15/2025"],
+            "Transaction Date": [""],
+            "Cheque Number": ["REF1234ABCD"],
+            "Description 1": ["SAMPLE STORE"],
+            "Description 2": ["-42.50"],
+            "CAD$": [""],
+            "USD$": [""],
+        })
+        cols = list(df.columns)
+
+        result = _detect_rbc_overrides(df, cols)
+
+        assert "date_series" in result
+        assert "desc1_series" in result
+        assert "desc2_series" in result
+        assert "amount_series" in result
+        assert result["date_series"].iloc[0] == "1/15/2025"
+        assert result["desc1_series"].iloc[0] == "REF1234ABCD"
+        assert result["desc2_series"].iloc[0] == "SAMPLE STORE"
+        assert result["amount_series"].iloc[0] == "-42.50"

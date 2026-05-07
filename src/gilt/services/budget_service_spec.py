@@ -493,6 +493,111 @@ class DescribeGetBudgetSummary:
 
 
 # ---------------------------------------------------------------------------
+# _build_category_budget_items
+# ---------------------------------------------------------------------------
+
+
+class DescribeBuildCategoryBudgetItems:
+    """Specs for the per-category item builder."""
+
+    def _make_service(self, tmpdir: str) -> BudgetService:
+        data_dir = Path(tmpdir) / "data" / "accounts"
+        data_dir.mkdir(parents=True)
+        cats_path = Path(tmpdir) / "config" / "categories.yml"
+        cats_path.parent.mkdir(parents=True)
+        save_categories_config(cats_path, CategoryConfig(categories=[]))
+        return BudgetService(data_dir=data_dir, categories_config=cats_path)
+
+    def it_should_return_header_plus_one_item_per_subcategory(self):
+        with TemporaryDirectory() as tmpdir:
+            service = self._make_service(tmpdir)
+            cat = Category(
+                name="Housing",
+                budget=Budget(amount=2000.0, period=BudgetPeriod.monthly),
+                subcategories=[Subcategory(name="Rent"), Subcategory(name="Utilities")],
+            )
+            spending: dict[tuple[str, str | None], float] = {
+                ("Housing", "Rent"): 1200.0,
+                ("Housing", "Utilities"): 150.0,
+            }
+
+            items, budget_for_cat, actual_for_cat, is_over = service._build_category_budget_items(
+                cat, spending, year=2025, month=3
+            )
+
+            assert len(items) == 3  # 1 header + 2 subcategories
+            header = next(i for i in items if i.is_category_header)
+            assert header.category_name == "Housing"
+            assert header.actual_amount == pytest.approx(1350.0)
+            assert header.budget_amount == pytest.approx(2000.0)
+
+            rent_item = next(i for i in items if i.subcategory_name == "Rent")
+            assert rent_item.actual_amount == pytest.approx(1200.0)
+            assert rent_item.budget_amount is None
+
+            util_item = next(i for i in items if i.subcategory_name == "Utilities")
+            assert util_item.actual_amount == pytest.approx(150.0)
+
+    def it_should_return_correct_budget_and_actual_for_totals(self):
+        with TemporaryDirectory() as tmpdir:
+            service = self._make_service(tmpdir)
+            cat = Category(
+                name="Shopping",
+                budget=Budget(amount=600.0, period=BudgetPeriod.monthly),
+                subcategories=[],
+            )
+            spending: dict[tuple[str, str | None], float] = {
+                ("Shopping", None): 400.0,
+            }
+
+            _, budget_for_cat, actual_for_cat, is_over = service._build_category_budget_items(
+                cat, spending, year=2025, month=6
+            )
+
+            assert budget_for_cat == pytest.approx(600.0)
+            assert actual_for_cat == pytest.approx(400.0)
+            assert is_over is False
+
+    def it_should_set_is_over_budget_true_when_spending_exceeds_budget(self):
+        with TemporaryDirectory() as tmpdir:
+            service = self._make_service(tmpdir)
+            cat = Category(
+                name="Dining",
+                budget=Budget(amount=300.0, period=BudgetPeriod.monthly),
+                subcategories=[],
+            )
+            spending: dict[tuple[str, str | None], float] = {
+                ("Dining", None): 450.0,
+            }
+
+            _, budget_for_cat, actual_for_cat, is_over = service._build_category_budget_items(
+                cat, spending, year=2025, month=4
+            )
+
+            assert is_over is True
+            assert budget_for_cat == pytest.approx(300.0)
+            assert actual_for_cat == pytest.approx(450.0)
+
+    def it_should_return_zero_budget_for_totals_when_category_has_no_budget(self):
+        with TemporaryDirectory() as tmpdir:
+            service = self._make_service(tmpdir)
+            cat = Category(name="Misc", subcategories=[])
+            spending: dict[tuple[str, str | None], float] = {
+                ("Misc", None): 75.0,
+            }
+
+            items, budget_for_cat, actual_for_cat, is_over = service._build_category_budget_items(
+                cat, spending, year=2025, month=1
+            )
+
+            assert budget_for_cat == 0.0
+            assert actual_for_cat == pytest.approx(75.0)
+            assert is_over is False
+            header = next(i for i in items if i.is_category_header)
+            assert header.budget_amount is None
+
+
+# ---------------------------------------------------------------------------
 # pytest import (used via pytest.approx in methods above)
 # ---------------------------------------------------------------------------
 

@@ -16,55 +16,8 @@ from gilt.workspace import Workspace
 from .util import console, fmt_amount_str
 
 
-def _count_category_usage(data_dir: Path) -> dict[tuple[str, str | None], tuple[int, float]]:
-    """Count usage of categories across all ledger files.
-
-    Returns:
-        Dict mapping (category, subcategory) to (transaction_count, total_amount)
-    """
-    usage: dict[tuple[str, str | None], tuple[int, float]] = defaultdict(lambda: (0, 0.0))
-
-    for group in LedgerRepository(data_dir).load_all():
-        cat = group.primary.category
-        subcat = group.primary.subcategory
-        amount = group.primary.amount
-
-        if cat:  # Only count categorized transactions
-            key = (cat, subcat)
-            count, total = usage[key]
-            usage[key] = (count + 1, total + amount)
-
-    return dict(usage)
-
-
-def run(
-    *,
-    workspace: Workspace,
-) -> int:
-    """List all defined categories with usage statistics.
-
-    Shows categories from config/categories.yml along with transaction counts
-    and total amounts from ledger files.
-
-    Returns:
-        Exit code (always 0)
-    """
-    config = workspace.categories_config
-    data_dir = workspace.ledger_data_dir
-
-    # Load category definitions
-    category_config = load_categories_config(config)
-
-    if not category_config.categories:
-        console.print(
-            "[yellow]No categories defined.[/] Create config/categories.yml to define categories."
-        )
-        return 0
-
-    # Count usage across ledgers
-    usage = _count_category_usage(data_dir)
-
-    # Build table
+def _display_categories_table(category_config, usage: dict) -> None:
+    """Build and print the categories Rich table plus summary line."""
     table = Table(title="Categories", show_lines=True)
     table.add_column("Category", style="cyan", no_wrap=True)
     table.add_column("Subcategory", style="blue")
@@ -136,4 +89,54 @@ def run(
     )
     console.print(f"\nTotal categories: {total_defined} | Used in transactions: {total_used}")
 
+
+def _count_category_usage(data_dir: Path) -> dict[tuple[str, str | None], tuple[int, float]]:
+    """Count usage of categories across all ledger files.
+
+    Returns:
+        Dict mapping (category, subcategory) to (transaction_count, total_amount)
+    """
+    usage: dict[tuple[str, str | None], tuple[int, float]] = defaultdict(lambda: (0, 0.0))
+
+    for group in LedgerRepository(data_dir).load_all():
+        cat = group.primary.category
+        subcat = group.primary.subcategory
+        amount = group.primary.amount
+
+        if cat:  # Only count categorized transactions
+            key = (cat, subcat)
+            count, total = usage[key]
+            usage[key] = (count + 1, total + amount)
+
+    return dict(usage)
+
+
+def run(
+    *,
+    workspace: Workspace,
+) -> int:
+    """List all defined categories with usage statistics.
+
+    Shows categories from config/categories.yml along with transaction counts
+    and total amounts from ledger files.
+
+    Returns:
+        Exit code (always 0)
+    """
+    config = workspace.categories_config
+    data_dir = workspace.ledger_data_dir
+
+    # Load category definitions
+    category_config = load_categories_config(config)
+
+    if not category_config.categories:
+        console.print(
+            "[yellow]No categories defined.[/] Create config/categories.yml to define categories."
+        )
+        return 0
+
+    # Count usage across ledgers
+    usage = _count_category_usage(data_dir)
+
+    _display_categories_table(category_config, usage)
     return 0

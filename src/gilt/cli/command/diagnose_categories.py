@@ -67,7 +67,12 @@ def run(
         console.print("[green]✓ All categories in transactions are defined in config.[/]")
         return 0
 
-    # Display orphaned categories
+    _display_orphaned_categories(result, category_config)
+    return 1  # Exit code 1 indicates issues found
+
+
+def _display_orphaned_categories(result, category_config) -> None:
+    """Display the orphaned categories table and action guidance."""
     console.print(
         f"[yellow]Found {len(result.orphaned_categories)} category/subcategory combination(s) "
         f"in transactions that are not defined in categories.yml:[/]\n"
@@ -119,8 +124,6 @@ def run(
         '  1. Add them to categories.yml: gilt category --add "Category" --write\n'
         '  2. Fix typos using: gilt recategorize --from "OldName" --to "NewName" --write\n'
     )
-
-    return 1  # Exit code 1 indicates issues found
 
 
 __all__ = ["run"]

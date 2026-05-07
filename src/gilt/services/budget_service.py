@@ -80,91 +80,29 @@ class BudgetService:
         Returns:
             BudgetSummary object
         """
-        # Default to current year if not specified
         if year is None and month is None:
             year = date.today().year
 
-        # Load categories
         category_config = load_categories_config(self.categories_config)
-
-        # Aggregate spending
         spending = self._aggregate_spending(year, month, category_filter)
 
-        # Build budget items
         items = []
         total_budgeted = 0.0
         total_actual = 0.0
         over_budget_count = 0
 
         for cat in category_config.categories:
-            # Skip if filtering and doesn't match
             if category_filter and cat.name != category_filter:
                 continue
-
-            # Calculate budget for period
-            budget_amount = self._calculate_budget_for_period(cat, year, month)
-
-            # Aggregate actual spending for this category
-            cat_actual = 0.0
-            subcat_actuals: dict[str, float] = {}
-
-            for (spent_cat, spent_subcat), amount in spending.items():
-                if spent_cat == cat.name:
-                    cat_actual += amount
-                    if spent_subcat:
-                        subcat_actuals[spent_subcat] = (
-                            subcat_actuals.get(spent_subcat, 0.0) + amount
-                        )
-
-            # Calculate remaining and percentage
-            remaining = None
-            percent_used = None
-            is_over_budget = False
-
-            if budget_amount is not None and budget_amount > 0:
-                remaining = budget_amount - cat_actual
-                percent_used = (cat_actual / budget_amount) * 100
-                is_over_budget = cat_actual > budget_amount
-
-                total_budgeted += budget_amount
-                if is_over_budget:
-                    over_budget_count += 1
-
-            total_actual += cat_actual
-
-            # Add main category item
-            items.append(
-                BudgetItem(
-                    category_name=cat.name,
-                    subcategory_name=None,
-                    description=cat.description,
-                    budget_amount=budget_amount,
-                    actual_amount=cat_actual,
-                    remaining=remaining,
-                    percent_used=percent_used,
-                    is_over_budget=is_over_budget,
-                    is_category_header=True,
-                )
+            items_for_cat, budget_for_cat, actual_for_cat, over = self._build_category_budget_items(
+                cat, spending, year, month
             )
+            items.extend(items_for_cat)
+            total_budgeted += budget_for_cat
+            total_actual += actual_for_cat
+            if over:
+                over_budget_count += 1
 
-            # Add subcategory items
-            for subcat in cat.subcategories:
-                subcat_actual = subcat_actuals.get(subcat.name, 0.0)
-                items.append(
-                    BudgetItem(
-                        category_name=cat.name,
-                        subcategory_name=subcat.name,
-                        description=subcat.description,
-                        budget_amount=None,  # No budget at subcategory level
-                        actual_amount=subcat_actual,
-                        remaining=None,
-                        percent_used=None,
-                        is_over_budget=False,
-                        is_category_header=False,
-                    )
-                )
-
-        # Calculate totals
         total_remaining = total_budgeted - total_actual
         percent_used = (total_actual / total_budgeted * 100) if total_budgeted > 0 else 0.0
 
@@ -176,6 +114,81 @@ class BudgetService:
             over_budget_count=over_budget_count,
             items=items,
         )
+
+    def _build_category_budget_items(
+        self,
+        cat: Category,
+        spending: dict[tuple[str, str | None], float],
+        year: int | None,
+        month: int | None,
+    ) -> tuple[list[BudgetItem], float, float, bool]:
+        """
+        Build BudgetItems for a single category and compute its contribution to totals.
+
+        Args:
+            cat: The category to process
+            spending: Aggregated spending keyed by (category, subcategory)
+            year: Report year (for budget proration)
+            month: Report month (for budget proration)
+
+        Returns:
+            A four-tuple of:
+              - items: category header BudgetItem followed by one item per subcategory
+              - budget_for_totals: budget amount to add to total_budgeted (0.0 if no budget)
+              - cat_actual: actual spending to add to total_actual
+              - is_over_budget: True if spending exceeded the budget
+        """
+        budget_amount = self._calculate_budget_for_period(cat, year, month)
+
+        cat_actual = 0.0
+        subcat_actuals: dict[str, float] = {}
+        for (spent_cat, spent_subcat), amount in spending.items():
+            if spent_cat == cat.name:
+                cat_actual += amount
+                if spent_subcat:
+                    subcat_actuals[spent_subcat] = subcat_actuals.get(spent_subcat, 0.0) + amount
+
+        remaining = None
+        percent_used = None
+        is_over_budget = False
+        budget_for_totals = 0.0
+
+        if budget_amount is not None and budget_amount > 0:
+            remaining = budget_amount - cat_actual
+            percent_used = (cat_actual / budget_amount) * 100
+            is_over_budget = cat_actual > budget_amount
+            budget_for_totals = budget_amount
+
+        items: list[BudgetItem] = [
+            BudgetItem(
+                category_name=cat.name,
+                subcategory_name=None,
+                description=cat.description,
+                budget_amount=budget_amount,
+                actual_amount=cat_actual,
+                remaining=remaining,
+                percent_used=percent_used,
+                is_over_budget=is_over_budget,
+                is_category_header=True,
+            )
+        ]
+
+        for subcat in cat.subcategories:
+            items.append(
+                BudgetItem(
+                    category_name=cat.name,
+                    subcategory_name=subcat.name,
+                    description=subcat.description,
+                    budget_amount=None,  # No budget at subcategory level
+                    actual_amount=subcat_actuals.get(subcat.name, 0.0),
+                    remaining=None,
+                    percent_used=None,
+                    is_over_budget=False,
+                    is_category_header=False,
+                )
+            )
+
+        return items, budget_for_totals, cat_actual, is_over_budget
 
     def _calculate_budget_for_period(
         self,
