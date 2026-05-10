@@ -332,7 +332,7 @@ def _display_transaction_for_review(
     console.print(f"  Account:     {account_id}")
     console.print(f"  Date:        {txn.date}")
     console.print(f"  Description: {txn.description}")
-    console.print(f"  Amount:      ${txn.amount:,.2f}")
+    console.print(f"  Amount:      {fmt_amount_str(txn.amount)}")
     console.print(f"  Suggested:   [green]{category}[/green] ([blue]{conf:.1%}[/blue] confident)")
 
 

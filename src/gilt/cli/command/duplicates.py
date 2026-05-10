@@ -50,6 +50,8 @@ from rich.prompt import Prompt
 
 from gilt.cli.presentation import build_duplicate_pair_table
 from gilt.config import DEFAULT_OLLAMA_MODEL
+from gilt.model.duplicate import DuplicateMatch
+from gilt.model.events import DuplicateConfirmed
 from gilt.services.duplicate_review_service import (
     DuplicateReviewService,
     UserDecision,
@@ -112,8 +114,6 @@ def _record_feedback(ctx: ReviewContext, decision, pair, assessment, suggestion_
     ctx.feedback.append((decision, event, action))
 
     if action == "confirmed":
-        from gilt.model.events import DuplicateConfirmed
-
         assert isinstance(event, DuplicateConfirmed)
         ctx.console.print(
             f"[green]✓ Duplicate confirmed (using: {event.canonical_description})[/green]"
@@ -154,8 +154,6 @@ def _analyze_candidates(console, detector, candidates, detection_method):
         task = progress.add_task("Assessing duplicates...", total=len(candidates))
         for pair in candidates:
             assessment = detector.assess_duplicate(pair)
-            from gilt.model.duplicate import DuplicateMatch
-
             matches.append(DuplicateMatch(pair=pair, assessment=assessment))
             progress.update(task, advance=1)
 
