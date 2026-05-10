@@ -7,6 +7,8 @@ Removes the account's ledger CSV, purges related events and projections,
 clears cached intelligence, then re-runs ingestion for that account only.
 """
 
+from pathlib import Path
+
 from gilt.ingest import load_accounts_config, normalize_file
 from gilt.model.ledger_repository import LEDGER_IO_ERRORS
 from gilt.services.ingestion_service import IngestionService
@@ -15,6 +17,52 @@ from gilt.transfer.linker import link_transfers
 from gilt.workspace import Workspace
 
 from .util import console, print_dry_run_message, print_error, require_event_sourcing
+
+
+def _delete_existing_ledger(ledger_path: Path) -> None:
+    """Delete the ledger CSV if it exists and report the action."""
+    if ledger_path.exists():
+        ledger_path.unlink()
+        console.print(f"[green][ok][/] Removed ledger: {ledger_path.name}")
+
+
+def _reingest_source_files(
+    account_files: list[tuple],
+    ingestion_service: IngestionService,
+    account: str,
+    output_dir: Path,
+    event_store: object,
+) -> tuple[int, list[str]]:
+    """Normalize each source file for the account. Returns (written_count, errors)."""
+    amount_sign = ingestion_service.amount_sign_for(account)
+    written = 0
+    errors: list[str] = []
+    for p, acct_id in account_files:
+        try:
+            out_path = normalize_file(
+                p,
+                acct_id,
+                output_dir,
+                event_store=event_store,
+                amount_sign=amount_sign,
+            )
+            console.print(f"[green][ok][/] Wrote {out_path}")
+            written += 1
+        except LEDGER_IO_ERRORS as e:
+            errors.append(str(e))
+            print_error(f"Failed to normalize {p.name}: {e}")
+    return written, errors
+
+
+def _finalize_reingest(output_dir: Path, projection_builder: object, event_store: object) -> None:
+    """Link transfers and rebuild projections after re-ingestion."""
+    modified = link_transfers(processed_dir=output_dir, write=True)
+    if modified:
+        console.print(f"[green][ok][/] Updated {modified} ledger file(s) with transfer metadata")
+
+    console.print("[bold]Rebuilding projections[/]")
+    events_processed = projection_builder.rebuild_from_scratch(event_store)
+    console.print(f"[green][ok][/] Rebuilt projections from {events_processed} events")
 
 
 def run(
@@ -28,7 +76,7 @@ def run(
     ingest_dir = workspace.ingest_dir
     output_dir = workspace.ledger_data_dir
 
-    # Load account config
+    # Find account config
     accounts = load_accounts_config(config)
     target = None
     for acct in accounts:
@@ -56,7 +104,7 @@ def run(
     event_store = ready.event_store
     projection_builder = ready.projection_builder
 
-    # Plan what to purge using the reingestion service
+    # Plan purge
     reingest_svc = ReingestionService(
         event_store=event_store,
         projection_builder=projection_builder,
@@ -65,9 +113,9 @@ def run(
     )
     purge_plan = reingest_svc.plan_purge(account)
 
+    # Display plan
     ledger_path = output_dir / f"{account}.csv"
     ledger_exists = ledger_path.exists()
-
     console.print(f"[bold]Reingest plan for account: {account}[/]")
     console.print(f"  Source files: {len(account_files)}")
     for p, _ in account_files:
@@ -80,12 +128,10 @@ def run(
         print_dry_run_message()
         return 0
 
-    # 1. Delete ledger CSV
-    if ledger_exists:
-        ledger_path.unlink()
-        console.print(f"[green][ok][/] Removed ledger: {ledger_path.name}")
+    # Delete ledger
+    _delete_existing_ledger(ledger_path)
 
-    # 2-4. Purge events, projections, and intelligence cache via service
+    # Run purge
     purge_result = reingest_svc.run_purge(purge_plan)
     console.print(f"[green][ok][/] Purged {purge_result.events_purged} events")
     console.print(f"[green][ok][/] Purged {purge_result.projections_purged} projections")
@@ -93,32 +139,11 @@ def run(
         f"[green][ok][/] Purged {purge_result.cache_entries_purged} cached intelligence entries"
     )
 
-    # 5. Re-ingest source files
-    amount_sign = ingestion_service.amount_sign_for(account)
-    written = 0
-    for p, acct_id in account_files:
-        try:
-            out_path = normalize_file(
-                p,
-                acct_id,
-                output_dir,
-                event_store=event_store,
-                amount_sign=amount_sign,
-            )
-            console.print(f"[green][ok][/] Wrote {out_path}")
-            written += 1
-        except LEDGER_IO_ERRORS as e:
-            print_error(f"Failed to normalize {p.name}: {e}")
+    # Reingest files
+    written, _ = _reingest_source_files(account_files, ingestion_service, account, output_dir, event_store)
 
-    # 6. Link transfers
-    modified = link_transfers(processed_dir=output_dir, write=True)
-    if modified:
-        console.print(f"[green][ok][/] Updated {modified} ledger file(s) with transfer metadata")
-
-    # 7. Rebuild projections
-    console.print("[bold]Rebuilding projections[/]")
-    events_processed = projection_builder.rebuild_from_scratch(event_store)
-    console.print(f"[green][ok][/] Rebuilt projections from {events_processed} events")
+    # Finalize
+    _finalize_reingest(output_dir, projection_builder, event_store)
 
     console.print(f"\nDone. Re-ingested {written} file(s) for account {account}.")
     return 0

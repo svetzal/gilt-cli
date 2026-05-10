@@ -18,6 +18,48 @@ from .util import (
 )
 
 
+def _filter_transactions(filtered_rows: list, year: int | None, min_amount: float | None) -> list[Transaction]:
+    """Apply year and min_amount filters and convert rows to Transaction objects."""
+    result: list[Transaction] = []
+    for row in filtered_rows:
+        txn = Transaction.from_projection_row(row)
+        if year is not None and txn.date.year != year:
+            continue
+        if min_amount is not None and abs(txn.amount) < min_amount:
+            continue
+        result.append(txn)
+    return result
+
+
+def _display_uncategorized_table(console, displayed: list[Transaction], year: int | None) -> None:
+    """Build and print the uncategorized transactions table."""
+    title = "Uncategorized Transactions"
+    if year:
+        title += f" ({year})"
+
+    table = create_transaction_table(title, [("Notes", {"style": "dim"})])
+
+    for txn in displayed:
+        table.add_row(
+            txn.account_id,
+            txn.transaction_id[:8],
+            str(txn.date),
+            (txn.description or "")[:50],
+            fmt_amount_str(txn.amount),
+            (txn.notes or "")[:30],
+        )
+
+    console.print(table)
+
+
+def _display_summary(console, total_count: int, limit: int | None, remaining: int) -> None:
+    """Print the summary line and optional limit notice."""
+    console.print(f"\n[bold]Total uncategorized:[/] {total_count} transaction(s)")
+    if remaining > 0:
+        console.print(f"[dim]Showing first {limit}, {remaining} more not displayed[/]")
+    console.print("\n[dim]Tip: Use 'gilt categorize' to assign categories[/]")
+
+
 def run(
     *,
     account: str | None = None,
@@ -43,39 +85,24 @@ def run(
     Returns:
         Exit code (0 success, 1 error)
     """
+    # Load projections
     projection_builder = require_projections(workspace)
     if projection_builder is None:
         return 1
 
-    # Load all transactions from projections (excludes duplicates)
+    # Filter
     all_transactions = projection_builder.get_all_transactions(include_duplicates=False)
-
-    # Filter for uncategorized transactions and by account
     filtered_rows = filter_by_account(filter_uncategorized(all_transactions), account)
-
-    # Apply year and min_amount filters (unique to this command) and convert to Transaction objects
-    uncategorized = []
-    for row in filtered_rows:
-        txn = Transaction.from_projection_row(row)
-
-        # Filter by year if specified
-        if year is not None and txn.date.year != year:
-            continue
-
-        # Filter by min_amount if specified
-        if min_amount is not None and abs(txn.amount) < min_amount:
-            continue
-
-        uncategorized.append(txn)
+    uncategorized = _filter_transactions(filtered_rows, year, min_amount)
 
     if not uncategorized:
         console.print("[green]All transactions are categorized![/]")
         return 0
 
-    # Sort by description (for grouping), then date
+    # Sort
     uncategorized.sort(key=lambda x: (x.description or "", str(x.date)))
 
-    # Apply limit if specified
+    # Limit
     if limit:
         displayed = uncategorized[:limit]
         remaining = len(uncategorized) - limit
@@ -83,31 +110,10 @@ def run(
         displayed = uncategorized
         remaining = 0
 
-    # Build table
-    title = "Uncategorized Transactions"
-    if year:
-        title += f" ({year})"
+    # Display table
+    _display_uncategorized_table(console, displayed, year)
 
-    table = create_transaction_table(title, [("Notes", {"style": "dim"})])
-
-    for txn in displayed:
-        table.add_row(
-            txn.account_id,
-            txn.transaction_id[:8],
-            str(txn.date),
-            (txn.description or "")[:50],
-            fmt_amount_str(txn.amount),
-            (txn.notes or "")[:30],
-        )
-
-    console.print(table)
-
-    # Summary
-    console.print(f"\n[bold]Total uncategorized:[/] {len(uncategorized)} transaction(s)")
-    if remaining > 0:
-        console.print(f"[dim]Showing first {limit}, {remaining} more not displayed[/]")
-
-    # Helpful hint
-    console.print("\n[dim]Tip: Use 'gilt categorize' to assign categories[/]")
+    # Display summary
+    _display_summary(console, len(uncategorized), limit, remaining)
 
     return 0

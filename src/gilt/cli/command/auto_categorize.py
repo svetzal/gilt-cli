@@ -169,6 +169,33 @@ def _apply_rules_first(workspace, uncategorized_txns):
     return rule_approved, remaining
 
 
+def _predict_with_ml(
+    classifier: CategorizationClassifier,
+    remaining_txns: list[Transaction],
+    confidence: float,
+) -> list[tuple]:
+    """Build transaction dicts, run ML classifier, and return predictions above the confidence threshold."""
+    transaction_data = [
+        {
+            "transaction_id": t.transaction_id,
+            "description": t.description,
+            "amount": t.amount,
+            "account": t.account_id,
+            "date": str(t.date),
+        }
+        for t in remaining_txns
+    ]
+
+    console.print(f"\n[dim]Predicting categories (threshold: {confidence:.1%})...[/dim]")
+    predictions = classifier.predict(transaction_data, confidence_threshold=confidence)
+
+    result: list[tuple] = []
+    for txn, (category, conf) in zip(remaining_txns, predictions, strict=False):
+        if category:
+            result.append((txn.account_id, txn.transaction_id, txn, category, conf))
+    return result
+
+
 def run(
     *,
     account: str | None = None,
@@ -197,26 +224,9 @@ def run(
     rule_approved, remaining_txns = _apply_rules_first(workspace, uncategorized_txns)
 
     # Phase 2: ML predictions for remaining uncategorized
-    ml_predictions: list[tuple[str, str, Transaction, str, float]] = []
+    ml_predictions: list[tuple] = []
     if remaining_txns:
-        transaction_data = [
-            {
-                "transaction_id": t.transaction_id,
-                "description": t.description,
-                "amount": t.amount,
-                "account": t.account_id,
-                "date": str(t.date),
-            }
-            for t in remaining_txns
-        ]
-
-        console.print(f"\n[dim]Predicting categories (threshold: {confidence:.1%})...[/dim]")
-        predictions = classifier.predict(transaction_data, confidence_threshold=confidence)
-
-        for txn, (category, conf) in zip(remaining_txns, predictions, strict=False):
-            if category:
-                ml_predictions.append((txn.account_id, txn.transaction_id, txn, category, conf))
-
+        ml_predictions = _predict_with_ml(classifier, remaining_txns, confidence)
         if ml_predictions:
             console.print(f"[green]{len(ml_predictions)}[/green] ML predictions")
 
@@ -308,6 +318,24 @@ def _handle_modify_choice(category_config, default_category: str) -> str | None:
     return new_category
 
 
+def _display_transaction_for_review(
+    console,
+    i: int,
+    total: int,
+    account_id: str,
+    txn: Transaction,
+    category: str,
+    conf: float,
+) -> None:
+    """Print a single transaction with its ML-suggested category for interactive review."""
+    console.print(f"\n[bold cyan]Transaction {i}/{total}[/bold cyan]")
+    console.print(f"  Account:     {account_id}")
+    console.print(f"  Date:        {txn.date}")
+    console.print(f"  Description: {txn.description}")
+    console.print(f"  Amount:      ${txn.amount:,.2f}")
+    console.print(f"  Suggested:   [green]{category}[/green] ([blue]{conf:.1%}[/blue] confident)")
+
+
 def _interactive_review(
     predictions: list[tuple[str, str, Transaction, str, float]],
     category_config,
@@ -328,14 +356,7 @@ def _interactive_review(
 
     for i, (account_id, txn_id, txn, category, conf) in enumerate(predictions, 1):
         # Display transaction
-        console.print(f"\n[bold cyan]Transaction {i}/{len(predictions)}[/bold cyan]")
-        console.print(f"  Account:     {account_id}")
-        console.print(f"  Date:        {txn.date}")
-        console.print(f"  Description: {txn.description}")
-        console.print(f"  Amount:      ${txn.amount:,.2f}")
-        console.print(
-            f"  Suggested:   [green]{category}[/green] ([blue]{conf:.1%}[/blue] confident)"
-        )
+        _display_transaction_for_review(console, i, len(predictions), account_id, txn, category, conf)
 
         # Get user decision
         while True:

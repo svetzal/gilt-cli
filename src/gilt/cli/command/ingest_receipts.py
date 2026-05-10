@@ -29,6 +29,57 @@ from gilt.workspace import Workspace
 from .util import console, fmt_amount_str, print_dry_run_message, print_error
 
 
+def _emit_enrichment_events(matched: list[MatchResult], store) -> int:
+    """Construct and append a TransactionEnriched event for each matched receipt. Returns written count."""
+    from gilt.model.events import TransactionEnriched
+
+    written = 0
+    for r in matched:
+        receipt = r.receipt
+        event = TransactionEnriched(
+            transaction_id=r.transaction_id,
+            vendor=receipt.vendor,
+            service=receipt.service,
+            invoice_number=receipt.invoice_number,
+            tax_amount=receipt.tax_amount,
+            tax_type=receipt.tax_type,
+            currency=receipt.currency,
+            receipt_file=receipt.receipt_file,
+            enrichment_source=str(receipt.source_path),
+            source_email=receipt.source_email,
+            match_confidence=r.match_confidence,
+        )
+        store.append_event(event)
+        written += 1
+    return written
+
+
+def _display_summary(
+    console,
+    matched: list[MatchResult],
+    ambiguous: list[MatchResult],
+    unmatched: list[MatchResult],
+    skipped_already_ingested: int,
+    skipped_parse_errors: int,
+    write: bool,
+    written: int,
+) -> None:
+    """Print the final ingest-receipts summary block."""
+    console.print("\n[bold]Summary:[/bold]")
+    console.print(f"  Matched: {len(matched)}")
+    console.print(f"  Ambiguous: {len(ambiguous)}")
+    console.print(f"  Unmatched: {len(unmatched)}")
+    console.print(f"  Already ingested: {skipped_already_ingested}")
+    if skipped_parse_errors:
+        console.print(f"  Parse errors: {skipped_parse_errors}")
+
+    if write and written > 0:
+        console.print(f"\n[green]{written} TransactionEnriched event(s) written.[/green]")
+        console.print("[dim]Tip: Run 'gilt rebuild-projections' to update projections.[/dim]")
+    elif not write and matched:
+        print_dry_run_message(detail=f"{len(matched)} enrichment(s)")
+
+
 def _display_results_table(results: list[MatchResult]) -> None:
     """Display receipt matching results in a table."""
     if not results:
@@ -151,14 +202,15 @@ def run(
     interactive: bool = False,
 ) -> int:
     """Run the ingest-receipts command."""
-    from gilt.model.events import TransactionEnriched
     from gilt.storage.event_store import EventStore
     from gilt.storage.projection import ProjectionBuilder
 
+    # Validate source
     if not source.is_dir():
         print_error(f"Source directory not found: {source}")
         return 1
 
+    # Scan files
     json_paths = scan_receipt_files(source)
     if year is not None:
         json_paths = _filter_paths_by_year(json_paths, year)
@@ -166,13 +218,14 @@ def run(
         console.print("[yellow]No receipt JSON files found.[/yellow]")
         return 0
 
+    # Load projections
     store = EventStore(str(workspace.event_store_path))
     existing_events = store.get_events_by_type("TransactionEnriched")
     ingested_invoices = find_already_ingested_invoices(existing_events)
-
     projection_builder = ProjectionBuilder(workspace.projections_path)
     all_transactions = projection_builder.get_all_transactions(include_duplicates=False)
 
+    # Batch match
     batch = batch_match_receipts(
         json_paths,
         all_transactions,
@@ -180,52 +233,27 @@ def run(
         account_id=account,
         vendor_patterns=DEFAULT_VENDOR_PATTERNS,
     )
-
     matched = list(batch.matched)
     ambiguous = list(batch.ambiguous)
     unmatched = batch.unmatched
     skipped_already_ingested = batch.skipped_already_ingested
     skipped_parse_errors = batch.skipped_parse_errors
 
+    # Display results
     _display_results_table(matched + ambiguous + unmatched)
 
+    # Resolve ambiguous interactively
     if interactive and ambiguous:
         resolved = _resolve_ambiguous_interactively(ambiguous)
         matched.extend(resolved)
         ambiguous = [r for r in ambiguous if r not in resolved]
 
+    # Emit events
     written = 0
     if write and matched:
-        for r in matched:
-            receipt = r.receipt
-            event = TransactionEnriched(
-                transaction_id=r.transaction_id,
-                vendor=receipt.vendor,
-                service=receipt.service,
-                invoice_number=receipt.invoice_number,
-                tax_amount=receipt.tax_amount,
-                tax_type=receipt.tax_type,
-                currency=receipt.currency,
-                receipt_file=receipt.receipt_file,
-                enrichment_source=str(receipt.source_path),
-                source_email=receipt.source_email,
-                match_confidence=r.match_confidence,
-            )
-            store.append_event(event)
-            written += 1
+        written = _emit_enrichment_events(matched, store)
 
-    console.print("\n[bold]Summary:[/bold]")
-    console.print(f"  Matched: {len(matched)}")
-    console.print(f"  Ambiguous: {len(ambiguous)}")
-    console.print(f"  Unmatched: {len(unmatched)}")
-    console.print(f"  Already ingested: {skipped_already_ingested}")
-    if skipped_parse_errors:
-        console.print(f"  Parse errors: {skipped_parse_errors}")
-
-    if write and written > 0:
-        console.print(f"\n[green]{written} TransactionEnriched event(s) written.[/green]")
-        console.print("[dim]Tip: Run 'gilt rebuild-projections' to update projections.[/dim]")
-    elif not write and matched:
-        print_dry_run_message(detail=f"{len(matched)} enrichment(s)")
+    # Display summary
+    _display_summary(console, matched, ambiguous, unmatched, skipped_already_ingested, skipped_parse_errors, write, written)
 
     return 0

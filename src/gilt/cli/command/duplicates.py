@@ -71,6 +71,71 @@ class ReviewContext:
     feedback: list = field(default_factory=list)
 
 
+def _init_detector(
+    model: str,
+    data_dir,
+    workspace: Workspace,
+    interactive: bool,
+    use_llm: bool,
+) -> tuple:
+    """Construct a DuplicateDetector and resolve the detection method label. Returns (detector, detection_method)."""
+    detector = DuplicateDetector(
+        model=model,
+        data_dir=data_dir if interactive else None,
+        event_store_path=workspace.event_store_path,
+        projections_path=workspace.projections_path,
+        use_ml=not use_llm,
+    )
+    detection_method = "LLM" if use_llm else ("ML" if detector._ml_classifier else "LLM (fallback)")
+    return detector, detection_method
+
+
+def _display_match_options(console, smart_default) -> None:
+    """Print the duplicate-review choice options."""
+    hint1 = smart_default.hint if smart_default.default_choice == "1" else ""
+    hint2 = smart_default.hint if smart_default.default_choice == "2" else ""
+    console.print("[yellow]Are these duplicates?[/yellow]")
+    console.print(f"  1) Yes, use latest description (bank's current format){hint1}")
+    console.print(f"  2) Yes, use original description{hint2}")
+    console.print("  N) No, these are separate transactions")
+    console.print()
+
+
+def _record_feedback(ctx: ReviewContext, decision, pair, assessment, suggestion_event_id: str) -> None:
+    """Apply user decision, emit console feedback, update projections, and update prompt manager."""
+    event, action = ctx.review_service.apply_user_decision(
+        decision=decision,
+        pair=pair,
+        assessment=assessment,
+        suggestion_id=suggestion_event_id,
+    )
+    ctx.feedback.append((decision, event, action))
+
+    if action == "confirmed":
+        from gilt.model.events import DuplicateConfirmed
+
+        assert isinstance(event, DuplicateConfirmed)
+        ctx.console.print(
+            f"[green]✓ Duplicate confirmed (using: {event.canonical_description})[/green]"
+        )
+    else:
+        ctx.console.print("[green]✓ Rejection recorded[/green]")
+
+    events_processed = ctx.es_service.ensure_projections_up_to_date(ctx.event_store)
+    if events_processed > 0:
+        ctx.console.print("[dim]✓ Projection updated[/dim]")
+    ctx.console.print()
+
+    if ctx.detector.prompt_manager:
+        ctx.detector.prompt_manager.add_feedback(
+            pair=pair,
+            llm_said_duplicate=assessment.is_duplicate,
+            llm_confidence=assessment.confidence,
+            user_confirmed=(decision.choice.upper() != "N"),
+            llm_reasoning=assessment.reasoning,
+        )
+
+
 def _analyze_candidates(console, detector, candidates, detection_method):
     """Analyze candidate pairs with progress bar. Returns sorted matches."""
     console.print(
@@ -103,6 +168,7 @@ def _display_and_review_match(ctx: ReviewContext, i: int, total: int, match, sug
     pair = match.pair
     assessment = match.assessment
 
+    # Display table
     table = create_duplicate_pair_table(
         f"Match {i}/{total} - Confidence: {match.confidence_pct:.1f}%", pair
     )
@@ -110,15 +176,11 @@ def _display_and_review_match(ctx: ReviewContext, i: int, total: int, match, sug
     ctx.console.print(f"[dim]LLM Reasoning:[/dim] {assessment.reasoning}")
     ctx.console.print()
 
+    # Display options
     smart_default = ctx.review_service.calculate_smart_default(ctx.detector.learned_patterns)
-    ctx.console.print("[yellow]Are these duplicates?[/yellow]")
-    hint1 = smart_default.hint if smart_default.default_choice == "1" else ""
-    hint2 = smart_default.hint if smart_default.default_choice == "2" else ""
-    ctx.console.print(f"  1) Yes, use latest description (bank's current format){hint1}")
-    ctx.console.print(f"  2) Yes, use original description{hint2}")
-    ctx.console.print("  N) No, these are separate transactions")
-    ctx.console.print()
+    _display_match_options(ctx.console, smart_default)
 
+    # Prompt
     choice = Prompt.ask(
         "Choice [1/2/N]",
         choices=["1", "2", "n", "N"],
@@ -126,39 +188,10 @@ def _display_and_review_match(ctx: ReviewContext, i: int, total: int, match, sug
         show_choices=False,
     )
     rationale = Prompt.ask("Rationale (optional)", default="")
-
     decision = UserDecision(choice=choice, rationale=rationale if rationale else None)
-    event, action = ctx.review_service.apply_user_decision(
-        decision=decision,
-        pair=pair,
-        assessment=assessment,
-        suggestion_id=suggestion_event_id,
-    )
-    ctx.feedback.append((decision, event, action))
 
-    if action == "confirmed":
-        from gilt.model.events import DuplicateConfirmed
-
-        assert isinstance(event, DuplicateConfirmed)
-        ctx.console.print(
-            f"[green]✓ Duplicate confirmed (using: {event.canonical_description})[/green]"
-        )
-    else:
-        ctx.console.print("[green]✓ Rejection recorded[/green]")
-
-    events_processed = ctx.es_service.ensure_projections_up_to_date(ctx.event_store)
-    if events_processed > 0:
-        ctx.console.print("[dim]✓ Projection updated[/dim]")
-    ctx.console.print()
-
-    if ctx.detector.prompt_manager:
-        ctx.detector.prompt_manager.add_feedback(
-            pair=pair,
-            llm_said_duplicate=assessment.is_duplicate,
-            llm_confidence=assessment.confidence,
-            user_confirmed=(choice.upper() != "N"),
-            llm_reasoning=assessment.reasoning,
-        )
+    # Record feedback
+    _record_feedback(ctx, decision, pair, assessment, suggestion_event_id)
 
 
 def _display_summary(
@@ -313,15 +346,7 @@ def run(
 
     review_service = DuplicateReviewService(event_store=event_store)
 
-    detector = DuplicateDetector(
-        model=model,
-        data_dir=data_dir if interactive else None,
-        event_store_path=workspace.event_store_path,
-        projections_path=workspace.projections_path,
-        use_ml=not use_llm,
-    )
-
-    detection_method = "LLM" if use_llm else ("ML" if detector._ml_classifier else "LLM (fallback)")
+    detector, detection_method = _init_detector(model, data_dir, workspace, interactive, use_llm)
     _print_detection_info(
         console,
         data_dir,

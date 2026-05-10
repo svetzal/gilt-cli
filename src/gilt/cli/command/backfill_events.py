@@ -30,6 +30,42 @@ from gilt.workspace import Workspace
 from .util import console, print_error, print_error_list
 
 
+def _init_event_sourcing(
+    workspace: Workspace,
+    event_store_path: Path,
+    projections_path: Path,
+) -> tuple:
+    """Initialize event sourcing service and return (es_service, service, event_store)."""
+    es_service = EventSourcingService(
+        event_store_path=event_store_path,
+        projections_path=projections_path,
+        workspace=workspace,
+    )
+    service = EventMigrationService()
+    event_store = es_service.get_event_store()
+    return es_service, service, event_store
+
+
+def _display_summary(stats: MigrationStats, dry_run: bool, effective_event_store_path: Path) -> None:
+    """Print the migration summary and dry-run/completion message."""
+    console.print("\n[bold cyan]Migration Summary[/]")
+    console.print(f"TransactionImported events: {stats.transaction_imported}")
+    console.print(f"TransactionCategorized events: {stats.transaction_categorized}")
+    console.print(f"BudgetCreated events: {stats.budget_created}")
+
+    if stats.errors > 0:
+        print_error(f"Errors: {stats.errors}")
+
+    total_events = stats.transaction_imported + stats.transaction_categorized + stats.budget_created
+    console.print(f"\n[bold]Total events: {total_events}[/]")
+
+    if dry_run:
+        console.print("\n[yellow]This was a dry run. Use --write to persist events.[/]")
+    else:
+        console.print("\n[green]✓ Events successfully written to event store[/]")
+        console.print(f"Event store: {effective_event_store_path}")
+
+
 def run(
     *,
     workspace: Workspace,
@@ -72,18 +108,10 @@ def run(
         console.print("[yellow]DRY RUN MODE[/] - No events will be written")
         console.print("Use --write to actually create events\n")
 
-    # Initialize event sourcing service
-    es_service = EventSourcingService(
-        event_store_path=effective_event_store_path,
-        projections_path=effective_projections_db_path,
-        workspace=workspace,
+    # Init
+    _, service, event_store = _init_event_sourcing(
+        workspace, effective_event_store_path, effective_projections_db_path
     )
-
-    # Initialize service and event store
-    service = EventMigrationService()
-    event_store = es_service.get_event_store()
-
-    # Track statistics
     stats = MigrationStats(
         transaction_imported=0,
         transaction_categorized=0,
@@ -91,33 +119,19 @@ def run(
         errors=0,
     )
 
-    # 1. Backfill transaction events from ledgers
+    # Backfill transactions
     console.print("[bold]Step 1: Backfilling transaction events[/]")
     _backfill_transactions(data_dir, event_store, service, stats, dry_run)
 
-    # 2. Backfill budget events from categories.yml
+    # Backfill budgets
     console.print("\n[bold]Step 2: Backfilling budget events[/]")
     _backfill_budgets(categories_config, event_store, service, stats, dry_run)
 
-    # Print summary
-    console.print("\n[bold cyan]Migration Summary[/]")
-    console.print(f"TransactionImported events: {stats.transaction_imported}")
-    console.print(f"TransactionCategorized events: {stats.transaction_categorized}")
-    console.print(f"BudgetCreated events: {stats.budget_created}")
+    # Display summary
+    _display_summary(stats, dry_run, effective_event_store_path)
 
-    if stats.errors > 0:
-        print_error(f"Errors: {stats.errors}")
-
-    total_events = stats.transaction_imported + stats.transaction_categorized + stats.budget_created
-    console.print(f"\n[bold]Total events: {total_events}[/]")
-
-    if dry_run:
-        console.print("\n[yellow]This was a dry run. Use --write to persist events.[/]")
-    else:
-        console.print("\n[green]✓ Events successfully written to event store[/]")
-        console.print(f"Event store: {effective_event_store_path}")
-
-        # Always rebuild projections after writing events
+    # Validate (write mode only)
+    if not dry_run:
         console.print("\n[bold]Step 3: Rebuilding projections[/]")
         validation_passed = _validate_projections(
             data_dir,

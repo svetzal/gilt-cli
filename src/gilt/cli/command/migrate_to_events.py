@@ -31,6 +31,46 @@ from gilt.workspace import Workspace
 from .util import console, print_error, print_error_list
 
 
+def _display_dry_run_plan(ledger_files: list[Path], has_categories: bool) -> None:
+    """Show what the migration would do without executing it."""
+    console.print("[yellow]DRY RUN MODE[/] - No changes will be made")
+    console.print("Use --write to perform the migration\n")
+    console.print("[bold]Migration would:[/]")
+    console.print(f"  • Backfill events from {len(ledger_files)} CSV file(s)")
+    if has_categories:
+        console.print("  • Create budget events from categories.yml")
+    console.print("  • Build transaction projections")
+    console.print("  • Build budget projections")
+    console.print("  • Validate migration succeeded")
+
+
+def _display_completion_summary(
+    effective_event_store_path: Path,
+    effective_projections_db_path: Path,
+    transaction_events: int,
+    budget_events: int,
+    errors: int,
+) -> None:
+    """Print the post-migration completion summary."""
+    console.print()
+    console.print("[bold green]✓ Migration Complete![/]")
+    console.print()
+    console.print("[bold]Summary:[/]")
+    console.print(f"  Event store: {effective_event_store_path}")
+    console.print(f"  Total events: {transaction_events + budget_events}")
+    console.print(f"  Projections: {effective_projections_db_path}")
+    console.print()
+    console.print("[bold]You can now use:[/]")
+    console.print("  • gilt duplicates - Detect duplicate transactions")
+    console.print("  • gilt ingest - Import new data (maintains events)")
+    console.print("  • gilt rebuild-projections - Rebuild from events")
+
+    if errors > 0:
+        console.print()
+        console.print(f"[yellow]Warning:[/yellow] {errors} error(s) occurred during migration")
+        console.print("[dim]Check the messages above for details[/dim]")
+
+
 def _check_preconditions(
     data_dir: Path,
     categories_config: Path,
@@ -261,17 +301,10 @@ def run(
     console.print()
 
     if not write:
-        console.print("[yellow]DRY RUN MODE[/] - No changes will be made")
-        console.print("Use --write to perform the migration\n")
-        console.print("[bold]Migration would:[/]")
-        console.print(f"  • Backfill events from {len(ledger_files)} CSV file(s)")
-        if has_categories:
-            console.print("  • Create budget events from categories.yml")
-        console.print("  • Build transaction projections")
-        console.print("  • Build budget projections")
-        console.print("  • Validate migration succeeded")
+        _display_dry_run_plan(ledger_files, has_categories)
         return 0
 
+    # Backfill
     transaction_events, budget_events, errors = _backfill_events(
         ledger_files,
         has_categories,
@@ -279,6 +312,7 @@ def run(
         es_service,
     )
 
+    # Build projections
     projections_result = _build_projections(
         es_service, has_categories, effective_budget_projections_db_path
     )
@@ -286,6 +320,7 @@ def run(
         return projections_result
     tx_builder, budget_builder = projections_result
 
+    # Validate
     validation_code = _validate_migration(
         es_service,
         data_dir,
@@ -297,23 +332,14 @@ def run(
     if validation_code != 0:
         return validation_code
 
-    console.print()
-    console.print("[bold green]✓ Migration Complete![/]")
-    console.print()
-    console.print("[bold]Summary:[/]")
-    console.print(f"  Event store: {effective_event_store_path}")
-    console.print(f"  Total events: {transaction_events + budget_events}")
-    console.print(f"  Projections: {effective_projections_db_path}")
-    console.print()
-    console.print("[bold]You can now use:[/]")
-    console.print("  • gilt duplicates - Detect duplicate transactions")
-    console.print("  • gilt ingest - Import new data (maintains events)")
-    console.print("  • gilt rebuild-projections - Rebuild from events")
-
-    if errors > 0:
-        console.print()
-        console.print(f"[yellow]Warning:[/yellow] {errors} error(s) occurred during migration")
-        console.print("[dim]Check the messages above for details[/dim]")
+    # Display summary
+    _display_completion_summary(
+        effective_event_store_path,
+        effective_projections_db_path,
+        transaction_events,
+        budget_events,
+        errors,
+    )
 
     return 0
 

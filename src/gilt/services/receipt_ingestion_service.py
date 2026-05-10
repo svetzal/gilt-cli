@@ -191,6 +191,50 @@ _FX_DATE_WINDOW = 2
 _PATTERN_AMOUNT_PCT = Decimal("0.08")  # 8% tolerance for vendor-pattern matches
 
 
+def _is_exact_match(
+    amount_diff: Decimal,
+    days_diff: int,
+    desc_matches_vendor: bool,
+    amount_tolerance: Decimal,
+    date_window_days: int,
+) -> bool:
+    """Return True when amount and date are within tolerance and vendor description matches."""
+    return amount_diff <= amount_tolerance and days_diff <= date_window_days and desc_matches_vendor
+
+
+def _is_fx_match(
+    receipt: ReceiptData,
+    txn: dict,
+    amount_diff: Decimal,
+    days_diff: int,
+    desc_matches_vendor: bool,
+    receipt_amount: Decimal,
+) -> bool:
+    """Return True when currencies differ and amount/date fall within FX tolerances."""
+    txn_currency = txn.get("currency", "CAD")
+    if receipt.currency == txn_currency:
+        return False
+    pct_diff = amount_diff / receipt_amount if receipt_amount else Decimal("999")
+    return pct_diff <= _FX_AMOUNT_PCT and days_diff <= _FX_DATE_WINDOW and desc_matches_vendor
+
+
+def _is_pattern_match(
+    amount_diff: Decimal,
+    days_diff: int,
+    vendor_substrings: list[str],
+    desc: str,
+    receipt_amount: Decimal,
+    date_window_days: int,
+) -> bool:
+    """Return True when the description contains a vendor keyword and amount/date are within tolerances."""
+    if not vendor_substrings:
+        return False
+    if not any(s.upper() in desc for s in vendor_substrings):
+        return False
+    pct_diff = amount_diff / receipt_amount if receipt_amount else Decimal("999")
+    return pct_diff <= _PATTERN_AMOUNT_PCT and days_diff <= date_window_days
+
+
 def match_receipt_to_transactions(
     receipt: ReceiptData,
     transactions: list[dict],
@@ -229,7 +273,6 @@ def match_receipt_to_transactions(
     vendor_substrings = (
         vendor_patterns.get(vendor_key, []) if vendor_patterns and vendor_key else []
     )
-    # When the vendor has known patterns, exact/FX must also verify description
     vendor_has_patterns = bool(vendor_substrings)
 
     for txn in transactions:
@@ -246,34 +289,20 @@ def match_receipt_to_transactions(
             continue
         days_diff = abs((txn_date - receipt.receipt_date).days)
 
-        # Check vendor description match (used by exact and FX strategies)
         desc = txn.get("canonical_description", "").upper()
         desc_matches_vendor = not vendor_has_patterns or any(
             s.upper() in desc for s in vendor_substrings
         )
 
-        # Strategy 1: Exact match (vendor-filtered when patterns exist)
-        if (
-            amount_diff <= amount_tolerance
-            and days_diff <= date_window_days
-            and desc_matches_vendor
-        ):
+        if _is_exact_match(amount_diff, days_diff, desc_matches_vendor, amount_tolerance, date_window_days):
             exact_candidates.append(txn)
 
-        # Strategy 2: FX-tolerant match (vendor-filtered when patterns exist)
-        txn_currency = txn.get("currency", "CAD")
-        if receipt.currency != txn_currency:
-            pct_diff = amount_diff / receipt_amount if receipt_amount else Decimal("999")
-            if pct_diff <= _FX_AMOUNT_PCT and days_diff <= _FX_DATE_WINDOW and desc_matches_vendor:
-                fx_candidates.append(txn)
+        if _is_fx_match(receipt, txn, amount_diff, days_diff, desc_matches_vendor, receipt_amount):
+            fx_candidates.append(txn)
 
-        # Strategy 3: Vendor-pattern match
-        if vendor_substrings and any(s.upper() in desc for s in vendor_substrings):
-            pct_diff = amount_diff / receipt_amount if receipt_amount else Decimal("999")
-            if pct_diff <= _PATTERN_AMOUNT_PCT and days_diff <= date_window_days:
-                pattern_candidates.append(txn)
+        if _is_pattern_match(amount_diff, days_diff, vendor_substrings, desc, receipt_amount, date_window_days):
+            pattern_candidates.append(txn)
 
-    # Return best strategy (highest confidence first)
     for candidates, confidence in [
         (exact_candidates, "exact"),
         (fx_candidates, "fx-adjusted"),

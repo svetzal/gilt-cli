@@ -28,38 +28,8 @@ from gilt.workspace import Workspace
 from .util import console, require_event_sourcing
 
 
-def run(
-    workspace: Workspace,
-    generate_update: bool = False,
-) -> int:
-    """Show prompt learning statistics and optionally generate updates.
-
-    Args:
-        workspace: Workspace for resolving data paths
-        generate_update: Whether to generate a PromptUpdated event
-
-    Returns:
-        Exit code (0 = success)
-    """
-    ready = require_event_sourcing(workspace)
-    if ready is None:
-        return 1
-
-    event_store = ready.event_store
-    learning_service = PromptLearningService(event_store)
-
-    console.print("[cyan]Prompt Learning Statistics[/cyan]")
-    console.print()
-
-    # Calculate accuracy metrics
-    metrics = learning_service.calculate_accuracy()
-
-    if metrics.total_feedback == 0:
-        console.print("[yellow]No feedback data available yet.[/yellow]")
-        console.print("[dim]Run 'gilt duplicates --interactive' to provide feedback.[/dim]")
-        return 0
-
-    # Display accuracy metrics
+def _display_accuracy_metrics(console: Console, metrics) -> None:
+    """Build and print the accuracy metrics table."""
     metrics_table = Table(title="Accuracy Metrics", show_header=True)
     metrics_table.add_column("Metric", style="cyan")
     metrics_table.add_column("Value", style="green", justify="right")
@@ -78,50 +48,97 @@ def run(
     console.print(metrics_table)
     console.print()
 
-    # Display learned patterns
-    patterns = learning_service.identify_learned_patterns()
 
-    if patterns:
-        console.print("[cyan]Learned Patterns:[/cyan]")
+def _display_learned_patterns(console: Console, patterns: list) -> None:
+    """Print a panel for each learned pattern."""
+    if not patterns:
+        return
+
+    console.print("[cyan]Learned Patterns:[/cyan]")
+    console.print()
+
+    for pattern in patterns:
+        color = "green" if pattern.confidence > 0.7 else "yellow"
+        panel = Panel(
+            f"[bold]{pattern.description}[/bold]\n\n"
+            f"Confidence: {pattern.confidence:.1%} | "
+            f"Evidence: {pattern.evidence_count} cases",
+            title=f"[{color}]{pattern.pattern_type.upper()}[/{color}]",
+            border_style=color,
+        )
+        console.print(panel)
         console.print()
 
-        for pattern in patterns:
-            color = "green" if pattern.confidence > 0.7 else "yellow"
-            panel = Panel(
-                f"[bold]{pattern.description}[/bold]\n\n"
-                f"Confidence: {pattern.confidence:.1%} | "
-                f"Evidence: {pattern.evidence_count} cases",
-                title=f"[{color}]{pattern.pattern_type.upper()}[/{color}]",
-                border_style=color,
-            )
-            console.print(panel)
-            console.print()
 
-    # Generate prompt update if requested
+def _generate_and_emit_update(console: Console, learning_service: PromptLearningService, event_store) -> None:
+    """Generate a prompt update from learned patterns and emit it to the event store."""
+    console.print("[yellow]Generating prompt update...[/yellow]")
+
+    prompt_events = event_store.get_events_by_type("PromptUpdated")
+    current_version = "v1"
+    if prompt_events:
+        latest_prompt = prompt_events[-1]
+        if isinstance(latest_prompt, PromptUpdated):
+            current_version = latest_prompt.prompt_version
+
+    prompt_update = learning_service.generate_prompt_update(current_version)
+
+    if prompt_update:
+        event_store.append_event(prompt_update)
+        console.print(f"[green]✓ Generated {prompt_update.prompt_version}[/green]")
+        console.print()
+        console.print("[cyan]New patterns added:[/cyan]")
+        for pattern in prompt_update.learned_patterns:
+            console.print(f"  • {pattern}")
+    else:
+        console.print("[yellow]No new patterns learned - update not generated[/yellow]")
+        console.print("[dim]More feedback needed to identify new patterns.[/dim]")
+
+
+def run(
+    workspace: Workspace,
+    generate_update: bool = False,
+) -> int:
+    """Show prompt learning statistics and optionally generate updates.
+
+    Args:
+        workspace: Workspace for resolving data paths
+        generate_update: Whether to generate a PromptUpdated event
+
+    Returns:
+        Exit code (0 = success)
+    """
+    # Init
+    ready = require_event_sourcing(workspace)
+    if ready is None:
+        return 1
+
+    event_store = ready.event_store
+    learning_service = PromptLearningService(event_store)
+
+    console.print("[cyan]Prompt Learning Statistics[/cyan]")
+    console.print()
+
+    # Compute metrics
+    metrics = learning_service.calculate_accuracy()
+
+    if metrics.total_feedback == 0:
+        console.print("[yellow]No feedback data available yet.[/yellow]")
+        console.print("[dim]Run 'gilt duplicates --interactive' to provide feedback.[/dim]")
+        return 0
+
+    # Display metrics
+    _display_accuracy_metrics(console, metrics)
+
+    # Display patterns
+    patterns = learning_service.identify_learned_patterns()
+    _display_learned_patterns(console, patterns)
+
+    # Generate update if requested
     if generate_update:
-        console.print("[yellow]Generating prompt update...[/yellow]")
+        _generate_and_emit_update(console, learning_service, event_store)
 
-        # Get current version from last PromptUpdated event
-        prompt_events = event_store.get_events_by_type("PromptUpdated")
-        current_version = "v1"
-        if prompt_events:
-            latest_prompt = prompt_events[-1]
-            if isinstance(latest_prompt, PromptUpdated):
-                current_version = latest_prompt.prompt_version
-
-        prompt_update = learning_service.generate_prompt_update(current_version)
-
-        if prompt_update:
-            event_store.append_event(prompt_update)
-            console.print(f"[green]✓ Generated {prompt_update.prompt_version}[/green]")
-            console.print()
-            console.print("[cyan]New patterns added:[/cyan]")
-            for pattern in prompt_update.learned_patterns:
-                console.print(f"  • {pattern}")
-        else:
-            console.print("[yellow]No new patterns learned - update not generated[/yellow]")
-            console.print("[dim]More feedback needed to identify new patterns.[/dim]")
-
+    # Display history
     _display_prompt_history(console, event_store)
 
     return 0

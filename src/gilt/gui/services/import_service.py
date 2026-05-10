@@ -261,6 +261,55 @@ class ImportService:
         except (FileNotFoundError, UnicodeDecodeError, pd.errors.ParserError, KeyError) as e:
             return 0, 0, str(e)
 
+    def _parse_file_to_transactions(self, file_path: Path, account_id: str) -> list[Transaction]:
+        """Parse a CSV file and return its rows as Transaction objects."""
+        df = parse_file(file_path, account_id, self._amount_sign_for(account_id))
+        transactions: list[Transaction] = []
+        for _, row in df.iterrows():
+            metadata = {"source_file": row["source_file"]}
+            txn = Transaction(
+                transaction_id=str(row["transaction_id"]),
+                date=datetime.strptime(str(row["date"]), "%Y-%m-%d").date(),
+                description=str(row["description"]),
+                amount=float(row["amount"]),
+                currency=str(row["currency"]),
+                account_id=str(row["account_id"]),
+                counterparty=str(row["counterparty"]) if pd.notna(row["counterparty"]) else None,
+                category=None,
+                subcategory=None,
+                notes=None,
+                source_file=str(row["source_file"]),
+                metadata=metadata,
+            )
+            transactions.append(txn)
+        return transactions
+
+    def _filter_relevant_matches(
+        self, matches: list[DuplicateMatch], new_ids: set[str]
+    ) -> list[DuplicateMatch]:
+        """Filter matches to those involving new transactions, swapping pairs so txn1 is always new."""
+        relevant: list[DuplicateMatch] = []
+        for m in matches:
+            if m.pair.txn1_id in new_ids:
+                relevant.append(m)
+            elif m.pair.txn2_id in new_ids:
+                new_pair = TransactionPair(
+                    txn1_id=m.pair.txn2_id,
+                    txn1_date=m.pair.txn2_date,
+                    txn1_description=m.pair.txn2_description,
+                    txn1_amount=m.pair.txn2_amount,
+                    txn1_account=m.pair.txn2_account,
+                    txn1_source_file=m.pair.txn2_source_file,
+                    txn2_id=m.pair.txn1_id,
+                    txn2_date=m.pair.txn1_date,
+                    txn2_description=m.pair.txn1_description,
+                    txn2_amount=m.pair.txn1_amount,
+                    txn2_account=m.pair.txn1_account,
+                    txn2_source_file=m.pair.txn1_source_file,
+                )
+                relevant.append(m.model_copy(update={"pair": new_pair}))
+        return relevant
+
     def scan_file_for_duplicates(self, file_path: Path, account_id: str) -> list[DuplicateMatch]:
         """
         Scan a file for potential duplicates against existing transactions.
@@ -276,76 +325,19 @@ class ImportService:
             return []
 
         try:
-            # 1. Parse file to transactions
-            df = parse_file(file_path, account_id, self._amount_sign_for(account_id))
-            new_transactions = []
-            for _, row in df.iterrows():
-                # Build metadata with source_file info
-                metadata = {"source_file": row["source_file"]}
-
-                txn = Transaction(
-                    transaction_id=str(row["transaction_id"]),
-                    date=datetime.strptime(str(row["date"]), "%Y-%m-%d").date(),
-                    description=str(row["description"]),
-                    amount=float(row["amount"]),
-                    currency=str(row["currency"]),
-                    account_id=str(row["account_id"]),
-                    counterparty=str(row["counterparty"])
-                    if pd.notna(row["counterparty"])
-                    else None,
-                    category=None,  # Categories not assigned yet
-                    subcategory=None,
-                    notes=None,
-                    source_file=str(row["source_file"]),
-                    metadata=metadata,
-                )
-                new_transactions.append(txn)
+            new_transactions = self._parse_file_to_transactions(file_path, account_id)
 
             if not new_transactions:
                 return []
 
-            # 2. Load existing transactions
-            # We use the detector's load_all_transactions which gets everything from projections
             existing_transactions = self.duplicate_service.detector.load_all_transactions(
                 self.data_dir
             )
-
-            # 3. Combine (existing + new)
-            # Note: We don't filter existing by account because duplicates might be cross-account transfers
-            # (though duplicate detector currently enforces same account)
             all_transactions = existing_transactions + new_transactions
-
-            # 4. Find duplicates
             matches = self.duplicate_service.scan_transactions(all_transactions)
 
-            # 5. Filter matches to only those involving new transactions
             new_ids = {t.transaction_id for t in new_transactions}
-            relevant_matches = []
-
-            for m in matches:
-                if m.pair.txn1_id in new_ids:
-                    # txn1 is new, keep as is
-                    relevant_matches.append(m)
-                elif m.pair.txn2_id in new_ids:
-                    # txn2 is new, swap so txn1 is always the new transaction
-                    new_pair = TransactionPair(
-                        txn1_id=m.pair.txn2_id,
-                        txn1_date=m.pair.txn2_date,
-                        txn1_description=m.pair.txn2_description,
-                        txn1_amount=m.pair.txn2_amount,
-                        txn1_account=m.pair.txn2_account,
-                        txn1_source_file=m.pair.txn2_source_file,
-                        txn2_id=m.pair.txn1_id,
-                        txn2_date=m.pair.txn1_date,
-                        txn2_description=m.pair.txn1_description,
-                        txn2_amount=m.pair.txn1_amount,
-                        txn2_account=m.pair.txn1_account,
-                        txn2_source_file=m.pair.txn1_source_file,
-                    )
-                    new_match = m.model_copy(update={"pair": new_pair})
-                    relevant_matches.append(new_match)
-
-            return relevant_matches
+            return self._filter_relevant_matches(matches, new_ids)
 
         except (OSError, ValueError) as e:
             _logger.error("Error scanning for duplicates: %s", e)
@@ -420,6 +412,62 @@ class ImportService:
             _logger.error("Error scanning for categorization: %s", e)
             return []
 
+    def _perform_import(
+        self,
+        file_path: Path,
+        account_id: str,
+        exclude_ids: list[str] | None,
+        categorization_map: dict[str, str] | None,
+        progress_callback,
+    ) -> tuple[Path | None, list[str]]:
+        """Run normalize_file + link_transfers (write) or dry-run equivalents. Returns (ledger_path, messages)."""
+        messages: list[str] = []
+        if progress_callback:
+            progress_callback(30)
+
+        if True:  # write branch (caller guards with write flag)
+            event_store = None
+            if self.event_sourcing_service:
+                event_store = self.event_sourcing_service.get_event_store()
+
+            ledger_path = normalize_file(
+                file_path,
+                account_id,
+                self.data_dir,
+                event_store=event_store,
+                exclude_ids=exclude_ids,
+                categorization_map=categorization_map,
+                amount_sign=self._amount_sign_for(account_id),
+            )
+            messages.append(f"Normalized {file_path.name} to {ledger_path}")
+
+            if progress_callback:
+                progress_callback(90)
+
+            linked_count = link_transfers(self.data_dir, write=True)
+            if linked_count > 0:
+                messages.append(f"Linked {linked_count} transfers")
+
+            return ledger_path, messages
+
+    def _perform_dry_run(
+        self,
+        file_path: Path,
+        progress_callback,
+    ) -> tuple[None, list[str]]:
+        """Validate without writing. Returns (None, messages)."""
+        messages: list[str] = []
+        messages.append(f"DRY-RUN: Would normalize {file_path.name}")
+
+        linked_count = link_transfers(self.data_dir, write=False)
+        if linked_count > 0:
+            messages.append(f"DRY-RUN: Would link {linked_count} transfers")
+
+        if progress_callback:
+            progress_callback(100)
+
+        return None, messages
+
     def import_file(
         self,
         file_path: Path,
@@ -449,56 +497,22 @@ class ImportService:
             if progress_callback:
                 progress_callback(10)
 
-            # Get existing count
             existing_count = self.get_existing_transaction_count(account_id)
             messages.append(f"Account {account_id} has {existing_count} existing transactions")
 
-            if progress_callback:
-                progress_callback(30)
-
-            # Perform normalization
             if write:
-                # Get event store if service is available
-                event_store = None
-                if self.event_sourcing_service:
-                    event_store = self.event_sourcing_service.get_event_store()
-
-                ledger_path = normalize_file(
-                    file_path,
-                    account_id,
-                    self.data_dir,
-                    event_store=event_store,
-                    exclude_ids=exclude_ids,
-                    categorization_map=categorization_map,
-                    amount_sign=self._amount_sign_for(account_id),
+                ledger_path, norm_messages = self._perform_import(
+                    file_path, account_id, exclude_ids, categorization_map, progress_callback
                 )
-                messages.append(f"Normalized {file_path.name} to {ledger_path}")
-
-                # Link transfers
-                if progress_callback:
-                    progress_callback(90)
-
-                linked_count = link_transfers(self.data_dir, write=True)
-                if linked_count > 0:
-                    messages.append(f"Linked {linked_count} transfers")
-
             else:
-                # Dry-run: just validate
-                messages.append(f"DRY-RUN: Would normalize {file_path.name}")
-                ledger_path = None
-
-                # Dry-run linking
-                linked_count = link_transfers(self.data_dir, write=False)
-                if linked_count > 0:
-                    messages.append(f"DRY-RUN: Would link {linked_count} transfers")
+                ledger_path, norm_messages = self._perform_dry_run(file_path, progress_callback)
+            messages.extend(norm_messages)
 
             if progress_callback:
                 progress_callback(100)
 
-            # Get new count
             new_count = self.get_existing_transaction_count(account_id)
             imported = new_count - existing_count
-
             messages.append(f"Imported {imported} new transactions")
 
             return ImportResult(

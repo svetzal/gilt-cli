@@ -327,15 +327,10 @@ class TransactionsView(QWidget):
         # Connect update signal
         self.table.transaction_model.transaction_updated.connect(self._on_transaction_updated)
 
-    def _create_filter_controls(self) -> QGroupBox:
-        """Create the filter controls group."""
-        group = QGroupBox("Filters")
-        layout = QVBoxLayout(group)
-
-        # First row: Account, Date Range preset, custom dates
+    def _create_account_and_date_row(self) -> QHBoxLayout:
+        """Row 1: account combo, date range combo, custom date edits."""
         row1 = QHBoxLayout()
 
-        # Account filter
         row1.addWidget(QLabel("Account:"))
         self.account_combo = QComboBox()
         self.account_combo.addItem("All Accounts", None)
@@ -343,7 +338,6 @@ class TransactionsView(QWidget):
 
         row1.addSpacing(20)
 
-        # Date range preset
         row1.addWidget(QLabel("Period:"))
         self.date_range_combo = QComboBox()
         self.date_range_combo.addItems(
@@ -358,7 +352,6 @@ class TransactionsView(QWidget):
         )
         row1.addWidget(self.date_range_combo)
 
-        # Custom date range (hidden unless "Custom" selected)
         self._from_label = QLabel("From:")
         row1.addWidget(self._from_label)
         self.start_date_edit = QDateEdit()
@@ -376,12 +369,12 @@ class TransactionsView(QWidget):
         self._set_custom_dates_visible(False)
 
         row1.addStretch()
-        layout.addLayout(row1)
+        return row1
 
-        # Second row: Search, Category, Uncategorized checkbox
+    def _create_search_and_category_row(self) -> QHBoxLayout:
+        """Row 2: search edit, category combo, uncategorized checkbox, status label."""
         row2 = QHBoxLayout()
 
-        # Search box
         row2.addWidget(QLabel("Search:"))
         self.search_edit = QLineEdit()
         self.search_edit.setPlaceholderText("Search description...")
@@ -389,7 +382,6 @@ class TransactionsView(QWidget):
 
         row2.addSpacing(20)
 
-        # Category filter
         row2.addWidget(QLabel("Category:"))
         self.category_combo = QComboBox()
         self.category_combo.addItem("All Categories", None)
@@ -397,20 +389,19 @@ class TransactionsView(QWidget):
 
         row2.addSpacing(20)
 
-        # Uncategorized checkbox
         self.uncategorized_check = QCheckBox("Show only uncategorized")
         row2.addWidget(self.uncategorized_check)
 
         row2.addStretch()
 
-        # Status label
         self.status_label = QLabel()
         self.status_label.setStyleSheet("color: gray;")
         row2.addWidget(self.status_label)
 
-        layout.addLayout(row2)
+        return row2
 
-        # Third row: utility buttons
+    def _create_utility_buttons_row(self) -> QHBoxLayout:
+        """Row 3: clear, reload, rescan, match receipts buttons."""
         row3 = QHBoxLayout()
 
         self.clear_btn = QPushButton("Clear Filters")
@@ -426,7 +417,16 @@ class TransactionsView(QWidget):
         row3.addWidget(self.match_receipts_btn)
 
         row3.addStretch()
-        layout.addLayout(row3)
+        return row3
+
+    def _create_filter_controls(self) -> QGroupBox:
+        """Create the filter controls group."""
+        group = QGroupBox("Filters")
+        layout = QVBoxLayout(group)
+
+        layout.addLayout(self._create_account_and_date_row())
+        layout.addLayout(self._create_search_and_category_row())
+        layout.addLayout(self._create_utility_buttons_row())
 
         return group
 
