@@ -213,7 +213,7 @@ class DuplicateReviewService:
             validation=validation,
         )
 
-    def create_suggestion_event(
+    def build_suggestion_event(
         self,
         pair: TransactionPair,
         assessment: DuplicateAssessment,

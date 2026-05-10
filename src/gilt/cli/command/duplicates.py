@@ -48,7 +48,7 @@ from rich.progress import (
 )
 from rich.prompt import Prompt
 
-from gilt.cli.presentation import create_duplicate_pair_table
+from gilt.cli.presentation import build_duplicate_pair_table
 from gilt.config import DEFAULT_OLLAMA_MODEL
 from gilt.services.duplicate_review_service import (
     DuplicateReviewService,
@@ -169,7 +169,7 @@ def _display_and_review_match(ctx: ReviewContext, i: int, total: int, match, sug
     assessment = match.assessment
 
     # Display table
-    table = create_duplicate_pair_table(
+    table = build_duplicate_pair_table(
         f"Match {i}/{total} - Confidence: {match.confidence_pct:.1f}%", pair
     )
     ctx.console.print(table)
@@ -303,7 +303,7 @@ def _run_review_loop(review_ctx: ReviewContext, filtered_matches, review_service
     for i, match in enumerate(filtered_matches, 1):
         pair = match.pair
 
-        _, event_id = review_service.create_suggestion_event(
+        _, event_id = review_service.build_suggestion_event(
             pair=pair,
             assessment=match.assessment,
             model=model,

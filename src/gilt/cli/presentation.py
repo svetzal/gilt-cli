@@ -11,8 +11,8 @@ from rich.table import Table
 from gilt.model.duplicate import TransactionPair
 
 
-def create_transaction_table(title: str, extra_columns: list[tuple[str, dict]]) -> Table:
-    """Create a Rich Table with 5 standard transaction columns plus any extra columns.
+def build_transaction_table(title: str, extra_columns: list[tuple[str, dict]]) -> Table:
+    """Build a Rich Table with 5 standard transaction columns plus any extra columns.
 
     The standard columns are: Account (cyan/no_wrap), TxnID (blue/no_wrap),
     Date (white), Description (white), Amount (yellow/right).
@@ -33,8 +33,8 @@ def create_transaction_table(title: str, extra_columns: list[tuple[str, dict]]) 
     return table
 
 
-def create_duplicate_pair_table(title: str, pair: TransactionPair) -> Table:
-    """Create a Rich Table comparing two transactions in a potential duplicate pair.
+def build_duplicate_pair_table(title: str, pair: TransactionPair) -> Table:
+    """Build a Rich Table comparing two transactions in a potential duplicate pair.
 
     Renders a three-column comparison: Field | Latest (1) | Original (2).
     Includes a Source File row when the pair has ``txn1_source_file`` and
@@ -63,4 +63,4 @@ def create_duplicate_pair_table(title: str, pair: TransactionPair) -> Table:
     return table
 
 
-__all__ = ["create_transaction_table", "create_duplicate_pair_table"]
+__all__ = ["build_transaction_table", "build_duplicate_pair_table"]

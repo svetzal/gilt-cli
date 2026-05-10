@@ -74,7 +74,7 @@ class DescribeDuplicateReviewService:
 
 
 class DescribeSuggestionEventCreation(DescribeDuplicateReviewService):
-    """Tests for create_suggestion_event method."""
+    """Tests for build_suggestion_event method."""
 
     def it_should_create_event_with_correct_schema(
         self, service, mock_event_store, sample_pair, sample_assessment
@@ -83,7 +83,7 @@ class DescribeSuggestionEventCreation(DescribeDuplicateReviewService):
         model = "qwen3.5:27b"
         prompt_version = "v2.1"
 
-        event, event_id = service.create_suggestion_event(
+        event, event_id = service.build_suggestion_event(
             pair=sample_pair,
             assessment=sample_assessment,
             model=model,
@@ -124,7 +124,7 @@ class DescribeSuggestionEventCreation(DescribeDuplicateReviewService):
 
         This test would have caught the bug in duplicates.py!
         """
-        event, _ = service.create_suggestion_event(
+        event, _ = service.build_suggestion_event(
             pair=sample_pair,
             assessment=sample_assessment,
             model="qwen3.5:27b",

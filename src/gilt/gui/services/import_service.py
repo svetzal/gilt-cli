@@ -185,7 +185,7 @@ class ImportService:
         except (FileNotFoundError, UnicodeDecodeError, pd.errors.ParserError) as e:
             return [], str(e)
 
-    def create_file_mapping(self, file_path: Path, max_preview_rows: int = 5) -> ImportFileMapping:
+    def build_file_mapping(self, file_path: Path, max_preview_rows: int = 5) -> ImportFileMapping:
         """
         Create a mapping for a file with account detection and preview.
 

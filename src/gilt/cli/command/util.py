@@ -8,7 +8,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
-from gilt.cli.presentation import create_transaction_table
+from gilt.cli.presentation import build_transaction_table
 from gilt.model.account import TransactionGroup
 from gilt.model.ledger_repository import LedgerRepository
 from gilt.services.categorization_persistence_service import CategorizationPersistenceService
@@ -174,14 +174,14 @@ def display_transaction_matches(
     """Create and print a transaction table for a sequence of matches.
 
     Args:
-        title: Table title passed to ``create_transaction_table``.
-        extra_columns: Extra column specs passed to ``create_transaction_table``.
+        title: Table title passed to ``build_transaction_table``.
+        extra_columns: Extra column specs passed to ``build_transaction_table``.
         matches: The full sequence of matches. Only the first ``display_limit`` are rendered.
         row_fn: Callable that accepts a single match item and returns a tuple of column values
             matching (account, txn_id_prefix, date, description, amount, *extra_values).
         display_limit: Maximum rows to render before the overflow message is shown.
     """
-    table = create_transaction_table(title, extra_columns)
+    table = build_transaction_table(title, extra_columns)
     for item in matches[:display_limit]:
         table.add_row(*row_fn(item))
     print_transaction_table(table, len(matches), display_limit=display_limit)

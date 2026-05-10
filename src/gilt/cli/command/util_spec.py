@@ -8,7 +8,7 @@ from unittest.mock import Mock
 from rich.table import Table
 
 from gilt.cli.command.util import (
-    create_transaction_table,
+    build_transaction_table,
     display_transaction_matches,
     filter_by_account,
     filter_uncategorized,
@@ -146,7 +146,7 @@ class DescribeCreateTransactionTable:
             ("→ New Note", {"style": "green"}),
         ]
 
-        table = create_transaction_table("Matched Transactions", extra_columns)
+        table = build_transaction_table("Matched Transactions", extra_columns)
 
         assert isinstance(table, Table)
         assert len(table.columns) == 7
@@ -162,7 +162,7 @@ class DescribeCreateTransactionTable:
         ]
 
     def it_should_apply_correct_styles_to_base_columns(self):
-        table = create_transaction_table("Test", [])
+        table = build_transaction_table("Test", [])
 
         cols = table.columns
         assert cols[0].style == "cyan"
@@ -170,7 +170,7 @@ class DescribeCreateTransactionTable:
         assert cols[4].style == "yellow"
 
     def it_should_apply_right_justify_to_amount_column(self):
-        table = create_transaction_table("Test", [])
+        table = build_transaction_table("Test", [])
 
         amount_col = table.columns[4]
         assert amount_col.justify == "right"
@@ -252,7 +252,7 @@ class DescribeDisplayTransactionMatches:
 
     def it_should_pass_total_count_to_print_transaction_table(self, mocker):
         mock_print_table = mocker.patch("gilt.cli.command.util.print_transaction_table")
-        mocker.patch("gilt.cli.command.util.create_transaction_table")
+        mocker.patch("gilt.cli.command.util.build_transaction_table")
         matches = list(range(55))
 
         display_transaction_matches(

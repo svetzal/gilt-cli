@@ -9,8 +9,8 @@ from gilt.model.account import Transaction
 from gilt.workspace import Workspace
 
 from .util import (
+    build_transaction_table,
     console,
-    create_transaction_table,
     filter_by_account,
     filter_uncategorized,
     fmt_amount_str,
@@ -37,7 +37,7 @@ def _display_uncategorized_table(console, displayed: list[Transaction], year: in
     if year:
         title += f" ({year})"
 
-    table = create_transaction_table(title, [("Notes", {"style": "dim"})])
+    table = build_transaction_table(title, [("Notes", {"style": "dim"})])
 
     for txn in displayed:
         table.add_row(

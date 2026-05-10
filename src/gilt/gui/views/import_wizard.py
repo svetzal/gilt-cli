@@ -331,7 +331,7 @@ class AccountMappingPage(QWizardPage):
         account_ids = [acc.account_id for acc in accounts]
 
         for file_path in selected_files:
-            mapping = self.service.create_file_mapping(file_path, max_preview_rows=3)
+            mapping = self.service.build_file_mapping(file_path, max_preview_rows=3)
             self.mappings.append(mapping)
 
             # Add row
