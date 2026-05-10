@@ -91,6 +91,18 @@ def show_summary(console: Console, builder: TrainingDataBuilder) -> int:
     return 0
 
 
+def _build_pair_comparison_table(pair, style: str) -> Table:
+    table = Table(show_header=True, header_style=f"bold {style}")
+    table.add_column("Field", style="dim")
+    table.add_column("Transaction 1")
+    table.add_column("Transaction 2")
+    table.add_row("Description", pair.txn1_description, pair.txn2_description)
+    table.add_row("Date", str(pair.txn1_date), str(pair.txn2_date))
+    table.add_row("Amount", fmt_amount_str(pair.txn1_amount), fmt_amount_str(pair.txn2_amount))
+    table.add_row("Account", pair.txn1_account, pair.txn2_account)
+    return table
+
+
 def show_training_data(
     console: Console, builder: TrainingDataBuilder, filter_pattern: str | None, limit: int
 ) -> int:
@@ -122,22 +134,9 @@ def show_training_data(
         console.print(
             f"[green]Positive Examples (Marked as Duplicates) - Showing {min(limit, len(positive_pairs))} of {len(positive_pairs)}[/green]\n"
         )
-
         for i, (pair, _) in enumerate(positive_pairs[:limit]):
-            table = Table(show_header=True, header_style="bold green")
-            table.add_column("Field", style="dim")
-            table.add_column("Transaction 1")
-            table.add_column("Transaction 2")
-
-            table.add_row("Description", pair.txn1_description, pair.txn2_description)
-            table.add_row("Date", str(pair.txn1_date), str(pair.txn2_date))
-            table.add_row(
-                "Amount", fmt_amount_str(pair.txn1_amount), fmt_amount_str(pair.txn2_amount)
-            )
-            table.add_row("Account", pair.txn1_account, pair.txn2_account)
-
             console.print(f"\n[dim]Example {i + 1}[/dim]")
-            console.print(table)
+            console.print(_build_pair_comparison_table(pair, "green"))
 
     # Show negative examples
     negative_pairs = [(p, lab) for p, lab in zip(pairs, labels, strict=False) if not lab]
@@ -145,22 +144,9 @@ def show_training_data(
         console.print(
             f"\n[yellow]Negative Examples (Marked as NOT Duplicates) - Showing {min(limit, len(negative_pairs))} of {len(negative_pairs)}[/yellow]\n"
         )
-
         for i, (pair, _) in enumerate(negative_pairs[:limit]):
-            table = Table(show_header=True, header_style="bold yellow")
-            table.add_column("Field", style="dim")
-            table.add_column("Transaction 1")
-            table.add_column("Transaction 2")
-
-            table.add_row("Description", pair.txn1_description, pair.txn2_description)
-            table.add_row("Date", str(pair.txn1_date), str(pair.txn2_date))
-            table.add_row(
-                "Amount", fmt_amount_str(pair.txn1_amount), fmt_amount_str(pair.txn2_amount)
-            )
-            table.add_row("Account", pair.txn1_account, pair.txn2_account)
-
             console.print(f"\n[dim]Example {i + 1}[/dim]")
-            console.print(table)
+            console.print(_build_pair_comparison_table(pair, "yellow"))
 
     return 0
 
@@ -227,21 +213,11 @@ def show_predictions(
             style = "yellow"
             prediction = "✗ NOT DUPLICATE"
 
-        table = Table(show_header=True, header_style=f"bold {style}")
-        table.add_column("Field", style="dim")
-        table.add_column("Transaction 1")
-        table.add_column("Transaction 2")
-
-        table.add_row("Description", pair.txn1_description, pair.txn2_description)
-        table.add_row("Date", str(pair.txn1_date), str(pair.txn2_date))
-        table.add_row("Amount", f"${pair.txn1_amount:.2f}", f"${pair.txn2_amount:.2f}")
-        table.add_row("Account", pair.txn1_account, pair.txn2_account)
-
         console.print(
             f"\n[dim]Candidate {i + 1}[/dim] - [{style}]{prediction}[/{style}] (Confidence: {assessment.confidence:.1%})"
         )
         console.print(f"[dim]{assessment.reasoning}[/dim]")
-        console.print(table)
+        console.print(_build_pair_comparison_table(pair, style))
 
     return 0
 
