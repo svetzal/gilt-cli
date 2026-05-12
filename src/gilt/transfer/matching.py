@@ -5,7 +5,7 @@ Pure transfer matching logic (no CLI, no printing).
 
 - Operates on per-account ledger CSVs under data/accounts/ (or a provided directory).
 - Provides data structures and compute_matches() for use by other modules.
-- Privacy-safe: does not print raw descriptions; hashing is available via Txn.desc_hash8 if needed by callers.
+- Privacy-safe: does not print raw descriptions.
 """
 
 from collections.abc import Sequence
@@ -51,18 +51,6 @@ class Txn:
     account_id: str
     description: str
     source_file: str
-
-    def is_debit(self) -> bool:
-        return self.amount < 0
-
-    def is_credit(self) -> bool:
-        return self.amount > 0
-
-    @property
-    def desc_hash8(self) -> str:
-        import hashlib
-
-        return hashlib.sha256(self.description.encode("utf-8")).hexdigest()[:8]
 
     def has_desc_token(self, tokens: Sequence[str]) -> bool:
         upper = self.description.upper()
@@ -295,8 +283,8 @@ def compute_matches(
     if not txns:
         return []
 
-    debits = [t for t in txns if t.is_debit()]
-    _credits = [t for t in txns if t.is_credit()]  # kept for parity; not directly used
+    debits = [t for t in txns if t.amount < 0]
+    _credits = [t for t in txns if t.amount > 0]  # kept for parity; not directly used
 
     # Group transactions by currency for efficient candidate retrieval
     txns_by_ccy: dict[str, list[Txn]] = {}
@@ -327,7 +315,7 @@ def compute_matches(
             matches.append(m)
             matched_other_ids.add(m.credit.transaction_id)
             used_debits.add(d.transaction_id)
-            if m.credit.is_debit():
+            if m.credit.amount < 0:
                 used_debits.add(m.credit.transaction_id)
 
     return matches

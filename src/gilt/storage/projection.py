@@ -560,5 +560,17 @@ class ProjectionBuilder:
         finally:
             conn.close()
 
+    def get_distinct_account_ids(self) -> list[str]:
+        """Return sorted list of non-duplicate account IDs from the projections database."""
+        conn = sqlite3.connect(self.db_path)
+        try:
+            cursor = conn.execute(
+                "SELECT DISTINCT account_id FROM transaction_projections "
+                "WHERE is_duplicate = 0 ORDER BY account_id"
+            )
+            return [row[0] for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
 
 __all__ = ["ProjectionBuilder"]

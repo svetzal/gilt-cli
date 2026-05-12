@@ -694,6 +694,31 @@ class DescribeProjectionBuilder:
         assert deleted == 3
         assert len(projection_builder.get_all_transactions()) == 0
 
+    def it_should_return_distinct_non_duplicate_account_ids(
+        self, event_store, projection_builder
+    ):
+        for account_id, txn_id in [
+            ("MYBANK_CHQ", "txn000000000001"),
+            ("MYBANK_CHQ", "txn000000000002"),
+            ("BANK2_BIZ", "txn000000000003"),
+        ]:
+            event_store.append_event(
+                TransactionImported(
+                    transaction_date="2025-01-10",
+                    transaction_id=txn_id,
+                    source_file="test.csv",
+                    source_account=account_id,
+                    raw_description="EXAMPLE UTILITY",
+                    amount=Decimal("-50.00"),
+                    currency="CAD",
+                    raw_data={},
+                )
+            )
+        projection_builder.rebuild_from_scratch(event_store)
+
+        account_ids = projection_builder.get_distinct_account_ids()
+        assert account_ids == ["BANK2_BIZ", "MYBANK_CHQ"]
+
     def it_should_reset_projection_metadata(self, event_store, projection_builder):
         """Should clear the projection_metadata table so incremental rebuild replays all events."""
         event = TransactionImported(

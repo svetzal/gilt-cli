@@ -102,17 +102,7 @@ class TransactionService:
             Sorted list of account IDs
         """
         if self.projections_db_path.exists():
-            import sqlite3
-
-            conn = sqlite3.connect(self.projections_db_path)
-            try:
-                cursor = conn.execute(
-                    "SELECT DISTINCT account_id FROM transaction_projections "
-                    "WHERE is_duplicate = 0 ORDER BY account_id"
-                )
-                return [row[0] for row in cursor.fetchall()]
-            finally:
-                conn.close()
+            return ProjectionBuilder(self.projections_db_path).get_distinct_account_ids()
 
         return self._ledger_repo.available_account_ids()
 

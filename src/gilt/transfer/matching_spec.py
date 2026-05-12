@@ -166,47 +166,6 @@ def _make_txn(
     )
 
 
-class DescribeTxnSignChecks:
-    def it_should_report_debit_for_negative_amount(self):
-        txn = _make_txn(amount=-50.0)
-
-        assert txn.is_debit() is True
-        assert txn.is_credit() is False
-
-    def it_should_report_credit_for_positive_amount(self):
-        txn = _make_txn(amount=50.0)
-
-        assert txn.is_debit() is False
-        assert txn.is_credit() is True
-
-    def it_should_report_neither_for_zero_amount(self):
-        txn = _make_txn(amount=0.0)
-
-        assert txn.is_debit() is False
-        assert txn.is_credit() is False
-
-
-class DescribeTxnDescHash8:
-    def it_should_return_8_char_hex_string(self):
-        txn = _make_txn(description="INTERAC E-TRANSFER")
-
-        result = txn.desc_hash8
-
-        assert len(result) == 8
-        assert all(c in "0123456789abcdef" for c in result)
-
-    def it_should_produce_different_hashes_for_different_inputs(self):
-        txn_a = _make_txn(description="INTERAC E-TRANSFER")
-        txn_b = _make_txn(description="MOVE FUNDS")
-
-        assert txn_a.desc_hash8 != txn_b.desc_hash8
-
-    def it_should_be_deterministic(self):
-        txn = _make_txn(description="INTERAC E-TRANSFER")
-
-        assert txn.desc_hash8 == txn.desc_hash8
-
-
 class DescribeTxnHasDescToken:
     def it_should_return_true_when_token_exactly_present(self):
         txn = _make_txn(description="INTERAC E-TRANSFER")
