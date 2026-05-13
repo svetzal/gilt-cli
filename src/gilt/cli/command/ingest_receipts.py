@@ -177,19 +177,16 @@ def _resolve_ambiguous_interactively(ambiguous: list[MatchResult]) -> list[Match
     return resolved
 
 
-def _filter_paths_by_year(json_paths: list[Path], year: int) -> list[Path]:
-    """Load and filter receipt files by year, warning on any that fail to parse."""
+def _filter_paths_by_year(json_paths: list[Path], year: int) -> tuple[list[Path], list[str]]:
+    """Load and filter receipt files by year. Returns (filtered_paths, parse_warnings)."""
     all_receipts = []
-    skip_count = 0
+    parse_warnings: list[str] = []
     for p in json_paths:
         try:
             all_receipts.append(load_receipt_file(p))
         except (json.JSONDecodeError, OSError, ValueError) as e:
-            console.print(f"[yellow]Warning: skipping {p.name} — {e}[/yellow]")
-            skip_count += 1
-    if skip_count:
-        console.print(f"[yellow]Skipped {skip_count} receipt file(s) due to errors.[/yellow]")
-    return [r.source_path for r in filter_receipts_by_year(all_receipts, year)]
+            parse_warnings.append(f"skipping {p.name} — {e}")
+    return [r.source_path for r in filter_receipts_by_year(all_receipts, year)], parse_warnings
 
 
 def run(
@@ -213,7 +210,11 @@ def run(
     # Scan files
     json_paths = scan_receipt_files(source)
     if year is not None:
-        json_paths = _filter_paths_by_year(json_paths, year)
+        json_paths, parse_warnings = _filter_paths_by_year(json_paths, year)
+        for w in parse_warnings:
+            console.print(f"[yellow]Warning: {w}[/yellow]")
+        if parse_warnings:
+            console.print(f"[yellow]Skipped {len(parse_warnings)} receipt file(s) due to errors.[/yellow]")
     if not json_paths:
         console.print("[yellow]No receipt JSON files found.[/yellow]")
         return 0

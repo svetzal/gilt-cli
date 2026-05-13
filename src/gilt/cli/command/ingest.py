@@ -42,15 +42,14 @@ def _perform_normalization(
     output_dir: Path,
     ingestion_service: IngestionService,
     event_store: EventStore | None = None,
-) -> tuple[int, int]:
+) -> tuple[list[tuple[str, str, Path | None]], int, int]:
+    """Normalize files. Returns (results, written, skipped) where results are (name, status, out_path)."""
     written = 0
     skipped = 0
+    results: list[tuple[str, str, Path | None]] = []
     for p, acct_id in plan:
         if not acct_id:
-            console.print(
-                f"[yellow][skip][/yellow] Could not infer account for {p.name}; "
-                "update config/accounts.yml"
-            )
+            results.append((p.name, "skip", None))
             skipped += 1
             continue
         try:
@@ -61,12 +60,13 @@ def _perform_normalization(
                 event_store=event_store,
                 amount_sign=ingestion_service.amount_sign_for(acct_id),
             )
-            console.print(f"[green][ok][/green] Wrote {out_path}")
+            results.append((p.name, "ok", out_path))
             written += 1
         except LEDGER_IO_ERRORS as e:
             print_error(f"Failed to normalize {p.name}: {e}")
+            results.append((p.name, "error", None))
             skipped += 1
-    return written, skipped
+    return results, written, skipped
 
 
 def _print_pre_counts(counts: dict[str, int]) -> None:
@@ -87,27 +87,10 @@ def _print_post_counts(counts: dict[str, int], pre_counts: dict[str, int]) -> No
         console.print(f"  - {name}: {cnt} groups ({sign}{delta} change)")
 
 
-def _run_post_ingest(workspace, output_dir, event_store, es_service) -> None:
-    """Link transfers, rebuild projections, auto-categorize, and report stats."""
+def _run_post_ingest(workspace, output_dir, event_store, es_service):
+    """Link transfers, rebuild projections, auto-categorize. Returns the result object."""
     orch = IngestionOrchestrationService(workspace)
-    result = orch.run_post_ingest(output_dir, event_store, es_service)
-
-    if result.modified_transfer_count:
-        console.print(
-            f"[green][ok][/green] Updated {result.modified_transfer_count} ledger file(s) with transfer metadata"
-        )
-    else:
-        console.print("[dim]No transfer links identified or no updates needed[/]")
-
-    console.print(f"[green][ok][/green] Processed {result.events_processed} new event(s)")
-    console.print(f"[dim]Projections: {result.total_transactions} total transactions[/dim]")
-
-    if result.auto_categorized_count:
-        console.print(
-            f"[green][ok][/green] Auto-categorized {result.auto_categorized_count} transaction(s) via rules"
-        )
-
-    console.print(f"[dim]Event store: {result.latest_event_sequence} events total[/]")
+    return orch.run_post_ingest(output_dir, event_store, es_service)
 
 
 def run(
@@ -137,14 +120,35 @@ def run(
     pre_counts = _load_ledger_counts(ledger_paths)
     _print_pre_counts(pre_counts)
 
-    written, skipped = _perform_normalization(
+    norm_results, written, skipped = _perform_normalization(
         ingestion_plan.files, output_dir, ingestion_service, event_store=event_store
     )
+    for name, status, out_path in norm_results:
+        if status == "skip":
+            console.print(
+                f"[yellow][skip][/yellow] Could not infer account for {name}; "
+                "update config/accounts.yml"
+            )
+        elif status == "ok":
+            console.print(f"[green][ok][/green] Wrote {out_path}")
 
     post_counts = _load_ledger_counts(ledger_paths)
     _print_post_counts(post_counts, pre_counts)
 
-    _run_post_ingest(workspace, output_dir, event_store, es_service)
+    result = _run_post_ingest(workspace, output_dir, event_store, es_service)
+    if result.modified_transfer_count:
+        console.print(
+            f"[green][ok][/green] Updated {result.modified_transfer_count} ledger file(s) with transfer metadata"
+        )
+    else:
+        console.print("[dim]No transfer links identified or no updates needed[/]")
+    console.print(f"[green][ok][/green] Processed {result.events_processed} new event(s)")
+    console.print(f"[dim]Projections: {result.total_transactions} total transactions[/dim]")
+    if result.auto_categorized_count:
+        console.print(
+            f"[green][ok][/green] Auto-categorized {result.auto_categorized_count} transaction(s) via rules"
+        )
+    console.print(f"[dim]Event store: {result.latest_event_sequence} events total[/]")
 
     console.print(f"Done. Written={written}, Skipped={skipped}")
     return 0

@@ -45,17 +45,18 @@ def _find_account_ledgers(data_dir: Path, account: str | None) -> list[Path]:
         return repo.ledger_paths()
 
 
-def _parse_and_validate_category(category: str, subcategory: str | None) -> tuple[str, str | None]:
-    """Parse 'Category:Subcategory' syntax and resolve conflicts."""
+def _parse_and_validate_category(category: str, subcategory: str | None) -> tuple[str, str | None, str | None]:
+    """Parse 'Category:Subcategory' syntax and resolve conflicts. Returns (cat, subcat, warning)."""
     if ":" in category:
         cat_name, subcat_from_path = parse_category_path(category)
+        warning = None
         if subcategory and subcategory != subcat_from_path:
-            console.print(
-                f"[yellow]Warning:[/] Both --category contains ':' and --subcategory specified. "
+            warning = (
+                f"Both --category contains ':' and --subcategory specified. "
                 f"Using category='{cat_name}', subcategory='{subcat_from_path}'"
             )
-        return cat_name, subcat_from_path
-    return category, subcategory
+        return cat_name, subcat_from_path, warning
+    return category, subcategory, None
 
 
 
@@ -153,10 +154,6 @@ def _confirm_batch(total_matched: int, single_mode: bool, assume_yes: bool, writ
     if single_mode or total_matched <= 1 or assume_yes:
         return True
     if not write:
-        console.print(
-            f"[yellow]Batch mode:[/] {total_matched} transactions would be categorized. "
-            f"Use --yes to auto-confirm (dry-run)"
-        )
         return True
     import sys
 
@@ -180,15 +177,6 @@ def _confirm_and_apply(
     total_matched = len(all_matches)
 
     _display_matches(all_matches, category, subcategory)
-
-    recategorized_count = sum(
-        1 for _, g in all_matches if g.primary.category is not None and g.primary.category != ""
-    )
-    if recategorized_count > 0:
-        console.print(
-            f"[yellow]Warning:[/] {recategorized_count} transaction(s) already have a category "
-            f"and will be re-categorized"
-        )
 
     if not _confirm_batch(total_matched, single_mode, assume_yes, write):
         return 0
@@ -219,7 +207,6 @@ def _confirm_and_apply(
         workspace,
     )
 
-    console.print(f"[green]✓[/] Categorized {total_matched} transaction(s)")
     return 0
 
 
@@ -309,7 +296,9 @@ def run(
         Exit code (0 success, 1 error)
     """
     service, categorization_service = _init_services(workspace, service, categorization_service)
-    category, subcategory = _parse_and_validate_category(category, subcategory)
+    category, subcategory, cat_warning = _parse_and_validate_category(category, subcategory)
+    if cat_warning:
+        console.print(f"[yellow]Warning:[/] {cat_warning}")
 
     mode_result = validate_single_vs_batch_mode(txid, description, desc_prefix, pattern)
     if mode_result is None:
@@ -344,10 +333,27 @@ def run(
         console.print("Refine with more characters or specify --account")
         return 1
 
-    return _confirm_and_apply(
+    recategorized_count = sum(
+        1 for _, g in all_matches if g.primary.category is not None and g.primary.category != ""
+    )
+    if not single_mode and len(all_matches) > 1 and not assume_yes and not write:
+        console.print(
+            f"[yellow]Batch mode:[/] {len(all_matches)} transactions would be categorized. "
+            f"Use --yes to auto-confirm (dry-run)"
+        )
+
+    result = _confirm_and_apply(
         all_matches, category, subcategory, single_mode, assume_yes, write,
         workspace, categorization_service,
     )
+    if result == 0 and write:
+        if recategorized_count > 0:
+            console.print(
+                f"[yellow]Warning:[/] {recategorized_count} transaction(s) already had a category "
+                f"and were re-categorized"
+            )
+        console.print(f"[green]✓[/] Categorized {len(all_matches)} transaction(s)")
+    return result
 
 
 def _display_matches(

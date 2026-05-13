@@ -37,6 +37,8 @@ class _TrainResult:
     exit_code: int | None
     ready: EventSourcingReadyResult | None = None
     classifier: object = None
+    metrics: dict | None = None
+    error_message: str | None = None
 
 
 @dataclass
@@ -44,6 +46,7 @@ class _LoadResult:
     exit_code: int | None
     projection_builder: object = None
     uncategorized_txns: list = field(default_factory=list)
+    limited_to: int | None = None
 
 
 def _train_classifier(workspace, min_samples) -> _TrainResult:
@@ -52,24 +55,13 @@ def _train_classifier(workspace, min_samples) -> _TrainResult:
     if ready is None:
         return _TrainResult(exit_code=1)
 
-    console.print("[dim]Loading categorization history...[/dim]")
-
     try:
         classifier = CategorizationClassifier(ready.event_store, min_samples_per_category=min_samples)
         metrics = classifier.train()
     except ValueError as e:
-        print_error(str(e))
-        console.print(f"\nNeed at least {min_samples} categorized transactions per category.")
-        console.print("Categorize more transactions first using:")
-        console.print("  [cyan]gilt categorize --desc-prefix PATTERN --category CAT --write[/cyan]")
-        return _TrainResult(exit_code=1)
+        return _TrainResult(exit_code=1, error_message=str(e))
 
-    console.print("[green]✓[/green] Classifier trained successfully")
-    console.print(f"  Categories: {metrics['num_categories']}")
-    console.print(f"  Training samples: {metrics['total_samples']}")
-    console.print(f"  Test accuracy: {metrics['test_accuracy']:.1%}")
-
-    return _TrainResult(exit_code=None, ready=ready, classifier=classifier)
+    return _TrainResult(exit_code=None, ready=ready, classifier=classifier, metrics=metrics)
 
 
 def _load_uncategorized(workspace, account, limit) -> _LoadResult:
@@ -78,29 +70,23 @@ def _load_uncategorized(workspace, account, limit) -> _LoadResult:
     if projection_builder is None:
         return _LoadResult(exit_code=1)
 
-    console.print("\n[dim]Loading uncategorized transactions...[/dim]")
     all_transactions = projection_builder.get_all_transactions(include_duplicates=False)
-
     uncategorized_rows = filter_by_account(filter_uncategorized(all_transactions), account)
 
     if not uncategorized_rows:
-        console.print("[green]✓[/green] No uncategorized transactions found")
         return _LoadResult(exit_code=0)
 
+    limited_to = None
     if limit and len(uncategorized_rows) > limit:
         uncategorized_rows = uncategorized_rows[:limit]
-        console.print(f"[dim]Limited to first {limit} transactions[/dim]")
-
-    console.print(f"Found {len(uncategorized_rows)} uncategorized transaction(s)")
+        limited_to = limit
 
     uncategorized_txns = [Transaction.from_projection_row(row) for row in uncategorized_rows]
-    return _LoadResult(exit_code=None, projection_builder=projection_builder, uncategorized_txns=uncategorized_txns)
+    return _LoadResult(exit_code=None, projection_builder=projection_builder, uncategorized_txns=uncategorized_txns, limited_to=limited_to)
 
 
-def _write_categorizations(approved, ready, workspace):
-    """Apply categorizations: emit events, update CSVs, rebuild projections."""
-    console.print("\n[dim]Applying categorizations...[/dim]")
-
+def _write_categorizations(approved, ready, workspace) -> int:
+    """Apply categorizations: emit events, update CSVs, rebuild projections. Returns updated count."""
     persistence_svc = require_persistence_service(ready, workspace)
     updates = []
     for account_id, txn_id, _, category_path, confidence in approved:
@@ -117,7 +103,7 @@ def _write_categorizations(approved, ready, workspace):
         )
 
     result = persistence_svc.persist_categorizations(updates)
-    console.print(f"[green]✓[/green] Categorized {result.transactions_updated} transaction(s)")
+    return result.transactions_updated
 
 
 def _apply_rules_first(workspace, uncategorized_txns):
@@ -161,11 +147,6 @@ def _apply_rules_first(workspace, uncategorized_txns):
 
     remaining = [t for t in uncategorized_txns if t.transaction_id not in matched_ids]
 
-    if rule_approved:
-        console.print(
-            f"[green]{len(rule_approved)}[/green] transaction(s) matched by inferred rules"
-        )
-
     return rule_approved, remaining
 
 
@@ -186,7 +167,6 @@ def _predict_with_ml(
         for t in remaining_txns
     ]
 
-    console.print(f"\n[dim]Predicting categories (threshold: {confidence:.1%})...[/dim]")
     predictions = classifier.predict(transaction_data, confidence_threshold=confidence)
 
     result: list[tuple] = []
@@ -194,6 +174,21 @@ def _predict_with_ml(
         if category:
             result.append((txn.account_id, txn.transaction_id, txn, category, conf))
     return result
+
+
+def _print_train_failure(train_result: _TrainResult, min_samples: int) -> None:
+    if train_result.error_message:
+        print_error(train_result.error_message)
+        console.print(f"\nNeed at least {min_samples} categorized transactions per category.")
+        console.print("Categorize more transactions first using:")
+        console.print("  [cyan]gilt categorize --desc-prefix PATTERN --category CAT --write[/cyan]")
+
+
+def _print_train_success(train_result: _TrainResult) -> None:
+    console.print("[green]✓[/green] Classifier trained successfully")
+    console.print(f"  Categories: {train_result.metrics['num_categories']}")
+    console.print(f"  Training samples: {train_result.metrics['total_samples']}")
+    console.print(f"  Test accuracy: {train_result.metrics['test_accuracy']:.1%}")
 
 
 def run(
@@ -207,25 +202,37 @@ def run(
     write: bool = False,
 ) -> int:
     """Auto-categorize uncategorized transactions using rules then ML."""
+    console.print("[dim]Loading categorization history...[/dim]")
     train_result = _train_classifier(workspace, min_samples)
     if train_result.exit_code is not None:
+        _print_train_failure(train_result, min_samples)
         return train_result.exit_code
     ready = train_result.ready
     classifier = train_result.classifier
+    _print_train_success(train_result)
 
     category_config = load_categories_config(workspace.categories_config)
 
+    console.print("\n[dim]Loading uncategorized transactions...[/dim]")
     load_result = _load_uncategorized(workspace, account, limit)
     if load_result.exit_code is not None:
+        if load_result.exit_code == 0:
+            console.print("[green]✓[/green] No uncategorized transactions found")
         return load_result.exit_code
+    if load_result.limited_to:
+        console.print(f"[dim]Limited to first {load_result.limited_to} transactions[/dim]")
+    console.print(f"Found {len(load_result.uncategorized_txns)} uncategorized transaction(s)")
     uncategorized_txns = load_result.uncategorized_txns
 
     # Phase 1: Apply inferred rules (deterministic, high confidence)
     rule_approved, remaining_txns = _apply_rules_first(workspace, uncategorized_txns)
+    if rule_approved:
+        console.print(f"[green]{len(rule_approved)}[/green] transaction(s) matched by inferred rules")
 
     # Phase 2: ML predictions for remaining uncategorized
     ml_predictions: list[tuple] = []
     if remaining_txns:
+        console.print(f"\n[dim]Predicting categories (threshold: {confidence:.1%})...[/dim]")
         ml_predictions = _predict_with_ml(classifier, remaining_txns, confidence)
         if ml_predictions:
             console.print(f"[green]{len(ml_predictions)}[/green] ML predictions")
@@ -256,7 +263,9 @@ def run(
         print_dry_run_message(detail=f"{len(approved)} transaction(s)")
         return 0
 
-    _write_categorizations(approved, ready, workspace)
+    console.print("\n[dim]Applying categorizations...[/dim]")
+    count = _write_categorizations(approved, ready, workspace)
+    console.print(f"[green]✓[/green] Categorized {count} transaction(s)")
     return 0
 
 

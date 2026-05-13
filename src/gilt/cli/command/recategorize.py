@@ -94,6 +94,7 @@ def run(
 
     # Show what will be renamed
     _display_matches(all_matches, from_category, to_category)
+    console.print(f"\n[bold]Total:[/] {total_matched} transaction(s)")
 
     if not write:
         print_dry_run_message()
@@ -147,8 +148,6 @@ def _display_matches(
         matches,
         row_fn,
     )
-
-    console.print(f"\n[bold]Total:[/] {len(matches)} transaction(s)")
 
 
 def _apply_renaming(

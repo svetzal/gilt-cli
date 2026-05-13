@@ -103,8 +103,15 @@ def _display_match_options(console, smart_default) -> None:
     console.print()
 
 
-def _record_feedback(ctx: ReviewContext, decision, pair, assessment, suggestion_event_id: str) -> None:
-    """Apply user decision, emit console feedback, update projections, and update prompt manager."""
+@dataclass
+class _FeedbackResult:
+    action: str
+    canonical_description: str | None
+    events_processed: int
+
+
+def _record_feedback(ctx: ReviewContext, decision, pair, assessment, suggestion_event_id: str) -> _FeedbackResult:
+    """Apply user decision, update projections, and update prompt manager. Returns result for display."""
     event, action = ctx.review_service.apply_user_decision(
         decision=decision,
         pair=pair,
@@ -113,18 +120,12 @@ def _record_feedback(ctx: ReviewContext, decision, pair, assessment, suggestion_
     )
     ctx.feedback.append((decision, event, action))
 
+    canonical_description = None
     if action == "confirmed":
         assert isinstance(event, DuplicateConfirmed)
-        ctx.console.print(
-            f"[green]✓ Duplicate confirmed (using: {event.canonical_description})[/green]"
-        )
-    else:
-        ctx.console.print("[green]✓ Rejection recorded[/green]")
+        canonical_description = event.canonical_description
 
     events_processed = ctx.es_service.ensure_projections_up_to_date(ctx.event_store)
-    if events_processed > 0:
-        ctx.console.print("[dim]✓ Projection updated[/dim]")
-    ctx.console.print()
 
     if ctx.detector.prompt_manager:
         ctx.detector.prompt_manager.add_feedback(
@@ -135,13 +136,11 @@ def _record_feedback(ctx: ReviewContext, decision, pair, assessment, suggestion_
             llm_reasoning=assessment.reasoning,
         )
 
+    return _FeedbackResult(action=action, canonical_description=canonical_description, events_processed=events_processed)
+
 
 def _analyze_candidates(console, detector, candidates, detection_method):
     """Analyze candidate pairs with progress bar. Returns sorted matches."""
-    console.print(
-        f"[yellow]Analyzing {len(candidates)} candidates with {detection_method}...[/yellow]"
-    )
-
     matches = []
     with Progress(
         SpinnerColumn(),
@@ -188,8 +187,15 @@ def _display_and_review_match(ctx: ReviewContext, i: int, total: int, match, sug
     rationale = Prompt.ask("Rationale (optional)", default="")
     decision = UserDecision(choice=choice, rationale=rationale if rationale else None)
 
-    # Record feedback
-    _record_feedback(ctx, decision, pair, assessment, suggestion_event_id)
+    # Record feedback and display result
+    fb = _record_feedback(ctx, decision, pair, assessment, suggestion_event_id)
+    if fb.action == "confirmed":
+        ctx.console.print(f"[green]✓ Duplicate confirmed (using: {fb.canonical_description})[/green]")
+    else:
+        ctx.console.print("[green]✓ Rejection recorded[/green]")
+    if fb.events_processed > 0:
+        ctx.console.print("[dim]✓ Projection updated[/dim]")
+    ctx.console.print()
 
 
 def _display_summary(
@@ -264,17 +270,12 @@ def _print_detection_info(
 
 def _scan_for_candidates(detector, data_dir, max_days_apart, amount_tolerance):
     """Load transactions and find candidate duplicate pairs. Returns (transactions, candidates)."""
-    console.print("[yellow]Loading transactions from projections...[/yellow]")
     transactions = detector.load_all_transactions(data_dir)
-    console.print(f"[green]Loaded {len(transactions)} transactions[/green]")
-
-    console.print("[yellow]Finding candidate pairs...[/yellow]")
     candidates = detector.find_potential_duplicates(
         transactions,
         max_days_apart=max_days_apart,
         amount_tolerance=amount_tolerance,
     )
-    console.print(f"[green]Found {len(candidates)} candidate pairs[/green]")
     return transactions, candidates
 
 
@@ -284,7 +285,6 @@ def _filter_matches(detector, review_service, candidates, detection_method, min_
     Returns (filtered_matches, skipped_count).
     """
     matches = _analyze_candidates(console, detector, candidates, detection_method)
-    console.print()
 
     filtered_matches = review_service.filter_by_confidence(matches, min_confidence)
     if not filtered_matches:
@@ -309,12 +309,7 @@ def _run_review_loop(review_ctx: ReviewContext, filtered_matches, review_service
         )
 
         if not interactive:
-            console.print(
-                f"[bold]Match {i}/{len(filtered_matches)}[/] - Confidence: {match.confidence_pct:.1f}%"
-            )
-            console.print(f"  {pair.txn2_id[:8]} vs {pair.txn1_id[:8]}: {pair.txn2_description}")
-            console.print(f"  [dim]{match.assessment.reasoning}[/dim]")
-            console.print()
+            pass
         else:
             try:
                 _display_and_review_match(review_ctx, i, len(filtered_matches), match, event_id)
@@ -357,12 +352,17 @@ def run(
         interactive,
     )
 
+    console.print("[yellow]Loading transactions from projections...[/yellow]")
     _, candidates = _scan_for_candidates(detector, data_dir, max_days_apart, amount_tolerance)
+    console.print(f"[green]Found {len(candidates)} candidate pairs[/green]")
 
     if not candidates:
         console.print("[green]No potential duplicates found![/green]")
         return 0
 
+    console.print(
+        f"[yellow]Analyzing {len(candidates)} candidates with {detection_method}...[/yellow]"
+    )
     filtered_matches, skipped_count = _filter_matches(
         detector, review_service, candidates, detection_method, min_confidence, projection_builder
     )
@@ -386,6 +386,16 @@ def run(
     )
 
     _run_review_loop(review_ctx, filtered_matches, review_service, detector, model, interactive)
+
+    if not interactive:
+        for i, match in enumerate(filtered_matches, 1):
+            pair = match.pair
+            console.print(
+                f"[bold]Match {i}/{len(filtered_matches)}[/] - Confidence: {match.confidence_pct:.1f}%"
+            )
+            console.print(f"  {pair.txn2_id[:8]} vs {pair.txn1_id[:8]}: {pair.txn2_description}")
+            console.print(f"  [dim]{match.assessment.reasoning}[/dim]")
+            console.print()
 
     if detector.prompt_manager:
         detector.prompt_manager._save_prompt()

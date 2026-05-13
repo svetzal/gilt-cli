@@ -98,27 +98,37 @@ def _resolve_note_targets(
         return 1 if not_found else 2
 
     if not result:
-        console.print("[yellow]No transactions matched the specified criteria.[/yellow]")
-        return 1
-
-    if txid:
-        console.print(f"Will set note for transaction {result[0].primary.transaction_id[:8]}")
-    else:
-        criteria_parts = []
-        if description:
-            criteria_parts.append(f"description='{description}'")
-        if desc_prefix:
-            criteria_parts.append(f"description_prefix='{desc_prefix}'")
-        if pattern:
-            criteria_parts.append(f"pattern='{pattern}'")
-        if amount is not None:
-            criteria_parts.append(f"amount={amount}")
-        console.print(
-            f"Will set note for {len(result)} transactions in {account} "
-            f"matching {' and '.join(criteria_parts)}."
-        )
+        return []
 
     return result
+
+
+def _print_note_target_summary(
+    groups_to_update: list[TransactionGroup],
+    account: str,
+    txid: str | None,
+    description: str | None,
+    desc_prefix: str | None,
+    pattern: str | None,
+    amount: float | None,
+) -> None:
+    """Print a summary of which transactions will be annotated."""
+    if txid:
+        console.print(f"Will set note for transaction {groups_to_update[0].primary.transaction_id[:8]}")
+        return
+    criteria_parts = []
+    if description:
+        criteria_parts.append(f"description='{description}'")
+    if desc_prefix:
+        criteria_parts.append(f"description_prefix='{desc_prefix}'")
+    if pattern:
+        criteria_parts.append(f"pattern='{pattern}'")
+    if amount is not None:
+        criteria_parts.append(f"amount={amount}")
+    console.print(
+        f"Will set note for {len(groups_to_update)} transactions in {account} "
+        f"matching {' and '.join(criteria_parts)}."
+    )
 
 
 def _apply_and_write_notes(
@@ -128,7 +138,7 @@ def _apply_and_write_notes(
     note_text: str,
     ledger_repo: LedgerRepository,
     account_id: str,
-) -> None:
+) -> int:
     """Apply notes and write back to CSV."""
     updated_ids = {g.primary.transaction_id for g in groups_to_update}
     updated_groups = []
@@ -139,10 +149,7 @@ def _apply_and_write_notes(
             updated_groups.append(group)
 
     ledger_repo.save(account_id, updated_groups)
-
-    console.print(
-        f"[green]Saved notes to ledger successfully.[/] Applied to {len(groups_to_update)} transaction(s)."
-    )
+    return len(groups_to_update)
 
 
 def run(
@@ -186,6 +193,11 @@ def run(
         return result
     groups_to_update = result
 
+    if not groups_to_update:
+        console.print("[yellow]No transactions matched the specified criteria.[/yellow]")
+        return 1
+
+    _print_note_target_summary(groups_to_update, account, txid, description, desc_prefix, pattern, amount)
     _display_matches(
         account, groups_to_update, note_text, desc_prefix=desc_prefix if desc_prefix else None
     )
@@ -201,5 +213,6 @@ def run(
             console.print("[dim]Aborted.[/]")
             return 0
 
-    _apply_and_write_notes(service, groups, groups_to_update, note_text, ledger_repo, account)
+    count = _apply_and_write_notes(service, groups, groups_to_update, note_text, ledger_repo, account)
+    console.print(f"[green]Saved notes to ledger successfully.[/] Applied to {count} transaction(s).")
     return 0

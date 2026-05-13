@@ -151,18 +151,11 @@ def show_training_data(
     return 0
 
 
-def show_predictions(
-    console: Console,
-    workspace: Workspace,
-    filter_pattern: str | None,
-    limit: int,
-) -> int:
-    """Show ML predictions on current candidate pairs."""
+def _load_predictions(workspace: Workspace, filter_pattern: str | None, limit: int):
+    """Load detector and candidate pairs. Returns (detector, candidates) or None if unavailable."""
     import re
 
     data_dir = workspace.ledger_data_dir
-
-    # Initialize detector with ML
     detector = DuplicateDetector(
         model=DEFAULT_OLLAMA_MODEL,
         event_store_path=workspace.event_store_path,
@@ -171,15 +164,11 @@ def show_predictions(
     )
 
     if not detector._ml_classifier:
-        console.print("[yellow]ML classifier not available (insufficient training data)[/yellow]")
-        return 0
+        return None, None
 
-    # Load transactions and find candidates
-    console.print("\n[cyan]Loading transactions and finding candidates...[/cyan]")
     transactions = detector.load_all_transactions(data_dir)
     candidates = detector.find_potential_duplicates(transactions)
 
-    # Apply filter if provided
     if filter_pattern:
         pattern = re.compile(filter_pattern, re.IGNORECASE)
         candidates = [
@@ -187,6 +176,25 @@ def show_predictions(
             for p in candidates
             if pattern.search(p.txn1_description) or pattern.search(p.txn2_description)
         ]
+
+    return detector, candidates
+
+
+def show_predictions(
+    console: Console,
+    workspace: Workspace,
+    filter_pattern: str | None,
+    limit: int,
+) -> int:
+    """Show ML predictions on current candidate pairs."""
+    console.print("\n[cyan]Loading transactions and finding candidates...[/cyan]")
+    detector, candidates = _load_predictions(workspace, filter_pattern, limit)
+
+    if detector is None:
+        console.print("[yellow]ML classifier not available (insufficient training data)[/yellow]")
+        return 0
+
+    if filter_pattern:
         console.print(
             f"[dim]Filtered to {len(candidates)} candidates matching '{filter_pattern}'[/dim]\n"
         )
@@ -197,7 +205,6 @@ def show_predictions(
         console.print("[yellow]No candidates found[/yellow]")
         return 0
 
-    # Analyze and show predictions
     console.print(
         f"[cyan]ML Predictions - Showing {min(limit, len(candidates))} of {len(candidates)}[/cyan]\n"
     )
@@ -205,7 +212,6 @@ def show_predictions(
     for i, pair in enumerate(candidates[:limit]):
         assessment = detector.assess_duplicate(pair)
 
-        # Color based on prediction
         if assessment.is_duplicate:
             style = "green"
             prediction = "✓ DUPLICATE"

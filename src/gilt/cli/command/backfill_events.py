@@ -16,6 +16,7 @@ All business logic is in EventMigrationService.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -121,11 +122,17 @@ def run(
 
     # Backfill transactions
     console.print("[bold]Step 1: Backfilling transaction events[/]")
-    _backfill_transactions(data_dir, event_store, service, stats, dry_run)
+    ledger_count = _backfill_transactions(data_dir, event_store, service, stats, dry_run)
+    if ledger_count == 0:
+        console.print("[yellow]No ledger files found[/]")
 
     # Backfill budgets
     console.print("\n[bold]Step 2: Backfilling budget events[/]")
-    _backfill_budgets(categories_config, event_store, service, stats, dry_run)
+    budget_lines = _backfill_budgets(categories_config, event_store, service, stats, dry_run)
+    for line in budget_lines:
+        console.print(line)
+    if stats.budget_created == 0:
+        console.print("[yellow]No budgets found in configuration[/]")
 
     # Display summary
     _display_summary(stats, dry_run, effective_event_store_path)
@@ -133,7 +140,8 @@ def run(
     # Validate (write mode only)
     if not dry_run:
         console.print("\n[bold]Step 3: Rebuilding projections[/]")
-        validation_passed = _validate_projections(
+        console.print("  Rebuilding transaction projections from events...")
+        validation_result = _validate_projections(
             data_dir,
             categories_config,
             event_store,
@@ -141,10 +149,23 @@ def run(
             effective_projections_db_path,
             effective_budget_projections_db_path,
         )
+        console.print(f"  Processed {validation_result.tx_count} transaction events")
+        console.print("  Rebuilding budget projections from events...")
+        console.print(f"  Processed {validation_result.budget_count} budget events")
 
-        if not validation_passed:
+        if not validation_result.passed:
             print_error("✗ Validation failed")
             return 1
+
+        if validation_result.validation:
+            console.print("\n  Running validation checks...")
+            _display_validation_results(validation_result.validation)
+            if validation_result.validation.errors:
+                console.print()
+                print_error_list("Validation Errors", validation_result.validation.errors)
+                return 1
+
+        console.print("\n[green]✓ All validations passed[/]")
 
     return 0
 
@@ -167,21 +188,12 @@ def _backfill_transactions(
     service: EventMigrationService,
     stats: MigrationStats,
     dry_run: bool,
-) -> None:
-    """Backfill transaction events from ledger CSVs.
-
-    Args:
-        data_dir: Directory containing ledger files
-        event_store: Event store to append events to
-        service: Event migration service for business logic
-        stats: Statistics object to update
-        dry_run: If True, don't actually write events
-    """
+) -> int:
+    """Backfill transaction events from ledger CSVs. Returns ledger file count."""
     ledger_files = LedgerRepository(data_dir).ledger_paths()
 
     if not ledger_files:
-        console.print("[yellow]No ledger files found[/]")
-        return
+        return 0
 
     with Progress(
         SpinnerColumn(),
@@ -218,6 +230,8 @@ def _backfill_transactions(
 
             progress.advance(task)
 
+    return len(ledger_files)
+
 
 def _backfill_budgets(
     categories_config: Path,
@@ -225,35 +239,25 @@ def _backfill_budgets(
     service: EventMigrationService,
     stats: MigrationStats,
     dry_run: bool,
-) -> None:
-    """Backfill budget events from categories.yml.
-
-    Args:
-        categories_config: Path to categories.yml
-        event_store: Event store to append events to
-        service: Event migration service for business logic
-        stats: Statistics object to update
-        dry_run: If True, don't actually write events
-    """
+) -> list[str]:
+    """Backfill budget events from categories.yml. Returns display lines for each budget processed."""
     try:
         config = load_categories_config(categories_config)
     except (OSError, ValueError) as e:
         print_error(f"Error loading categories config: {e}")
         stats.errors += 1
-        return
+        return []
 
-    # Use service to generate budget events
     events = service.generate_budget_events(config)
+    display_lines: list[str] = []
 
-    # Display and write events
     for event in events:
-        # Find category for display (event is BudgetCreated with category attribute)
         from gilt.model.events import BudgetCreated
 
         if isinstance(event, BudgetCreated):
             category = config.find_category(event.category)
             if category and category.budget:
-                console.print(
+                display_lines.append(
                     f"  {category.name}: ${category.budget.amount}/{category.budget.period.value}"
                 )
 
@@ -262,8 +266,15 @@ def _backfill_budgets(
         if not dry_run:
             event_store.append_event(event)
 
-    if stats.budget_created == 0:
-        console.print("[yellow]No budgets found in configuration[/]")
+    return display_lines
+
+
+@dataclass
+class _ValidationResult:
+    passed: bool
+    tx_count: int
+    budget_count: int
+    validation: object | None = None
 
 
 def _validate_projections(
@@ -273,55 +284,26 @@ def _validate_projections(
     service: EventMigrationService,
     projections_db_path: Path,
     budget_projections_db_path: Path,
-) -> bool:
-    """Validate that projections rebuilt from events match original data.
-
-    Args:
-        data_dir: Directory containing original ledger files
-        categories_config: Path to categories.yml
-        event_store: Event store with backfilled events
-        service: Event migration service for validation logic
-        projections_db_path: Path to transaction projections database
-        budget_projections_db_path: Path to budget projections database
-
-    Returns:
-        True if validation passed, False otherwise
-    """
-    # Rebuild projections
-    console.print("  Rebuilding transaction projections from events...")
+) -> _ValidationResult:
+    """Rebuild projections and validate against original data. Returns structured result."""
     from gilt.storage.projection import ProjectionBuilder
 
     tx_builder = ProjectionBuilder(projections_db_path)
     tx_count = tx_builder.rebuild_from_scratch(event_store)
-    console.print(f"  Processed {tx_count} transaction events")
 
-    console.print("  Rebuilding budget projections from events...")
     budget_builder = BudgetProjectionBuilder(budget_projections_db_path)
     budget_count = budget_builder.rebuild_from_scratch(event_store)
-    console.print(f"  Processed {budget_count} budget events")
 
-    # Load category config for validation
     try:
         config = load_categories_config(categories_config)
     except (OSError, ValueError) as e:
         print_error(f"Error loading categories config: {e}")
-        return False
+        return _ValidationResult(passed=False, tx_count=tx_count, budget_count=budget_count)
 
-    # Use service to validate
-    console.print("\n  Running validation checks...")
     ledger_texts = LedgerRepository(data_dir).load_all_raw_texts()
     result = service.validate_migration(
         event_store, ledger_texts, config, tx_builder, budget_builder
     )
 
-    # Display results
-    _display_validation_results(result)
-
-    # Display errors if any
-    if result.errors:
-        console.print()
-        print_error_list("Validation Errors", result.errors)
-        return False
-
-    console.print("\n[green]✓ All validations passed[/]")
-    return True
+    passed = not result.errors
+    return _ValidationResult(passed=passed, tx_count=tx_count, budget_count=budget_count, validation=result)

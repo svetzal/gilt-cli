@@ -60,21 +60,14 @@ def _prompt_description_choice(primary_txn: dict, duplicate_txn: dict) -> str:
     return canonical_description
 
 
-def _persist_mark(review_service, ready, primary_txn: dict, duplicate_txn: dict, canonical_description: str) -> None:
-    """Emit the DuplicateConfirmed event, rebuild projections, and print success messages."""
+def _persist_mark(review_service, ready, primary_txn: dict, duplicate_txn: dict, canonical_description: str) -> int:
+    """Emit the DuplicateConfirmed event and rebuild projections. Returns events_processed."""
     review_service.mark_manual_duplicate(
         primary_transaction_id=primary_txn["transaction_id"],
         duplicate_transaction_id=duplicate_txn["transaction_id"],
         canonical_description=canonical_description,
     )
-    console.print("[dim]Rebuilding projections...[/dim]")
-    events_processed = ready.projection_builder.rebuild_incremental(ready.event_store)
-    console.print()
-    console.print("[green]✓ Duplicate marked successfully[/green]")
-    console.print(f"  Primary: {primary_txn['transaction_id'][:8]}")
-    console.print(f"  Duplicate: {duplicate_txn['transaction_id'][:8]} [dim](hidden from budgets)[/dim]")
-    console.print(f"  Description: {canonical_description}")
-    console.print(f"  Events processed: {events_processed}")
+    return ready.projection_builder.rebuild_incremental(ready.event_store)
 
 
 def run(
@@ -142,5 +135,12 @@ def run(
         console.print("[dim]Use --write to persist changes[/dim]")
         return 0
 
-    _persist_mark(review_service, ready, primary_txn, duplicate_txn, canonical_description)
+    console.print("[dim]Rebuilding projections...[/dim]")
+    events_processed = _persist_mark(review_service, ready, primary_txn, duplicate_txn, canonical_description)
+    console.print()
+    console.print("[green]✓ Duplicate marked successfully[/green]")
+    console.print(f"  Primary: {primary_txn['transaction_id'][:8]}")
+    console.print(f"  Duplicate: {duplicate_txn['transaction_id'][:8]} [dim](hidden from budgets)[/dim]")
+    console.print(f"  Description: {canonical_description}")
+    console.print(f"  Events processed: {events_processed}")
     return 0
