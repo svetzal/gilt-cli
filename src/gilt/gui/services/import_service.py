@@ -105,7 +105,7 @@ class ImportService:
         self.smart_category_service = smart_category_service
         self._accounts_cache: list[Account] | None = None
 
-    def get_accounts(self) -> list[Account]:
+    def load_accounts(self) -> list[Account]:
         """
         Get list of configured accounts.
 
@@ -122,12 +122,12 @@ class ImportService:
 
     def _amount_sign_for(self, account_id: str) -> str:
         """Get the amount_sign import hint for an account."""
-        for acct in self.get_accounts():
+        for acct in self.load_accounts():
             if acct.account_id == account_id and acct.import_hints:
                 return acct.import_hints.amount_sign or "expenses_negative"
         return "expenses_negative"
 
-    def get_file_info(self, file_path: Path) -> FileInfo:
+    def load_file_info(self, file_path: Path) -> FileInfo:
         """
         Get information about a file.
 
@@ -157,7 +157,7 @@ class ImportService:
         Returns:
             Account object if detected, None otherwise
         """
-        accounts = self.get_accounts()
+        accounts = self.load_accounts()
         return infer_account_for_file(accounts, file_path)
 
     def preview_file(
@@ -196,7 +196,7 @@ class ImportService:
         Returns:
             ImportFileMapping object
         """
-        file_info = self.get_file_info(file_path)
+        file_info = self.load_file_info(file_path)
         detected_account = self.detect_account(file_path)
         preview_rows, error = self.preview_file(file_path, max_rows=max_preview_rows)
 
@@ -208,7 +208,7 @@ class ImportService:
             error=error,
         )
 
-    def get_existing_transaction_count(self, account_id: str) -> int:
+    def load_existing_transaction_count(self, account_id: str) -> int:
         """
         Get the number of existing transactions for an account.
 
@@ -428,7 +428,7 @@ class ImportService:
         if True:  # write branch (caller guards with write flag)
             event_store = None
             if self.event_sourcing_service:
-                event_store = self.event_sourcing_service.get_event_store()
+                event_store = self.event_sourcing_service.build_event_store()
 
             ledger_path = normalize_file(
                 file_path,
@@ -497,7 +497,7 @@ class ImportService:
             if progress_callback:
                 progress_callback(10)
 
-            existing_count = self.get_existing_transaction_count(account_id)
+            existing_count = self.load_existing_transaction_count(account_id)
             messages.append(f"Account {account_id} has {existing_count} existing transactions")
 
             if write:
@@ -511,7 +511,7 @@ class ImportService:
             if progress_callback:
                 progress_callback(100)
 
-            new_count = self.get_existing_transaction_count(account_id)
+            new_count = self.load_existing_transaction_count(account_id)
             imported = new_count - existing_count
             messages.append(f"Imported {imported} new transactions")
 
@@ -543,5 +543,5 @@ class ImportService:
         Returns:
             List of (file_path, account_id or None) tuples
         """
-        accounts = self.get_accounts()
+        accounts = self.load_accounts()
         return plan_normalization(file_paths, self.data_dir, accounts)

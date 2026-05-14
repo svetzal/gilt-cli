@@ -100,7 +100,7 @@ class CategorizeDialog(PreviewDialog):
         self.category_combo = SmartCategoryComboBox()
 
         # Load categories
-        categories = [c.name for c in self.category_service.get_all_categories()]
+        categories = [c.name for c in self.category_service.load_all_categories()]
 
         suggestions = []
         if self.suggested_category and self.suggested_category[0]:

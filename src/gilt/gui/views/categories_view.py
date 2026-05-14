@@ -127,7 +127,7 @@ class CategoriesView(QWidget):
         """Load categories from config and populate table."""
         self.table.setRowCount(0)
 
-        categories = self.service.get_all_categories()
+        categories = self.service.load_all_categories()
 
         for cat in categories:
             # Add main category row

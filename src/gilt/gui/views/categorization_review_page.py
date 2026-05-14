@@ -81,7 +81,7 @@ class CategorizationReviewPage(QWizardPage):
         # Assuming categories.yml is in the same config dir
         categories_config = accounts_config.parent / "categories.yml"
         self.category_service = CategoryService(categories_config)
-        self.all_categories = self.category_service.get_all_categories()
+        self.all_categories = self.category_service.load_all_categories()
 
         self.setTitle("Review Categorization")
         self.setSubTitle(

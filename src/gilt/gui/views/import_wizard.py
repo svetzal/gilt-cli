@@ -327,7 +327,7 @@ class AccountMappingPage(QWizardPage):
         self.mappings = []
         self.table.setRowCount(0)
 
-        accounts = self.service.get_accounts()
+        accounts = self.service.load_accounts()
         account_ids = [acc.account_id for acc in accounts]
 
         for file_path in selected_files:

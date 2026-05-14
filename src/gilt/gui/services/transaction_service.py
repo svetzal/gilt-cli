@@ -92,7 +92,7 @@ class TransactionService:
             logger.error("Failed to load account %s: %s", account_id, e, exc_info=True)
             return []
 
-    def get_available_accounts(self) -> list[str]:
+    def load_available_accounts(self) -> list[str]:
         """
         Get list of available account IDs.
 

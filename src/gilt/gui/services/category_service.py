@@ -58,7 +58,7 @@ class CategoryService:
 
         save_categories_config(self.config_path, self._config)
 
-    def get_all_categories(self) -> list[Category]:
+    def load_all_categories(self) -> list[Category]:
         """
         Get all categories.
 
@@ -260,7 +260,7 @@ class CategoryService:
         """
         return parse_category_path(category_str)
 
-    def get_usage_stats(self, category_name: str, transactions) -> dict:
+    def load_usage_stats(self, category_name: str, transactions) -> dict:
         """
         Get usage statistics for a category.
 

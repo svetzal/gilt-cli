@@ -314,7 +314,7 @@ class TransactionsView(QWidget):
 
         # Set categories for inline editing
         all_cats = []
-        for c in self.category_service.get_all_categories():
+        for c in self.category_service.load_all_categories():
             all_cats.append(c.name)
             for sub in c.subcategories:
                 all_cats.append(f"{c.name}: {sub.name}")

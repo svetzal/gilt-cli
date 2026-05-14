@@ -77,19 +77,19 @@ class DescribeImportServiceAccountDetection:
         return ImportService(data_dir, accounts_config)
 
     def it_should_load_accounts_from_config(self, service):
-        accounts = service.get_accounts()
+        accounts = service.load_accounts()
         assert len(accounts) == 2
         ids = [a.account_id for a in accounts]
         assert "MYBANK_CHQ" in ids
         assert "MYBANK_CC" in ids
 
     def it_should_cache_accounts_after_first_load(self, service):
-        first = service.get_accounts()
-        second = service.get_accounts()
+        first = service.load_accounts()
+        second = service.load_accounts()
         assert first is second
 
     def it_should_clear_cache_on_request(self, service):
-        service.get_accounts()
+        service.load_accounts()
         assert service._accounts_cache is not None
         service.clear_accounts_cache()
         assert service._accounts_cache is None
