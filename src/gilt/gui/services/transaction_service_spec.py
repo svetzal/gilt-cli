@@ -177,7 +177,7 @@ class DescribeTransactionServiceProjectionLoading:
         assert len(groups) == 1
         assert groups[0].primary.transaction_id == "txn_csv"
 
-    def it_should_get_available_accounts_from_projections(
+    def it_should_load_available_accounts_from_projections(
         self, event_store, projection_builder, service
     ):
         _import_transaction(event_store, "txn001", account="MYBANK_CHQ")
@@ -185,7 +185,7 @@ class DescribeTransactionServiceProjectionLoading:
         _import_transaction(event_store, "txn003", account="BANK2_BIZ")
         projection_builder.rebuild_from_scratch(event_store)
 
-        accounts = service.get_available_accounts()
+        accounts = service.load_available_accounts()
 
         assert accounts == ["BANK2_BIZ", "MYBANK_CC", "MYBANK_CHQ"]
 

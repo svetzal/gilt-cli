@@ -623,7 +623,7 @@ class TransactionsView(QWidget):
         self.account_combo.clear()
         self.account_combo.addItem("All Accounts", None)
 
-        accounts = self.service.get_available_accounts()
+        accounts = self.service.load_available_accounts()
         for account_id in accounts:
             self.account_combo.addItem(account_id, account_id)
 

@@ -94,7 +94,7 @@ class TransactionService:
 
     def load_available_accounts(self) -> list[str]:
         """
-        Get list of available account IDs.
+        Load list of available account IDs.
 
         Uses projections database if available, falls back to ledger file names.
 
