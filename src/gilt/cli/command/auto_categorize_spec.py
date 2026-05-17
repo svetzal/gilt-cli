@@ -6,8 +6,9 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
-from gilt.cli.command.auto_categorize import run
+from gilt.cli.command.auto_categorize import _handle_modify_choice, _interactive_review, run
 from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.category import Category, CategoryConfig
 from gilt.model.category_io import save_categories_config
@@ -399,6 +400,121 @@ class DescribeAutoCategorize:
             )
 
             assert rc == 0
+
+class DescribeInteractiveReview:
+    """Specs for _interactive_review()."""
+
+    def _make_prediction(self, txn_id: str = "txn001", description: str = "SAMPLE STORE") -> tuple:
+        txn = Transaction(
+            transaction_id=txn_id,
+            date=date(2025, 2, 1),
+            description=description,
+            amount=-50.0,
+            currency="CAD",
+            account_id="MYBANK_CHQ",
+        )
+        return ("MYBANK_CHQ", txn_id, txn, "Groceries", 0.85)
+
+    def it_should_approve_transaction_and_include_in_results(self):
+        from gilt.model.category import Category, CategoryConfig
+
+        category_config = CategoryConfig(categories=[Category(name="Groceries")])
+        predictions = [self._make_prediction()]
+
+        with patch("gilt.cli.command.auto_categorize.Prompt.ask", return_value="a"):
+            approved = _interactive_review(predictions, category_config)
+
+        assert len(approved) == 1
+        assert approved[0][1] == "txn001"
+
+    def it_should_reject_transaction_and_exclude_from_results(self):
+        from gilt.model.category import Category, CategoryConfig
+
+        category_config = CategoryConfig(categories=[Category(name="Groceries")])
+        predictions = [self._make_prediction()]
+
+        with patch("gilt.cli.command.auto_categorize.Prompt.ask", return_value="r"):
+            approved = _interactive_review(predictions, category_config)
+
+        assert approved == []
+
+    def it_should_allow_category_modification(self):
+        from gilt.model.category import Category, CategoryConfig
+
+        category_config = CategoryConfig(categories=[
+            Category(name="Groceries"),
+            Category(name="Dining Out"),
+        ])
+        predictions = [self._make_prediction()]
+
+        with (
+            patch("gilt.cli.command.auto_categorize.Prompt.ask", side_effect=["m", "Dining Out"]),
+            patch(
+                "gilt.cli.command.auto_categorize._handle_modify_choice",
+                return_value="Dining Out",
+            ),
+        ):
+            approved = _interactive_review(predictions, category_config)
+
+        assert len(approved) == 1
+        assert approved[0][3] == "Dining Out"
+
+    def it_should_quit_early_when_user_chooses_quit(self):
+        from gilt.model.category import Category, CategoryConfig
+
+        category_config = CategoryConfig(categories=[Category(name="Groceries")])
+        predictions = [
+            self._make_prediction("txn001"),
+            self._make_prediction("txn002"),
+        ]
+
+        with patch("gilt.cli.command.auto_categorize.Prompt.ask", return_value="q"):
+            approved = _interactive_review(predictions, category_config)
+
+        assert approved == []
+
+
+class DescribeHandleModifyChoice:
+    """Specs for _handle_modify_choice()."""
+
+    def it_should_return_updated_prediction_with_valid_category(self):
+        from gilt.model.category import Category, CategoryConfig
+
+        category_config = CategoryConfig(categories=[
+            Category(name="Groceries"),
+            Category(name="Dining Out"),
+        ])
+
+        with patch("gilt.cli.command.auto_categorize.Prompt.ask", return_value="Dining Out"):
+            result = _handle_modify_choice(category_config, "Groceries")
+
+        assert result == "Dining Out"
+
+    def it_should_return_none_for_invalid_category(self):
+        from gilt.model.category import Category, CategoryConfig
+
+        category_config = CategoryConfig(categories=[Category(name="Groceries")])
+
+        with patch("gilt.cli.command.auto_categorize.Prompt.ask", return_value="NonExistent"):
+            result = _handle_modify_choice(category_config, "Groceries")
+
+        assert result is None
+
+    def it_should_return_none_for_invalid_subcategory(self):
+        from gilt.model.category import Category, CategoryConfig, Subcategory
+
+        category_config = CategoryConfig(categories=[
+            Category(name="Entertainment", subcategories=[Subcategory(name="Music")])
+        ])
+
+        with patch("gilt.cli.command.auto_categorize.Prompt.ask", return_value="Entertainment:Movies"):
+            result = _handle_modify_choice(category_config, "Entertainment:Music")
+
+        assert result is None
+
+
+class DescribeAutoCategorizeIdempotency:
+    """Tests for auto-categorize idempotency behavior."""
 
     def it_should_not_show_already_categorized_transactions_on_subsequent_runs(self):
         """Should exclude transactions already categorized in previous runs."""
