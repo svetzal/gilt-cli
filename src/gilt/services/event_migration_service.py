@@ -86,65 +86,81 @@ class EventMigrationService:
             reader = csv.DictReader(io.StringIO(csv_text))
 
             for row_num, row in enumerate(reader, start=2):  # Start at 2 (header = 1)
-                try:
-                    # Only process primary transactions (not duplicates or linked)
-                    if row.get("row_type") != "primary":
-                        continue
-
-                    transaction_id = row.get("transaction_id", "").strip()
-                    if not transaction_id:
-                        errors.append(f"{filename}:{row_num} - Missing transaction_id")
-                        continue
-
-                    # Generate TransactionImported event
-                    source_file = row.get("source_file", filename)
-                    import_timestamp = self._infer_import_timestamp(
-                        source_file, row.get("date", "")
-                    )
-
-                    event = TransactionImported(
-                        transaction_id=transaction_id,
-                        transaction_date=row.get("date", ""),
-                        source_file=source_file,
-                        source_account=row.get("account_id", ""),
-                        raw_description=row.get("description", ""),
-                        amount=Decimal(row.get("amount", "0")),
-                        currency=row.get("currency", "CAD"),
-                        raw_data={
-                            "date": row.get("date", ""),
-                            "description": row.get("description", ""),
-                            "amount": row.get("amount", ""),
-                            "account_id": row.get("account_id", ""),
-                        },
-                        event_timestamp=import_timestamp,
-                    )
-                    events.append(event)
-
-                    # If transaction has category, generate TransactionCategorized
-                    category = row.get("category", "").strip()
-                    if category:
-                        subcategory = row.get("subcategory", "").strip() or None
-
-                        cat_event = TransactionCategorized(
-                            transaction_id=transaction_id,
-                            category=category,
-                            subcategory=subcategory,
-                            source="user",
-                            previous_category=None,
-                            previous_subcategory=None,
-                            rationale="Migrated from existing ledger",
-                            event_timestamp=import_timestamp,
-                        )
-                        events.append(cat_event)
-
-                except (ValueError, KeyError, TypeError, Exception) as e:
-                    errors.append(f"{filename}:{row_num} - {str(e)}")
-                    continue
+                row_events, row_errors = self._generate_events_for_row(row, row_num, filename)
+                events.extend(row_events)
+                errors.extend(row_errors)
 
         except csv.Error as e:
             errors.append(f"CSV parse error in {filename}: {e}")
 
         return events, errors
+
+    def _generate_events_for_row(
+        self, row: dict, row_num: int, filename: str
+    ) -> tuple[list[Event], list[str]]:
+        """Process a single CSV row and generate the corresponding events.
+
+        Args:
+            row: Parsed CSV row dict
+            row_num: 1-based line number in the source file (header = 1, data starts at 2)
+            filename: Source filename used in error messages and source_file fallback
+
+        Returns:
+            Tuple of (events_list, errors_list) for this row
+        """
+        row_events: list[Event] = []
+        row_errors: list[str] = []
+
+        try:
+            if row.get("row_type") != "primary":
+                return row_events, row_errors
+
+            transaction_id = row.get("transaction_id", "").strip()
+            if not transaction_id:
+                row_errors.append(f"{filename}:{row_num} - Missing transaction_id")
+                return row_events, row_errors
+
+            source_file = row.get("source_file", filename)
+            import_timestamp = self._infer_import_timestamp(source_file, row.get("date", ""))
+
+            event = TransactionImported(
+                transaction_id=transaction_id,
+                transaction_date=row.get("date", ""),
+                source_file=source_file,
+                source_account=row.get("account_id", ""),
+                raw_description=row.get("description", ""),
+                amount=Decimal(row.get("amount", "0")),
+                currency=row.get("currency", "CAD"),
+                raw_data={
+                    "date": row.get("date", ""),
+                    "description": row.get("description", ""),
+                    "amount": row.get("amount", ""),
+                    "account_id": row.get("account_id", ""),
+                },
+                event_timestamp=import_timestamp,
+            )
+            row_events.append(event)
+
+            category = row.get("category", "").strip()
+            if category:
+                subcategory = row.get("subcategory", "").strip() or None
+
+                cat_event = TransactionCategorized(
+                    transaction_id=transaction_id,
+                    category=category,
+                    subcategory=subcategory,
+                    source="user",
+                    previous_category=None,
+                    previous_subcategory=None,
+                    rationale="Migrated from existing ledger",
+                    event_timestamp=import_timestamp,
+                )
+                row_events.append(cat_event)
+
+        except (ValueError, KeyError, TypeError, Exception) as e:
+            row_errors.append(f"{filename}:{row_num} - {str(e)}")
+
+        return row_events, row_errors
 
     def generate_budget_events(
         self, category_config: CategoryConfig, timestamp: datetime | None = None

@@ -145,7 +145,6 @@ class CategoryManagementService:
         Returns:
             RemovalPlan with safety information and warnings
         """
-        # Check if category exists
         cat = self._category_config.find_category(category)
         if not cat:
             return RemovalPlan(
@@ -160,43 +159,80 @@ class CategoryManagementService:
                 warnings=[f"Category '{category}' not found"],
             )
 
-        # If removing subcategory
         if subcategory:
-            if not cat.has_subcategory(subcategory):
-                return RemovalPlan(
-                    can_remove=True,  # Nothing to remove, no-op
-                    usage=CategoryUsage(
-                        category=category,
-                        subcategory=subcategory,
-                        transaction_count=0,
-                        transaction_ids=[],
-                    ),
-                    has_subcategories=False,
-                    warnings=[f"Subcategory '{format_category_path(category, subcategory)}' not found"],
-                )
+            return self._plan_subcategory_removal(cat, category, subcategory, transaction_groups, force)
 
-            # Count usage
-            usage = self.count_usage(category, subcategory, transaction_groups)
+        return self._plan_category_removal(cat, category, transaction_groups, force)
 
-            # Check if can remove
-            warnings = []
-            if usage.transaction_count > 0:
-                warnings.append(f"Subcategory is used in {usage.transaction_count} transaction(s)")
+    def _plan_subcategory_removal(
+        self,
+        cat,
+        category: str,
+        subcategory: str,
+        transaction_groups: list,
+        force: bool,
+    ) -> RemovalPlan:
+        """Plan removal of a specific subcategory with safety checks.
 
-            can_remove = force or usage.transaction_count == 0
+        Args:
+            cat: Found Category object from config
+            category: Category name
+            subcategory: Subcategory name to remove
+            transaction_groups: List of transaction groups to check usage
+            force: If True, allow removal even when in use
 
+        Returns:
+            RemovalPlan describing whether removal is safe
+        """
+        if not cat.has_subcategory(subcategory):
             return RemovalPlan(
-                can_remove=can_remove,
-                usage=usage,
+                can_remove=True,  # Nothing to remove, no-op
+                usage=CategoryUsage(
+                    category=category,
+                    subcategory=subcategory,
+                    transaction_count=0,
+                    transaction_ids=[],
+                ),
                 has_subcategories=False,
-                warnings=warnings,
+                warnings=[f"Subcategory '{format_category_path(category, subcategory)}' not found"],
             )
 
-        # Removing entire category
+        usage = self.count_usage(category, subcategory, transaction_groups)
+
+        warnings = []
+        if usage.transaction_count > 0:
+            warnings.append(f"Subcategory is used in {usage.transaction_count} transaction(s)")
+
+        can_remove = force or usage.transaction_count == 0
+
+        return RemovalPlan(
+            can_remove=can_remove,
+            usage=usage,
+            has_subcategories=False,
+            warnings=warnings,
+        )
+
+    def _plan_category_removal(
+        self,
+        cat,
+        category: str,
+        transaction_groups: list,
+        force: bool,
+    ) -> RemovalPlan:
+        """Plan removal of an entire category with safety checks.
+
+        Args:
+            cat: Found Category object from config
+            category: Category name to remove
+            transaction_groups: List of transaction groups to check usage
+            force: If True, allow removal even when in use or has subcategories
+
+        Returns:
+            RemovalPlan describing whether removal is safe
+        """
         usage = self.count_usage(category, None, transaction_groups)
         has_subcategories = len(cat.subcategories) > 0
 
-        # Check if can remove
         warnings = []
         if usage.transaction_count > 0:
             warnings.append(f"Category is used in {usage.transaction_count} transaction(s)")

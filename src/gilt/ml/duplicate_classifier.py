@@ -85,14 +85,9 @@ class DuplicateClassifier:
         feature_names = self.feature_extractor.get_feature_names()
         X_df = pd.DataFrame(X, columns=feature_names)
 
-        # Split train/validation
-        n_val = max(1, int(len(pairs) * validation_split))
-        indices = np.random.permutation(len(pairs))
-        val_indices = indices[:n_val]
-        train_indices = indices[n_val:]
-
-        X_train, y_train = X_df.iloc[train_indices], y[train_indices]
-        X_val, y_val = X_df.iloc[val_indices], y[val_indices]
+        X_train, y_train, X_val, y_val, train_indices, val_indices = (
+            self._prepare_train_val_split(X_df, y, validation_split)
+        )
 
         # Train LightGBM
         self.model = lgb.LGBMClassifier(
@@ -115,14 +110,53 @@ class DuplicateClassifier:
 
         self._is_trained = True
 
-        # Calculate metrics
-        train_pred = self.model.predict(X_train)
-        val_pred = self.model.predict(X_val)
+        metrics = self._compute_training_metrics(self.model, X_train, y_train, X_val, y_val)
+        metrics["n_train"] = len(train_indices)
+        metrics["n_val"] = len(val_indices)
+        return metrics
+
+    @staticmethod
+    def _prepare_train_val_split(X_df, y, validation_split: float) -> tuple:
+        """Split data into train and validation sets.
+
+        Args:
+            X_df: Feature DataFrame for all examples
+            y: Label array for all examples
+            validation_split: Fraction of data to reserve for validation
+
+        Returns:
+            Tuple of (X_train, y_train, X_val, y_val, train_indices, val_indices)
+        """
+        n_val = max(1, int(len(y) * validation_split))
+        indices = np.random.permutation(len(y))
+        val_indices = indices[:n_val]
+        train_indices = indices[n_val:]
+
+        X_train, y_train = X_df.iloc[train_indices], y[train_indices]
+        X_val, y_val = X_df.iloc[val_indices], y[val_indices]
+
+        return X_train, y_train, X_val, y_val, train_indices, val_indices
+
+    @staticmethod
+    def _compute_training_metrics(model, X_train, y_train, X_val, y_val) -> dict:
+        """Compute accuracy, precision, and recall metrics after training.
+
+        Args:
+            model: Trained LGBMClassifier
+            X_train: Training feature DataFrame
+            y_train: Training labels
+            X_val: Validation feature DataFrame
+            y_val: Validation labels
+
+        Returns:
+            Dict with train_accuracy, val_accuracy, precision, and recall keys
+        """
+        train_pred = model.predict(X_train)
+        val_pred = model.predict(X_val)
 
         train_acc = np.mean(train_pred == y_train)
         val_acc = np.mean(val_pred == y_val)
 
-        # Precision/recall for duplicates (positive class)
         true_positives = np.sum((val_pred == 1) & (y_val == 1))
         false_positives = np.sum((val_pred == 1) & (y_val == 0))
         false_negatives = np.sum((val_pred == 0) & (y_val == 1))
@@ -143,8 +177,6 @@ class DuplicateClassifier:
             "val_accuracy": float(val_acc),
             "precision": float(precision),
             "recall": float(recall),
-            "n_train": len(train_indices),
-            "n_val": len(val_indices),
         }
 
     def predict(self, pair: TransactionPair) -> DuplicateAssessment:
