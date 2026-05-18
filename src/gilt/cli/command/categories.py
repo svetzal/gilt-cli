@@ -16,6 +16,48 @@ from gilt.workspace import Workspace
 from .util import console, fmt_amount_str
 
 
+def _add_category_with_subcategories(table: Table, cat, usage: dict) -> None:
+    """Add a bold parent summary row plus indented rows for each subcategory."""
+    cat_key = (cat.name, None)
+    count, total = usage.get(cat_key, (0, 0.0))
+
+    budget_str = ""
+    if cat.budget:
+        budget_str = f"${cat.budget.amount:,.2f}/{cat.budget.period.value}"
+
+    # Sum subcategory usage into the parent totals
+    total_count = count
+    total_amount = total
+    for subcat in cat.subcategories:
+        subcat_key = (cat.name, subcat.name)
+        sub_count, sub_total = usage.get(subcat_key, (0, 0.0))
+        total_count += sub_count
+        total_amount += sub_total
+
+    table.add_row(
+        f"[bold]{cat.name}[/]",
+        "",
+        cat.description or "",
+        budget_str,
+        f"[bold]{total_count}[/]" if total_count > 0 else "—",
+        f"[bold]${total_amount:,.2f}[/]" if total_count > 0 else "—",
+    )
+
+    # Subcategory rows (indented)
+    for subcat in cat.subcategories:
+        subcat_key = (cat.name, subcat.name)
+        sub_count, sub_total = usage.get(subcat_key, (0, 0.0))
+
+        table.add_row(
+            "",
+            f"  {subcat.name}",
+            subcat.description or "",
+            "",
+            str(sub_count) if sub_count > 0 else "—",
+            fmt_amount_str(sub_total) if sub_count > 0 else "—",
+        )
+
+
 def _display_categories_table(category_config, usage: dict) -> None:
     """Build and print the categories Rich table plus summary line."""
     table = Table(title="Categories", show_lines=True)
@@ -35,7 +77,6 @@ def _display_categories_table(category_config, usage: dict) -> None:
         if cat.budget:
             budget_str = f"${cat.budget.amount:,.2f}/{cat.budget.period.value}"
 
-        # If no subcategories, show single row
         if not cat.subcategories:
             table.add_row(
                 cat.name,
@@ -46,39 +87,7 @@ def _display_categories_table(category_config, usage: dict) -> None:
                 fmt_amount_str(total) if count > 0 else "—",
             )
         else:
-            # Parent category row (summary for all subcategories)
-            total_count = count
-            total_amount = total
-
-            # Add counts from subcategories
-            for subcat in cat.subcategories:
-                subcat_key = (cat.name, subcat.name)
-                sub_count, sub_total = usage.get(subcat_key, (0, 0.0))
-                total_count += sub_count
-                total_amount += sub_total
-
-            table.add_row(
-                f"[bold]{cat.name}[/]",
-                "",
-                cat.description or "",
-                budget_str,
-                f"[bold]{total_count}[/]" if total_count > 0 else "—",
-                f"[bold]${total_amount:,.2f}[/]" if total_count > 0 else "—",
-            )
-
-            # Subcategory rows (indented)
-            for subcat in cat.subcategories:
-                subcat_key = (cat.name, subcat.name)
-                sub_count, sub_total = usage.get(subcat_key, (0, 0.0))
-
-                table.add_row(
-                    "",
-                    f"  {subcat.name}",
-                    subcat.description or "",
-                    "",
-                    str(sub_count) if sub_count > 0 else "—",
-                    fmt_amount_str(sub_total) if sub_count > 0 else "—",
-                )
+            _add_category_with_subcategories(table, cat, usage)
 
     console.print(table)
 

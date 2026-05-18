@@ -269,6 +269,31 @@ class ProjectionBuilder:
             ),
         )
 
+    def _link_duplicate_if_present(
+        self, conn: sqlite3.Connection, event: TransactionDescriptionObserved
+    ) -> None:
+        # If new transaction_id exists as separate projection, mark it as duplicate
+        # This handles the case where it was imported before we detected the change
+        cursor = conn.execute(
+            "SELECT transaction_id FROM transaction_projections WHERE transaction_id = ?",
+            (event.new_transaction_id,),
+        )
+        if cursor.fetchone():
+            conn.execute(
+                """
+                UPDATE transaction_projections
+                SET is_duplicate = 1,
+                    primary_transaction_id = ?,
+                    last_event_id = ?
+                WHERE transaction_id = ?
+                """,
+                (
+                    event.original_transaction_id,
+                    event.event_id,
+                    event.new_transaction_id,
+                ),
+            )
+
     def _apply_description_observed(
         self, conn: sqlite3.Connection, event: TransactionDescriptionObserved
     ) -> None:
@@ -318,27 +343,7 @@ class ProjectionBuilder:
             ),
         )
 
-        # If new transaction_id exists as separate projection, mark it as duplicate
-        # This handles the case where it was imported before we detected the change
-        cursor = conn.execute(
-            "SELECT transaction_id FROM transaction_projections WHERE transaction_id = ?",
-            (event.new_transaction_id,),
-        )
-        if cursor.fetchone():
-            conn.execute(
-                """
-                UPDATE transaction_projections
-                SET is_duplicate = 1,
-                    primary_transaction_id = ?,
-                    last_event_id = ?
-                WHERE transaction_id = ?
-                """,
-                (
-                    event.original_transaction_id,
-                    event.event_id,
-                    event.new_transaction_id,
-                ),
-            )
+        self._link_duplicate_if_present(conn, event)
 
     def _apply_transaction_categorized(
         self, conn: sqlite3.Connection, event: TransactionCategorized

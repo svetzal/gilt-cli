@@ -253,29 +253,19 @@ class DuplicateDetector:
         # Fall back to LLM
         return self._assess_duplicate_llm(pair)
 
-    def _assess_duplicate_llm(self, pair: TransactionPair) -> DuplicateAssessment:
-        """Use LLM to assess if a transaction pair is a duplicate.
-
-        Args:
-            pair: Transaction pair to analyze
+    def _build_base_prompt_template(self) -> str:
+        """Build the base LLM prompt template, incorporating any learned patterns.
 
         Returns:
-            Assessment with is_duplicate, confidence, and reasoning
+            Prompt template string with {txn1_date}, {txn1_account}, etc. placeholders
         """
-        llm = self._get_llm()
-
-        # Build prompt template with learned patterns
-        if self.prompt_manager:
-            prompt_template = self.prompt_manager.get_prompt()
-        else:
-            # Build adaptive prompt with learned patterns
-            prompt_parts = [
-                """You are analyzing bank transactions to detect duplicates.
+        prompt_parts = [
+            """You are analyzing bank transactions to detect duplicates.
 
 Banks sometimes modify transaction descriptions over time - they may add """
-                """suffixes, remove details, or reformat text. Your job is to determine """
-                """if two transactions are likely the same transaction recorded twice """
-                """(a duplicate) or two separate legitimate transactions.
+            """suffixes, remove details, or reformat text. Your job is to determine """
+            """if two transactions are likely the same transaction recorded twice """
+            """(a duplicate) or two separate legitimate transactions.
 
 Consider:
 - Date proximity (same day or very close = more likely duplicate)
@@ -284,16 +274,16 @@ Consider:
 - Account matching (same account = more likely duplicate)
 
 Be conservative: when in doubt about whether transactions are duplicates, """
-                """mark is_duplicate=false and explain your uncertainty in the reasoning."""
-            ]
+            """mark is_duplicate=false and explain your uncertainty in the reasoning."""
+        ]
 
-            # Add learned patterns if available
-            if self.learned_patterns:
-                prompt_parts.append("\n\nLearned patterns from previous feedback:")
-                for pattern in self.learned_patterns:
-                    prompt_parts.append(f"- {pattern}")
+        # Add learned patterns if available
+        if self.learned_patterns:
+            prompt_parts.append("\n\nLearned patterns from previous feedback:")
+            for pattern in self.learned_patterns:
+                prompt_parts.append(f"- {pattern}")
 
-            prompt_parts.append("""\n\nAnalyze these two transactions:
+        prompt_parts.append("""\n\nAnalyze these two transactions:
 
 Transaction 1:
 - Date: {txn1_date}
@@ -309,7 +299,23 @@ Transaction 2:
 
 Assess whether these are duplicates.""")
 
-            prompt_template = "".join(prompt_parts)
+        return "".join(prompt_parts)
+
+    def _assess_duplicate_llm(self, pair: TransactionPair) -> DuplicateAssessment:
+        """Use LLM to assess if a transaction pair is a duplicate.
+
+        Args:
+            pair: Transaction pair to analyze
+
+        Returns:
+            Assessment with is_duplicate, confidence, and reasoning
+        """
+        llm = self._get_llm()
+
+        if self.prompt_manager:
+            prompt_template = self.prompt_manager.get_prompt()
+        else:
+            prompt_template = self._build_base_prompt_template()
 
         prompt = prompt_template.format(
             txn1_date=pair.txn1_date,

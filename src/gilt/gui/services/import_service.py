@@ -343,6 +343,39 @@ class ImportService:
             _logger.error("Error scanning for duplicates: %s", e)
             return []
 
+    def _build_review_item_from_row(self, row, exclude_set: set[str]) -> CategorizationReviewItem | None:
+        """Build a CategorizationReviewItem from a single DataFrame row, or None if the row is excluded."""
+        txn_id = str(row["transaction_id"])
+        if txn_id in exclude_set:
+            return None
+
+        metadata = {"source_file": row["source_file"]}
+        txn = Transaction(
+            transaction_id=txn_id,
+            date=datetime.strptime(str(row["date"]), "%Y-%m-%d").date(),
+            description=str(row["description"]),
+            amount=float(row["amount"]),
+            currency=str(row["currency"]),
+            account_id=str(row["account_id"]),
+            counterparty=str(row["counterparty"]) if pd.notna(row["counterparty"]) else None,
+            category=None,
+            subcategory=None,
+            notes=None,
+            source_file=str(row["source_file"]),
+            metadata=metadata,
+        )
+
+        predicted_cat, confidence = self.smart_category_service.predict_category(
+            description=txn.description, amount=txn.amount, account=txn.account_id
+        )
+
+        return CategorizationReviewItem(
+            transaction=txn,
+            predicted_category=predicted_cat,
+            confidence=confidence,
+            assigned_category=predicted_cat if confidence >= 0.8 else None,
+        )
+
     def scan_file_for_categorization(
         self, file_path: Path, account_id: str, exclude_ids: list[str] | None = None
     ) -> list[CategorizationReviewItem]:
@@ -361,50 +394,14 @@ class ImportService:
             return []
 
         try:
-            # 1. Parse file to transactions
             df = parse_file(file_path, account_id, self._amount_sign_for(account_id))
-            items = []
-
             exclude_set = set(exclude_ids) if exclude_ids else set()
 
+            items = []
             for _, row in df.iterrows():
-                txn_id = str(row["transaction_id"])
-                if txn_id in exclude_set:
-                    continue
-
-                # Build metadata with source_file info
-                metadata = {"source_file": row["source_file"]}
-
-                txn = Transaction(
-                    transaction_id=txn_id,
-                    date=datetime.strptime(str(row["date"]), "%Y-%m-%d").date(),
-                    description=str(row["description"]),
-                    amount=float(row["amount"]),
-                    currency=str(row["currency"]),
-                    account_id=str(row["account_id"]),
-                    counterparty=str(row["counterparty"])
-                    if pd.notna(row["counterparty"])
-                    else None,
-                    category=None,
-                    subcategory=None,
-                    notes=None,
-                    source_file=str(row["source_file"]),
-                    metadata=metadata,
-                )
-
-                # Predict category
-                predicted_cat, confidence = self.smart_category_service.predict_category(
-                    description=txn.description, amount=txn.amount, account=txn.account_id
-                )
-
-                items.append(
-                    CategorizationReviewItem(
-                        transaction=txn,
-                        predicted_category=predicted_cat,
-                        confidence=confidence,
-                        assigned_category=predicted_cat if confidence >= 0.8 else None,
-                    )
-                )
+                item = self._build_review_item_from_row(row, exclude_set)
+                if item is not None:
+                    items.append(item)
 
             return items
 

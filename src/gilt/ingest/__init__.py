@@ -208,34 +208,29 @@ def _detect_rbc_overrides(df: pd.DataFrame, cols: list[str]) -> dict[str, pd.Ser
     return {}
 
 
-def _build_transaction_dataframe(
-    df: pd.DataFrame,
-    column_map: dict[str, str | None],
-    overrides: dict[str, pd.Series],
-    account_id: str,
-    amount_sign: str,
-    input_path: Path,
-) -> pd.DataFrame:
-    """Build the normalized transaction DataFrame from a raw CSV DataFrame.
+def _resolve_date_series(
+    df: pd.DataFrame, column_map: dict[str, str | None], overrides: dict[str, pd.Series]
+) -> pd.Series:
+    """Resolve and format the date series as YYYY-MM-DD strings.
 
-    Handles date parsing, description combination, amount extraction, currency
-    assignment, boilerplate fields, and transaction ID computation.
-    Returns a DataFrame without final reordering or sorting (caller's responsibility).
-    Pure function over its inputs.
+    Uses the override series when present, otherwise reads from column_map["date"].
+    Invalid dates are coerced to NaN.
     """
-    out = pd.DataFrame()
-
-    # Date: strip and parse; keep YYYY-MM-DD; coerce invalid to NaN
-    date_series = (
+    raw = (
         overrides["date_series"]
         if "date_series" in overrides
         else df[column_map["date"]].astype(str).str.strip()
     )
-    out["date"] = pd.to_datetime(date_series, errors="coerce", dayfirst=False).dt.strftime(
-        "%Y-%m-%d"
-    )
+    return pd.to_datetime(raw, errors="coerce", dayfirst=False).dt.strftime("%Y-%m-%d")
 
-    # Description: combine desc1 and desc2 when present; join with ' - ' and strip
+
+def _resolve_description_series(
+    df: pd.DataFrame, column_map: dict[str, str | None], overrides: dict[str, pd.Series]
+) -> pd.Series:
+    """Resolve and combine desc1 and desc2 into a single description series.
+
+    Parts are joined with " - " when both are non-empty. Returns stripped strings.
+    """
     d1 = (
         overrides["desc1_series"]
         if "desc1_series" in overrides
@@ -256,10 +251,21 @@ def _build_transaction_dataframe(
     )
     d1 = d1.fillna("").str.strip()
     d2 = d2.fillna("").str.strip()
-    combined_desc = d1.where(d2.eq(""), d1.str.cat(d2, sep=" - "))
-    out["description"] = combined_desc.fillna("").astype(str).str.strip()
+    combined = d1.where(d2.eq(""), d1.str.cat(d2, sep=" - "))
+    return combined.fillna("").astype(str).str.strip()
 
-    # Amount handling
+
+def _resolve_amount_series(
+    df: pd.DataFrame,
+    column_map: dict[str, str | None],
+    overrides: dict[str, pd.Series],
+    amount_sign: str,
+) -> pd.Series:
+    """Resolve the raw amount source, clean it, convert to numeric, and apply sign convention.
+
+    Removes $, commas, and converts parenthesised values to negative.
+    Negates the result when amount_sign is "expenses_positive".
+    """
     if "amount_series" in overrides:
         amt_src = overrides["amount_series"]
     elif column_map["amount"] is not None:
@@ -268,14 +274,38 @@ def _build_transaction_dataframe(
         amt_src = df[column_map["usd"]]
     else:
         amt_src = pd.Series("", index=df.index)
+
     amt_str = amt_src.astype(str).fillna("").str.strip()
     amt_str = amt_str.str.replace(r"[,$]", "", regex=True)
     amt_str = amt_str.str.replace(r"^\((.*)\)$", r"-\1", regex=True)
-    out["amount"] = pd.to_numeric(amt_str, errors="coerce")
+    amounts = pd.to_numeric(amt_str, errors="coerce")
 
-    # Apply amount sign convention: negate if bank reports expenses as positive
     if amount_sign == "expenses_positive":
-        out["amount"] = -out["amount"]
+        amounts = -amounts
+
+    return amounts
+
+
+def _build_transaction_dataframe(
+    df: pd.DataFrame,
+    column_map: dict[str, str | None],
+    overrides: dict[str, pd.Series],
+    account_id: str,
+    amount_sign: str,
+    input_path: Path,
+) -> pd.DataFrame:
+    """Build the normalized transaction DataFrame from a raw CSV DataFrame.
+
+    Handles date parsing, description combination, amount extraction, currency
+    assignment, boilerplate fields, and transaction ID computation.
+    Returns a DataFrame without final reordering or sorting (caller's responsibility).
+    Pure function over its inputs.
+    """
+    out = pd.DataFrame()
+
+    out["date"] = _resolve_date_series(df, column_map, overrides)
+    out["description"] = _resolve_description_series(df, column_map, overrides)
+    out["amount"] = _resolve_amount_series(df, column_map, overrides, amount_sign)
 
     if column_map["currency"]:
         out["currency"] = df[column_map["currency"]].astype(str).replace("", "CAD")
@@ -345,6 +375,87 @@ def parse_file(
     )
 
 
+def _emit_description_observed_event(
+    event_store: EventStore,
+    row: pd.Series,
+    key: tuple[str, str, str],
+    existing_by_key: dict[tuple[str, str, str], tuple[str, str]],
+    txn_id: str,
+    input_path: Path,
+    account_id: str,
+) -> None:
+    """Emit a TransactionDescriptionObserved event when a description change is detected.
+
+    Fires when the same date/amount/account_id triple exists in the ledger but
+    the description (and therefore transaction_id) has changed.
+    """
+    from gilt.model.events import TransactionDescriptionObserved
+
+    if key not in existing_by_key:
+        return
+
+    original_id, original_desc = existing_by_key[key]
+    current_desc = str(row["description"])
+
+    if original_id == txn_id or original_desc == current_desc:
+        return
+
+    try:
+        event = TransactionDescriptionObserved(
+            original_transaction_id=original_id,
+            new_transaction_id=txn_id,
+            transaction_date=str(row["date"]),
+            original_description=original_desc,
+            new_description=current_desc,
+            source_file=input_path.name,
+            source_account=account_id,
+            amount=Decimal(str(row["amount"])),
+        )
+        event_store.append_event(event)
+    except (ValueError, TypeError) as e:
+        logger.warning(
+            "Skipped TransactionDescriptionObserved for txn %s (%r): %s",
+            txn_id,
+            original_desc,
+            e,
+        )
+
+
+def _emit_transaction_imported_event(
+    event_store: EventStore,
+    row: pd.Series,
+    txn_id: str,
+    existing_ids: set[str],
+    input_path: Path,
+    account_id: str,
+) -> None:
+    """Emit a TransactionImported event for a transaction not yet in the ledger."""
+    from gilt.model.events import TransactionImported
+
+    if txn_id in existing_ids:
+        return
+
+    try:
+        event = TransactionImported(
+            transaction_date=str(row["date"]),
+            transaction_id=txn_id,
+            source_file=input_path.name,
+            source_account=account_id,
+            raw_description=str(row["description"]),
+            amount=Decimal(str(row["amount"])),
+            currency=str(row["currency"]),
+            raw_data={},
+        )
+        event_store.append_event(event)
+    except (ValueError, TypeError) as e:
+        logger.warning(
+            "Skipped TransactionImported for txn %s (amount=%s): %s",
+            txn_id,
+            row["amount"],
+            e,
+        )
+
+
 def _emit_transaction_events(
     out: pd.DataFrame,
     existing: pd.DataFrame,
@@ -357,8 +468,6 @@ def _emit_transaction_events(
     Compares `out` (newly parsed transactions) against `existing` (current ledger) and
     emits events to `event_store` for each new transaction and each description change.
     """
-    from gilt.model.events import TransactionDescriptionObserved, TransactionImported
-
     existing_ids = set(existing["transaction_id"].astype(str)) if len(existing) > 0 else set()
 
     # Build index of existing transactions by (date, amount, account_id)
@@ -375,54 +484,13 @@ def _emit_transaction_events(
         if pd.isna(row["amount"]) or pd.isna(row["date"]):
             continue
 
-        # Check for description changes: same date/amount/account but different description
         key = (str(row["date"]), str(row["amount"]), str(row["account_id"]))
-        if key in existing_by_key:
-            original_id, original_desc = existing_by_key[key]
-            current_desc = str(row["description"])
-
-            if original_id != txn_id and original_desc != current_desc:
-                try:
-                    event = TransactionDescriptionObserved(
-                        original_transaction_id=original_id,
-                        new_transaction_id=txn_id,
-                        transaction_date=str(row["date"]),
-                        original_description=original_desc,
-                        new_description=current_desc,
-                        source_file=input_path.name,
-                        source_account=account_id,
-                        amount=Decimal(str(row["amount"])),
-                    )
-                    event_store.append_event(event)
-                except (ValueError, TypeError) as e:
-                    logger.warning(
-                        "Skipped TransactionDescriptionObserved for txn %s (%r): %s",
-                        txn_id,
-                        original_desc,
-                        e,
-                    )
-
-        # Only emit TransactionImported events for new transactions
-        if txn_id not in existing_ids:
-            try:
-                event = TransactionImported(
-                    transaction_date=str(row["date"]),
-                    transaction_id=txn_id,
-                    source_file=input_path.name,
-                    source_account=account_id,
-                    raw_description=str(row["description"]),
-                    amount=Decimal(str(row["amount"])),
-                    currency=str(row["currency"]),
-                    raw_data={},
-                )
-                event_store.append_event(event)
-            except (ValueError, TypeError) as e:
-                logger.warning(
-                    "Skipped TransactionImported for txn %s (amount=%s): %s",
-                    txn_id,
-                    row["amount"],
-                    e,
-                )
+        _emit_description_observed_event(
+            event_store, row, key, existing_by_key, txn_id, input_path, account_id
+        )
+        _emit_transaction_imported_event(
+            event_store, row, txn_id, existing_ids, input_path, account_id
+        )
 
 
 def _merge_with_existing_ledger(

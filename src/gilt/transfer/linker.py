@@ -40,7 +40,7 @@ from gilt.transfer._constants import (
 )
 
 # We reuse the matching logic from the matching module (no CLI deps)
-from gilt.transfer.matching import Match, compute_matches
+from gilt.transfer.matching import Match, Txn, compute_matches
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +71,39 @@ def _build_indexes(
             if tid:
                 txn_index[tid] = (str(csv_path), g)
     return file_groups, txn_index
+
+
+def _build_transfer_payloads(m: Match, d: Txn, c: Txn) -> tuple[dict, dict]:
+    """Build the metadata payload dicts for both sides of a transfer match.
+
+    Args:
+        m: The matched transfer pair with score, method, and fee info
+        d: The debit-side transaction
+        c: The credit-side transaction
+
+    Returns:
+        A two-tuple of (debit_payload, credit_payload) dicts ready for
+        _ensure_transfer_metadata.
+    """
+    debit_payload = {
+        TRANSFER_ROLE: ROLE_DEBIT,
+        TRANSFER_COUNTERPARTY_ACCOUNT_ID: c.account_id,
+        TRANSFER_COUNTERPARTY_TRANSACTION_ID: c.transaction_id,
+        TRANSFER_AMOUNT: abs(d.amount),
+        TRANSFER_METHOD: m.method,
+        TRANSFER_SCORE: m.score,
+        TRANSFER_FEE_TXN_IDS: list(m.fee_txn_ids or []),
+    }
+    credit_payload = {
+        TRANSFER_ROLE: ROLE_CREDIT,
+        TRANSFER_COUNTERPARTY_ACCOUNT_ID: d.account_id,
+        TRANSFER_COUNTERPARTY_TRANSACTION_ID: d.transaction_id,
+        TRANSFER_AMOUNT: abs(d.amount),
+        TRANSFER_METHOD: m.method,
+        TRANSFER_SCORE: m.score,
+        TRANSFER_FEE_TXN_IDS: [],  # fees only attached on debit side for now
+    }
+    return debit_payload, credit_payload
 
 
 def _ensure_transfer_metadata(group: TransactionGroup, payload: dict) -> bool:
@@ -156,25 +189,7 @@ def link_transfers(
         d_path, d_group = debit_entry
         c_path, c_group = credit_entry
 
-        # Build payloads
-        debit_payload = {
-            TRANSFER_ROLE: ROLE_DEBIT,
-            TRANSFER_COUNTERPARTY_ACCOUNT_ID: c.account_id,
-            TRANSFER_COUNTERPARTY_TRANSACTION_ID: c.transaction_id,
-            TRANSFER_AMOUNT: abs(d.amount),
-            TRANSFER_METHOD: m.method,
-            TRANSFER_SCORE: m.score,
-            TRANSFER_FEE_TXN_IDS: list(m.fee_txn_ids or []),
-        }
-        credit_payload = {
-            TRANSFER_ROLE: ROLE_CREDIT,  # counterpart to the initiating debit is always the receiving side for this pair
-            TRANSFER_COUNTERPARTY_ACCOUNT_ID: d.account_id,
-            TRANSFER_COUNTERPARTY_TRANSACTION_ID: d.transaction_id,
-            TRANSFER_AMOUNT: abs(d.amount),
-            TRANSFER_METHOD: m.method,
-            TRANSFER_SCORE: m.score,
-            TRANSFER_FEE_TXN_IDS: [],  # fees only attached on debit side for now
-        }
+        debit_payload, credit_payload = _build_transfer_payloads(m, d, c)
 
         if _ensure_transfer_metadata(d_group, debit_payload):
             modified_files.add(d_path)

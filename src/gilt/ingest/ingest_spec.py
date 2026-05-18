@@ -9,6 +9,8 @@ from unittest.mock import Mock, patch
 import pandas as pd
 
 from gilt.ingest import (
+    _detect_columns,
+    _detect_rbc_overrides,
     compute_transaction_id_fields,
     infer_account_for_file,
     load_accounts_config,
@@ -16,7 +18,6 @@ from gilt.ingest import (
     parse_file,
     plan_normalization,
 )
-from gilt.ingest import _detect_columns, _detect_rbc_overrides
 from gilt.model.account import Account
 
 
@@ -296,12 +297,14 @@ class DescribeNormalizeFileEventSourcing:
         )
         (output_dir / "MYBANK_CHQ.csv").write_text(existing_ledger, encoding="utf-8")
 
-        with patch(
-            "gilt.model.events.TransactionDescriptionObserved",
-            side_effect=ValueError("test event creation failure"),
+        with (
+            patch(
+                "gilt.model.events.TransactionDescriptionObserved",
+                side_effect=ValueError("test event creation failure"),
+            ),
+            caplog.at_level(logging.WARNING, logger="gilt.ingest"),
         ):
-            with caplog.at_level(logging.WARNING, logger="gilt.ingest"):
-                normalize_file(input_path, "MYBANK_CHQ", output_dir, event_store=Mock())
+            normalize_file(input_path, "MYBANK_CHQ", output_dir, event_store=Mock())
 
         assert "Skipped TransactionDescriptionObserved" in caplog.text
         assert (output_dir / "MYBANK_CHQ.csv").exists()
@@ -321,12 +324,14 @@ class DescribeNormalizeFileEventSourcing:
         output_dir = tmp_path / "output"
         output_dir.mkdir()
 
-        with patch(
-            "gilt.model.events.TransactionImported",
-            side_effect=ValueError("test event creation failure"),
+        with (
+            patch(
+                "gilt.model.events.TransactionImported",
+                side_effect=ValueError("test event creation failure"),
+            ),
+            caplog.at_level(logging.WARNING, logger="gilt.ingest"),
         ):
-            with caplog.at_level(logging.WARNING, logger="gilt.ingest"):
-                normalize_file(input_path, "MYBANK_CHQ", output_dir, event_store=Mock())
+            normalize_file(input_path, "MYBANK_CHQ", output_dir, event_store=Mock())
 
         assert "Skipped TransactionImported" in caplog.text
         assert (output_dir / "MYBANK_CHQ.csv").exists()

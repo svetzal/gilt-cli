@@ -81,12 +81,8 @@ class PromptManager:
         }
         self.prompt_file.write_text(json.dumps(data, indent=2))
 
-    def _generate_learned_patterns(self) -> str:
-        """Generate learned patterns section from feedback history."""
-        if not self.feedback_history:
-            return ""
-
-        # Count patterns
+    def _classify_feedback(self) -> tuple[list, list, list]:
+        """Classify feedback history into confirmed duplicates, false positives, and false negatives."""
         confirmed_duplicates = [
             f for f in self.feedback_history if f["user_confirmed"] and f["llm_said_duplicate"]
         ]
@@ -96,38 +92,50 @@ class PromptManager:
         false_negatives = [
             f for f in self.feedback_history if f["user_confirmed"] and not f["llm_said_duplicate"]
         ]
+        return confirmed_duplicates, false_positives, false_negatives
+
+    def _build_false_positive_patterns(self, false_positives: list) -> list[str]:
+        """Build pattern strings for false positives based on location token differences."""
+        lines: list[str] = []
+
+        # Look for location pattern — extract distinct location tokens
+        # and flag when descriptions differ only by location
+        location_patterns = []
+        for fp in false_positives[-5:]:  # Last 5 false positives
+            desc1 = fp.get("txn1_description", "")
+            desc2 = fp.get("txn2_description", "")
+            tokens1 = set(desc1.split())
+            tokens2 = set(desc2.split())
+            diff = tokens1.symmetric_difference(tokens2)
+            if diff and tokens1 - tokens2 and tokens2 - tokens1:
+                location_patterns.append(
+                    "- Transactions with same amount/date but different location "
+                    "tokens are typically separate events, NOT duplicates"
+                )
+                break
+
+        lines.extend(location_patterns)
+
+        if location_patterns:
+            lines.append(
+                "- Even with same amount and date, different locations usually mean different transactions"
+            )
+        lines.append("")
+        return lines
+
+    def _generate_learned_patterns(self) -> str:
+        """Generate learned patterns section from feedback history."""
+        if not self.feedback_history:
+            return ""
+
+        confirmed_duplicates, false_positives, false_negatives = self._classify_feedback()
 
         patterns = ["LEARNED PATTERNS FROM PAST DECISIONS:"]
         patterns.append("")
 
-        # Add insights about false positives
         if false_positives:
             patterns.append("Common FALSE POSITIVES to avoid:")
-
-            # Look for location pattern — extract distinct location tokens
-            # and flag when descriptions differ only by location
-            location_patterns = []
-            for fp in false_positives[-5:]:  # Last 5 false positives
-                desc1 = fp.get("txn1_description", "")
-                desc2 = fp.get("txn2_description", "")
-                tokens1 = set(desc1.split())
-                tokens2 = set(desc2.split())
-                diff = tokens1.symmetric_difference(tokens2)
-                if diff and tokens1 - tokens2 and tokens2 - tokens1:
-                    location_patterns.append(
-                        "- Transactions with same amount/date but different location "
-                        "tokens are typically separate events, NOT duplicates"
-                    )
-                    break
-
-            patterns.extend(location_patterns)
-
-            # Add general guidance if we found patterns
-            if location_patterns:
-                patterns.append(
-                    "- Even with same amount and date, different locations usually mean different transactions"
-                )
-            patterns.append("")
+            patterns.extend(self._build_false_positive_patterns(false_positives))
 
         # Add insights about confirmed duplicates
         if confirmed_duplicates:

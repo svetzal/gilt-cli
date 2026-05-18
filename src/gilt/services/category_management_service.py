@@ -248,6 +248,60 @@ class CategoryManagementService:
             warnings=warnings,
         )
 
+    def _add_subcategory_to_category(
+        self,
+        existing_cat: Category,
+        category: str,
+        subcategory: str,
+        description: str | None,
+    ) -> AdditionResult:
+        """Handle the subcategory-addition branch of add_category.
+
+        Validates that the subcategory does not already exist, then appends it.
+        """
+        if existing_cat.has_subcategory(subcategory):
+            return AdditionResult(
+                success=False,
+                already_exists=True,
+                errors=[f"Subcategory '{format_category_path(category, subcategory)}' already exists"],
+            )
+
+        new_subcat = Subcategory(name=subcategory, description=description)
+        existing_cat.subcategories.append(new_subcat)
+
+        return AdditionResult(
+            success=True,
+            already_exists=False,
+            added_category=category,
+            added_subcategory=subcategory,
+        )
+
+    def _add_new_category(
+        self,
+        category: str,
+        description: str | None,
+    ) -> AdditionResult:
+        """Handle the category-addition branch of add_category.
+
+        Validates that the category does not already exist, then appends it.
+        """
+        existing_cat = self._category_config.find_category(category)
+        if existing_cat:
+            return AdditionResult(
+                success=False,
+                already_exists=True,
+                errors=[f"Category '{category}' already exists"],
+            )
+
+        new_cat = Category(name=category, description=description)
+        self._category_config.categories.append(new_cat)
+
+        return AdditionResult(
+            success=True,
+            already_exists=False,
+            added_category=category,
+        )
+
     def add_category(
         self,
         category: str,
@@ -272,11 +326,9 @@ class CategoryManagementService:
                 errors=["Category name cannot be empty"],
             )
 
-        # Check if category exists
         existing_cat = self._category_config.find_category(category)
 
         if subcategory:
-            # Adding a subcategory
             if not existing_cat:
                 return AdditionResult(
                     success=False,
@@ -286,43 +338,9 @@ class CategoryManagementService:
                         "Create parent category first",
                     ],
                 )
+            return self._add_subcategory_to_category(existing_cat, category, subcategory, description)
 
-            if existing_cat.has_subcategory(subcategory):
-                return AdditionResult(
-                    success=False,
-                    already_exists=True,
-                    errors=[f"Subcategory '{format_category_path(category, subcategory)}' already exists"],
-                )
-
-            # Add subcategory
-            new_subcat = Subcategory(name=subcategory, description=description)
-            existing_cat.subcategories.append(new_subcat)
-
-            return AdditionResult(
-                success=True,
-                already_exists=False,
-                added_category=category,
-                added_subcategory=subcategory,
-            )
-
-        else:
-            # Adding a category
-            if existing_cat:
-                return AdditionResult(
-                    success=False,
-                    already_exists=True,
-                    errors=[f"Category '{category}' already exists"],
-                )
-
-            # Add category
-            new_cat = Category(name=category, description=description)
-            self._category_config.categories.append(new_cat)
-
-            return AdditionResult(
-                success=True,
-                already_exists=False,
-                added_category=category,
-            )
+        return self._add_new_category(category, description)
 
     def set_budget(
         self,

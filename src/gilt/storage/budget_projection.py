@@ -306,51 +306,26 @@ class BudgetProjectionBuilder:
             ),
         )
 
-    def _apply_budget_updated(self, conn: sqlite3.Connection, event: BudgetUpdated) -> None:
-        """Apply BudgetUpdated event to projection."""
-        # Get current budget state
-        cursor = conn.execute(
-            """
-            SELECT amount, period_type, start_date
-            FROM budget_projections
-            WHERE budget_id = ?
-            """,
-            (event.budget_id,),
-        )
-        row = cursor.fetchone()
-
-        if not row:
-            # Budget doesn't exist yet, skip
-            return
-
-        current_amount, current_period, current_start = row
-
-        # Calculate new values (use current if not updated)
+    def _resolve_updated_values(
+        self,
+        event: BudgetUpdated,
+        current_amount: float,
+        current_period: str,
+        current_start: str,
+    ) -> tuple[float, str, str]:
         new_amount = float(event.new_amount) if event.new_amount else current_amount
         new_period = event.new_period_type if event.new_period_type else current_period
         new_start = event.new_start_date if event.new_start_date else current_start
+        return new_amount, new_period, new_start
 
-        # Update projection
-        conn.execute(
-            """
-            UPDATE budget_projections
-            SET amount = ?,
-                period_type = ?,
-                start_date = ?,
-                updated_at = ?,
-                last_event_id = ?
-            WHERE budget_id = ?
-            """,
-            (
-                new_amount,
-                new_period,
-                new_start,
-                event.event_timestamp.isoformat(),
-                event.event_id,
-                event.budget_id,
-            ),
-        )
-
+    def _update_budget_history(
+        self,
+        conn: sqlite3.Connection,
+        event: BudgetUpdated,
+        new_amount: float,
+        new_period: str,
+        new_start: str,
+    ) -> None:
         # Close previous history entry
         conn.execute(
             """
@@ -385,6 +360,51 @@ class BudgetProjectionBuilder:
                 event.event_id,
             ),
         )
+
+    def _apply_budget_updated(self, conn: sqlite3.Connection, event: BudgetUpdated) -> None:
+        """Apply BudgetUpdated event to projection."""
+        # Get current budget state
+        cursor = conn.execute(
+            """
+            SELECT amount, period_type, start_date
+            FROM budget_projections
+            WHERE budget_id = ?
+            """,
+            (event.budget_id,),
+        )
+        row = cursor.fetchone()
+
+        if not row:
+            # Budget doesn't exist yet, skip
+            return
+
+        current_amount, current_period, current_start = row
+        new_amount, new_period, new_start = self._resolve_updated_values(
+            event, current_amount, current_period, current_start
+        )
+
+        # Update projection
+        conn.execute(
+            """
+            UPDATE budget_projections
+            SET amount = ?,
+                period_type = ?,
+                start_date = ?,
+                updated_at = ?,
+                last_event_id = ?
+            WHERE budget_id = ?
+            """,
+            (
+                new_amount,
+                new_period,
+                new_start,
+                event.event_timestamp.isoformat(),
+                event.event_id,
+                event.budget_id,
+            ),
+        )
+
+        self._update_budget_history(conn, event, new_amount, new_period, new_start)
 
     def _apply_budget_deleted(self, conn: sqlite3.Connection, event: BudgetDeleted) -> None:
         """Apply BudgetDeleted event to projection.

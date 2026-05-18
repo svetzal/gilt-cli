@@ -235,45 +235,26 @@ def _is_pattern_match(
     return pct_diff <= _PATTERN_AMOUNT_PCT and days_diff <= date_window_days
 
 
-def match_receipt_to_transactions(
+def _collect_candidates(
     receipt: ReceiptData,
     transactions: list[dict],
-    account_id: str | None = None,
-    amount_tolerance: Decimal = Decimal("0.02"),
-    date_window_days: int = 3,
-    vendor_patterns: dict[str, list[str]] | None = None,
-) -> MatchResult:
-    """Match a receipt to bank transactions using multi-strategy matching.
-
-    Strategies (tried in priority order):
-    1. Exact: amount within tolerance, date within window.
-    2. FX-tolerant: receipt currency differs from transaction currency,
-       amount within 8%, date within ±2 days.
-    3. Vendor-pattern: vendor maps to a description substring,
-       amount within 8%, date within window.
-
-    Args:
-        receipt: Parsed receipt data.
-        transactions: List of projection row dicts.
-        account_id: If provided, only match transactions in this account.
-        amount_tolerance: Maximum absolute amount difference for exact match.
-        date_window_days: Maximum days between receipt and transaction for exact/pattern.
-        vendor_patterns: Map of lowercase vendor name to description substrings.
+    account_id: str | None,
+    amount_tolerance: Decimal,
+    date_window_days: int,
+    vendor_substrings: list[str],
+    vendor_has_patterns: bool,
+) -> tuple[list[dict], list[dict], list[dict]]:
+    """Scan transactions and bucket them into exact, FX, and pattern candidate lists.
 
     Returns:
-        MatchResult with match_confidence indicating which strategy matched.
+        (exact_candidates, fx_candidates, pattern_candidates)
     """
-    exact_candidates = []
-    fx_candidates = []
-    pattern_candidates = []
-
     receipt_total = receipt.amount + receipt.tax_amount if receipt.tax_amount else receipt.amount
     receipt_amount = abs(receipt_total)
-    vendor_key = receipt.vendor.lower() if vendor_patterns else None
-    vendor_substrings = (
-        vendor_patterns.get(vendor_key, []) if vendor_patterns and vendor_key else []
-    )
-    vendor_has_patterns = bool(vendor_substrings)
+
+    exact_candidates: list[dict] = []
+    fx_candidates: list[dict] = []
+    pattern_candidates: list[dict] = []
 
     for txn in transactions:
         if account_id and txn.get("account_id") != account_id:
@@ -302,6 +283,53 @@ def match_receipt_to_transactions(
 
         if _is_pattern_match(amount_diff, days_diff, vendor_substrings, desc, receipt_amount, date_window_days):
             pattern_candidates.append(txn)
+
+    return exact_candidates, fx_candidates, pattern_candidates
+
+
+def match_receipt_to_transactions(
+    receipt: ReceiptData,
+    transactions: list[dict],
+    account_id: str | None = None,
+    amount_tolerance: Decimal = Decimal("0.02"),
+    date_window_days: int = 3,
+    vendor_patterns: dict[str, list[str]] | None = None,
+) -> MatchResult:
+    """Match a receipt to bank transactions using multi-strategy matching.
+
+    Strategies (tried in priority order):
+    1. Exact: amount within tolerance, date within window.
+    2. FX-tolerant: receipt currency differs from transaction currency,
+       amount within 8%, date within ±2 days.
+    3. Vendor-pattern: vendor maps to a description substring,
+       amount within 8%, date within window.
+
+    Args:
+        receipt: Parsed receipt data.
+        transactions: List of projection row dicts.
+        account_id: If provided, only match transactions in this account.
+        amount_tolerance: Maximum absolute amount difference for exact match.
+        date_window_days: Maximum days between receipt and transaction for exact/pattern.
+        vendor_patterns: Map of lowercase vendor name to description substrings.
+
+    Returns:
+        MatchResult with match_confidence indicating which strategy matched.
+    """
+    vendor_key = receipt.vendor.lower() if vendor_patterns else None
+    vendor_substrings = (
+        vendor_patterns.get(vendor_key, []) if vendor_patterns and vendor_key else []
+    )
+    vendor_has_patterns = bool(vendor_substrings)
+
+    exact_candidates, fx_candidates, pattern_candidates = _collect_candidates(
+        receipt,
+        transactions,
+        account_id,
+        amount_tolerance,
+        date_window_days,
+        vendor_substrings,
+        vendor_has_patterns,
+    )
 
     for candidates, confidence in [
         (exact_candidates, "exact"),
