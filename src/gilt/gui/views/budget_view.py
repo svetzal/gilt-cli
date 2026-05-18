@@ -10,9 +10,7 @@ from datetime import date
 from pathlib import Path
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QPalette
 from PySide6.QtWidgets import (
-    QApplication,
     QComboBox,
     QHBoxLayout,
     QHeaderView,
@@ -161,96 +159,88 @@ class BudgetView(QWidget):
         """Load and display budget data."""
         self.table.setRowCount(0)
 
-        # Get selected period
         year = self.year_spin.value()
         month = self.month_combo.currentData()
 
-        # Get budget summary
         summary = self.service.get_budget_summary(year=year, month=month)
 
-        # Get palette for theme-aware colors
-        app = QApplication.instance()
-        _palette = app.palette() if app else QPalette()
-
-        # Populate table
         for item in summary.items:
             row = self.table.rowCount()
             self.table.insertRow(row)
+            self._populate_budget_row(row, item)
 
-            # Category
-            cat_item = QTableWidgetItem(item.category_name if item.is_category_header else "")
-            if item.is_category_header:
-                font = cat_item.font()
-                font.setBold(True)
-                cat_item.setFont(font)
-                # Use theme-aware subtle background for main categories
-                cat_item.setBackground(Theme.color("header_bg"))
-            self.table.setItem(row, 0, cat_item)
-
-            # Subcategory
-            subcat_text = f"  {item.subcategory_name}" if item.subcategory_name else ""
-            subcat_item = QTableWidgetItem(subcat_text)
-            if item.subcategory_name:
-                # Use palette color for subtle text instead of hardcoded gray
-                subcat_item.setForeground(Theme.color("neutral_fg"))
-            self.table.setItem(row, 1, subcat_item)
-
-            # Budget
-            budget_text = f"${item.budget_amount:,.2f}" if item.budget_amount else "—"
-            budget_item = QTableWidgetItem(budget_text)
-            budget_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-            self.table.setItem(row, 2, budget_item)
-
-            # Actual
-            actual_text = f"${item.actual_amount:,.2f}" if item.actual_amount > 0 else "—"
-            actual_item = QTableWidgetItem(actual_text)
-            actual_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-            if item.is_category_header:
-                font = actual_item.font()
-                font.setBold(True)
-                actual_item.setFont(font)
-            self.table.setItem(row, 3, actual_item)
-
-            # Remaining
-            if item.remaining is not None:
-                if item.remaining >= 0:
-                    remaining_text = f"${item.remaining:,.2f}"
-                    remaining_color = Theme.color("positive_fg")
-                else:
-                    remaining_text = f"-${abs(item.remaining):,.2f}"
-                    remaining_color = Theme.color("negative_fg")
-
-                remaining_item = QTableWidgetItem(remaining_text)
-                remaining_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-                remaining_item.setForeground(remaining_color)
-                self.table.setItem(row, 4, remaining_item)
-            else:
-                self.table.setItem(row, 4, QTableWidgetItem("—"))
-
-            # % Used
-            if item.percent_used is not None:
-                pct_text = f"{item.percent_used:.1f}%"
-                pct_item = QTableWidgetItem(pct_text)
-                pct_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-
-                # Color code based on percentage
-                if item.percent_used > 100:
-                    pct_color = Theme.color("negative_fg")
-                    font = pct_item.font()
-                    font.setBold(True)
-                    pct_item.setFont(font)
-                elif item.percent_used > 90:
-                    pct_color = Theme.color("warning_fg")
-                else:
-                    pct_color = Theme.color("positive_fg")
-
-                pct_item.setForeground(pct_color)
-                self.table.setItem(row, 5, pct_item)
-            else:
-                self.table.setItem(row, 5, QTableWidgetItem("—"))
-
-        # Update summary
         self._update_summary(summary)
+
+    def _populate_budget_row(self, row: int, item) -> None:
+        """Fill all 6 cells for a single budget item row."""
+        # Category
+        cat_item = QTableWidgetItem(item.category_name if item.is_category_header else "")
+        if item.is_category_header:
+            font = cat_item.font()
+            font.setBold(True)
+            cat_item.setFont(font)
+            cat_item.setBackground(Theme.color("header_bg"))
+        self.table.setItem(row, 0, cat_item)
+
+        # Subcategory
+        subcat_text = f"  {item.subcategory_name}" if item.subcategory_name else ""
+        subcat_item = QTableWidgetItem(subcat_text)
+        if item.subcategory_name:
+            subcat_item.setForeground(Theme.color("neutral_fg"))
+        self.table.setItem(row, 1, subcat_item)
+
+        # Budget
+        budget_text = f"${item.budget_amount:,.2f}" if item.budget_amount else "—"
+        budget_item = QTableWidgetItem(budget_text)
+        budget_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.table.setItem(row, 2, budget_item)
+
+        # Actual
+        actual_text = f"${item.actual_amount:,.2f}" if item.actual_amount > 0 else "—"
+        actual_item = QTableWidgetItem(actual_text)
+        actual_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        if item.is_category_header:
+            font = actual_item.font()
+            font.setBold(True)
+            actual_item.setFont(font)
+        self.table.setItem(row, 3, actual_item)
+
+        # Remaining
+        if item.remaining is not None:
+            if item.remaining >= 0:
+                remaining_text = f"${item.remaining:,.2f}"
+                remaining_color = Theme.color("positive_fg")
+            else:
+                remaining_text = f"-${abs(item.remaining):,.2f}"
+                remaining_color = Theme.color("negative_fg")
+
+            remaining_item = QTableWidgetItem(remaining_text)
+            remaining_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            remaining_item.setForeground(remaining_color)
+            self.table.setItem(row, 4, remaining_item)
+        else:
+            self.table.setItem(row, 4, QTableWidgetItem("—"))
+
+        # % Used
+        if item.percent_used is not None:
+            pct_text = f"{item.percent_used:.1f}%"
+            pct_item = QTableWidgetItem(pct_text)
+            pct_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+
+            if item.percent_used > 100:
+                pct_color = Theme.color("negative_fg")
+                font = pct_item.font()
+                font.setBold(True)
+                pct_item.setFont(font)
+            elif item.percent_used > 90:
+                pct_color = Theme.color("warning_fg")
+            else:
+                pct_color = Theme.color("positive_fg")
+
+            pct_item.setForeground(pct_color)
+            self.table.setItem(row, 5, pct_item)
+        else:
+            self.table.setItem(row, 5, QTableWidgetItem("—"))
 
     def _update_summary(self, summary):
         """Update the summary label."""

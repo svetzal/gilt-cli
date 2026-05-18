@@ -40,11 +40,15 @@ class DuplicateReviewPage(QWizardPage):
     def _init_ui(self):
         layout = QVBoxLayout(self)
 
-        # Splitter for list and details
         splitter = QSplitter(Qt.Orientation.Horizontal)
         layout.addWidget(splitter)
 
-        # Left: List of matches
+        splitter.addWidget(self._create_match_list_panel())
+        splitter.addWidget(self._create_detail_and_action_panel())
+        splitter.setSizes([300, 500])
+
+    def _create_match_list_panel(self) -> QWidget:
+        """Create and return the left panel with the list of potential duplicate matches."""
         left_widget = QWidget()
         left_layout = QVBoxLayout(left_widget)
         left_layout.setContentsMargins(0, 0, 0, 0)
@@ -54,9 +58,10 @@ class DuplicateReviewPage(QWizardPage):
         self.match_list.currentRowChanged.connect(self._on_selection_changed)
         left_layout.addWidget(self.match_list)
 
-        splitter.addWidget(left_widget)
+        return left_widget
 
-        # Right: Details and Actions
+    def _create_detail_and_action_panel(self) -> QWidget:
+        """Create and return the right panel with the comparison frame and action buttons."""
         right_widget = QWidget()
         right_layout = QVBoxLayout(right_widget)
         right_layout.setContentsMargins(10, 0, 0, 0)
@@ -66,7 +71,6 @@ class DuplicateReviewPage(QWizardPage):
         self.comparison_frame.setFrameShape(QFrame.Shape.StyledPanel)
         comp_layout = QVBoxLayout(self.comparison_frame)
 
-        # New Transaction (Incoming)
         comp_layout.addWidget(QLabel("<b>New Transaction (Incoming):</b>"))
         self.lbl_new_date = QLabel()
         self.lbl_new_desc = QLabel()
@@ -77,7 +81,6 @@ class DuplicateReviewPage(QWizardPage):
 
         comp_layout.addSpacing(20)
 
-        # Existing Transaction
         comp_layout.addWidget(QLabel("<b>Existing Transaction (In Ledger):</b>"))
         self.lbl_ex_date = QLabel()
         self.lbl_ex_desc = QLabel()
@@ -88,7 +91,6 @@ class DuplicateReviewPage(QWizardPage):
 
         comp_layout.addStretch()
 
-        # Reasoning
         comp_layout.addWidget(QLabel("<b>AI Reasoning:</b>"))
         self.lbl_reasoning = QLabel()
         self.lbl_reasoning.setWordWrap(True)
@@ -101,25 +103,21 @@ class DuplicateReviewPage(QWizardPage):
 
         self.btn_confirm = QPushButton("Skip Import (It's a Duplicate)")
         self.btn_confirm.clicked.connect(self._on_confirm_duplicate)
-
-        # Use theme colors
         neg_color = Theme.color("negative_fg").name()
         self.btn_confirm.setStyleSheet(
-            f"background-color: {neg_color}26; "  # 15% opacity (approx 26 in hex)
+            f"background-color: {neg_color}26; "
             "color: palette(text); "
-            f"border: 1px solid {neg_color}80; "  # 50% opacity
+            f"border: 1px solid {neg_color}80; "
             "border-radius: 4px; padding: 6px;"
         )
 
         self.btn_reject = QPushButton("Import Anyway (Not a Duplicate)")
         self.btn_reject.clicked.connect(self._on_reject_duplicate)
-
-        # Use theme colors
         pos_color = Theme.color("positive_fg").name()
         self.btn_reject.setStyleSheet(
-            f"background-color: {pos_color}26; "  # 15% opacity
+            f"background-color: {pos_color}26; "
             "color: palette(text); "
-            f"border: 1px solid {pos_color}80; "  # 50% opacity
+            f"border: 1px solid {pos_color}80; "
             "border-radius: 4px; padding: 6px;"
         )
 
@@ -128,8 +126,7 @@ class DuplicateReviewPage(QWizardPage):
 
         right_layout.addLayout(action_layout)
 
-        splitter.addWidget(right_widget)
-        splitter.setSizes([300, 500])
+        return right_widget
 
     def initializePage(self):
         """Called when page is shown."""

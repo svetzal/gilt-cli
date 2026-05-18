@@ -49,13 +49,17 @@ class DuplicateResolutionDialog(QDialog):
     def _init_ui(self):
         """Initialize the user interface."""
         layout = QVBoxLayout(self)
+        self._create_header_section(layout)
+        self._create_comparison_table(layout)
+        self._create_resolution_options(layout)
+        self._create_dialog_buttons(layout)
 
-        # Header
+    def _create_header_section(self, layout) -> None:
+        """Add the title label and confidence info label to layout."""
         header = QLabel("Potential Duplicate Detected")
         header.setStyleSheet("font-size: 16pt; font-weight: bold; margin-bottom: 10px;")
         layout.addWidget(header)
 
-        # Confidence info
         conf_text = f"Confidence: {self.match.confidence_pct:.1f}%"
         if self.match.assessment.reasoning:
             conf_text += f"\nReasoning: {self.match.assessment.reasoning}"
@@ -67,7 +71,8 @@ class DuplicateResolutionDialog(QDialog):
         )
         layout.addWidget(info_label)
 
-        # Comparison Table
+    def _create_comparison_table(self, layout) -> None:
+        """Create and configure the side-by-side comparison table and add it to layout."""
         self.table = QTableWidget()
         self.table.setColumnCount(3)
         self.table.setHorizontalHeaderLabels(["Field", "Transaction A", "Transaction B"])
@@ -75,13 +80,11 @@ class DuplicateResolutionDialog(QDialog):
         self.table.setAlternatingRowColors(True)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
 
-        # Configure header
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
 
-        # Populate table
         pair = self.match.pair
         fields = [
             ("Date", str(pair.txn1_date), str(pair.txn2_date)),
@@ -97,7 +100,6 @@ class DuplicateResolutionDialog(QDialog):
             self.table.setItem(row, 1, QTableWidgetItem(val1))
             self.table.setItem(row, 2, QTableWidgetItem(val2))
 
-            # Highlight differences
             if val1 != val2:
                 item1 = self.table.item(row, 1)
                 item2 = self.table.item(row, 2)
@@ -108,7 +110,8 @@ class DuplicateResolutionDialog(QDialog):
 
         layout.addWidget(self.table)
 
-        # Resolution Options
+    def _create_resolution_options(self, layout) -> None:
+        """Create the resolution QGroupBox with radio buttons and add it to layout."""
         group = QGroupBox("Resolution")
         group_layout = QVBoxLayout(group)
 
@@ -116,7 +119,6 @@ class DuplicateResolutionDialog(QDialog):
         self.radio_duplicate.setChecked(True)
         group_layout.addWidget(self.radio_duplicate)
 
-        # Sub-options for keeping
         self.keep_group = QButtonGroup(self)
 
         self.radio_keep_1 = QRadioButton("Keep Transaction A (Delete B)")
@@ -126,7 +128,6 @@ class DuplicateResolutionDialog(QDialog):
         self.radio_keep_2 = QRadioButton("Keep Transaction B (Delete A)")
         self.keep_group.addButton(self.radio_keep_2)
 
-        # Indent sub-options
         sub_layout = QVBoxLayout()
         sub_layout.setContentsMargins(20, 0, 0, 0)
         sub_layout.addWidget(self.radio_keep_1)
@@ -136,12 +137,12 @@ class DuplicateResolutionDialog(QDialog):
         self.radio_different = QRadioButton("No, these are different transactions")
         group_layout.addWidget(self.radio_different)
 
-        layout.addWidget(group)
-
-        # Connect signals
         self.radio_duplicate.toggled.connect(self._on_duplicate_toggled)
 
-        # Buttons
+        layout.addWidget(group)
+
+    def _create_dialog_buttons(self, layout) -> None:
+        """Create the OK/Cancel button box, connect signals, and add it to layout."""
         self.buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )

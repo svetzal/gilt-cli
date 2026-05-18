@@ -48,39 +48,10 @@ class CategoriesView(QWidget):
         """Initialize the user interface."""
         layout = QVBoxLayout(self)
 
-        # Title
         title = QLabel("<h2>Categories & Budgets</h2>")
         layout.addWidget(title)
 
-        # Action buttons
-        button_layout = QHBoxLayout()
-
-        self.add_btn = QPushButton("Add Category")
-        self.add_btn.clicked.connect(self._on_add_category)
-        button_layout.addWidget(self.add_btn)
-
-        self.add_subcat_btn = QPushButton("Add Subcategory")
-        self.add_subcat_btn.clicked.connect(self._on_add_subcategory)
-        self.add_subcat_btn.setEnabled(False)
-        button_layout.addWidget(self.add_subcat_btn)
-
-        self.set_budget_btn = QPushButton("Set Budget")
-        self.set_budget_btn.clicked.connect(self._on_set_budget)
-        self.set_budget_btn.setEnabled(False)
-        button_layout.addWidget(self.set_budget_btn)
-
-        self.remove_btn = QPushButton("Remove")
-        self.remove_btn.clicked.connect(self._on_remove)
-        self.remove_btn.setEnabled(False)
-        button_layout.addWidget(self.remove_btn)
-
-        button_layout.addStretch()
-
-        self.reload_btn = QPushButton("Reload")
-        self.reload_btn.clicked.connect(self._load_categories)
-        button_layout.addWidget(self.reload_btn)
-
-        layout.addLayout(button_layout)
+        layout.addLayout(self._create_action_buttons())
 
         # Categories table
         self.table = QTableWidget()
@@ -122,6 +93,49 @@ class CategoriesView(QWidget):
         )
         info.setStyleSheet("color: palette(placeholder-text); padding: 8px;")
         layout.addWidget(info)
+
+    def _create_action_buttons(self) -> QHBoxLayout:
+        """Create all action buttons, connect signals, and return the populated layout."""
+        button_layout = QHBoxLayout()
+
+        self.add_btn = QPushButton("Add Category")
+        self.add_btn.clicked.connect(self._on_add_category)
+        button_layout.addWidget(self.add_btn)
+
+        self.add_subcat_btn = QPushButton("Add Subcategory")
+        self.add_subcat_btn.clicked.connect(self._on_add_subcategory)
+        self.add_subcat_btn.setEnabled(False)
+        button_layout.addWidget(self.add_subcat_btn)
+
+        self.set_budget_btn = QPushButton("Set Budget")
+        self.set_budget_btn.clicked.connect(self._on_set_budget)
+        self.set_budget_btn.setEnabled(False)
+        button_layout.addWidget(self.set_budget_btn)
+
+        self.remove_btn = QPushButton("Remove")
+        self.remove_btn.clicked.connect(self._on_remove)
+        self.remove_btn.setEnabled(False)
+        button_layout.addWidget(self.remove_btn)
+
+        button_layout.addStretch()
+
+        self.reload_btn = QPushButton("Reload")
+        self.reload_btn.clicked.connect(self._load_categories)
+        button_layout.addWidget(self.reload_btn)
+
+        return button_layout
+
+    def _resolve_category_name_for_row(self, selected_row: int) -> str:
+        """Return the category name for a row, walking backwards if it is a subcategory row."""
+        category_item = self.table.item(selected_row, 0)
+        category_name = category_item.text() if category_item else ""
+        if not category_name:
+            for row in range(selected_row - 1, -1, -1):
+                item = self.table.item(row, 0)
+                if item and item.text():
+                    category_name = item.text()
+                    break
+        return category_name
 
     def _load_categories(self):
         """Load categories from config and populate table."""
@@ -279,19 +293,8 @@ class CategoriesView(QWidget):
         if selected_row < 0:
             return
 
-        # Get category name
-        category_item = self.table.item(selected_row, 0)
+        category_name = self._resolve_category_name_for_row(selected_row)
         subcategory_item = self.table.item(selected_row, 1)
-
-        category_name = category_item.text()
-        if not category_name:
-            # Walk back to find category
-            for row in range(selected_row - 1, -1, -1):
-                item = self.table.item(row, 0)
-                if item and item.text():
-                    category_name = item.text()
-                    break
-
         subcategory_name = subcategory_item.text() if subcategory_item else ""
 
         if subcategory_name:
@@ -361,18 +364,8 @@ class CategoriesView(QWidget):
         if selected_row < 0:
             return
 
-        category_item = self.table.item(selected_row, 0)
+        category_name = self._resolve_category_name_for_row(selected_row)
         subcategory_item = self.table.item(selected_row, 1)
-
-        category_name = category_item.text()
-        if not category_name:
-            # Walk back to find category
-            for row in range(selected_row - 1, -1, -1):
-                item = self.table.item(row, 0)
-                if item and item.text():
-                    category_name = item.text()
-                    break
-
         subcategory_name = subcategory_item.text() if subcategory_item else ""
 
         if not category_name:
