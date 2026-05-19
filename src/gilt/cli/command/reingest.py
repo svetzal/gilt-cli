@@ -63,6 +63,23 @@ def _finalize_reingest(output_dir: Path, projection_builder: object, event_store
     return modified, events_processed
 
 
+def _display_reingest_plan(
+    account: str,
+    account_files: list[tuple],
+    ledger_path: Path,
+    purge_plan,
+) -> None:
+    """Print the reingest plan for the given account."""
+    ledger_exists = ledger_path.exists()
+    console.print(f"[bold]Reingest plan for account: {account}[/]")
+    console.print(f"  Source files: {len(account_files)}")
+    for p, _ in account_files:
+        console.print(f"    - {p.name}")
+    console.print(f"  Ledger file: {ledger_path.name} ({'exists' if ledger_exists else 'missing'})")
+    console.print(f"  Events to purge: {len(purge_plan.event_ids)}")
+    console.print(f"  Transactions to purge: {len(purge_plan.transaction_ids)}")
+
+
 def run(
     *,
     account: str,
@@ -111,16 +128,8 @@ def run(
     )
     purge_plan = reingest_svc.plan_purge(account)
 
-    # Display plan
     ledger_path = output_dir / f"{account}.csv"
-    ledger_exists = ledger_path.exists()
-    console.print(f"[bold]Reingest plan for account: {account}[/]")
-    console.print(f"  Source files: {len(account_files)}")
-    for p, _ in account_files:
-        console.print(f"    - {p.name}")
-    console.print(f"  Ledger file: {ledger_path.name} ({'exists' if ledger_exists else 'missing'})")
-    console.print(f"  Events to purge: {len(purge_plan.event_ids)}")
-    console.print(f"  Transactions to purge: {len(purge_plan.transaction_ids)}")
+    _display_reingest_plan(account, account_files, ledger_path, purge_plan)
 
     if not write:
         print_dry_run_message()

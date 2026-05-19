@@ -295,22 +295,13 @@ def run(
     Returns:
         Exit code (0 success, 1 error)
     """
-    service, categorization_service = _init_services(workspace, service, categorization_service)
-    category, subcategory, cat_warning = _parse_and_validate_category(category, subcategory)
-    if cat_warning:
-        console.print(f"[yellow]Warning:[/] {cat_warning}")
-
-    mode_result = validate_single_vs_batch_mode(txid, description, desc_prefix, pattern)
-    if mode_result is None:
-        return 1
-    single_mode = mode_result
-
-    validation = categorization_service.validate_category(category, subcategory)
-    if not validation.is_valid:
-        for error in validation.errors:
-            print_error(error)
-        console.print(f"Add it first: gilt category --add '{category}' --write")
-        return 1
+    inputs = _validate_inputs(
+        workspace, service, categorization_service, category, subcategory,
+        txid, description, desc_prefix, pattern,
+    )
+    if isinstance(inputs, int):
+        return inputs
+    service, categorization_service, category, subcategory, single_mode = inputs
 
     all_transactions = _load_and_filter_transactions(workspace, account)
     if all_transactions is None:
@@ -346,6 +337,48 @@ def run(
         all_matches, category, subcategory, single_mode, assume_yes, write,
         workspace, categorization_service,
     )
+    return _report_categorization_result(all_matches, result, recategorized_count, write)
+
+
+def _validate_inputs(
+    workspace: Workspace,
+    service: TransactionOperationsService | None,
+    categorization_service: CategorizationService | None,
+    category: str,
+    subcategory: str | None,
+    txid: str | None,
+    description: str | None,
+    desc_prefix: str | None,
+    pattern: str | None,
+) -> tuple[TransactionOperationsService, CategorizationService, str, str | None, bool] | int:
+    """Initialize services and validate inputs. Returns initialized tuple or exit code."""
+    service, categorization_service = _init_services(workspace, service, categorization_service)
+    category, subcategory, cat_warning = _parse_and_validate_category(category, subcategory)
+    if cat_warning:
+        console.print(f"[yellow]Warning:[/] {cat_warning}")
+
+    mode_result = validate_single_vs_batch_mode(txid, description, desc_prefix, pattern)
+    if mode_result is None:
+        return 1
+    single_mode = mode_result
+
+    validation = categorization_service.validate_category(category, subcategory)
+    if not validation.is_valid:
+        for error in validation.errors:
+            print_error(error)
+        console.print(f"Add it first: gilt category --add '{category}' --write")
+        return 1
+
+    return service, categorization_service, category, subcategory, single_mode
+
+
+def _report_categorization_result(
+    all_matches: list[tuple[str, TransactionGroup]],
+    result: int,
+    recategorized_count: int,
+    write: bool,
+) -> int:
+    """Report post-apply categorization success with recategorized-count warning. Returns exit code."""
     if result == 0 and write:
         if recategorized_count > 0:
             console.print(

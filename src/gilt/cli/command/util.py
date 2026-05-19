@@ -95,6 +95,20 @@ def print_dry_run_message(*, detail: str | None = None) -> None:
     console.print(f"[dim]{msg}[/dim]")
 
 
+def resolve_effective_paths(
+    workspace: Workspace,
+    event_store_path: Path | None,
+    projections_db_path: Path | None,
+    budget_projections_db_path: Path | None,
+) -> tuple[Path, Path, Path]:
+    """Resolve effective paths for event store and projections, falling back to workspace defaults."""
+    return (
+        event_store_path or workspace.event_store_path,
+        projections_db_path or workspace.projections_path,
+        budget_projections_db_path or workspace.budget_projections_path,
+    )
+
+
 def require_event_sourcing(
     workspace: Workspace,
     *,

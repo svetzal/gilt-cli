@@ -88,29 +88,41 @@ def run(
 
     # Handle --set-budget
     if set_budget:
-        if amount is None:
-            print_error("--amount is required with --set-budget")
-            return 1
-        if amount <= 0:
-            print_error("Budget amount must be positive")
-            return 1
-
-        try:
-            budget_period = BudgetPeriod(period)
-        except ValueError:
-            print_error(f"Invalid period '{period}'. Use 'monthly' or 'yearly'")
-            return 1
-
-        return _handle_set_budget(
-            category_config=category_config,
-            category_path=set_budget,
-            amount=amount,
-            period=budget_period,
-            config_path=config,
-            write=write,
-        )
+        return _validate_and_handle_set_budget(category_config, set_budget, amount, period, config, write)
 
     return 1
+
+
+def _validate_and_handle_set_budget(
+    category_config,
+    set_budget: str,
+    amount: float | None,
+    period: str,
+    config: Path,
+    write: bool,
+) -> int:
+    """Validate amount and period, then dispatch to _handle_set_budget. Returns exit code."""
+    if amount is None:
+        print_error("--amount is required with --set-budget")
+        return 1
+    if amount <= 0:
+        print_error("Budget amount must be positive")
+        return 1
+
+    try:
+        budget_period = BudgetPeriod(period)
+    except ValueError:
+        print_error(f"Invalid period '{period}'. Use 'monthly' or 'yearly'")
+        return 1
+
+    return _handle_set_budget(
+        category_config=category_config,
+        category_path=set_budget,
+        amount=amount,
+        period=budget_period,
+        config_path=config,
+        write=write,
+    )
 
 
 def _handle_add(

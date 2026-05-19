@@ -28,7 +28,7 @@ from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.storage.budget_projection import BudgetProjectionBuilder
 from gilt.workspace import Workspace
 
-from .util import console, print_error, print_error_list
+from .util import console, print_error, print_error_list, resolve_effective_paths
 
 
 def _init_event_sourcing(
@@ -95,11 +95,11 @@ def run(
     """
     data_dir = workspace.ledger_data_dir
     categories_config = workspace.categories_config
-    effective_event_store_path = event_store_path or workspace.event_store_path
-    effective_projections_db_path = projections_db_path or workspace.projections_path
-    effective_budget_projections_db_path = (
-        budget_projections_db_path or workspace.budget_projections_path
-    )
+    (
+        effective_event_store_path,
+        effective_projections_db_path,
+        effective_budget_projections_db_path,
+    ) = resolve_effective_paths(workspace, event_store_path, projections_db_path, budget_projections_db_path)
 
     console.print("[bold cyan]Event Sourcing Migration - Manual Backfill[/]")
     console.print("[yellow]ℹ Most users should use 'gilt migrate-to-events --write'[/]")
@@ -139,9 +139,7 @@ def run(
 
     # Validate (write mode only)
     if not dry_run:
-        console.print("\n[bold]Step 3: Rebuilding projections[/]")
-        console.print("  Rebuilding transaction projections from events...")
-        validation_result = _validate_projections(
+        return _validate_and_report(
             data_dir,
             categories_config,
             event_store,
@@ -149,24 +147,46 @@ def run(
             effective_projections_db_path,
             effective_budget_projections_db_path,
         )
-        console.print(f"  Processed {validation_result.tx_count} transaction events")
-        console.print("  Rebuilding budget projections from events...")
-        console.print(f"  Processed {validation_result.budget_count} budget events")
 
-        if not validation_result.passed:
-            print_error("✗ Validation failed")
+    return 0
+
+
+def _validate_and_report(
+    data_dir: Path,
+    categories_config: Path,
+    event_store,
+    service: EventMigrationService,
+    projections_db_path: Path,
+    budget_projections_db_path: Path,
+) -> int:
+    """Rebuild projections, run validation checks, and report results. Returns exit code."""
+    console.print("\n[bold]Step 3: Rebuilding projections[/]")
+    console.print("  Rebuilding transaction projections from events...")
+    validation_result = _validate_projections(
+        data_dir,
+        categories_config,
+        event_store,
+        service,
+        projections_db_path,
+        budget_projections_db_path,
+    )
+    console.print(f"  Processed {validation_result.tx_count} transaction events")
+    console.print("  Rebuilding budget projections from events...")
+    console.print(f"  Processed {validation_result.budget_count} budget events")
+
+    if not validation_result.passed:
+        print_error("✗ Validation failed")
+        return 1
+
+    if validation_result.validation:
+        console.print("\n  Running validation checks...")
+        _display_validation_results(validation_result.validation)
+        if validation_result.validation.errors:
+            console.print()
+            print_error_list("Validation Errors", validation_result.validation.errors)
             return 1
 
-        if validation_result.validation:
-            console.print("\n  Running validation checks...")
-            _display_validation_results(validation_result.validation)
-            if validation_result.validation.errors:
-                console.print()
-                print_error_list("Validation Errors", validation_result.validation.errors)
-                return 1
-
-        console.print("\n[green]✓ All validations passed[/]")
-
+    console.print("\n[green]✓ All validations passed[/]")
     return 0
 
 

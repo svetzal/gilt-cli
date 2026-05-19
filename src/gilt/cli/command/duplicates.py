@@ -198,6 +198,43 @@ def _display_and_review_match(ctx: ReviewContext, i: int, total: int, match, sug
     ctx.console.print()
 
 
+def _display_non_interactive_results(filtered_matches) -> None:
+    """Print each match in non-interactive mode."""
+    for i, match in enumerate(filtered_matches, 1):
+        pair = match.pair
+        console.print(
+            f"[bold]Match {i}/{len(filtered_matches)}[/] - Confidence: {match.confidence_pct:.1f}%"
+        )
+        console.print(f"  {pair.txn2_id[:8]} vs {pair.txn1_id[:8]}: {pair.txn2_description}")
+        console.print(f"  [dim]{match.assessment.reasoning}[/dim]")
+        console.print()
+
+
+def _finalize_session(
+    detector,
+    skipped_count: int,
+    filtered_matches,
+    review_ctx: ReviewContext,
+    use_llm: bool,
+    interactive: bool,
+    review_service,
+) -> None:
+    """Save prompt feedback, report skipped pairs, and display the session summary."""
+    if detector.prompt_manager:
+        detector.prompt_manager._save_prompt()
+        console.print("[dim]✓ Feedback saved to prompt manager[/dim]")
+
+    if skipped_count > 0:
+        console.print()
+        console.print(
+            f"[dim]Skipped {skipped_count} pair(s) already processed in this session[/dim]"
+        )
+
+    _display_summary(
+        console, filtered_matches, review_ctx.feedback, use_llm, detector, interactive, review_service
+    )
+
+
 def _display_summary(
     console, filtered_matches, feedback, use_llm, detector, interactive, review_service
 ):
@@ -388,29 +425,9 @@ def run(
     _run_review_loop(review_ctx, filtered_matches, review_service, detector, model, interactive)
 
     if not interactive:
-        for i, match in enumerate(filtered_matches, 1):
-            pair = match.pair
-            console.print(
-                f"[bold]Match {i}/{len(filtered_matches)}[/] - Confidence: {match.confidence_pct:.1f}%"
-            )
-            console.print(f"  {pair.txn2_id[:8]} vs {pair.txn1_id[:8]}: {pair.txn2_description}")
-            console.print(f"  [dim]{match.assessment.reasoning}[/dim]")
-            console.print()
+        _display_non_interactive_results(filtered_matches)
 
-    if detector.prompt_manager:
-        detector.prompt_manager._save_prompt()
-        console.print("[dim]✓ Feedback saved to prompt manager[/dim]")
-
-    if skipped_count > 0:
-        console.print()
-        console.print(
-            f"[dim]Skipped {skipped_count} pair(s) already processed in this session[/dim]"
-        )
-
-    _display_summary(
-        console, filtered_matches, review_ctx.feedback, use_llm, detector, interactive, review_service
-    )
-
+    _finalize_session(detector, skipped_count, filtered_matches, review_ctx, use_llm, interactive, review_service)
     return 0
 
 

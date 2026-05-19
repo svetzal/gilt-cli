@@ -28,7 +28,7 @@ from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.storage.budget_projection import BudgetProjectionBuilder
 from gilt.workspace import Workspace
 
-from .util import console, print_error, print_error_list
+from .util import console, print_error, print_error_list, resolve_effective_paths
 
 
 def _display_dry_run_plan(ledger_files: list[Path], has_categories: bool) -> None:
@@ -260,11 +260,11 @@ def run(
     """One-command migration to event sourcing."""
     data_dir = workspace.ledger_data_dir
     categories_config = workspace.categories_config
-    effective_event_store_path = event_store_path or workspace.event_store_path
-    effective_projections_db_path = projections_db_path or workspace.projections_path
-    effective_budget_projections_db_path = (
-        budget_projections_db_path or workspace.budget_projections_path
-    )
+    (
+        effective_event_store_path,
+        effective_projections_db_path,
+        effective_budget_projections_db_path,
+    ) = resolve_effective_paths(workspace, event_store_path, projections_db_path, budget_projections_db_path)
 
     console.print("[bold cyan]Migrating to Event Sourcing Architecture[/]")
     console.print()

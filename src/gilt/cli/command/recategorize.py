@@ -70,23 +70,8 @@ def run(
         console.print("[yellow]No transactions found in projections database[/]")
         return 0
 
-    # Find matches by category/subcategory
-    total_matched = 0
-    all_matches: list[tuple[str, TransactionGroup]] = []  # (account_id, group)
-
-    for row in all_transactions:
-        # Match category
-        if row.get("category") != from_cat:
-            continue
-
-        # Match subcategory if specified in --from
-        if from_subcat is not None and row.get("subcategory") != from_subcat:
-            continue
-
-        # Convert row to TransactionGroup
-        group = TransactionGroup.from_projection_row(row)
-        all_matches.append((row["account_id"], group))
-        total_matched += 1
+    all_matches = _find_matching_transactions(all_transactions, from_cat, from_subcat)
+    total_matched = len(all_matches)
 
     if total_matched == 0:
         console.print(f"[yellow]No transactions found with category '{from_category}'[/]")
@@ -100,11 +85,38 @@ def run(
         print_dry_run_message()
         return 0
 
+    return _confirm_and_apply_renaming(all_matches, to_cat, to_subcat, workspace, total_matched)
+
+
+def _find_matching_transactions(
+    all_transactions: list[dict],
+    from_cat: str,
+    from_subcat: str | None,
+) -> list[tuple[str, TransactionGroup]]:
+    """Find transactions matching the given category/subcategory. Returns (account_id, group) pairs."""
+    matches: list[tuple[str, TransactionGroup]] = []
+    for row in all_transactions:
+        if row.get("category") != from_cat:
+            continue
+        if from_subcat is not None and row.get("subcategory") != from_subcat:
+            continue
+        group = TransactionGroup.from_projection_row(row)
+        matches.append((row["account_id"], group))
+    return matches
+
+
+def _confirm_and_apply_renaming(
+    all_matches: list[tuple[str, TransactionGroup]],
+    to_cat: str,
+    to_subcat: str | None,
+    workspace: Workspace,
+    total_matched: int,
+) -> int:
+    """Require event sourcing, confirm with user, and apply category renaming. Returns exit code."""
     ready = require_event_sourcing(workspace)
     if ready is None:
         return 1
 
-    # Confirm
     import sys
 
     if sys.stdin.isatty() and not typer.confirm(
@@ -113,11 +125,7 @@ def run(
         console.print("Cancelled")
         return 0
 
-    # Apply renaming by account
-    _apply_renaming(
-        all_matches, to_cat, to_subcat, ready, workspace
-    )
-
+    _apply_renaming(all_matches, to_cat, to_subcat, ready, workspace)
     console.print(f"[green]✓[/] Renamed category in {total_matched} transaction(s)")
     return 0
 
