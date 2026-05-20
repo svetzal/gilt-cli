@@ -67,7 +67,7 @@ def _persist_mark(review_service, ready, primary_txn: dict, duplicate_txn: dict,
         duplicate_transaction_id=duplicate_txn["transaction_id"],
         canonical_description=canonical_description,
     )
-    return ready.projection_builder.rebuild_incremental(ready.event_store)
+    return ready.projection_builder.build_incremental(ready.event_store)
 
 
 def run(

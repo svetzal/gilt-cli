@@ -40,13 +40,13 @@ class DuplicateService:
         self.detector = detector
         self.event_store = event_store
 
-    def scan_transactions(
+    def find_duplicates(
         self,
         transactions: list[Transaction],
         max_days_apart: int = 1,
         amount_tolerance: float = 0.001,
     ) -> list[DuplicateMatch]:
-        """Scan a list of transactions for duplicates.
+        """Find duplicates in a list of transactions.
 
         Args:
             transactions: List of transactions to scan
@@ -57,7 +57,7 @@ class DuplicateService:
             List of detected duplicate matches
         """
         # Get raw matches from detector
-        matches = self.detector.scan_transactions(transactions, max_days_apart, amount_tolerance)
+        matches = self.detector.find_duplicates(transactions, max_days_apart, amount_tolerance)
 
         # Filter out already resolved pairs
         resolved_pairs = self._get_resolved_pairs()
@@ -90,13 +90,13 @@ class DuplicateService:
 
         return resolved
 
-    def scan_for_duplicates(
+    def find_duplicates_in_dir(
         self,
         data_dir: Path,
         max_days_apart: int = 1,
         amount_tolerance: float = 0.001,
     ) -> list[DuplicateMatch]:
-        """Scan for potential duplicates in the given data directory.
+        """Find duplicate transactions in the given data directory.
 
         Args:
             data_dir: Directory containing ledger CSVs
@@ -106,7 +106,7 @@ class DuplicateService:
         Returns:
             List of detected duplicate matches
         """
-        return self.detector.scan_for_duplicates(data_dir, max_days_apart, amount_tolerance)
+        return self.detector.find_duplicates_in_dir(data_dir, max_days_apart, amount_tolerance)
 
     def resolve_duplicate(
         self,

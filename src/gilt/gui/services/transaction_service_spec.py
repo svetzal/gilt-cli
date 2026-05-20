@@ -78,7 +78,7 @@ class DescribeTransactionServiceProjectionLoading:
     ):
         _import_transaction(event_store, "txn001", description="ACME CORP")
         _import_transaction(event_store, "txn002", description="SAMPLE STORE")
-        projection_builder.rebuild_from_scratch(event_store)
+        projection_builder.build_from_scratch(event_store)
 
         groups = service.load_all_transactions()
 
@@ -98,7 +98,7 @@ class DescribeTransactionServiceProjectionLoading:
                 llm_was_correct=True,
             )
         )
-        projection_builder.rebuild_from_scratch(event_store)
+        projection_builder.build_from_scratch(event_store)
 
         groups = service.load_all_transactions()
 
@@ -117,7 +117,7 @@ class DescribeTransactionServiceProjectionLoading:
                 llm_was_correct=True,
             )
         )
-        projection_builder.rebuild_from_scratch(event_store)
+        projection_builder.build_from_scratch(event_store)
 
         groups = service.load_all_transactions(include_duplicates=True)
 
@@ -141,7 +141,7 @@ class DescribeTransactionServiceProjectionLoading:
                 source="user",
             )
         )
-        projection_builder.rebuild_from_scratch(event_store)
+        projection_builder.build_from_scratch(event_store)
 
         groups = service.load_all_transactions()
 
@@ -183,7 +183,7 @@ class DescribeTransactionServiceProjectionLoading:
         _import_transaction(event_store, "txn001", account="MYBANK_CHQ")
         _import_transaction(event_store, "txn002", account="MYBANK_CC")
         _import_transaction(event_store, "txn003", account="BANK2_BIZ")
-        projection_builder.rebuild_from_scratch(event_store)
+        projection_builder.build_from_scratch(event_store)
 
         accounts = service.load_available_accounts()
 
@@ -194,7 +194,7 @@ class DescribeTransactionServiceProjectionLoading:
     ):
         _import_transaction(event_store, "txn001", account="MYBANK_CHQ", description="ACME CORP")
         _import_transaction(event_store, "txn002", account="MYBANK_CC", description="SAMPLE STORE")
-        projection_builder.rebuild_from_scratch(event_store)
+        projection_builder.build_from_scratch(event_store)
 
         groups = service.load_all_transactions()
         filtered = service.filter_transactions(groups, account_filter=["MYBANK_CHQ"])
@@ -207,7 +207,7 @@ class DescribeTransactionServiceProjectionLoading:
     ):
         _import_transaction(event_store, "txn001", description="ACME CORP PAYMENT")
         _import_transaction(event_store, "txn002", description="SAMPLE STORE PURCHASE")
-        projection_builder.rebuild_from_scratch(event_store)
+        projection_builder.build_from_scratch(event_store)
 
         groups = service.load_all_transactions()
         filtered = service.filter_transactions(groups, search_text="acme")

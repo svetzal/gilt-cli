@@ -34,8 +34,8 @@ class IntelligenceScanService:
     - Display anything
     """
 
-    def scan_duplicates(self, transactions, duplicate_service) -> dict[str, dict]:
-        """Scan transactions for duplicate pairs.
+    def find_duplicates(self, transactions, duplicate_service) -> dict[str, dict]:
+        """Find duplicate pairs among transactions.
 
         Args:
             transactions: List of Transaction model objects.
@@ -45,7 +45,7 @@ class IntelligenceScanService:
             Metadata fragment: {transaction_id: {"risk": True, "duplicate_match": match}}
         """
         metadata: dict[str, dict] = {}
-        matches = duplicate_service.scan_transactions(transactions)
+        matches = duplicate_service.find_duplicates(transactions)
         for m in matches:
             for tid in [m.pair.txn1_id, m.pair.txn2_id]:
                 if tid not in metadata:

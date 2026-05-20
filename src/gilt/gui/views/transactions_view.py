@@ -99,7 +99,7 @@ class IntelligenceWorker(QThread):
                 if self.isInterruptionRequested():
                     return
                 self.status.emit("Scanning for duplicates...")
-                metadata.update(scan_service.scan_duplicates(all_txns, self.duplicate_service))
+                metadata.update(scan_service.find_duplicates(all_txns, self.duplicate_service))
                 completed += 1
                 self.progress.emit(completed, total_units)
 

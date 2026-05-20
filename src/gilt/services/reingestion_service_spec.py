@@ -133,7 +133,7 @@ class DescribeRunPurge(DescribeReingestionService):
     ):
         """Should delete projection rows and reset metadata using ProjectionBuilder."""
         event_store.append_event(_make_import_event("txn001", "MYBANK_CHQ"))
-        projection_builder.rebuild_from_scratch(event_store)
+        projection_builder.build_from_scratch(event_store)
         assert len(projection_builder.get_all_transactions()) == 1
 
         plan = service.plan_purge("MYBANK_CHQ")

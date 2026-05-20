@@ -38,7 +38,7 @@ class DescribeCategorizationPersistenceService:
     @pytest.fixture
     def mock_projection_builder(self):
         builder = MagicMock()
-        builder.rebuild_incremental = MagicMock(return_value=2)
+        builder.build_incremental = MagicMock(return_value=2)
         return builder
 
     @pytest.fixture
@@ -125,7 +125,7 @@ class DescribePersistCategorizations(DescribeCategorizationPersistenceService):
     def it_should_rebuild_projections_after_updates(
         self, service, mock_projection_builder, mock_event_store, ledger_dir
     ):
-        """Should call rebuild_incremental after writing all CSV updates."""
+        """Should call build_incremental after writing all CSV updates."""
         group = make_group(transaction_id="txn001", account_id="MYBANK_CHQ")
         (ledger_dir / "MYBANK_CHQ.csv").write_text(dump_ledger_csv([group]), encoding="utf-8")
 
@@ -142,7 +142,7 @@ class DescribePersistCategorizations(DescribeCategorizationPersistenceService):
 
         service.persist_categorizations(updates)
 
-        mock_projection_builder.rebuild_incremental.assert_called_once_with(mock_event_store)
+        mock_projection_builder.build_incremental.assert_called_once_with(mock_event_store)
 
     def it_should_return_count_of_updated_transactions(self, service, ledger_dir):
         """Should return the number of transactions processed."""

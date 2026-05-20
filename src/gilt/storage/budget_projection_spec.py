@@ -84,7 +84,7 @@ class DescribeBudgetProjectionBuilder:
         event_store.append_event(event)
 
         # Act
-        builder.rebuild_from_scratch(event_store)
+        builder.build_from_scratch(event_store)
 
         # Assert
         projection = builder.get_budget(budget_id)
@@ -122,7 +122,7 @@ class DescribeBudgetProjectionBuilder:
         event_store.append_event(updated)
 
         # Act
-        builder.rebuild_from_scratch(event_store)
+        builder.build_from_scratch(event_store)
 
         # Assert
         projection = builder.get_budget(budget_id)
@@ -155,7 +155,7 @@ class DescribeBudgetProjectionBuilder:
         event_store.append_event(deleted)
 
         # Act
-        builder.rebuild_from_scratch(event_store)
+        builder.build_from_scratch(event_store)
 
         # Assert
         projection = builder.get_budget(budget_id)
@@ -187,7 +187,7 @@ class DescribeBudgetProjectionBuilder:
         event_store.append_event(updated)
 
         # Act
-        builder.rebuild_from_scratch(event_store)
+        builder.build_from_scratch(event_store)
 
         # Assert
         history = builder.get_budget_history(budget_id)
@@ -236,7 +236,7 @@ class DescribeBudgetProjectionBuilder:
         event_store.append_event(deleted2)
 
         # Act
-        builder.rebuild_from_scratch(event_store)
+        builder.build_from_scratch(event_store)
         active_budgets = builder.get_active_budgets()
 
         # Assert
@@ -273,7 +273,7 @@ class DescribeBudgetProjectionBuilder:
         event_store.append_event(created2)
 
         # Act
-        builder.rebuild_from_scratch(event_store)
+        builder.build_from_scratch(event_store)
         transport_budgets = builder.get_active_budgets(category="Transportation")
 
         # Assert
@@ -327,7 +327,7 @@ class DescribeBudgetProjectionBuilder:
         event_store.append_event(deleted)
 
         # Act
-        builder.rebuild_from_scratch(event_store)
+        builder.build_from_scratch(event_store)
 
         # Query state at Jan 15 (should have original budget)
         jan_budgets = builder.get_budgets_at_date(date(2025, 1, 15))
@@ -387,7 +387,7 @@ class DescribeBudgetProjectionBuilder:
         event_store.append_event(update2)
 
         # Act
-        builder.rebuild_from_scratch(event_store)
+        builder.build_from_scratch(event_store)
 
         # Assert
         projection = builder.get_budget(budget_id)
@@ -415,10 +415,10 @@ class DescribeBudgetProjectionBuilder:
         event_store.append_event(event)
 
         # Act - rebuild twice
-        builder.rebuild_from_scratch(event_store)
+        builder.build_from_scratch(event_store)
         projection1 = builder.get_budget(budget_id)
 
-        builder.rebuild_from_scratch(event_store)
+        builder.build_from_scratch(event_store)
         projection2 = builder.get_budget(budget_id)
 
         # Assert - same result
@@ -452,7 +452,7 @@ class DescribeBudgetProjectionBuilder:
         event_store.append_event(updated)
 
         # Act
-        builder.rebuild_from_scratch(event_store)
+        builder.build_from_scratch(event_store)
 
         # Assert
         projection = builder.get_budget(budget_id)
@@ -487,7 +487,7 @@ class DescribeBudgetProjectionBuilder:
         event_store.append_event(deleted)
 
         # Act
-        builder.rebuild_from_scratch(event_store)
+        builder.build_from_scratch(event_store)
 
         # Assert
         projection = builder.get_budget(budget_id)

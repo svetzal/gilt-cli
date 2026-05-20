@@ -97,14 +97,14 @@ class DescribeFinalizeReingest:
 
     def it_should_link_transfers_and_rebuild_projections(self, tmp_path: Path):
         projection_builder = MagicMock()
-        projection_builder.rebuild_from_scratch.return_value = 42
+        projection_builder.build_from_scratch.return_value = 42
         event_store = MagicMock()
 
         with patch("gilt.cli.command.reingest.link_transfers", return_value=3) as mock_link:
             modified, events_processed = _finalize_reingest(tmp_path, projection_builder, event_store)
 
         mock_link.assert_called_once_with(processed_dir=tmp_path, write=True)
-        projection_builder.rebuild_from_scratch.assert_called_once_with(event_store)
+        projection_builder.build_from_scratch.assert_called_once_with(event_store)
         assert modified == 3
         assert events_processed == 42
 

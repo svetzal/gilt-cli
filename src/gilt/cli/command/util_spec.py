@@ -324,7 +324,7 @@ class DescribeRequireEventSourcing:
             )
         )
         builder = ProjectionBuilder(ws.projections_path)
-        builder.rebuild_from_scratch(store)
+        builder.build_from_scratch(store)
 
         result = require_event_sourcing(ws)
 

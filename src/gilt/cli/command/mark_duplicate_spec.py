@@ -72,7 +72,7 @@ class DescribeMarkDuplicate:
         event_store.append_event(event3)
 
         # Build projections
-        builder.rebuild_from_scratch(event_store)
+        builder.build_from_scratch(event_store)
 
         return proj_path, event_store
 

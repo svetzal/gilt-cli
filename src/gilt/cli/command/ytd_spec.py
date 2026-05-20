@@ -43,7 +43,7 @@ def _build_projections_with_enrichment(
         store.append_event(enrichment)
 
     builder = ProjectionBuilder(workspace.projections_path)
-    builder.rebuild_from_scratch(store)
+    builder.build_from_scratch(store)
 
 
 class DescribeYtdCompareFlag:

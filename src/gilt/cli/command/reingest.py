@@ -59,7 +59,7 @@ def _reingest_source_files(
 def _finalize_reingest(output_dir: Path, projection_builder: object, event_store: object) -> tuple[int, int]:
     """Link transfers and rebuild projections. Returns (modified_transfer_count, events_processed)."""
     modified = link_transfers(processed_dir=output_dir, write=True)
-    events_processed = projection_builder.rebuild_from_scratch(event_store)
+    events_processed = projection_builder.build_from_scratch(event_store)
     return modified, events_processed
 
 

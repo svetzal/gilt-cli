@@ -22,7 +22,7 @@ from gilt.workspace import Workspace
 def _build_projections(event_store: EventStore, projections_path: Path):
     """Build projections from event store."""
     builder = ProjectionBuilder(projections_path)
-    builder.rebuild_from_scratch(event_store)
+    builder.build_from_scratch(event_store)
 
 
 def _add_uncategorized_transaction(

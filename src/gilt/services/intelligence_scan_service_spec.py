@@ -10,13 +10,13 @@ from gilt.services.intelligence_scan_service import IntelligenceScanService
 from gilt.testing.fixtures import make_transaction
 
 
-class DescribeScanDuplicates:
+class DescribeFindDuplicates:
     def it_should_return_empty_dict_when_no_matches(self):
         svc = IntelligenceScanService()
         mock_dup = Mock()
-        mock_dup.scan_transactions.return_value = []
+        mock_dup.find_duplicates.return_value = []
         txns = [make_transaction(transaction_id="abc123")]
-        result = svc.scan_duplicates(txns, mock_dup)
+        result = svc.find_duplicates(txns, mock_dup)
         assert result == {}
 
     def it_should_populate_metadata_for_both_transactions_in_a_match(self):
@@ -38,10 +38,10 @@ class DescribeScanDuplicates:
             assessment=DuplicateAssessment(is_duplicate=True, confidence=0.9, reasoning=""),
         )
         mock_dup = Mock()
-        mock_dup.scan_transactions.return_value = [match]
+        mock_dup.find_duplicates.return_value = [match]
         txns = [make_transaction(transaction_id="t1"), make_transaction(transaction_id="t2")]
 
-        result = svc.scan_duplicates(txns, mock_dup)
+        result = svc.find_duplicates(txns, mock_dup)
 
         assert "t1" in result
         assert result["t1"]["risk"] is True

@@ -310,9 +310,9 @@ class ImportService:
                 relevant.append(m.model_copy(update={"pair": new_pair}))
         return relevant
 
-    def scan_file_for_duplicates(self, file_path: Path, account_id: str) -> list[DuplicateMatch]:
+    def find_duplicates_in_file(self, file_path: Path, account_id: str) -> list[DuplicateMatch]:
         """
-        Scan a file for potential duplicates against existing transactions.
+        Find potential duplicates for transactions in the file against existing transactions.
 
         Args:
             file_path: Path to the CSV file
@@ -334,7 +334,7 @@ class ImportService:
                 self.data_dir
             )
             all_transactions = existing_transactions + new_transactions
-            matches = self.duplicate_service.scan_transactions(all_transactions)
+            matches = self.duplicate_service.find_duplicates(all_transactions)
 
             new_ids = {t.transaction_id for t in new_transactions}
             return self._filter_relevant_matches(matches, new_ids)
@@ -376,11 +376,11 @@ class ImportService:
             assigned_category=predicted_cat if confidence >= 0.8 else None,
         )
 
-    def scan_file_for_categorization(
+    def find_uncategorized_in_file(
         self, file_path: Path, account_id: str, exclude_ids: list[str] | None = None
     ) -> list[CategorizationReviewItem]:
         """
-        Scan a file for transactions that need categorization.
+        Find transactions in the file that need categorization.
 
         Args:
             file_path: Path to the CSV file

@@ -160,8 +160,8 @@ class BudgetProjectionBuilder:
         finally:
             conn.close()
 
-    def rebuild_from_scratch(self, event_store: EventStore) -> int:
-        """Rebuild all budget projections from event store.
+    def build_from_scratch(self, event_store: EventStore) -> int:
+        """Build all budget projections from event store.
 
         Deletes existing projections and replays all events to reconstruct
         current state and history.
@@ -191,8 +191,8 @@ class BudgetProjectionBuilder:
         finally:
             conn.close()
 
-    def rebuild_incremental(self, event_store: EventStore, last_event_id: str) -> int:
-        """Apply only new budget events since last rebuild.
+    def build_incremental(self, event_store: EventStore, last_event_id: str) -> int:
+        """Apply only new budget events since last build.
 
         Args:
             event_store: Event store to read new events from

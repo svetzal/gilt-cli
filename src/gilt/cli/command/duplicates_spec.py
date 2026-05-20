@@ -79,7 +79,7 @@ def _build_event_store_and_projections(ws: Workspace) -> None:
         )
     )
     builder = ProjectionBuilder(ws.projections_path)
-    builder.rebuild_from_scratch(store)
+    builder.build_from_scratch(store)
 
 
 # ---------------------------------------------------------------------------

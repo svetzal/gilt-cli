@@ -18,9 +18,9 @@ from gilt.services.receipt_ingestion_service import (
     ReceiptData,
     batch_match_receipts,
     find_already_ingested_invoices,
+    find_receipt_files,
     load_receipt_file,
     match_receipt_to_transactions,
-    scan_receipt_files,
 )
 from gilt.storage.event_store import EventStore
 
@@ -63,7 +63,7 @@ class ReceiptMatchService:
         Returns a list of ReceiptData objects whose amount and date are
         close enough to be plausible matches.
         """
-        json_paths = scan_receipt_files(self.receipts_dir)
+        json_paths = find_receipt_files(self.receipts_dir)
         if not json_paths:
             return []
 
@@ -110,7 +110,7 @@ class ReceiptMatchService:
         Returns:
             BatchMatchResult with categorised results.
         """
-        json_paths = scan_receipt_files(self.receipts_dir)
+        json_paths = find_receipt_files(self.receipts_dir)
         if not json_paths:
             return BatchMatchResult([], [], [], 0, 0)
 

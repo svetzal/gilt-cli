@@ -64,7 +64,7 @@ class DescribeRebuildProjections:
 
         assert result == 0
 
-    def it_should_rebuild_from_scratch_when_flag_set(self, tmp_path):
+    def it_should_build_from_scratch_when_flag_set(self, tmp_path):
         ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
         _populate_event_store(ws.event_store_path)
 

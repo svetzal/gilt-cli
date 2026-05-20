@@ -21,7 +21,7 @@ from gilt.testing.fixtures import make_group
 
 
 class DescribeIntelligenceWorker:
-    def it_should_scan_for_duplicates_and_categories(self):
+    def it_should_find_duplicates_and_categories(self):
         # Arrange
         txn1 = Transaction(
             transaction_id="t1",
@@ -62,7 +62,7 @@ class DescribeIntelligenceWorker:
             is_duplicate=True, confidence=0.9, reasoning="High confidence"
         )
         match = DuplicateMatch(pair=pair, assessment=assessment)
-        mock_dup_service.scan_transactions.return_value = [match]
+        mock_dup_service.find_duplicates.return_value = [match]
 
         # Mock categorization
         mock_cat_service.predict_category.return_value = ("Food", 0.85)

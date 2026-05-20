@@ -134,8 +134,8 @@ class ProjectionBuilder:
 
         conn.commit()
 
-    def rebuild_from_scratch(self, event_store: EventStore) -> int:
-        """Rebuild all projections from event store.
+    def build_from_scratch(self, event_store: EventStore) -> int:
+        """Build all projections from event store.
 
         Deletes existing projections and replays all events to reconstruct
         current state. This is safe because events are immutable.
@@ -159,8 +159,8 @@ class ProjectionBuilder:
         finally:
             conn.close()
 
-    def rebuild_incremental(self, event_store: EventStore) -> int:
-        """Apply only new events since last rebuild.
+    def build_incremental(self, event_store: EventStore) -> int:
+        """Apply only new events since last build.
 
         More efficient than full rebuild for large event stores.
 

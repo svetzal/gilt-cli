@@ -147,7 +147,7 @@ class DuplicateReviewPage(QWizardPage):
         # TODO: Show progress dialog if this takes time
         for mapping in self.mappings:
             if mapping.selected_account_id:
-                file_matches = self.service.scan_file_for_duplicates(
+                file_matches = self.service.find_duplicates_in_file(
                     mapping.file_info.path, mapping.selected_account_id
                 )
                 self.matches.extend(file_matches)

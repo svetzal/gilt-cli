@@ -77,9 +77,9 @@ def run(
     try:
         if from_scratch:
             console.print(f"[dim]Processing {total_events} events...[/dim]")
-            processed = projection_builder.rebuild_from_scratch(event_store)
+            processed = projection_builder.build_from_scratch(event_store)
         else:
-            processed = projection_builder.rebuild_incremental(event_store)
+            processed = projection_builder.build_incremental(event_store)
             if processed == 0:
                 console.print("[green]✓[/green] Projections already up to date")
                 return 0

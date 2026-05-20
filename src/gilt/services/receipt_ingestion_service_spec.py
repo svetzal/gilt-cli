@@ -12,9 +12,9 @@ from gilt.services.receipt_ingestion_service import (
     ReceiptData,
     filter_receipts_by_year,
     find_already_ingested_invoices,
+    find_receipt_files,
     load_receipt_file,
     match_receipt_to_transactions,
-    scan_receipt_files,
 )
 
 
@@ -189,7 +189,7 @@ class DescribeReceiptDataFromDict:
         assert receipt.invoice_number is None
 
 
-class DescribeScanReceiptFiles:
+class DescribeFindReceiptFiles:
     def it_should_find_json_files_recursively(self):
         with TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
@@ -198,13 +198,13 @@ class DescribeScanReceiptFiles:
             _write_receipt_json(root / "sub" / "b.json")
             (root / "ignore.txt").write_text("not json")
 
-            paths = scan_receipt_files(root)
+            paths = find_receipt_files(root)
 
             assert len(paths) == 2
             assert all(p.suffix == ".json" for p in paths)
 
     def it_should_return_empty_for_nonexistent_dir(self):
-        paths = scan_receipt_files(Path("/nonexistent/dir"))
+        paths = find_receipt_files(Path("/nonexistent/dir"))
         assert paths == []
 
 

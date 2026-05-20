@@ -70,7 +70,7 @@ class DescribeProjectionBuilder:
         event_store.append_event(event)
 
         # Build projection
-        processed = projection_builder.rebuild_from_scratch(event_store)
+        processed = projection_builder.build_from_scratch(event_store)
         assert processed == 1
 
         # Verify projection
@@ -120,7 +120,7 @@ class DescribeProjectionBuilder:
         event_store.append_event(event2)
 
         # Build projection
-        projection_builder.rebuild_from_scratch(event_store)
+        projection_builder.build_from_scratch(event_store)
 
         # Should only have one transaction (idempotent on transaction_id)
         transactions = projection_builder.get_all_transactions()
@@ -155,7 +155,7 @@ class DescribeProjectionBuilder:
         event_store.append_event(event2)
 
         # Build projection
-        projection_builder.rebuild_from_scratch(event_store)
+        projection_builder.build_from_scratch(event_store)
 
         # Verify original transaction was updated
         txn = projection_builder.get_transaction("abc123")
@@ -212,7 +212,7 @@ class DescribeProjectionBuilder:
         event_store.append_event(event3)
 
         # Build projection
-        projection_builder.rebuild_from_scratch(event_store)
+        projection_builder.build_from_scratch(event_store)
 
         # Verify xyz789 is marked as duplicate
         txn = projection_builder.get_transaction("xyz789")
@@ -253,7 +253,7 @@ class DescribeProjectionBuilder:
         event_store.append_event(event2)
 
         # Build projection
-        projection_builder.rebuild_from_scratch(event_store)
+        projection_builder.build_from_scratch(event_store)
 
         # Verify categorization
         txn = projection_builder.get_transaction("abc123")
@@ -261,7 +261,7 @@ class DescribeProjectionBuilder:
         assert txn["category"] == "Transportation"
         assert txn["subcategory"] == "Public Transit"
 
-    def it_should_rebuild_incrementally(self, event_store, projection_builder):
+    def it_should_build_incrementally(self, event_store, projection_builder):
         """Test incremental rebuild only processes new events."""
         # Import first transaction
         event1 = TransactionImported(
@@ -277,7 +277,7 @@ class DescribeProjectionBuilder:
         event_store.append_event(event1)
 
         # Initial rebuild
-        processed = projection_builder.rebuild_from_scratch(event_store)
+        processed = projection_builder.build_from_scratch(event_store)
         assert processed == 1
 
         # Add second transaction
@@ -294,7 +294,7 @@ class DescribeProjectionBuilder:
         event_store.append_event(event2)
 
         # Incremental rebuild
-        processed = projection_builder.rebuild_incremental(event_store)
+        processed = projection_builder.build_incremental(event_store)
         assert processed == 1
 
         # Verify both transactions exist
@@ -317,10 +317,10 @@ class DescribeProjectionBuilder:
         event_store.append_event(event)
 
         # Initial rebuild
-        projection_builder.rebuild_from_scratch(event_store)
+        projection_builder.build_from_scratch(event_store)
 
         # Try incremental rebuild with no new events
-        processed = projection_builder.rebuild_incremental(event_store)
+        processed = projection_builder.build_incremental(event_store)
         assert processed == 0
 
     def it_should_handle_multiple_description_changes(self, event_store, projection_builder):
@@ -365,7 +365,7 @@ class DescribeProjectionBuilder:
         event_store.append_event(event3)
 
         # Build projection
-        projection_builder.rebuild_from_scratch(event_store)
+        projection_builder.build_from_scratch(event_store)
 
         # Verify all descriptions tracked
         txn = projection_builder.get_transaction("abc123")
@@ -420,7 +420,7 @@ class DescribeProjectionBuilder:
         event_store.append_event(event3)
 
         # Build projection
-        projection_builder.rebuild_from_scratch(event_store)
+        projection_builder.build_from_scratch(event_store)
 
         # Verify primary transaction updated
         primary = projection_builder.get_transaction("abc123")
@@ -483,7 +483,7 @@ class DescribeProjectionBuilder:
         event_store.append_event(event3)
 
         # Build projection
-        projection_builder.rebuild_from_scratch(event_store)
+        projection_builder.build_from_scratch(event_store)
 
         # Verify both transactions remain separate
         txn1 = projection_builder.get_transaction("abc123")
@@ -535,7 +535,7 @@ class DescribeProjectionBuilder:
         event_store.append_event(event2)
 
         # After full rebuild, should be at sequence 2
-        projection_builder.rebuild_from_scratch(event_store)
+        projection_builder.build_from_scratch(event_store)
         assert projection_builder.get_current_sequence() == 2
 
         # Add another event
@@ -552,7 +552,7 @@ class DescribeProjectionBuilder:
         event_store.append_event(event3)
 
         # After incremental rebuild, should be at sequence 3
-        projection_builder.rebuild_incremental(event_store)
+        projection_builder.build_incremental(event_store)
         assert projection_builder.get_current_sequence() == 3
 
     def it_should_apply_transaction_enriched_event(self, event_store, projection_builder):
@@ -586,7 +586,7 @@ class DescribeProjectionBuilder:
         event_store.append_event(event2)
 
         # Build projection
-        projection_builder.rebuild_from_scratch(event_store)
+        projection_builder.build_from_scratch(event_store)
 
         # Verify enrichment columns
         txn = projection_builder.get_transaction("abc123")
@@ -638,7 +638,7 @@ class DescribeProjectionBuilder:
         event_store.append_event(event3)
 
         # Build projection
-        projection_builder.rebuild_from_scratch(event_store)
+        projection_builder.build_from_scratch(event_store)
 
         # Latest enrichment should win
         txn = projection_builder.get_transaction("abc123")
@@ -663,7 +663,7 @@ class DescribeProjectionBuilder:
         )
         event_store.append_event(event)
 
-        projection_builder.rebuild_from_scratch(event_store)
+        projection_builder.build_from_scratch(event_store)
 
         txn = projection_builder.get_transaction("abc123")
         assert txn["vendor"] is None
@@ -687,7 +687,7 @@ class DescribeProjectionBuilder:
             )
             event_store.append_event(event)
 
-        projection_builder.rebuild_from_scratch(event_store)
+        projection_builder.build_from_scratch(event_store)
         assert len(projection_builder.get_all_transactions()) == 3
 
         deleted = projection_builder.delete_account_projections("MYBANK_CHQ")
@@ -714,7 +714,7 @@ class DescribeProjectionBuilder:
                     raw_data={},
                 )
             )
-        projection_builder.rebuild_from_scratch(event_store)
+        projection_builder.build_from_scratch(event_store)
 
         account_ids = projection_builder.get_distinct_account_ids()
         assert account_ids == ["BANK2_BIZ", "MYBANK_CHQ"]
@@ -732,7 +732,7 @@ class DescribeProjectionBuilder:
             raw_data={},
         )
         event_store.append_event(event)
-        projection_builder.rebuild_from_scratch(event_store)
+        projection_builder.build_from_scratch(event_store)
 
         # Sequence should be stored
         assert projection_builder.get_current_sequence() > 0

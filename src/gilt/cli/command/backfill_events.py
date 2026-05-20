@@ -309,10 +309,10 @@ def _validate_projections(
     from gilt.storage.projection import ProjectionBuilder
 
     tx_builder = ProjectionBuilder(projections_db_path)
-    tx_count = tx_builder.rebuild_from_scratch(event_store)
+    tx_count = tx_builder.build_from_scratch(event_store)
 
     budget_builder = BudgetProjectionBuilder(budget_projections_db_path)
-    budget_count = budget_builder.rebuild_from_scratch(event_store)
+    budget_count = budget_builder.build_from_scratch(event_store)
 
     try:
         config = load_categories_config(categories_config)

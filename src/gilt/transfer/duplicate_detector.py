@@ -336,13 +336,13 @@ Assess whether these are duplicates.""")
         assert isinstance(result, DuplicateAssessment)
         return result
 
-    def scan_transactions(
+    def find_duplicates(
         self,
         transactions: list[Transaction],
         max_days_apart: int = 1,
         amount_tolerance: float = 0.001,
     ) -> list[DuplicateMatch]:
-        """Scan a list of transactions for duplicates.
+        """Find duplicates in a list of transactions.
 
         Args:
             transactions: List of transactions to scan
@@ -366,13 +366,13 @@ Assess whether these are duplicates.""")
         matches.sort(key=lambda m: m.assessment.confidence, reverse=True)
         return matches
 
-    def scan_for_duplicates(
+    def find_duplicates_in_dir(
         self,
         data_dir: Path,
         max_days_apart: int = 1,
         amount_tolerance: float = 0.001,
     ) -> list[DuplicateMatch]:
-        """Scan all ledgers for duplicate transactions.
+        """Find duplicate transactions across all ledgers in the given directory.
 
         Args:
             data_dir: Directory containing ledger CSV files
@@ -383,7 +383,7 @@ Assess whether these are duplicates.""")
             List of detected duplicate matches with confidence scores
         """
         transactions = self.load_all_transactions(data_dir)
-        return self.scan_transactions(transactions, max_days_apart, amount_tolerance)
+        return self.find_duplicates(transactions, max_days_apart, amount_tolerance)
 
 
 __all__ = ["DuplicateDetector"]

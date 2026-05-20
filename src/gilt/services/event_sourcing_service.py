@@ -203,11 +203,11 @@ class EventSourcingService:
         status = self.check_projection_status(event_store)
 
         if not status.exists:
-            # Rebuild from scratch
-            return projection_builder.rebuild_from_scratch(event_store)
+            # Build from scratch
+            return projection_builder.build_from_scratch(event_store)
         elif status.is_outdated:
-            # Incremental rebuild
-            return projection_builder.rebuild_incremental(event_store)
+            # Incremental build
+            return projection_builder.build_incremental(event_store)
         else:
             # Already up to date
             return 0

@@ -48,4 +48,4 @@ def build_projections_from_csvs(data_dir: Path, projections_path: Path):
                 store.append_event(cat_event)
 
     builder = ProjectionBuilder(projections_path)
-    builder.rebuild_from_scratch(store)
+    builder.build_from_scratch(store)

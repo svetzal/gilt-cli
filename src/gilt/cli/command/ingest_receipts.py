@@ -21,8 +21,8 @@ from gilt.services.receipt_ingestion_service import (
     batch_match_receipts,
     filter_receipts_by_year,
     find_already_ingested_invoices,
+    find_receipt_files,
     load_receipt_file,
-    scan_receipt_files,
 )
 from gilt.workspace import Workspace
 
@@ -208,7 +208,7 @@ def run(
         return 1
 
     # Scan files
-    json_paths = scan_receipt_files(source)
+    json_paths = find_receipt_files(source)
     if year is not None:
         json_paths, parse_warnings = _filter_paths_by_year(json_paths, year)
         for w in parse_warnings:

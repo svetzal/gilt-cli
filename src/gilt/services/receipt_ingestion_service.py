@@ -1,8 +1,8 @@
 """
 Receipt ingestion service — matching receipt JSON files to bank transactions.
 
-I/O boundary functions (read files, scan directories):
-  scan_receipt_files, load_receipt_file
+I/O boundary functions (read files, find receipt files):
+  find_receipt_files, load_receipt_file
 
 Pure business logic (no I/O, fully testable with in-memory data):
   ReceiptData.from_dict, filter_receipts_by_year, match_receipt_to_transactions,
@@ -98,11 +98,11 @@ class MatchResult:
     match_confidence: str | None = None  # "exact", "fx-adjusted", "pattern-assisted"
 
 
-def scan_receipt_files(source_dir: Path) -> list[Path]:
+def find_receipt_files(source_dir: Path) -> list[Path]:
     """Recursively find all JSON files in source_dir. I/O boundary function.
 
     Args:
-        source_dir: Root directory to scan.
+        source_dir: Root directory to search.
 
     Returns:
         Sorted list of JSON file paths.
@@ -417,7 +417,7 @@ __all__ = [
     "batch_match_receipts",
     "filter_receipts_by_year",
     "find_already_ingested_invoices",
+    "find_receipt_files",
     "load_receipt_file",
     "match_receipt_to_transactions",
-    "scan_receipt_files",
 ]

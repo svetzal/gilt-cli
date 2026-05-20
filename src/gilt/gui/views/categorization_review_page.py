@@ -52,7 +52,7 @@ class CategorizationScanWorker(QThread):
 
                 self.progress.emit(int((i / total_files) * 100))
 
-                items = self.service.scan_file_for_categorization(
+                items = self.service.find_uncategorized_in_file(
                     mapping.file_info.path,
                     mapping.selected_account_id,
                     exclude_ids=list(self.exclude_ids),

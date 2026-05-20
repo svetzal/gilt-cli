@@ -145,7 +145,7 @@ class CategorizationPersistenceService:
         accounts_written = persist_categorizations_to_csv(updates, self._ledger_repo)
 
         # 3. Rebuild projections
-        self._projection_builder.rebuild_incremental(self._event_store)
+        self._projection_builder.build_incremental(self._event_store)
 
         return CategorizationPersistenceResult(
             transactions_updated=len(updates),
@@ -198,7 +198,7 @@ class CategorizationPersistenceService:
             self._event_store.append_event(event)
 
         # 3. Rebuild projections
-        self._projection_builder.rebuild_incremental(self._event_store)
+        self._projection_builder.build_incremental(self._event_store)
 
         return CategorizationPersistenceResult(
             transactions_updated=len(matches),

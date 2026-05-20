@@ -42,7 +42,7 @@ def _build_projections(workspace: Workspace, groups: list[TransactionGroup]):
             )
             store.append_event(cat)
     builder = ProjectionBuilder(workspace.projections_path)
-    builder.rebuild_from_scratch(store)
+    builder.build_from_scratch(store)
 
 
 class DescribeUncategorizedCommand:
@@ -270,7 +270,7 @@ class DescribeUncategorizedCommand:
             events_dir.mkdir()
             store = EventStore(str(events_dir / "events.db"))
             builder = ProjectionBuilder(workspace.projections_path)
-            builder.rebuild_from_scratch(store)
+            builder.build_from_scratch(store)
 
             rc = run(account="NONEXISTENT", workspace=workspace)
             # With empty projections, should still succeed (just shows "All transactions are categorized")

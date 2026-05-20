@@ -157,7 +157,7 @@ def _build_projections(
 
     try:
         tx_builder = es_service.get_projection_builder()
-        tx_count = tx_builder.rebuild_from_scratch(event_store)
+        tx_count = tx_builder.build_from_scratch(event_store)
     except (OSError, ValueError) as e:
         print_error(f"Error building transaction projections: {e}")
         return 1
@@ -167,7 +167,7 @@ def _build_projections(
     if has_categories:
         try:
             budget_builder = BudgetProjectionBuilder(effective_budget_projections_db_path)
-            budget_count = budget_builder.rebuild_from_scratch(event_store)
+            budget_count = budget_builder.build_from_scratch(event_store)
         except (OSError, ValueError) as e:
             print_error(f"Error building budget projections: {e}")
             return 1

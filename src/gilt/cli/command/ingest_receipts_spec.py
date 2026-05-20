@@ -44,7 +44,7 @@ def _add_transaction(
         raw_data={},
     )
     store.append_event(event)
-    builder.rebuild_from_scratch(store)
+    builder.build_from_scratch(store)
 
 
 def _write_receipt(path: Path, overrides: dict | None = None) -> Path:

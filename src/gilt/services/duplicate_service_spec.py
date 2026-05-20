@@ -11,21 +11,21 @@ from gilt.transfer.duplicate_detector import DuplicateDetector
 
 
 class DescribeDuplicateService:
-    def it_should_scan_for_duplicates(self):
+    def it_should_find_duplicates_in_dir(self):
         # Arrange
         mock_detector = Mock(spec=DuplicateDetector)
         mock_event_store = Mock(spec=EventStore)
         service = DuplicateService(mock_detector, mock_event_store)
 
         expected_matches = [Mock(spec=DuplicateMatch)]
-        mock_detector.scan_for_duplicates.return_value = expected_matches
+        mock_detector.find_duplicates_in_dir.return_value = expected_matches
 
         # Act
-        result = service.scan_for_duplicates(data_dir="some/path")
+        result = service.find_duplicates_in_dir(data_dir="some/path")
 
         # Assert
         assert result == expected_matches
-        mock_detector.scan_for_duplicates.assert_called_once_with("some/path", 1, 0.001)
+        mock_detector.find_duplicates_in_dir.assert_called_once_with("some/path", 1, 0.001)
 
     def it_should_resolve_duplicate_as_confirmed(self):
         # Arrange

@@ -156,7 +156,7 @@ class DescribeCheckProjectionStatus:
             _append_transaction_event(store, txn_id="bbbb0001bbbb0001", account="MYBANK_CHQ")
 
             builder = ProjectionBuilder(ws.projections_path)
-            builder.rebuild_from_scratch(store)
+            builder.build_from_scratch(store)
 
             service = EventSourcingService(workspace=ws)
             status = service.check_projection_status(store)
@@ -172,7 +172,7 @@ class DescribeCheckProjectionStatus:
             _append_transaction_event(store, txn_id="cccc0001cccc0001", account="MYBANK_CHQ")
 
             builder = ProjectionBuilder(ws.projections_path)
-            builder.rebuild_from_scratch(store)
+            builder.build_from_scratch(store)
 
             # Add a new event AFTER the projections were built
             _append_transaction_event(store, txn_id="cccc0002cccc0002", account="MYBANK_CHQ")
@@ -237,7 +237,7 @@ class DescribeEnsureProjectionsUpToDate:
             _append_transaction_event(store, txn_id="dddd0001dddd0001", account="MYBANK_CHQ")
 
             builder = ProjectionBuilder(ws.projections_path)
-            builder.rebuild_from_scratch(store)
+            builder.build_from_scratch(store)
 
             service = EventSourcingService(workspace=ws)
             result = service.ensure_projections_up_to_date(store, builder)
@@ -264,7 +264,7 @@ class DescribeEnsureProjectionsUpToDate:
             _append_transaction_event(store, txn_id="ffff0001ffff0001", account="MYBANK_CHQ")
 
             builder = ProjectionBuilder(ws.projections_path)
-            builder.rebuild_from_scratch(store)
+            builder.build_from_scratch(store)
 
             # Add a second event to make projections outdated
             _append_transaction_event(store, txn_id="ffff0002ffff0002", account="MYBANK_CC")
@@ -304,7 +304,7 @@ class DescribeEnsureReady:
             store = EventStore(str(ws.event_store_path))
             _append_transaction_event(store, txn_id="aaaa0001aaaa0001", account="MYBANK_CHQ")
             builder = ProjectionBuilder(ws.projections_path)
-            builder.rebuild_from_scratch(store)
+            builder.build_from_scratch(store)
 
             service = EventSourcingService(workspace=ws)
             result = service.ensure_ready()
@@ -333,7 +333,7 @@ class DescribeEnsureReady:
             store = EventStore(str(ws.event_store_path))
             _append_transaction_event(store, txn_id="cccc0001cccc0001", account="MYBANK_CHQ")
             builder = ProjectionBuilder(ws.projections_path)
-            builder.rebuild_from_scratch(store)
+            builder.build_from_scratch(store)
             # Add another event to make projections outdated
             _append_transaction_event(store, txn_id="cccc0002cccc0002", account="MYBANK_CC")
 
