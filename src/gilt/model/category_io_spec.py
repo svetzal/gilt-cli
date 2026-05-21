@@ -9,9 +9,9 @@ from tempfile import TemporaryDirectory
 
 from gilt.model.category import Budget, BudgetPeriod, Category, CategoryConfig, Subcategory
 from gilt.model.category_io import (
+    build_category_from_path,
     format_category_path,
     load_categories_config,
-    parse_category_path,
     save_categories_config,
 )
 
@@ -141,28 +141,28 @@ class DescribeParseCategoryPath:
     """Tests for parse_category_path function."""
 
     def it_should_parse_category_only(self):
-        category, subcategory = parse_category_path("Housing")
+        category, subcategory = build_category_from_path("Housing")
         assert category == "Housing"
         assert subcategory is None
 
     def it_should_parse_category_with_subcategory(self):
-        category, subcategory = parse_category_path("Housing:Utilities")
+        category, subcategory = build_category_from_path("Housing:Utilities")
         assert category == "Housing"
         assert subcategory == "Utilities"
 
     def it_should_handle_whitespace(self):
-        category, subcategory = parse_category_path("  Housing : Utilities  ")
+        category, subcategory = build_category_from_path("  Housing : Utilities  ")
         assert category == "Housing"
         assert subcategory == "Utilities"
 
     def it_should_handle_multiple_colons(self):
         # Only split on first colon
-        category, subcategory = parse_category_path("Business:Meals:Client")
+        category, subcategory = build_category_from_path("Business:Meals:Client")
         assert category == "Business"
         assert subcategory == "Meals:Client"
 
     def it_should_handle_empty_parts(self):
-        category, subcategory = parse_category_path(":")
+        category, subcategory = build_category_from_path(":")
         assert category == ""
         assert subcategory == ""
 

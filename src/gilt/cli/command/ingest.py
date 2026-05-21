@@ -103,7 +103,7 @@ def run(
     Dry-run by default (write=False). Returns an exit code.
     """
     ingestion_service = IngestionService(accounts=load_accounts_config(workspace.accounts_config))
-    ingestion_plan = ingestion_service.plan_ingestion(workspace.ingest_dir)
+    ingestion_plan = ingestion_service.build_ingestion_plan(workspace.ingest_dir)
 
     if not write:
         _print_plan(ingestion_plan.files, ingestion_plan.total_files)

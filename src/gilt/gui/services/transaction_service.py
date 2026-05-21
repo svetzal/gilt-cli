@@ -106,7 +106,7 @@ class TransactionService:
 
         return self._ledger_repo.available_account_ids()
 
-    def filter_transactions(
+    def find_transactions(
         self,
         transactions: list[TransactionGroup],
         account_filter: list[str] | None = None,

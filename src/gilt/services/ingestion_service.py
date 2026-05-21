@@ -157,7 +157,7 @@ class IngestionService:
 
         return paths
 
-    def plan_ingestion(self, ingest_dir: Path) -> IngestionPlan:
+    def build_ingestion_plan(self, ingest_dir: Path) -> IngestionPlan:
         """Plan which files should be normalized to which accounts.
 
         Discovers all input files and maps each to its target account.

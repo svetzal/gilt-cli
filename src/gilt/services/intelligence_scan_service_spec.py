@@ -61,7 +61,7 @@ class DescribeApplyInferredRules:
             mock_rule_svc.infer_rules.return_value = []
             mock_rule_cls.return_value = mock_rule_svc
 
-            result = svc.apply_inferred_rules(txns, fake_projections)
+            result = svc.run_inferred_rules(txns, fake_projections)
 
         assert result == {}
 
@@ -82,10 +82,10 @@ class DescribeApplyInferredRules:
         with patch("gilt.services.intelligence_scan_service.RuleInferenceService") as mock_rule_cls:
             mock_rule_svc = Mock()
             mock_rule_svc.infer_rules.return_value = [mock_rule]
-            mock_rule_svc.apply_rules.return_value = [mock_match]
+            mock_rule_svc.run_rules.return_value = [mock_match]
             mock_rule_cls.return_value = mock_rule_svc
 
-            result = svc.apply_inferred_rules(txns, fake_projections)
+            result = svc.run_inferred_rules(txns, fake_projections)
 
         assert "t1" in result
         assert result["t1"]["predicted_category"] == "Utilities"

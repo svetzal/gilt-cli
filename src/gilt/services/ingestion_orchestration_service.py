@@ -105,7 +105,7 @@ class IngestionOrchestrationService:
         rules = service.infer_rules(min_evidence=3, min_confidence=0.9)
         if not rules:
             return []
-        return service.apply_rules(all_transactions, rules)
+        return service.run_rules(all_transactions, rules)
 
     def _apply_auto_categorizations(self, matches: list, event_store: EventStore, projection_builder) -> None:
         """Emit categorization events, update CSVs, and rebuild projections."""

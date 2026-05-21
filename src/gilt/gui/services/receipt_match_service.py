@@ -126,7 +126,7 @@ class ReceiptMatchService:
             vendor_patterns=DEFAULT_VENDOR_PATTERNS,
         )
 
-    def apply_match(
+    def run_match(
         self,
         receipt: ReceiptData,
         transaction_id: str,

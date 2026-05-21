@@ -38,11 +38,11 @@ def print_error_list(heading: str, errors: list[str]) -> None:
         console.print(f"  • {error}")
 
 
-def filter_uncategorized(rows: list[dict]) -> list[dict]:
+def find_uncategorized(rows: list[dict]) -> list[dict]:
     return [row for row in rows if not row.get("category")]
 
 
-def filter_by_account(rows: list[dict], account: str | None) -> list[dict]:
+def find_by_account(rows: list[dict], account: str | None) -> list[dict]:
     if account is None:
         return rows
     return [row for row in rows if row.get("account_id") == account]
@@ -95,7 +95,7 @@ def print_dry_run_message(*, detail: str | None = None) -> None:
     console.print(f"[dim]{msg}[/dim]")
 
 
-def resolve_effective_paths(
+def build_effective_paths(
     workspace: Workspace,
     event_store_path: Path | None,
     projections_db_path: Path | None,
@@ -235,7 +235,7 @@ def validate_single_vs_batch_mode(
     return single_mode
 
 
-def resolve_id_prefix(
+def find_by_id_prefix(
     service: TransactionOperationsService,
     prefix: str,
     groups: list[TransactionGroup],

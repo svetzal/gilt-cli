@@ -10,9 +10,9 @@ from tempfile import TemporaryDirectory
 
 from gilt.services.receipt_ingestion_service import (
     ReceiptData,
-    filter_receipts_by_year,
     find_already_ingested_invoices,
     find_receipt_files,
+    find_receipts_by_year,
     load_receipt_file,
     match_receipt_to_transactions,
 )
@@ -213,7 +213,7 @@ class DescribeFilterReceiptsByYear:
         r2025 = _make_receipt(date_str="2025-06-15")
         r2024 = _make_receipt(date_str="2024-06-15")
 
-        result = filter_receipts_by_year([r2025, r2024], 2025)
+        result = find_receipts_by_year([r2025, r2024], 2025)
 
         assert len(result) == 1
         assert result[0].receipt_date.year == 2025
@@ -221,7 +221,7 @@ class DescribeFilterReceiptsByYear:
     def it_should_return_empty_when_no_receipts_match(self):
         r2024 = _make_receipt(date_str="2024-06-15")
 
-        result = filter_receipts_by_year([r2024], 2025)
+        result = find_receipts_by_year([r2024], 2025)
 
         assert result == []
 
@@ -229,7 +229,7 @@ class DescribeFilterReceiptsByYear:
         r1 = _make_receipt(date_str="2025-01-01")
         r2 = _make_receipt(date_str="2025-12-31")
 
-        result = filter_receipts_by_year([r1, r2], 2025)
+        result = find_receipts_by_year([r1, r2], 2025)
 
         assert len(result) == 2
 

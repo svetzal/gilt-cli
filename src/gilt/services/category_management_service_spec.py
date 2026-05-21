@@ -218,7 +218,7 @@ class DescribePlanRemoval:
         config.categories.append(Category(name="Entertainment", description="Fun stuff"))
 
         # Act
-        plan = service.plan_removal("Entertainment", None, sample_transactions, force=False)
+        plan = service.build_removal_plan("Entertainment", None, sample_transactions, force=False)
 
         # Assert
         assert plan.can_remove is True
@@ -234,7 +234,7 @@ class DescribePlanRemoval:
         service = CategoryManagementService(sample_category_config)
 
         # Act
-        plan = service.plan_removal("Groceries", None, sample_transactions, force=False)
+        plan = service.build_removal_plan("Groceries", None, sample_transactions, force=False)
 
         # Assert
         assert plan.can_remove is False
@@ -250,7 +250,7 @@ class DescribePlanRemoval:
         service = CategoryManagementService(sample_category_config)
 
         # Act
-        plan = service.plan_removal("Groceries", None, sample_transactions, force=True)
+        plan = service.build_removal_plan("Groceries", None, sample_transactions, force=True)
 
         # Assert
         assert plan.can_remove is True
@@ -265,7 +265,7 @@ class DescribePlanRemoval:
         service = CategoryManagementService(sample_category_config)
 
         # Act
-        plan = service.plan_removal("Housing", None, sample_transactions, force=False)
+        plan = service.build_removal_plan("Housing", None, sample_transactions, force=False)
 
         # Assert
         assert plan.can_remove is False
@@ -283,7 +283,7 @@ class DescribePlanRemoval:
         service = CategoryManagementService(sample_category_config)
 
         # Act
-        plan = service.plan_removal("Housing", None, sample_transactions, force=True)
+        plan = service.build_removal_plan("Housing", None, sample_transactions, force=True)
 
         # Assert
         assert plan.can_remove is True
@@ -301,7 +301,7 @@ class DescribePlanRemoval:
         housing.subcategories.append(Subcategory(name="Insurance", description="Home insurance"))
 
         # Act
-        plan = service.plan_removal("Housing", "Insurance", sample_transactions, force=False)
+        plan = service.build_removal_plan("Housing", "Insurance", sample_transactions, force=False)
 
         # Assert
         assert plan.can_remove is True
@@ -317,7 +317,7 @@ class DescribePlanRemoval:
         service = CategoryManagementService(sample_category_config)
 
         # Act
-        plan = service.plan_removal("Housing", "Rent", sample_transactions, force=False)
+        plan = service.build_removal_plan("Housing", "Rent", sample_transactions, force=False)
 
         # Assert
         assert plan.can_remove is False
@@ -331,7 +331,7 @@ class DescribePlanRemoval:
         service = CategoryManagementService(sample_category_config)
 
         # Act
-        plan = service.plan_removal("NonExistent", None, sample_transactions, force=False)
+        plan = service.build_removal_plan("NonExistent", None, sample_transactions, force=False)
 
         # Assert
         assert plan.can_remove is True  # Nothing to remove
@@ -345,7 +345,7 @@ class DescribePlanRemoval:
         service = CategoryManagementService(sample_category_config)
 
         # Act
-        plan = service.plan_removal("Housing", "NonExistent", sample_transactions, force=False)
+        plan = service.build_removal_plan("Housing", "NonExistent", sample_transactions, force=False)
 
         # Assert
         assert plan.can_remove is True  # Nothing to remove
@@ -674,7 +674,7 @@ class DescribeEdgeCases:
 
         # Act
         usage = service.count_usage("Any", None, [])
-        plan = service.plan_removal("Any", None, [], force=False)
+        plan = service.build_removal_plan("Any", None, [], force=False)
         add_result = service.add_category("New", None)
 
         # Assert
@@ -688,7 +688,7 @@ class DescribeEdgeCases:
         service = CategoryManagementService(sample_category_config)
 
         # Act
-        plan = service.plan_removal("Groceries", None, [], force=False)
+        plan = service.build_removal_plan("Groceries", None, [], force=False)
 
         # Assert
         assert plan.has_subcategories is False

@@ -10,8 +10,9 @@ from rich.table import Table
 from gilt.cli.command.util import (
     build_transaction_table,
     display_transaction_matches,
-    filter_by_account,
-    filter_uncategorized,
+    find_by_account,
+    find_by_id_prefix,
+    find_uncategorized,
     print_error,
     print_error_list,
     print_transaction_table,
@@ -19,7 +20,6 @@ from gilt.cli.command.util import (
     require_event_sourcing,
     require_persistence_service,
     require_projections,
-    resolve_id_prefix,
     search_by_criteria,
     validate_single_vs_batch_mode,
 )
@@ -46,7 +46,7 @@ class DescribeFilterUncategorized:
             {"account_id": "ACC3"},
         ]
 
-        result = filter_uncategorized(rows)
+        result = find_uncategorized(rows)
 
         assert result == [{"account_id": "ACC2", "category": None}, {"account_id": "ACC3"}]
 
@@ -56,7 +56,7 @@ class DescribeFilterUncategorized:
             {"account_id": "ACC2", "category": "Transport"},
         ]
 
-        result = filter_uncategorized(rows)
+        result = find_uncategorized(rows)
 
         assert result == []
 
@@ -69,7 +69,7 @@ class DescribeFilterByAccount:
             {"account_id": "ACC1", "amount": -50},
         ]
 
-        result = filter_by_account(rows, "ACC1")
+        result = find_by_account(rows, "ACC1")
 
         assert result == [{"account_id": "ACC1", "amount": -100}, {"account_id": "ACC1", "amount": -50}]
 
@@ -79,7 +79,7 @@ class DescribeFilterByAccount:
             {"account_id": "ACC2", "amount": -200},
         ]
 
-        result = filter_by_account(rows, None)
+        result = find_by_account(rows, None)
 
         assert result == rows
 
@@ -438,7 +438,7 @@ class DescribeResolveIdPrefix:
         service = Mock(spec=TransactionOperationsService)
         groups = [_make_group("abcd1234abcd1234")]
 
-        result = resolve_id_prefix(service, "abc", groups)
+        result = find_by_id_prefix(service, "abc", groups)
 
         assert isinstance(result, str)
         assert "8 characters" in result
@@ -449,7 +449,7 @@ class DescribeResolveIdPrefix:
         service.find_by_id_prefix.return_value = MatchResult(type="not_found", matches=[])
         groups = [_make_group("abcd1234abcd1234")]
 
-        result = resolve_id_prefix(service, "zzzzzzzz", groups)
+        result = find_by_id_prefix(service, "zzzzzzzz", groups)
 
         assert isinstance(result, str)
         assert "No transaction found" in result
@@ -462,7 +462,7 @@ class DescribeResolveIdPrefix:
             type="ambiguous", matches=[g1, g2]
         )
 
-        result = resolve_id_prefix(service, "abcd1234", [g1, g2])
+        result = find_by_id_prefix(service, "abcd1234", [g1, g2])
 
         assert isinstance(result, str)
         assert "Ambiguous" in result
@@ -475,7 +475,7 @@ class DescribeResolveIdPrefix:
             type="match", transaction=group, matches=[]
         )
 
-        result = resolve_id_prefix(service, "abcd1234", [group])
+        result = find_by_id_prefix(service, "abcd1234", [group])
 
         assert isinstance(result, list)
         assert len(result) == 1
@@ -488,7 +488,7 @@ class DescribeResolveIdPrefix:
             type="match", transaction=group, matches=[]
         )
 
-        resolve_id_prefix(service, "ABCD1234", [group])
+        find_by_id_prefix(service, "ABCD1234", [group])
 
         call_prefix = service.find_by_id_prefix.call_args[0][0]
         assert call_prefix == "abcd1234"

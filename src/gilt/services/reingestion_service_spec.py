@@ -72,7 +72,7 @@ class DescribePlanPurge(DescribeReingestionService):
         event_store.append_event(_make_import_event("txn002", "MYBANK_CHQ"))
         event_store.append_event(_make_import_event("txn003", "MYBANK_CC"))
 
-        plan = service.plan_purge("MYBANK_CHQ")
+        plan = service.build_purge_plan("MYBANK_CHQ")
 
         assert "txn001" in plan.transaction_ids
         assert "txn002" in plan.transaction_ids
@@ -92,7 +92,7 @@ class DescribePlanPurge(DescribeReingestionService):
         )
         event_store.append_event(cat_evt)
 
-        plan = service.plan_purge("MYBANK_CHQ")
+        plan = service.build_purge_plan("MYBANK_CHQ")
 
         assert import_evt.event_id in plan.event_ids
         assert cat_evt.event_id in plan.event_ids
@@ -103,13 +103,13 @@ class DescribePlanPurge(DescribeReingestionService):
         other_evt = _make_import_event("txn002", "MYBANK_CC")
         event_store.append_event(other_evt)
 
-        plan = service.plan_purge("MYBANK_CHQ")
+        plan = service.build_purge_plan("MYBANK_CHQ")
 
         assert other_evt.event_id not in plan.event_ids
 
     def it_should_return_empty_plan_for_unknown_account(self, service, event_store):
         """Should return a plan with no transactions for an account not in store."""
-        plan = service.plan_purge("UNKNOWN_ACCT")
+        plan = service.build_purge_plan("UNKNOWN_ACCT")
 
         assert len(plan.transaction_ids) == 0
         assert len(plan.event_ids) == 0
@@ -121,7 +121,7 @@ class DescribeRunPurge(DescribeReingestionService):
     def it_should_purge_events_via_event_store_api(self, service, event_store):
         """Should delete events using EventStore.delete_events."""
         event_store.append_event(_make_import_event("txn001", "MYBANK_CHQ"))
-        plan = service.plan_purge("MYBANK_CHQ")
+        plan = service.build_purge_plan("MYBANK_CHQ")
 
         result = service.run_purge(plan)
 
@@ -136,7 +136,7 @@ class DescribeRunPurge(DescribeReingestionService):
         projection_builder.build_from_scratch(event_store)
         assert len(projection_builder.get_all_transactions()) == 1
 
-        plan = service.plan_purge("MYBANK_CHQ")
+        plan = service.build_purge_plan("MYBANK_CHQ")
         service.run_purge(plan)
 
         assert len(projection_builder.get_all_transactions()) == 0
@@ -148,7 +148,7 @@ class DescribeRunPurge(DescribeReingestionService):
         cache_path.write_text(json.dumps(cache_data), encoding="utf-8")
 
         event_store.append_event(_make_import_event("txn001", "MYBANK_CHQ"))
-        plan = service.plan_purge("MYBANK_CHQ")
+        plan = service.build_purge_plan("MYBANK_CHQ")
         result = service.run_purge(plan)
 
         assert result.cache_entries_purged == 1
@@ -159,7 +159,7 @@ class DescribeRunPurge(DescribeReingestionService):
     def it_should_return_zero_cache_purged_when_no_cache_file(self, service, event_store):
         """Should return 0 cache entries purged when cache file does not exist."""
         event_store.append_event(_make_import_event("txn001", "MYBANK_CHQ"))
-        plan = service.plan_purge("MYBANK_CHQ")
+        plan = service.build_purge_plan("MYBANK_CHQ")
         result = service.run_purge(plan)
 
         assert result.cache_entries_purged == 0

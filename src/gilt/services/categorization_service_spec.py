@@ -285,7 +285,7 @@ class DescribePlanCategorization:
         criteria = SearchCriteria(description="Rent payment")
 
         # Act
-        plan = service.plan_categorization(criteria, sample_transactions, "Housing", "Rent")
+        plan = service.build_categorization_plan(criteria, sample_transactions, "Housing", "Rent")
 
         # Assert
         assert plan.is_valid
@@ -305,7 +305,7 @@ class DescribePlanCategorization:
         criteria = SearchCriteria(description="Rent payment")
 
         # Act
-        plan = service.plan_categorization(criteria, sample_transactions, "InvalidCat", None)
+        plan = service.build_categorization_plan(criteria, sample_transactions, "InvalidCat", None)
 
         # Assert
         assert not plan.is_valid
@@ -323,7 +323,7 @@ class DescribePlanCategorization:
         criteria = SearchCriteria(description="Nonexistent")
 
         # Act
-        plan = service.plan_categorization(criteria, sample_transactions, "Housing", None)
+        plan = service.build_categorization_plan(criteria, sample_transactions, "Housing", None)
 
         # Assert
         assert plan.is_valid  # Category is valid
@@ -340,7 +340,7 @@ class DescribePlanCategorization:
         criteria = SearchCriteria(description="Rent payment")
 
         # Act
-        plan = service.plan_categorization(criteria, sample_transactions, "Housing", None)
+        plan = service.build_categorization_plan(criteria, sample_transactions, "Housing", None)
 
         # Assert
         assert plan.is_valid
@@ -359,7 +359,7 @@ class DescribeApplyCategorization:
         matches = [sample_transactions[0]]  # First transaction only
 
         # Act
-        result = service.apply_categorization(matches, "Housing", "Rent")
+        result = service.run_categorization(matches, "Housing", "Rent")
 
         # Assert
         assert result.count == 1
@@ -379,7 +379,7 @@ class DescribeApplyCategorization:
         matches = sample_transactions[:2]  # First two transactions
 
         # Act
-        result = service.apply_categorization(matches, "Housing", None)
+        result = service.run_categorization(matches, "Housing", None)
 
         # Assert
         assert result.count == 2
@@ -396,7 +396,7 @@ class DescribeApplyCategorization:
         matches = [sample_transactions[3]]
 
         # Act
-        result = service.apply_categorization(matches, "Housing", "Utilities")
+        result = service.run_categorization(matches, "Housing", "Utilities")
 
         # Assert
         assert result.count == 1
@@ -413,7 +413,7 @@ class DescribeApplyCategorization:
         matches: list[TransactionGroup] = []
 
         # Act
-        result = service.apply_categorization(matches, "Housing", "Rent")
+        result = service.run_categorization(matches, "Housing", "Rent")
 
         # Assert
         assert result.count == 0
@@ -429,7 +429,7 @@ class DescribeApplyCategorization:
         matches = [original]
 
         # Act
-        result = service.apply_categorization(matches, "Housing", "Utilities")
+        result = service.run_categorization(matches, "Housing", "Utilities")
 
         # Assert
         updated = result.updated_transactions[0]
@@ -448,7 +448,7 @@ class DescribeApplyCategorization:
         matches = [sample_transactions[0]]
 
         # Act
-        result = service.apply_categorization(matches, "Groceries", None)
+        result = service.run_categorization(matches, "Groceries", None)
 
         # Assert
         assert result.count == 1
@@ -465,7 +465,7 @@ class DescribeApplyCategorization:
         matches = [sample_transactions[3]]
 
         # Act
-        result = service.apply_categorization(matches, "Transportation", None)
+        result = service.run_categorization(matches, "Transportation", None)
 
         # Assert
         updated = result.updated_transactions[0]
@@ -519,7 +519,7 @@ class DescribeEdgeCases:
         original = sample_transactions[0]
 
         # Act
-        result = service.apply_categorization([original], "Housing", "Rent")
+        result = service.run_categorization([original], "Housing", "Rent")
 
         # Assert
         updated = result.updated_transactions[0]
@@ -539,7 +539,7 @@ class DescribeCategorizationEventEmission:
         txn = sample_transactions[0]
 
         # Act
-        service.apply_categorization([txn], "Housing", "Rent")
+        service.run_categorization([txn], "Housing", "Rent")
 
         # Assert
         assert mock_event_store.append_event.call_count == 1
@@ -559,7 +559,7 @@ class DescribeCategorizationEventEmission:
         txn = sample_transactions[0]
 
         # Act
-        result = service.apply_categorization([txn], "Housing", "Rent")
+        result = service.run_categorization([txn], "Housing", "Rent")
 
         # Assert - Should not error, just skip event emission
         assert result.count == 1
@@ -577,7 +577,7 @@ class DescribeCategorizationEventEmission:
         txn.primary.subcategory = "Transit"
 
         # Act - Re-categorize
-        service.apply_categorization([txn], "Housing", "Rent")
+        service.run_categorization([txn], "Housing", "Rent")
 
         # Assert
         event = mock_event_store.append_event.call_args[0][0]
@@ -594,7 +594,7 @@ class DescribeCategorizationEventEmission:
         service = CategorizationService(sample_category_config, event_store=mock_event_store)
 
         # Act - Categorize 3 transactions
-        service.apply_categorization(sample_transactions[:3], "Housing", "Utilities")
+        service.run_categorization(sample_transactions[:3], "Housing", "Utilities")
 
         # Assert - Should emit 3 events
         assert mock_event_store.append_event.call_count == 3
@@ -616,7 +616,7 @@ class DescribeCategorizationEventEmission:
             txn = sample_transactions[0]
 
             # Act
-            service.apply_categorization([txn], "Housing", "Rent")
+            service.run_categorization([txn], "Housing", "Rent")
 
             # Assert - Events should be persisted
             events = event_store.get_events_by_type("TransactionCategorized")

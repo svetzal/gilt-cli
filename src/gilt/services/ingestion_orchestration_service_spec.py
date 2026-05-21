@@ -136,7 +136,7 @@ class DescribeIngestionOrchestrationService:
 
                 mock_rule_svc = Mock()
                 mock_rule_svc.infer_rules.return_value = [fake_rule]
-                mock_rule_svc.apply_rules.return_value = fake_matches
+                mock_rule_svc.run_rules.return_value = fake_matches
                 MockRuleInference.return_value = mock_rule_svc
 
                 mock_persist_svc = Mock()

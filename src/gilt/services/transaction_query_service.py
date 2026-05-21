@@ -38,7 +38,7 @@ class TransactionQueryService:
     No I/O, no UI imports.
     """
 
-    def filter_transactions(
+    def find_transactions(
         self,
         transactions: list[Transaction],
         *,
@@ -70,7 +70,7 @@ class TransactionQueryService:
             result = result[:limit]
         return result
 
-    def calculate_totals(self, transactions: list[Transaction]) -> TransactionTotals:
+    def get_totals(self, transactions: list[Transaction]) -> TransactionTotals:
         """Calculate sum of credits, debits, and net for a list of transactions.
 
         Credits: positive amounts summed.

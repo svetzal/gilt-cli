@@ -54,7 +54,7 @@ class IntelligenceScanService:
                 metadata[tid]["duplicate_match"] = m
         return metadata
 
-    def apply_inferred_rules(self, transactions, projections_path: Path) -> dict[str, dict]:
+    def run_inferred_rules(self, transactions, projections_path: Path) -> dict[str, dict]:
         """Apply inferred categorization rules to uncategorized transactions.
 
         Args:
@@ -80,7 +80,7 @@ class IntelligenceScanService:
             }
             for t in transactions
         ]
-        matches = service.apply_rules(txn_dicts, rules)
+        matches = service.run_rules(txn_dicts, rules)
         for m in matches:
             tid = m.transaction["transaction_id"]
             if tid not in metadata:

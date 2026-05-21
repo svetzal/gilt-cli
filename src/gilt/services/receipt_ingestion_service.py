@@ -5,7 +5,7 @@ I/O boundary functions (read files, find receipt files):
   find_receipt_files, load_receipt_file
 
 Pure business logic (no I/O, fully testable with in-memory data):
-  ReceiptData.from_dict, filter_receipts_by_year, match_receipt_to_transactions,
+  ReceiptData.from_dict, find_receipts_by_year, match_receipt_to_transactions,
   batch_match_receipts, find_already_ingested_invoices
 
 Privacy: All processing is local-only. No network I/O.
@@ -112,7 +112,7 @@ def find_receipt_files(source_dir: Path) -> list[Path]:
     return sorted(source_dir.rglob("*.json"))
 
 
-def filter_receipts_by_year(receipts: list[ReceiptData], year: int) -> list[ReceiptData]:
+def find_receipts_by_year(receipts: list[ReceiptData], year: int) -> list[ReceiptData]:
     """Return only receipts whose receipt_date falls in the given year. Pure function.
 
     Args:
@@ -415,7 +415,7 @@ __all__ = [
     "MatchResult",
     "ReceiptData",
     "batch_match_receipts",
-    "filter_receipts_by_year",
+    "find_receipts_by_year",
     "find_already_ingested_invoices",
     "find_receipt_files",
     "load_receipt_file",

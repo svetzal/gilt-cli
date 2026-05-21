@@ -10,8 +10,9 @@ ingest/ into standardized per-account ledgers under data/accounts/.
 Key functions:
 - load_accounts_config(path): load config/accounts.yml into Account models
 - infer_account_for_file(accounts, file_path): map an ingest file to account_id
-- plan_normalization(inputs, output_dir, accounts): preview mapping
+- build_normalization_plan(inputs, output_dir, accounts): preview mapping
 - normalize_file(input_path, account_id, output_dir): write/update ledger CSV
+- load_file(input_path, account_id): parse a bank CSV into normalized DataFrame
 
 No network I/O. All operations are local, privacy-first.
 """
@@ -118,7 +119,7 @@ def _first_match(name_candidates: list[str], available: list[str]) -> str | None
     return None
 
 
-def plan_normalization(
+def build_normalization_plan(
     inputs: Sequence[Path], output_dir: Path, accounts: Sequence[Account]
 ) -> list[tuple[Path, str | None]]:
     """Plan which files would be normalized and the target account_id.
@@ -330,10 +331,10 @@ def _build_transaction_dataframe(
     return out
 
 
-def parse_file(
+def load_file(
     input_path: Path, account_id: str, amount_sign: str = "expenses_negative"
 ) -> pd.DataFrame:
-    """Parse a CSV file into a normalized DataFrame of transactions.
+    """Load and parse a CSV file into a normalized DataFrame of transactions.
 
     - Reads only the specified CSV locally using pandas.
     - Performs best-effort column mapping for date/description/amount/currency.
@@ -544,7 +545,7 @@ def normalize_file(
     - If event_store is provided, emits TransactionImported events (dual-write pattern).
     - Returns the output file path (ledger path).
     """
-    out = parse_file(input_path, account_id, amount_sign=amount_sign)
+    out = load_file(input_path, account_id, amount_sign=amount_sign)
 
     if exclude_ids:
         out = out[~out["transaction_id"].isin(exclude_ids)]
@@ -569,7 +570,7 @@ __all__ = [
     "STANDARD_FIELDS",
     "load_accounts_config",
     "infer_account_for_file",
-    "plan_normalization",
+    "build_normalization_plan",
     "normalize_file",
     "compute_transaction_id_fields",
     "HASH_ALGO_SPEC",

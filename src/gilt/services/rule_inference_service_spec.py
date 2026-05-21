@@ -79,7 +79,7 @@ class DescribeRuleInferenceService:
         with patch("gilt.services.rule_inference_service.ProjectionBuilder"):
             service = RuleInferenceService(projections_db=Mock())
 
-        matches = service.apply_rules(transactions, rules)
+        matches = service.run_rules(transactions, rules)
         assert len(matches) == 1
         assert matches[0].transaction["transaction_id"] == "new1"
         assert matches[0].rule.category == "Housing"
@@ -103,7 +103,7 @@ class DescribeRuleInferenceService:
         with patch("gilt.services.rule_inference_service.ProjectionBuilder"):
             service = RuleInferenceService(projections_db=Mock())
 
-        matches = service.apply_rules(transactions, rules)
+        matches = service.run_rules(transactions, rules)
         assert len(matches) == 0
 
     def it_should_sort_rules_by_evidence_count_descending(self):

@@ -3,7 +3,7 @@ from __future__ import annotations
 import typer
 
 from gilt.model.account import TransactionGroup
-from gilt.model.category_io import parse_category_path
+from gilt.model.category_io import build_category_from_path
 from gilt.workspace import Workspace
 
 from .util import (
@@ -48,8 +48,8 @@ def run(
         Exit code (0 success, 1 error)
     """
     # Parse category paths
-    from_cat, from_subcat = parse_category_path(from_category)
-    to_cat, to_subcat = parse_category_path(to_category)
+    from_cat, from_subcat = build_category_from_path(from_category)
+    to_cat, to_subcat = build_category_from_path(to_category)
 
     if not from_cat:
         print_error("--from category cannot be empty")

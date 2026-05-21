@@ -12,11 +12,11 @@ from gilt.ingest import (
     _detect_columns,
     _detect_rbc_overrides,
     compute_transaction_id_fields,
+    build_normalization_plan,
     infer_account_for_file,
     load_accounts_config,
+    load_file,
     normalize_file,
-    parse_file,
-    plan_normalization,
 )
 from gilt.model.account import Account
 
@@ -141,10 +141,10 @@ class DescribeInferAccountForFile:
 
 
 class DescribePlanNormalization:
-    """Behaviour of plan_normalization() file-to-account mapping."""
+    """Behaviour of build_normalization_plan() file-to-account mapping."""
 
     def it_should_return_empty_plan_for_no_inputs(self, tmp_path):
-        plan = plan_normalization([], tmp_path, [])
+        plan = build_normalization_plan([], tmp_path, [])
         assert plan == []
 
     def it_should_map_file_to_matched_account(self, tmp_path):
@@ -152,7 +152,7 @@ class DescribePlanNormalization:
             Account(account_id="MYBANK_CHQ", source_patterns=["mybank-chequing*.csv"]),
         ]
         files = [Path("/ingest/mybank-chequing-2025.csv")]
-        plan = plan_normalization(files, tmp_path, accounts)
+        plan = build_normalization_plan(files, tmp_path, accounts)
         assert len(plan) == 1
         assert plan[0][0] == Path("/ingest/mybank-chequing-2025.csv")
         assert plan[0][1] == "MYBANK_CHQ"
@@ -162,7 +162,7 @@ class DescribePlanNormalization:
             Account(account_id="MYBANK_CHQ", source_patterns=["mybank*.csv"]),
         ]
         files = [Path("/ingest/unknown-bank-export.csv")]
-        plan = plan_normalization(files, tmp_path, accounts)
+        plan = build_normalization_plan(files, tmp_path, accounts)
         assert len(plan) == 1
         assert plan[0][1] is None
 
@@ -176,7 +176,7 @@ class DescribePlanNormalization:
             Path("/ingest/bank2-biz-jan.csv"),
             Path("/ingest/other-export.csv"),
         ]
-        plan = plan_normalization(files, tmp_path, accounts)
+        plan = build_normalization_plan(files, tmp_path, accounts)
         assert len(plan) == 3
         ids = {str(p): a_id for p, a_id in plan}
         assert ids["/ingest/mybank-chequing-jan.csv"] == "MYBANK_CHQ"
@@ -237,7 +237,7 @@ class DescribeParseFileAmountSign:
             2025-01-15,SAMPLE STORE,-42.50
             2025-01-20,DEPOSIT,100.00
         """)
-        df = parse_file(csv, "MYBANK_CHQ", amount_sign="expenses_negative")
+        df = load_file(csv, "MYBANK_CHQ", amount_sign="expenses_negative")
         amounts = df["amount"].tolist()
         assert amounts[0] == -42.50
         assert amounts[1] == 100.00
@@ -248,7 +248,7 @@ class DescribeParseFileAmountSign:
             2025-01-15,SAMPLE STORE,42.50
             2025-01-20,PAYMENT,-100.00
         """)
-        df = parse_file(csv, "MYBANK_CC", amount_sign="expenses_positive")
+        df = load_file(csv, "MYBANK_CC", amount_sign="expenses_positive")
         amounts = df["amount"].tolist()
         assert amounts[0] == -42.50
         assert amounts[1] == 100.00
@@ -258,7 +258,7 @@ class DescribeParseFileAmountSign:
             Date,Description,Amount
             2025-01-15,SAMPLE STORE,-42.50
         """)
-        df = parse_file(csv, "MYBANK_CHQ")
+        df = load_file(csv, "MYBANK_CHQ")
         assert df["amount"].iloc[0] == -42.50
 
     def it_should_negate_amounts_preserving_transaction_id_stability(self, tmp_path):
@@ -267,9 +267,9 @@ class DescribeParseFileAmountSign:
             Date,Description,Amount
             2025-01-15,SAMPLE STORE,42.50
         """)
-        df = parse_file(csv, "MYBANK_CC", amount_sign="expenses_positive")
+        df = load_file(csv, "MYBANK_CC", amount_sign="expenses_positive")
         # Re-parse should produce the same transaction_id
-        df2 = parse_file(csv, "MYBANK_CC", amount_sign="expenses_positive")
+        df2 = load_file(csv, "MYBANK_CC", amount_sign="expenses_positive")
         assert df["transaction_id"].iloc[0] == df2["transaction_id"].iloc[0]
 
 

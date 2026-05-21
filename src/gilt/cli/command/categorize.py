@@ -6,7 +6,7 @@ from pathlib import Path
 import typer
 
 from gilt.model.account import TransactionGroup
-from gilt.model.category_io import load_categories_config, parse_category_path
+from gilt.model.category_io import build_category_from_path, load_categories_config
 from gilt.model.ledger_repository import LedgerRepository
 from gilt.services.categorization_service import CategorizationService
 from gilt.services.event_sourcing_service import EventSourcingService
@@ -19,7 +19,7 @@ from gilt.workspace import Workspace
 from .util import (
     console,
     display_transaction_matches,
-    filter_by_account,
+    find_by_account,
     fmt_amount_str,
     print_dry_run_message,
     print_error,
@@ -48,7 +48,7 @@ def _find_account_ledgers(data_dir: Path, account: str | None) -> list[Path]:
 def _parse_and_validate_category(category: str, subcategory: str | None) -> tuple[str, str | None, str | None]:
     """Parse 'Category:Subcategory' syntax and resolve conflicts. Returns (cat, subcat, warning)."""
     if ":" in category:
-        cat_name, subcat_from_path = parse_category_path(category)
+        cat_name, subcat_from_path = build_category_from_path(category)
         warning = None
         if subcategory and subcategory != subcat_from_path:
             warning = (
@@ -72,7 +72,7 @@ def _load_and_filter_transactions(
 
     all_transactions = projection_builder.get_all_transactions(include_duplicates=False)
 
-    all_transactions = filter_by_account(all_transactions, account)
+    all_transactions = find_by_account(all_transactions, account)
     if account and not all_transactions:
         print_error(f"No transactions found for account '{account}'")
         return None
@@ -96,7 +96,7 @@ def _find_matches(
     all_matches: list[tuple[str, TransactionGroup]] = []
 
     for account_id, groups in groups_by_account.items():
-        result = service.resolve_transaction_targets(
+        result = service.find_transaction_targets(
             groups,
             txid=txid if single_mode else None,
             description=criteria.description,
@@ -189,7 +189,7 @@ def _confirm_and_apply(
     if ready is None:
         return 1
 
-    result = categorization_service.apply_categorization(
+    result = categorization_service.run_categorization(
         [group for _, group in all_matches],
         category,
         subcategory,

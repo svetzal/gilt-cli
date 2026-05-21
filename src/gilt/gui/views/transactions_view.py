@@ -109,7 +109,7 @@ class IntelligenceWorker(QThread):
                     return
                 self.status.emit("Applying inferred rules...")
                 try:
-                    fragment = scan_service.apply_inferred_rules(all_txns, self.projections_path)
+                    fragment = scan_service.run_inferred_rules(all_txns, self.projections_path)
                     metadata.update(fragment)
                     rule_matched_ids = set(fragment.keys())
                 except (OSError, ValueError, sqlite3.OperationalError) as e:
@@ -448,7 +448,7 @@ class TransactionsView(QWidget):
         self._set_custom_dates_visible(False)
 
         if preset == "All":
-            self.apply_filters()
+            self.run_filters()
             return
 
         today = QDate.currentDate()
@@ -460,7 +460,7 @@ class TransactionsView(QWidget):
 
         self.start_date_edit.setDate(QDate(start.year, start.month, start.day))
         self.end_date_edit.setDate(QDate(end.year, end.month, end.day))
-        self.apply_filters()
+        self.run_filters()
 
     def _connect_signals(self):
         """Connect signals to slots."""
@@ -469,13 +469,13 @@ class TransactionsView(QWidget):
         self.rescan_btn.clicked.connect(self._rescan_intelligence)
 
         # Auto-apply filters on any change
-        self.account_combo.currentIndexChanged.connect(self.apply_filters)
+        self.account_combo.currentIndexChanged.connect(self.run_filters)
         self.date_range_combo.currentIndexChanged.connect(self._on_date_range_changed)
-        self.start_date_edit.dateChanged.connect(self.apply_filters)
-        self.end_date_edit.dateChanged.connect(self.apply_filters)
-        self.category_combo.currentIndexChanged.connect(self.apply_filters)
-        self.uncategorized_check.stateChanged.connect(self.apply_filters)
-        self.search_edit.textChanged.connect(self.apply_filters)
+        self.start_date_edit.dateChanged.connect(self.run_filters)
+        self.end_date_edit.dateChanged.connect(self.run_filters)
+        self.category_combo.currentIndexChanged.connect(self.run_filters)
+        self.uncategorized_check.stateChanged.connect(self.run_filters)
+        self.search_edit.textChanged.connect(self.run_filters)
 
         # Update status and detail panel when selection changes
         self.table.selection_changed.connect(self._update_status)
@@ -521,7 +521,7 @@ class TransactionsView(QWidget):
         self._update_category_combo()
 
         # Apply current filter criteria to proxy
-        self.apply_filters()
+        self.run_filters()
 
         # Restore selection if requested
         if restore_transaction_id:
@@ -650,7 +650,7 @@ class TransactionsView(QWidget):
             if index >= 0:
                 self.category_combo.setCurrentIndex(index)
 
-    def apply_filters(self):
+    def run_filters(self):
         """Apply current filter criteria to the proxy model."""
         account_filter = None
         if self.account_combo.currentData():
@@ -896,7 +896,7 @@ class TransactionsView(QWidget):
 
             try:
                 resolution: DuplicateResolutionResult = (
-                    self.duplicate_service.resolve_and_identify_deletion(
+                    self.duplicate_service.run_duplicate_deletion(
                         match, is_duplicate, keep_id
                     )
                 )
@@ -965,7 +965,7 @@ class TransactionsView(QWidget):
 
             try:
                 resolution: DuplicateResolutionResult = (
-                    self.duplicate_service.resolve_and_identify_deletion(
+                    self.duplicate_service.run_duplicate_deletion(
                         match, is_duplicate, keep_id, rationale="Manual merge"
                     )
                 )
@@ -1038,7 +1038,7 @@ class TransactionsView(QWidget):
         if dialog.exec():
             receipt = dialog.get_selected_receipt()
             if receipt:
-                svc.apply_match(receipt, txn.transaction_id)
+                svc.run_match(receipt, txn.transaction_id)
                 self._load_enrichment()
                 self.reload_transactions()
                 QMessageBox.information(self, "Success", "Receipt matched successfully.")
@@ -1089,7 +1089,7 @@ class TransactionsView(QWidget):
             written = 0
             for match in resolved:
                 confidence = match.match_confidence or "exact"
-                svc.apply_match(match.receipt, match.transaction_id, confidence)
+                svc.run_match(match.receipt, match.transaction_id, confidence)
                 written += 1
 
             if written:
@@ -1138,7 +1138,7 @@ class TransactionsView(QWidget):
         if not svc:
             return
         try:
-            svc.apply_match(receipt, transaction_id)
+            svc.run_match(receipt, transaction_id)
             self.reload_transactions(restore_transaction_id=transaction_id)
         except (OSError, ValueError, UnicodeDecodeError) as e:
             QMessageBox.critical(self, "Error", f"Failed to apply receipt match:\n{str(e)}")

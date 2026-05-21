@@ -10,9 +10,9 @@ import typer
 
 from gilt.model.category import BudgetPeriod
 from gilt.model.category_io import (
+    build_category_from_path,
     format_category_path,
     load_categories_config,
-    parse_category_path,
     save_categories_config,
 )
 from gilt.model.ledger_repository import LedgerRepository
@@ -133,7 +133,7 @@ def _handle_add(
     write: bool,
 ) -> int:
     """Handle adding a new category or subcategory."""
-    cat_name, subcat_name = parse_category_path(category_path)
+    cat_name, subcat_name = build_category_from_path(category_path)
 
     # Use service for business logic
     service = CategoryManagementService(category_config)
@@ -206,14 +206,14 @@ def _handle_remove(
     write: bool,
 ) -> int:
     """Handle removing a category or subcategory."""
-    cat_name, subcat_name = parse_category_path(category_path)
+    cat_name, subcat_name = build_category_from_path(category_path)
 
     # Load all transactions for usage checking
     transaction_groups = LedgerRepository(data_dir).load_all()
 
     # Use service to plan removal
     service = CategoryManagementService(category_config)
-    plan = service.plan_removal(cat_name, subcat_name, transaction_groups, force)
+    plan = service.build_removal_plan(cat_name, subcat_name, transaction_groups, force)
 
     # Handle not found case (warning, not error)
     if plan.warnings and any("not found" in w for w in plan.warnings):
@@ -261,7 +261,7 @@ def _handle_set_budget(
     write: bool,
 ) -> int:
     """Handle setting budget for a category."""
-    cat_name, subcat_name = parse_category_path(category_path)
+    cat_name, subcat_name = build_category_from_path(category_path)
 
     if subcat_name:
         print_error("Budgets can only be set at category level, not subcategory")

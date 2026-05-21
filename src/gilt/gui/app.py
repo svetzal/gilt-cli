@@ -70,7 +70,7 @@ def load_stylesheet(theme: str) -> str:
     return ""
 
 
-def apply_stylesheet(app: QApplication):
+def run_stylesheet(app: QApplication):
     """
     Apply application stylesheet based on system theme.
 
@@ -107,7 +107,7 @@ class ThemeManager:
         # Only update if theme actually changed
         if old_theme != new_theme:
             print(f"System theme changed: {old_theme} → {new_theme}")
-            apply_stylesheet(self.app)
+            run_stylesheet(self.app)
 
             # Notify all windows to update their custom styling
             for window in self.windows:
@@ -129,7 +129,7 @@ def main():
     theme_manager = ThemeManager(app)
 
     # Apply initial stylesheet based on system theme
-    apply_stylesheet(app)
+    run_stylesheet(app)
 
     # Create and show main window
     window = MainWindow()

@@ -28,7 +28,7 @@ class DescribeFilterTransactions:
             make_transaction(transaction_id="t2", account_id="MYBANK_CC"),
             make_transaction(transaction_id="t3", account_id="MYBANK_CHQ"),
         ]
-        result = service.filter_transactions(
+        result = service.find_transactions(
             transactions, account_id="MYBANK_CHQ", year=None, limit=None
         )
         assert len(result) == 2
@@ -41,7 +41,7 @@ class DescribeFilterTransactions:
             make_transaction(transaction_id="t2", date="2024-03-15", account_id="MYBANK_CHQ"),
             make_transaction(transaction_id="t3", date="2025-11-01", account_id="MYBANK_CHQ"),
         ]
-        result = service.filter_transactions(
+        result = service.find_transactions(
             transactions, account_id="MYBANK_CHQ", year=2025, limit=None
         )
         assert len(result) == 2
@@ -66,7 +66,7 @@ class DescribeFilterTransactions:
                 account_id="MYBANK_CHQ",
             ),
         ]
-        result = service.filter_transactions(
+        result = service.find_transactions(
             transactions, account_id="MYBANK_CHQ", year=None, limit=None
         )
         assert result[0].transaction_id == "mmmmmmmmmmmmmmmm"
@@ -81,7 +81,7 @@ class DescribeFilterTransactions:
             )
             for i in range(5)
         ]
-        result = service.filter_transactions(
+        result = service.find_transactions(
             transactions, account_id="MYBANK_CHQ", year=None, limit=3
         )
         assert len(result) == 3
@@ -91,7 +91,7 @@ class DescribeFilterTransactions:
         transactions = [
             make_transaction(transaction_id="t1", account_id="MYBANK_CC"),
         ]
-        result = service.filter_transactions(
+        result = service.find_transactions(
             transactions, account_id="MYBANK_CHQ", year=None, limit=None
         )
         assert result == []
@@ -105,14 +105,14 @@ class DescribeCalculateTotals:
             make_transaction(transaction_id="t2", amount=-100.00),  # debit
             make_transaction(transaction_id="t3", amount=-50.00),  # debit
         ]
-        totals = service.calculate_totals(transactions)
+        totals = service.get_totals(transactions)
         assert totals.credits == 500.00
         assert totals.debits == -150.00
         assert abs(totals.net - 350.00) < 0.001
 
     def it_should_handle_empty_list(self):
         service = TransactionQueryService()
-        totals = service.calculate_totals([])
+        totals = service.get_totals([])
         assert isinstance(totals, TransactionTotals)
         assert totals.credits == 0.0
         assert totals.debits == 0.0

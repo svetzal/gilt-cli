@@ -126,7 +126,7 @@ class CategoryManagementService:
             transaction_ids=matching_ids,
         )
 
-    def plan_removal(
+    def build_removal_plan(
         self,
         category: str,
         subcategory: str | None,
@@ -403,7 +403,7 @@ class CategoryManagementService:
         """
         Actually remove a category/subcategory from config.
 
-        This should only be called after plan_removal() confirms it's safe.
+        This should only be called after build_removal_plan() confirms it's safe.
 
         Args:
             category: Category name to remove

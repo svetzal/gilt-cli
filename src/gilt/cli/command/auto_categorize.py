@@ -13,7 +13,11 @@ from rich.table import Table
 
 from gilt.ml.categorization_classifier import CategorizationClassifier
 from gilt.model.account import Transaction
-from gilt.model.category_io import format_category_path, load_categories_config, parse_category_path
+from gilt.model.category_io import (
+    build_category_from_path,
+    format_category_path,
+    load_categories_config,
+)
 from gilt.services.categorization_persistence_service import CategorizationUpdate
 from gilt.services.event_sourcing_service import EventSourcingReadyResult
 from gilt.services.rule_inference_service import RuleInferenceService
@@ -21,8 +25,8 @@ from gilt.workspace import Workspace
 
 from .util import (
     console,
-    filter_by_account,
-    filter_uncategorized,
+    find_by_account,
+    find_uncategorized,
     fmt_amount_str,
     print_dry_run_message,
     print_error,
@@ -71,7 +75,7 @@ def _load_uncategorized(workspace, account, limit) -> _LoadResult:
         return _LoadResult(exit_code=1)
 
     all_transactions = projection_builder.get_all_transactions(include_duplicates=False)
-    uncategorized_rows = filter_by_account(filter_uncategorized(all_transactions), account)
+    uncategorized_rows = find_by_account(find_uncategorized(all_transactions), account)
 
     if not uncategorized_rows:
         return _LoadResult(exit_code=0)
@@ -90,7 +94,7 @@ def _write_categorizations(approved, ready, workspace) -> int:
     persistence_svc = require_persistence_service(ready, workspace)
     updates = []
     for account_id, txn_id, _, category_path, confidence in approved:
-        cat_name, subcat_name = parse_category_path(category_path)
+        cat_name, subcat_name = build_category_from_path(category_path)
         updates.append(
             CategorizationUpdate(
                 transaction_id=txn_id,
@@ -135,7 +139,7 @@ def _apply_rules_first(workspace, uncategorized_txns):
         for t in uncategorized_txns
     ]
 
-    matches = service.apply_rules(txn_dicts, rules)
+    matches = service.run_rules(txn_dicts, rules)
     matched_ids = {m.transaction["transaction_id"] for m in matches}
 
     rule_approved: list[tuple[str, str, Transaction, str, float]] = []
@@ -311,7 +315,7 @@ def _handle_modify_choice(category_config, default_category: str) -> str | None:
         default=default_category,
     )
 
-    cat_name, subcat_name = parse_category_path(new_category)
+    cat_name, subcat_name = build_category_from_path(new_category)
     cat_obj = next((c for c in category_config.categories if c.name == cat_name), None)
 
     if not cat_obj:

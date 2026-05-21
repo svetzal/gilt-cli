@@ -111,7 +111,7 @@ class RuleInferenceService:
         rules.sort(key=lambda r: r.evidence_count, reverse=True)
         return rules
 
-    def apply_rules(
+    def run_rules(
         self,
         transactions: list[dict],
         rules: list[InferredRule],

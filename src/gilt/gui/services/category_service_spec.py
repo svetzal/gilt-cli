@@ -299,11 +299,11 @@ class DescribeCategoryServiceValidation:
         assert service.validate_category_path("Housing", "Nonexistent") is False
 
     def it_should_parse_category_string_with_subcategory(self, service):
-        category, subcategory = service.parse_category_string("Housing:Rent")
+        category, subcategory = service.build_category_from_string("Housing:Rent")
         assert category == "Housing"
         assert subcategory == "Rent"
 
     def it_should_parse_category_string_without_subcategory(self, service):
-        category, subcategory = service.parse_category_string("Housing")
+        category, subcategory = service.build_category_from_string("Housing")
         assert category == "Housing"
         assert subcategory is None

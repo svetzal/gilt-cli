@@ -261,7 +261,7 @@ class DuplicateReviewService:
         self.event_store.append_event(event)
         return event, event.event_id
 
-    def apply_user_decision(
+    def run_user_decision(
         self,
         decision: UserDecision,
         pair: TransactionPair,
@@ -312,7 +312,7 @@ class DuplicateReviewService:
             self.event_store.append_event(event)
             return event, "confirmed"
 
-    def calculate_smart_default(self, learned_patterns: list[str]) -> SmartDefault:
+    def get_smart_default(self, learned_patterns: list[str]) -> SmartDefault:
         """
         Calculate smart default choice from learned patterns.
 
@@ -380,7 +380,7 @@ class DuplicateReviewService:
         self.event_store.append_event(event)
         return event
 
-    def filter_by_confidence(
+    def find_by_confidence(
         self,
         matches: list[DuplicateMatch],
         min_confidence: float,

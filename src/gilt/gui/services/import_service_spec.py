@@ -145,7 +145,7 @@ class DescribeImportServiceDuplicateScanning:
     def it_should_return_empty_list_when_file_has_no_transactions(
         self, service, mock_duplicate_service
     ):
-        with patch("gilt.gui.services.import_service.parse_file") as mock_parse:
+        with patch("gilt.gui.services.import_service.load_file") as mock_parse:
             mock_parse.return_value = pd.DataFrame()
             result = service.find_duplicates_in_file(Path("fake.csv"), "MYBANK_CHQ")
         assert result == []
@@ -175,7 +175,7 @@ class DescribeImportServiceDuplicateScanning:
         )
         mock_duplicate_service.find_duplicates.return_value = [DuplicateMatch(pair=existing_pair, assessment=DuplicateAssessment(is_duplicate=True, confidence=0.9, reasoning="Same"))]
 
-        with patch("gilt.gui.services.import_service.parse_file") as mock_parse:
+        with patch("gilt.gui.services.import_service.load_file") as mock_parse:
             mock_parse.return_value = new_df
             result = service.find_duplicates_in_file(Path("fake.csv"), "MYBANK_CHQ")
 
@@ -201,7 +201,7 @@ class DescribeImportServiceDuplicateScanning:
         )
         mock_duplicate_service.find_duplicates.return_value = [DuplicateMatch(pair=pair, assessment=DuplicateAssessment(is_duplicate=True, confidence=0.9, reasoning="Same"))]
 
-        with patch("gilt.gui.services.import_service.parse_file") as mock_parse:
+        with patch("gilt.gui.services.import_service.load_file") as mock_parse:
             mock_parse.return_value = new_df
             result = service.find_duplicates_in_file(Path("fake.csv"), "MYBANK_CHQ")
 
@@ -245,7 +245,7 @@ class DescribeImportServiceDuplicateScanning:
         )
         mock_duplicate_service.find_duplicates.return_value = [DuplicateMatch(pair=pair, assessment=DuplicateAssessment(is_duplicate=True, confidence=0.9, reasoning="Same"))]
 
-        with patch("gilt.gui.services.import_service.parse_file") as mock_parse:
+        with patch("gilt.gui.services.import_service.load_file") as mock_parse:
             mock_parse.return_value = new_df
             result = service.find_duplicates_in_file(Path("fake.csv"), "MYBANK_CHQ")
 
@@ -263,7 +263,7 @@ class DescribeImportServiceDuplicateScanning:
         assert swapped.txn2_source_file == "existing.csv"
 
     def it_should_return_empty_list_on_parse_error(self, service, mock_duplicate_service):
-        with patch("gilt.gui.services.import_service.parse_file") as mock_parse:
+        with patch("gilt.gui.services.import_service.load_file") as mock_parse:
             mock_parse.side_effect = ValueError("CSV parse error")
             result = service.find_duplicates_in_file(Path("fake.csv"), "MYBANK_CHQ")
         assert result == []
@@ -307,7 +307,7 @@ class DescribeImportServiceCategorizationScanning:
         assert result == []
 
     def it_should_exclude_transactions_by_id(self, service):
-        with patch("gilt.gui.services.import_service.parse_file") as mock_parse:
+        with patch("gilt.gui.services.import_service.load_file") as mock_parse:
             mock_parse.return_value = _make_parse_row("txn001")
             result = service.find_uncategorized_in_file(
                 Path("fake.csv"), "MYBANK_CHQ", exclude_ids=["txn001"]
@@ -318,7 +318,7 @@ class DescribeImportServiceCategorizationScanning:
         self, service, mock_smart_category_service
     ):
         mock_smart_category_service.predict_category.return_value = ("Housing", 0.9)
-        with patch("gilt.gui.services.import_service.parse_file") as mock_parse:
+        with patch("gilt.gui.services.import_service.load_file") as mock_parse:
             mock_parse.return_value = _make_parse_row("txn001")
             result = service.find_uncategorized_in_file(Path("fake.csv"), "MYBANK_CHQ")
         assert len(result) == 1
@@ -329,14 +329,14 @@ class DescribeImportServiceCategorizationScanning:
         self, service, mock_smart_category_service
     ):
         mock_smart_category_service.predict_category.return_value = ("Housing", 0.5)
-        with patch("gilt.gui.services.import_service.parse_file") as mock_parse:
+        with patch("gilt.gui.services.import_service.load_file") as mock_parse:
             mock_parse.return_value = _make_parse_row("txn001")
             result = service.find_uncategorized_in_file(Path("fake.csv"), "MYBANK_CHQ")
         assert len(result) == 1
         assert result[0].assigned_category is None
 
     def it_should_return_empty_list_on_parse_error(self, service):
-        with patch("gilt.gui.services.import_service.parse_file") as mock_parse:
+        with patch("gilt.gui.services.import_service.load_file") as mock_parse:
             mock_parse.side_effect = ValueError("Parse failed")
             result = service.find_uncategorized_in_file(Path("fake.csv"), "MYBANK_CHQ")
         assert result == []

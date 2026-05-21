@@ -11,8 +11,8 @@ from gilt.workspace import Workspace
 from .util import (
     build_transaction_table,
     console,
-    filter_by_account,
-    filter_uncategorized,
+    find_by_account,
+    find_uncategorized,
     fmt_amount_str,
     require_projections,
 )
@@ -92,7 +92,7 @@ def run(
 
     # Filter
     all_transactions = projection_builder.get_all_transactions(include_duplicates=False)
-    filtered_rows = filter_by_account(filter_uncategorized(all_transactions), account)
+    filtered_rows = find_by_account(find_uncategorized(all_transactions), account)
     uncategorized = _filter_transactions(filtered_rows, year, min_amount)
 
     if not uncategorized:

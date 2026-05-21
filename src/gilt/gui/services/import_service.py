@@ -17,11 +17,11 @@ _logger = logging.getLogger(__name__)
 import pandas as pd
 
 from gilt.ingest import (
+    build_normalization_plan,
     infer_account_for_file,
     load_accounts_config,
+    load_file,
     normalize_file,
-    parse_file,
-    plan_normalization,
 )
 from gilt.model.account import Account, Transaction
 from gilt.model.duplicate import DuplicateMatch, TransactionPair
@@ -263,7 +263,7 @@ class ImportService:
 
     def _parse_file_to_transactions(self, file_path: Path, account_id: str) -> list[Transaction]:
         """Parse a CSV file and return its rows as Transaction objects."""
-        df = parse_file(file_path, account_id, self._amount_sign_for(account_id))
+        df = load_file(file_path, account_id, self._amount_sign_for(account_id))
         transactions: list[Transaction] = []
         for _, row in df.iterrows():
             metadata = {"source_file": row["source_file"]}
@@ -394,7 +394,7 @@ class ImportService:
             return []
 
         try:
-            df = parse_file(file_path, account_id, self._amount_sign_for(account_id))
+            df = load_file(file_path, account_id, self._amount_sign_for(account_id))
             exclude_set = set(exclude_ids) if exclude_ids else set()
 
             items = []
@@ -530,7 +530,7 @@ class ImportService:
                 messages=[str(e)],
             )
 
-    def plan_imports(self, file_paths: list[Path]) -> list[tuple[Path, str | None]]:
+    def build_import_plan(self, file_paths: list[Path]) -> list[tuple[Path, str | None]]:
         """
         Plan which files would be imported to which accounts (dry-run).
 
@@ -541,4 +541,4 @@ class ImportService:
             List of (file_path, account_id or None) tuples
         """
         accounts = self.load_accounts()
-        return plan_normalization(file_paths, self.data_dir, accounts)
+        return build_normalization_plan(file_paths, self.data_dir, accounts)

@@ -54,26 +54,26 @@ class DescribeLoadStylesheet:
 
 
 class DescribeThemeManager:
-    def it_should_not_apply_stylesheet_when_theme_is_unchanged(self):
+    def it_should_not_run_stylesheet_when_theme_is_unchanged(self):
         mock_app = MagicMock()
         mock_app.property.return_value = "dark"
         manager = ThemeManager(mock_app)
 
         with (
             patch("gilt.gui.app.is_dark_mode", return_value=True),
-            patch("gilt.gui.app.apply_stylesheet") as mock_apply,
+            patch("gilt.gui.app.run_stylesheet") as mock_apply,
         ):
             manager.on_palette_changed()
             mock_apply.assert_not_called()
 
-    def it_should_apply_stylesheet_when_theme_changes(self):
+    def it_should_run_stylesheet_when_theme_changes(self):
         mock_app = MagicMock()
         mock_app.property.return_value = "light"
         manager = ThemeManager(mock_app)
 
         with (
             patch("gilt.gui.app.is_dark_mode", return_value=True),
-            patch("gilt.gui.app.apply_stylesheet") as mock_apply,
+            patch("gilt.gui.app.run_stylesheet") as mock_apply,
         ):
             manager.on_palette_changed()
             mock_apply.assert_called_once_with(mock_app)
@@ -88,7 +88,7 @@ class DescribeThemeManager:
 
         with (
             patch("gilt.gui.app.is_dark_mode", return_value=True),
-            patch("gilt.gui.app.apply_stylesheet"),
+            patch("gilt.gui.app.run_stylesheet"),
         ):
             manager.on_palette_changed()
             mock_window.on_theme_changed.assert_called_once_with("dark")
@@ -103,7 +103,7 @@ class DescribeThemeManager:
 
         with (
             patch("gilt.gui.app.is_dark_mode", return_value=True),
-            patch("gilt.gui.app.apply_stylesheet"),
+            patch("gilt.gui.app.run_stylesheet"),
         ):
             manager.on_palette_changed()
             mock_window.on_theme_changed.assert_not_called()

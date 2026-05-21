@@ -76,7 +76,7 @@ class DescribeInferRulesCommand:
             patch("gilt.cli.command.infer_rules.ProjectionBuilder") as MockPB,
         ):
             MockSvc.return_value.infer_rules.return_value = [mock_rule]
-            MockSvc.return_value.apply_rules.return_value = [mock_match]
+            MockSvc.return_value.run_rules.return_value = [mock_match]
             MockPB.return_value.get_all_transactions.return_value = []
 
             code = infer_rules.run(workspace=ws, apply=True, write=False)
@@ -115,7 +115,7 @@ class DescribeInferRulesCommand:
             patch("gilt.cli.command.util.EventSourcingService") as MockES,
         ):
             MockSvc.return_value.infer_rules.return_value = [mock_rule]
-            MockSvc.return_value.apply_rules.return_value = [mock_match]
+            MockSvc.return_value.run_rules.return_value = [mock_match]
             MockPB.return_value.get_all_transactions.return_value = []
             MockES.return_value.ensure_ready.return_value = EventSourcingReadyResult(
                 ready=True,

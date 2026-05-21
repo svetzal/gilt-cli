@@ -63,7 +63,7 @@ class EventMigrationService:
     All data passed as in-memory parameters.
     """
 
-    def generate_transaction_events(
+    def build_transaction_events(
         self, csv_text: str, filename: str
     ) -> tuple[list[Event], list[str]]:
         """Generate transaction events from CSV ledger text.
@@ -162,7 +162,7 @@ class EventMigrationService:
 
         return row_events, row_errors
 
-    def generate_budget_events(
+    def build_budget_events(
         self, category_config: CategoryConfig, timestamp: datetime | None = None
     ) -> list[Event]:
         """Generate budget events from category configuration.

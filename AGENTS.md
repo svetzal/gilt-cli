@@ -274,6 +274,8 @@ Function verb prefixes are standardised across the codebase. Follow these rules 
 
 The `find_projection_by_prefix` / `find_by_id_prefix` split in `TransactionOperationsService` exemplifies the rule that two methods doing similar things on *different types* must have names that reveal the type they operate on.
 
+**Remediation history:** Commit `4eab73a` applied `scan_→find_` and `rebuild_→build_` conventions across storage and service layers. A subsequent refactor extended the full convention set (`filter_→find_`, `plan_→build_`, `apply_→run_`, `calculate_→get_`, `generate_→build_`, `resolve_→find_/build_/run_`, `parse_→build_/load_`) to all remaining layers (services, CLI commands, GUI views, transfer, ingest). All old verb prefixes have been eliminated from the codebase.
+
 ## Anti-Patterns
 
 - **No real financial data in tracked files** — no real bank names, account IDs, merchant names, employer names, budget amounts, or locations in source, tests, or docs

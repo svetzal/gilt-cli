@@ -49,7 +49,7 @@ class DescribeDuplicateService:
         match = DuplicateMatch(pair=pair, assessment=assessment)
 
         # Act
-        service.resolve_duplicate(match, is_duplicate=True, keep_id="t1")
+        service.run_duplicate_resolution(match, is_duplicate=True, keep_id="t1")
 
         # Assert
         mock_event_store.append_event.assert_called_once()
@@ -81,7 +81,7 @@ class DescribeDuplicateService:
         match = DuplicateMatch(pair=pair, assessment=assessment)
 
         # Act
-        service.resolve_duplicate(match, is_duplicate=False, rationale="Different dates")
+        service.run_duplicate_resolution(match, is_duplicate=False, rationale="Different dates")
 
         # Assert
         mock_event_store.append_event.assert_called_once()
@@ -119,19 +119,19 @@ class DescribeResolveAndIdentifyDeletion:
         return DuplicateService(mock_detector, mock_event_store)
 
     def it_should_return_not_confirmed_when_rejected(self, service, match):
-        result = service.resolve_and_identify_deletion(match, is_duplicate=False)
+        result = service.run_duplicate_deletion(match, is_duplicate=False)
         assert result.confirmed is False
         assert result.delete_transaction_id is None
         assert result.delete_account_id is None
 
     def it_should_identify_txn2_for_deletion_when_keeping_txn1(self, service, match):
-        result = service.resolve_and_identify_deletion(match, is_duplicate=True, keep_id="t1")
+        result = service.run_duplicate_deletion(match, is_duplicate=True, keep_id="t1")
         assert result.confirmed is True
         assert result.delete_transaction_id == "t2"
         assert result.delete_account_id == "acc2"
 
     def it_should_identify_txn1_for_deletion_when_keeping_txn2(self, service, match):
-        result = service.resolve_and_identify_deletion(match, is_duplicate=True, keep_id="t2")
+        result = service.run_duplicate_deletion(match, is_duplicate=True, keep_id="t2")
         assert result.confirmed is True
         assert result.delete_transaction_id == "t1"
         assert result.delete_account_id == "acc1"

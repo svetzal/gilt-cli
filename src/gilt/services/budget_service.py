@@ -18,7 +18,7 @@ from gilt.services.budget_reporting_service import (
     aggregate_spending as _aggregate_spending_pure,
 )
 from gilt.services.budget_reporting_service import (
-    calculate_budget_for_period,
+    get_budget_for_period,
 )
 
 
@@ -242,7 +242,7 @@ class BudgetService:
         Returns:
             Prorated budget amount or None
         """
-        return calculate_budget_for_period(category.budget, month)
+        return get_budget_for_period(category.budget, month)
 
     def _aggregate_spending(
         self,

@@ -214,7 +214,7 @@ class DuplicateReviewPage(QWizardPage):
         # Record decision
         if self.service.duplicate_service:
             # We keep the existing one (txn2)
-            self.service.duplicate_service.resolve_duplicate(
+            self.service.duplicate_service.run_duplicate_resolution(
                 match, is_duplicate=True, keep_id=match.pair.txn2_id
             )
 
@@ -233,7 +233,7 @@ class DuplicateReviewPage(QWizardPage):
 
         # Record decision
         if self.service.duplicate_service:
-            self.service.duplicate_service.resolve_duplicate(
+            self.service.duplicate_service.run_duplicate_resolution(
                 match, is_duplicate=False, rationale="User rejected in wizard"
             )
 

@@ -28,7 +28,7 @@ from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.storage.budget_projection import BudgetProjectionBuilder
 from gilt.workspace import Workspace
 
-from .util import console, print_error, print_error_list, resolve_effective_paths
+from .util import build_effective_paths, console, print_error, print_error_list
 
 
 def _init_event_sourcing(
@@ -99,7 +99,7 @@ def run(
         effective_event_store_path,
         effective_projections_db_path,
         effective_budget_projections_db_path,
-    ) = resolve_effective_paths(workspace, event_store_path, projections_db_path, budget_projections_db_path)
+    ) = build_effective_paths(workspace, event_store_path, projections_db_path, budget_projections_db_path)
 
     console.print("[bold cyan]Event Sourcing Migration - Manual Backfill[/]")
     console.print("[yellow]ℹ Most users should use 'gilt migrate-to-events --write'[/]")
@@ -226,7 +226,7 @@ def _backfill_transactions(
             try:
                 # Use service to generate events
                 csv_text = ledger_path.read_text(encoding="utf-8")
-                events, errors = service.generate_transaction_events(csv_text, ledger_path.name)
+                events, errors = service.build_transaction_events(csv_text, ledger_path.name)
 
                 # Update statistics
                 for event in events:
@@ -268,7 +268,7 @@ def _backfill_budgets(
         stats.errors += 1
         return []
 
-    events = service.generate_budget_events(config)
+    events = service.build_budget_events(config)
     display_lines: list[str] = []
 
     for event in events:

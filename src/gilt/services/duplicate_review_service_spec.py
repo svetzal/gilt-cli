@@ -160,7 +160,7 @@ class DescribeUserDecisionProcessing(DescribeDuplicateReviewService):
         decision = UserDecision(choice="1", rationale="Latest format is clearer")
         suggestion_id = "suggestion-event-123"
 
-        event, action = service.apply_user_decision(
+        event, action = service.run_user_decision(
             decision=decision,
             pair=sample_pair,
             assessment=sample_assessment,
@@ -200,7 +200,7 @@ class DescribeUserDecisionProcessing(DescribeDuplicateReviewService):
         decision = UserDecision(choice="2", rationale=None)
         suggestion_id = "suggestion-event-456"
 
-        event, action = service.apply_user_decision(
+        event, action = service.run_user_decision(
             decision=decision,
             pair=sample_pair,
             assessment=sample_assessment,
@@ -226,7 +226,7 @@ class DescribeUserDecisionProcessing(DescribeDuplicateReviewService):
         decision = UserDecision(choice="N", rationale="Different purchases")
         suggestion_id = "suggestion-event-789"
 
-        event, action = service.apply_user_decision(
+        event, action = service.run_user_decision(
             decision=decision,
             pair=sample_pair,
             assessment=sample_assessment,
@@ -263,7 +263,7 @@ class DescribeUserDecisionProcessing(DescribeDuplicateReviewService):
         decision = UserDecision(choice="n", rationale=None)
         suggestion_id = "suggestion-event-999"
 
-        event, action = service.apply_user_decision(
+        event, action = service.run_user_decision(
             decision=decision,
             pair=sample_pair,
             assessment=sample_assessment,
@@ -281,7 +281,7 @@ class DescribeSmartDefaultCalculation(DescribeDuplicateReviewService):
         """Should default to latest description when no learned patterns exist."""
         learned_patterns = []
 
-        smart_default = service.calculate_smart_default(learned_patterns)
+        smart_default = service.get_smart_default(learned_patterns)
 
         assert smart_default.default_choice == "1"
         assert smart_default.hint == ""
@@ -293,7 +293,7 @@ class DescribeSmartDefaultCalculation(DescribeDuplicateReviewService):
             "Other pattern here",
         ]
 
-        smart_default = service.calculate_smart_default(learned_patterns)
+        smart_default = service.get_smart_default(learned_patterns)
 
         assert smart_default.default_choice == "1"
         assert "85%" in smart_default.hint
@@ -306,7 +306,7 @@ class DescribeSmartDefaultCalculation(DescribeDuplicateReviewService):
             "User prefers original description format (70% of confirmations)",
         ]
 
-        smart_default = service.calculate_smart_default(learned_patterns)
+        smart_default = service.get_smart_default(learned_patterns)
 
         assert smart_default.default_choice == "2"
         assert "70%" in smart_default.hint
@@ -318,7 +318,7 @@ class DescribeSmartDefaultCalculation(DescribeDuplicateReviewService):
             "User prefers latest description format (92% of confirmations)",
         ]
 
-        smart_default = service.calculate_smart_default(learned_patterns)
+        smart_default = service.get_smart_default(learned_patterns)
 
         assert "92%" in smart_default.hint
 
@@ -328,7 +328,7 @@ class DescribeSmartDefaultCalculation(DescribeDuplicateReviewService):
             "User prefers latest description format",
         ]
 
-        smart_default = service.calculate_smart_default(learned_patterns)
+        smart_default = service.get_smart_default(learned_patterns)
 
         assert smart_default.default_choice == "1"
         # Should still have hint even without percentage
@@ -510,7 +510,7 @@ class DescribeEdgeCases(DescribeDuplicateReviewService):
         """Should handle empty/None rationale in user decision."""
         decision = UserDecision(choice="1", rationale=None)
 
-        event, _ = service.apply_user_decision(
+        event, _ = service.run_user_decision(
             decision=decision,
             pair=sample_pair,
             assessment=sample_assessment,
@@ -602,7 +602,7 @@ class DescribeDuplicateFiltering(DescribeDuplicateReviewService):
             self._make_match(0.9),
         ]
 
-        filtered = service.filter_by_confidence(matches, min_confidence=0.7)
+        filtered = service.find_by_confidence(matches, min_confidence=0.7)
 
         assert len(filtered) == 2
         assert all(m.assessment.confidence >= 0.7 for m in filtered)

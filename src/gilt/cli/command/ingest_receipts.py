@@ -19,9 +19,9 @@ from gilt.services.receipt_ingestion_service import (
     DEFAULT_VENDOR_PATTERNS,
     MatchResult,
     batch_match_receipts,
-    filter_receipts_by_year,
     find_already_ingested_invoices,
     find_receipt_files,
+    find_receipts_by_year,
     load_receipt_file,
 )
 from gilt.workspace import Workspace
@@ -186,7 +186,7 @@ def _filter_paths_by_year(json_paths: list[Path], year: int) -> tuple[list[Path]
             all_receipts.append(load_receipt_file(p))
         except (json.JSONDecodeError, OSError, ValueError) as e:
             parse_warnings.append(f"skipping {p.name} — {e}")
-    return [r.source_path for r in filter_receipts_by_year(all_receipts, year)], parse_warnings
+    return [r.source_path for r in find_receipts_by_year(all_receipts, year)], parse_warnings
 
 
 def run(

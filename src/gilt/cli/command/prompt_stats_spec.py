@@ -91,7 +91,7 @@ class DescribePromptStatsCommand:
                 mock_es_cls.return_value = mock_es
 
                 mock_learning = MagicMock()
-                mock_learning.calculate_accuracy.return_value = _make_accuracy_metrics(
+                mock_learning.get_accuracy.return_value = _make_accuracy_metrics(
                     total_feedback=0
                 )
                 mock_learning_cls.return_value = mock_learning
@@ -99,7 +99,7 @@ class DescribePromptStatsCommand:
                 result = run(workspace=workspace)
 
             assert result == 0
-            mock_learning.calculate_accuracy.assert_called_once()
+            mock_learning.get_accuracy.assert_called_once()
 
     def it_should_display_accuracy_metrics_when_feedback_exists(self):
         with TemporaryDirectory() as tmpdir:
@@ -126,7 +126,7 @@ class DescribePromptStatsCommand:
                 mock_es_cls.return_value = mock_es
 
                 mock_learning = MagicMock()
-                mock_learning.calculate_accuracy.return_value = _make_accuracy_metrics(
+                mock_learning.get_accuracy.return_value = _make_accuracy_metrics(
                     total_feedback=10
                 )
                 mock_learning.identify_learned_patterns.return_value = []
@@ -135,7 +135,7 @@ class DescribePromptStatsCommand:
                 result = run(workspace=workspace)
 
             assert result == 0
-            mock_learning.calculate_accuracy.assert_called_once()
+            mock_learning.get_accuracy.assert_called_once()
             mock_learning.identify_learned_patterns.assert_called_once()
 
     def it_should_display_prompt_history(self):
@@ -173,7 +173,7 @@ class DescribePromptStatsCommand:
                 mock_es_cls.return_value = mock_es
 
                 mock_learning = MagicMock()
-                mock_learning.calculate_accuracy.return_value = _make_accuracy_metrics(
+                mock_learning.get_accuracy.return_value = _make_accuracy_metrics(
                     total_feedback=5
                 )
                 mock_learning.identify_learned_patterns.return_value = []

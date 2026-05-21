@@ -79,7 +79,7 @@ class PromptLearningService:
         """
         self.event_store = event_store
 
-    def calculate_accuracy(self) -> AccuracyMetrics:
+    def get_accuracy(self) -> AccuracyMetrics:
         """Calculate accuracy metrics from all feedback events.
 
         Returns:
@@ -212,7 +212,7 @@ class PromptLearningService:
 
         return patterns
 
-    def generate_prompt_update(self, current_version: str = "v1") -> PromptUpdated | None:
+    def build_prompt_update(self, current_version: str = "v1") -> PromptUpdated | None:
         """Generate a PromptUpdated event if enough learning has occurred.
 
         Args:
@@ -225,7 +225,7 @@ class PromptLearningService:
         if not patterns:
             return None
 
-        metrics = self.calculate_accuracy()
+        metrics = self.get_accuracy()
 
         # Determine next version
         try:

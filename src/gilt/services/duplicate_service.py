@@ -108,7 +108,7 @@ class DuplicateService:
         """
         return self.detector.find_duplicates_in_dir(data_dir, max_days_apart, amount_tolerance)
 
-    def resolve_duplicate(
+    def run_duplicate_resolution(
         self,
         match: DuplicateMatch,
         is_duplicate: bool,
@@ -158,7 +158,7 @@ class DuplicateService:
 
         self.event_store.append_event(event)
 
-    def resolve_and_identify_deletion(
+    def run_duplicate_deletion(
         self,
         match: DuplicateMatch,
         is_duplicate: bool,
@@ -167,7 +167,7 @@ class DuplicateService:
     ) -> DuplicateResolutionResult:
         """Resolve a match and return which transaction should be deleted.
 
-        Calls resolve_duplicate() to record the decision, then computes which
+        Calls run_duplicate_resolution() to record the decision, then computes which
         transaction (if any) should be removed from the ledger.
 
         Args:
@@ -180,7 +180,7 @@ class DuplicateService:
             DuplicateResolutionResult — if confirmed, delete_transaction_id and
             delete_account_id are populated; otherwise they are None.
         """
-        self.resolve_duplicate(match, is_duplicate, keep_id, rationale)
+        self.run_duplicate_resolution(match, is_duplicate, keep_id, rationale)
 
         if not is_duplicate:
             return DuplicateResolutionResult(confirmed=False)

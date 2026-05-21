@@ -154,7 +154,7 @@ class CategorizationService:
 
         return preview.matched_groups
 
-    def plan_categorization(
+    def build_categorization_plan(
         self,
         criteria: SearchCriteria,
         groups: list[TransactionGroup],
@@ -190,7 +190,7 @@ class CategorizationService:
             validation_errors=validation.errors,
         )
 
-    def apply_categorization(
+    def run_categorization(
         self,
         matches: list[TransactionGroup],
         category: str,

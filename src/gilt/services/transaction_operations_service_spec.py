@@ -534,26 +534,26 @@ class DescribeResolveTransactionTargets(DescribeTransactionOperationsService):
     """Tests for resolve_transaction_targets method."""
 
     def it_should_find_by_txid_prefix(self, service, sample_groups):
-        result = service.resolve_transaction_targets(sample_groups, txid="abc123de")
+        result = service.find_transaction_targets(sample_groups, txid="abc123de")
 
         assert isinstance(result, list)
         assert len(result) == 1
         assert result[0].primary.transaction_id == "abc123def456"
 
     def it_should_return_error_when_txid_prefix_too_short(self, service, sample_groups):
-        result = service.resolve_transaction_targets(sample_groups, txid="abc")
+        result = service.find_transaction_targets(sample_groups, txid="abc")
 
         assert isinstance(result, str)
         assert "at least 8 characters" in result
 
     def it_should_return_error_when_txid_not_found(self, service, sample_groups):
-        result = service.resolve_transaction_targets(sample_groups, txid="zzz99999")
+        result = service.find_transaction_targets(sample_groups, txid="zzz99999")
 
         assert isinstance(result, str)
         assert "No transaction found" in result
 
     def it_should_return_error_string_when_txid_ambiguous(self, service, sample_groups):
-        result = service.resolve_transaction_targets(sample_groups, txid="abc123de")
+        result = service.find_transaction_targets(sample_groups, txid="abc123de")
 
         # abc123de uniquely resolves to abc123def456, not ambiguous
         assert isinstance(result, list)
@@ -587,39 +587,39 @@ class DescribeResolveTransactionTargets(DescribeTransactionOperationsService):
                 ),
             ),
         ]
-        result = service.resolve_transaction_targets(shared_prefix_groups, txid="aabbccdd")
+        result = service.find_transaction_targets(shared_prefix_groups, txid="aabbccdd")
 
         assert isinstance(result, str)
         assert "Ambiguous prefix" in result
         assert "2 transactions" in result
 
     def it_should_find_by_description_criteria(self, service, sample_groups):
-        result = service.resolve_transaction_targets(sample_groups, description="NETFLIX SUBSCRIPTION")
+        result = service.find_transaction_targets(sample_groups, description="NETFLIX SUBSCRIPTION")
 
         assert isinstance(result, list)
         assert len(result) == 1
         assert result[0].primary.description == "NETFLIX SUBSCRIPTION"
 
     def it_should_find_by_desc_prefix_criteria(self, service, sample_groups):
-        result = service.resolve_transaction_targets(sample_groups, desc_prefix="SPOTIFY")
+        result = service.find_transaction_targets(sample_groups, desc_prefix="SPOTIFY")
 
         assert isinstance(result, list)
         assert len(result) == 2
 
     def it_should_find_by_pattern_criteria(self, service, sample_groups):
-        result = service.resolve_transaction_targets(sample_groups, pattern=r"SPOTIFY|NETFLIX")
+        result = service.find_transaction_targets(sample_groups, pattern=r"SPOTIFY|NETFLIX")
 
         assert isinstance(result, list)
         assert len(result) == 3
 
     def it_should_return_error_for_invalid_pattern(self, service, sample_groups):
-        result = service.resolve_transaction_targets(sample_groups, pattern="[invalid(")
+        result = service.find_transaction_targets(sample_groups, pattern="[invalid(")
 
         assert isinstance(result, str)
         assert "Invalid regex pattern" in result
 
     def it_should_filter_by_amount_in_criteria_mode(self, service, sample_groups):
-        result = service.resolve_transaction_targets(
+        result = service.find_transaction_targets(
             sample_groups, desc_prefix="SPOTIFY", amount=-10.99
         )
 
@@ -627,7 +627,7 @@ class DescribeResolveTransactionTargets(DescribeTransactionOperationsService):
         assert len(result) == 2
 
     def it_should_return_empty_list_when_no_criteria_matches(self, service, sample_groups):
-        result = service.resolve_transaction_targets(sample_groups, description="NONEXISTENT")
+        result = service.find_transaction_targets(sample_groups, description="NONEXISTENT")
 
         assert isinstance(result, list)
         assert len(result) == 0

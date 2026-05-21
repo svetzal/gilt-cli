@@ -99,7 +99,7 @@ def format_category_path(category: str, subcategory: str | None) -> str:
     return category
 
 
-def parse_category_path(category_path: str) -> tuple[str, str | None]:
+def build_category_from_path(category_path: str) -> tuple[str, str | None]:
     """Parse a category path string into category and optional subcategory.
 
     Supports both formats:
@@ -121,6 +121,6 @@ def parse_category_path(category_path: str) -> tuple[str, str | None]:
 __all__ = [
     "load_categories_config",
     "save_categories_config",
-    "parse_category_path",
+    "build_category_from_path",
     "format_category_path",
 ]

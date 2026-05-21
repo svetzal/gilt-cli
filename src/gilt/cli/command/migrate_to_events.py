@@ -28,7 +28,7 @@ from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.storage.budget_projection import BudgetProjectionBuilder
 from gilt.workspace import Workspace
 
-from .util import console, print_error, print_error_list, resolve_effective_paths
+from .util import build_effective_paths, console, print_error, print_error_list
 
 
 def _display_dry_run_plan(ledger_files: list[Path], has_categories: bool) -> None:
@@ -122,7 +122,7 @@ def _backfill_events(
     for ledger_path in ledger_files:
         try:
             csv_text = ledger_path.read_text(encoding="utf-8")
-            events, event_errors = service.generate_transaction_events(csv_text, ledger_path.name)
+            events, event_errors = service.build_transaction_events(csv_text, ledger_path.name)
             for event in events:
                 event_store.append_event(event)
                 transaction_events += 1
@@ -136,7 +136,7 @@ def _backfill_events(
     if has_categories:
         try:
             config = load_categories_config(categories_config)
-            budget_event_list = service.generate_budget_events(config)
+            budget_event_list = service.build_budget_events(config)
             for event in budget_event_list:
                 event_store.append_event(event)
                 budget_events += 1
@@ -264,7 +264,7 @@ def run(
         effective_event_store_path,
         effective_projections_db_path,
         effective_budget_projections_db_path,
-    ) = resolve_effective_paths(workspace, event_store_path, projections_db_path, budget_projections_db_path)
+    ) = build_effective_paths(workspace, event_store_path, projections_db_path, budget_projections_db_path)
 
     console.print("[bold cyan]Migrating to Event Sourcing Architecture[/]")
     console.print()

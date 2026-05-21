@@ -135,7 +135,7 @@ def run(
         return load_result
 
     query_service = TransactionQueryService()
-    primaries = query_service.filter_transactions(
+    primaries = query_service.find_transactions(
         load_result, account_id=account, year=the_year, limit=limit
     )
 
@@ -166,7 +166,7 @@ def run(
     table.add_column("TxnID8", style="dim", no_wrap=True)
     table.add_column("Notes", style="dim")
 
-    totals = query_service.calculate_totals(primaries)
+    totals = query_service.get_totals(primaries)
 
     for t in primaries:
         _add_table_row(table, t, compare, raw)

@@ -197,7 +197,7 @@ class DescribeTransactionServiceProjectionLoading:
         projection_builder.build_from_scratch(event_store)
 
         groups = service.load_all_transactions()
-        filtered = service.filter_transactions(groups, account_filter=["MYBANK_CHQ"])
+        filtered = service.find_transactions(groups, account_filter=["MYBANK_CHQ"])
 
         assert len(filtered) == 1
         assert filtered[0].primary.account_id == "MYBANK_CHQ"
@@ -210,7 +210,7 @@ class DescribeTransactionServiceProjectionLoading:
         projection_builder.build_from_scratch(event_store)
 
         groups = service.load_all_transactions()
-        filtered = service.filter_transactions(groups, search_text="acme")
+        filtered = service.find_transactions(groups, search_text="acme")
 
         assert len(filtered) == 1
         assert filtered[0].primary.description == "ACME CORP PAYMENT"

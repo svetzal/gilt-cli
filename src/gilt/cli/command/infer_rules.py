@@ -129,7 +129,7 @@ def run(
     all_txns = ProjectionBuilder(workspace.projections_path).get_all_transactions(
         include_duplicates=False
     )
-    matches = service.apply_rules(all_txns, rules)
+    matches = service.run_rules(all_txns, rules)
 
     if not matches:
         console.print("[green]No uncategorized transactions match inferred rules[/green]")

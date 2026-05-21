@@ -139,7 +139,7 @@ class DescribeReingestRunDryRun:
         mock_plan.files = []
 
         with patch("gilt.cli.command.reingest.IngestionService") as MockSvc:
-            MockSvc.return_value.plan_ingestion.return_value = mock_plan
+            MockSvc.return_value.build_ingestion_plan.return_value = mock_plan
             result = run(account="MYBANK_CHQ", workspace=ws, write=False)
 
         assert result == 1
@@ -168,8 +168,8 @@ class DescribeReingestRunDryRun:
             patch("gilt.cli.command.reingest.require_event_sourcing", return_value=mock_ready),
             patch("gilt.cli.command.reingest.ReingestionService") as MockReingestSvc,
         ):
-            MockSvc.return_value.plan_ingestion.return_value = mock_plan
-            MockReingestSvc.return_value.plan_purge.return_value = mock_purge_plan
+            MockSvc.return_value.build_ingestion_plan.return_value = mock_plan
+            MockReingestSvc.return_value.build_purge_plan.return_value = mock_purge_plan
 
             result = run(account="MYBANK_CHQ", workspace=ws, write=False)
 

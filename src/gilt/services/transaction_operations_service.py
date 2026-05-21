@@ -282,7 +282,7 @@ class TransactionOperationsService:
             splits=group.splits,
         )
 
-    def resolve_transaction_targets(
+    def find_transaction_targets(
         self,
         groups: list[TransactionGroup],
         *,

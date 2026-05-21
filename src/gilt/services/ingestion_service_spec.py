@@ -238,7 +238,7 @@ class DescribePlanIngestion(DescribeIngestionService):
         self, service: IngestionService, ingest_dir_with_files: Path
     ):
         """Should create plan mapping all discovered files to accounts."""
-        plan = service.plan_ingestion(ingest_dir_with_files)
+        plan = service.build_ingestion_plan(ingest_dir_with_files)
 
         assert isinstance(plan, IngestionPlan)
         assert plan.total_files == 4  # Excludes unknown-bank.csv
@@ -257,7 +257,7 @@ class DescribePlanIngestion(DescribeIngestionService):
         accounts = [Account(account_id="MYBANK_CHQ", source_patterns=["*mybank*chequing*.csv"])]
         service = IngestionService(accounts=accounts)
 
-        plan = service.plan_ingestion(ingest_dir)
+        plan = service.build_ingestion_plan(ingest_dir)
 
         assert plan.total_files == 1  # Only matches pattern
         assert len(plan.files) == 1
@@ -268,7 +268,7 @@ class DescribePlanIngestion(DescribeIngestionService):
         self, service: IngestionService, ingest_dir_with_files: Path
     ):
         """Should correctly map each file to its target account."""
-        plan = service.plan_ingestion(ingest_dir_with_files)
+        plan = service.build_ingestion_plan(ingest_dir_with_files)
 
         file_mapping = {p.name: acct_id for p, acct_id in plan.files}
 
@@ -282,7 +282,7 @@ class DescribePlanIngestion(DescribeIngestionService):
         empty_dir = tmp_path / "empty"
         empty_dir.mkdir()
 
-        plan = service.plan_ingestion(empty_dir)
+        plan = service.build_ingestion_plan(empty_dir)
 
         assert plan.total_files == 0
         assert plan.files == []
@@ -297,7 +297,7 @@ class DescribePlanIngestion(DescribeIngestionService):
         (ingest_dir / "unknown2.csv").write_text("test")
 
         service = IngestionService(accounts=[])
-        plan = service.plan_ingestion(ingest_dir)
+        plan = service.build_ingestion_plan(ingest_dir)
 
         assert plan.total_files == 2
         assert len(plan.files) == 2
@@ -314,7 +314,7 @@ class DescribePlanIngestion(DescribeIngestionService):
         (ingest_dir / "a-mybank-chequing.csv").write_text("test")
         (ingest_dir / "m-mybank-chequing.csv").write_text("test")
 
-        plan = service.plan_ingestion(ingest_dir)
+        plan = service.build_ingestion_plan(ingest_dir)
         file_names = [p.name for p in (f for f, _ in plan.files)]
 
         assert file_names == sorted(file_names)

@@ -105,7 +105,7 @@ def run(
 
     # Find source files for this account
     ingestion_service = IngestionService(accounts=accounts)
-    ingestion_plan = ingestion_service.plan_ingestion(ingest_dir)
+    ingestion_plan = ingestion_service.build_ingestion_plan(ingest_dir)
     account_files = [(p, aid) for p, aid in ingestion_plan.files if aid == account]
 
     if not account_files:
@@ -126,7 +126,7 @@ def run(
         ledger_data_dir=output_dir,
         intelligence_cache_path=workspace.intelligence_cache_path,
     )
-    purge_plan = reingest_svc.plan_purge(account)
+    purge_plan = reingest_svc.build_purge_plan(account)
 
     ledger_path = output_dir / f"{account}.csv"
     _display_reingest_plan(account, account_files, ledger_path, purge_plan)

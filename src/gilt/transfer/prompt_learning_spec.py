@@ -153,7 +153,7 @@ class DescribePromptLearningServiceAccuracy:
         return PromptLearningService(event_store)
 
     def it_should_return_zero_metrics_with_no_events(self, service):
-        metrics = service.calculate_accuracy()
+        metrics = service.get_accuracy()
         assert metrics.total_feedback == 0
         assert metrics.true_positives == 0
         assert metrics.false_positives == 0
@@ -166,7 +166,7 @@ class DescribePromptLearningServiceAccuracy:
     ):
         suggestion_id = _append_suggestion(event_store, is_duplicate=True)
         _append_confirmation(event_store, suggestion_id)
-        metrics = service.calculate_accuracy()
+        metrics = service.get_accuracy()
         assert metrics.true_positives == 1
         assert metrics.false_positives == 0
 
@@ -175,7 +175,7 @@ class DescribePromptLearningServiceAccuracy:
     ):
         suggestion_id = _append_suggestion(event_store, is_duplicate=True)
         _append_rejection(event_store, suggestion_id)
-        metrics = service.calculate_accuracy()
+        metrics = service.get_accuracy()
         assert metrics.false_positives == 1
         assert metrics.true_positives == 0
 
@@ -184,7 +184,7 @@ class DescribePromptLearningServiceAccuracy:
     ):
         suggestion_id = _append_suggestion(event_store, is_duplicate=False)
         _append_rejection(event_store, suggestion_id)
-        metrics = service.calculate_accuracy()
+        metrics = service.get_accuracy()
         assert metrics.true_negatives == 1
 
     def it_should_count_false_negative_when_llm_said_not_duplicate_and_user_confirmed(
@@ -192,7 +192,7 @@ class DescribePromptLearningServiceAccuracy:
     ):
         suggestion_id = _append_suggestion(event_store, is_duplicate=False)
         _append_confirmation(event_store, suggestion_id)
-        metrics = service.calculate_accuracy()
+        metrics = service.get_accuracy()
         assert metrics.false_negatives == 1
 
     def it_should_handle_mixed_feedback_correctly(self, service, event_store):
@@ -208,7 +208,7 @@ class DescribePromptLearningServiceAccuracy:
         fn_id = _append_suggestion(event_store, is_duplicate=False, txn1_id="g", txn2_id="h")
         _append_confirmation(event_store, fn_id)
 
-        metrics = service.calculate_accuracy()
+        metrics = service.get_accuracy()
         assert metrics.true_positives == 1
         assert metrics.false_positives == 1
         assert metrics.true_negatives == 1
@@ -227,7 +227,7 @@ class DescribePromptLearningServiceAccuracy:
             llm_was_correct=True,
         )
         event_store.append_event(event)
-        metrics = service.calculate_accuracy()
+        metrics = service.get_accuracy()
         assert metrics.total_feedback == 0
 
 
@@ -383,7 +383,7 @@ class DescribePromptLearningServicePromptGeneration:
         return PromptLearningService(event_store)
 
     def it_should_return_none_when_no_patterns_learned(self, service):
-        result = service.generate_prompt_update()
+        result = service.build_prompt_update()
         assert result is None
 
     def it_should_generate_prompt_updated_event_with_learned_patterns(self, service, event_store):
@@ -393,7 +393,7 @@ class DescribePromptLearningServicePromptGeneration:
             )
             _append_confirmation(event_store, sid)
 
-        result = service.generate_prompt_update(current_version="v1")
+        result = service.build_prompt_update(current_version="v1")
         assert result is not None
         assert result.prompt_version == "v2"
         assert result.previous_version == "v1"
@@ -407,7 +407,7 @@ class DescribePromptLearningServicePromptGeneration:
             )
             _append_confirmation(event_store, sid)
 
-        result = service.generate_prompt_update(current_version="v3")
+        result = service.build_prompt_update(current_version="v3")
         assert result.prompt_version == "v4"
 
     def it_should_default_to_v2_on_unparseable_version(self, service, event_store):
@@ -417,5 +417,5 @@ class DescribePromptLearningServicePromptGeneration:
             )
             _append_confirmation(event_store, sid)
 
-        result = service.generate_prompt_update(current_version="invalid")
+        result = service.build_prompt_update(current_version="invalid")
         assert result.prompt_version == "v2"

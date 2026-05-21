@@ -260,7 +260,7 @@ def categorization_updates_from_rule_matches(
     """Convert a list of RuleMatch objects into CategorizationUpdate objects.
 
     Args:
-        matches: Rule matches from RuleInferenceService.apply_rules().
+        matches: Rule matches from RuleInferenceService.run_rules().
 
     Returns:
         List of CategorizationUpdate objects ready to pass to

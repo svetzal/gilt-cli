@@ -235,7 +235,7 @@ class DescribeGenerateReport:
                 category="Utilities",
             ),
         ]
-        report = service.generate_report(transactions, year=2025, month=10)
+        report = service.build_report(transactions, year=2025, month=10)
         assert report.year == 2025
         assert report.month == 10
         assert isinstance(report.generated_date, date)
@@ -270,7 +270,7 @@ class DescribeGenerateReport:
                 category="Utilities",  # under budget
             ),
         ]
-        report = service.generate_report(transactions, year=2025, month=10)
+        report = service.build_report(transactions, year=2025, month=10)
         assert report.over_budget_count == 1
 
     def it_should_calculate_totals(self):
@@ -289,7 +289,7 @@ class DescribeGenerateReport:
                 category="Groceries",
             ),
         ]
-        report = service.generate_report(transactions, year=2025, month=10)
+        report = service.build_report(transactions, year=2025, month=10)
         assert report.total_budgeted == 500.00
         assert report.total_actual == 300.00
         assert report.total_remaining == 200.00
@@ -312,7 +312,7 @@ class DescribeMarkdownRendering:
                 category="Groceries",
             ),
         ]
-        report = service.generate_report(transactions, year=2025, month=10)
+        report = service.build_report(transactions, year=2025, month=10)
         markdown = service.render_markdown(report)
         assert "## Budget Summary" in markdown
         assert "| Category | Budget | Actual | Remaining | % Used |" in markdown
@@ -342,7 +342,7 @@ class DescribeMarkdownRendering:
                 subcategory="Fuel",
             ),
         ]
-        report = service.generate_report(transactions, year=2025, month=10)
+        report = service.build_report(transactions, year=2025, month=10)
         markdown = service.render_markdown(report)
         assert "## Detailed Breakdown" in markdown
         assert "### Transportation" in markdown
@@ -367,7 +367,7 @@ class DescribeMarkdownRendering:
                 category="Groceries",
             ),
         ]
-        report = service.generate_report(transactions, year=2025, month=10)
+        report = service.build_report(transactions, year=2025, month=10)
         markdown = service.render_markdown(report)
         assert "⚠️" in markdown
         assert "over budget" in markdown.lower()
@@ -375,7 +375,7 @@ class DescribeMarkdownRendering:
     def it_should_include_report_header_with_period(self):
         service = _make_service()
         transactions: list = []
-        report = service.generate_report(transactions, year=2025, month=10)
+        report = service.build_report(transactions, year=2025, month=10)
         markdown = service.render_markdown(report)
         assert "# Budget Report - 2025-10" in markdown
         assert "**Period:**" in markdown

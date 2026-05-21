@@ -200,7 +200,7 @@ class DescribeFilterMatches:
 
         detector = MagicMock()
         review_service = MagicMock()
-        review_service.filter_by_confidence.return_value = [high_conf]
+        review_service.find_by_confidence.return_value = [high_conf]
         review_service.exclude_already_processed.return_value = ([high_conf], 0)
         projection_builder = MagicMock()
 
@@ -218,7 +218,7 @@ class DescribeFilterMatches:
 
         detector = MagicMock()
         review_service = MagicMock()
-        review_service.filter_by_confidence.return_value = [match]
+        review_service.find_by_confidence.return_value = [match]
         review_service.exclude_already_processed.return_value = ([], 1)
         projection_builder = MagicMock()
 
@@ -233,7 +233,7 @@ class DescribeFilterMatches:
     def it_should_return_empty_list_when_no_matches_pass_filter(self):
         detector = MagicMock()
         review_service = MagicMock()
-        review_service.filter_by_confidence.return_value = []
+        review_service.find_by_confidence.return_value = []
         projection_builder = MagicMock()
 
         with patch("gilt.cli.command.duplicates._analyze_candidates", return_value=[]):
@@ -279,7 +279,7 @@ class DescribeRecordFeedback:
         confirmed_event.canonical_description = "SAMPLE STORE"
 
         review_service = MagicMock()
-        review_service.apply_user_decision.return_value = (confirmed_event, "confirmed")
+        review_service.run_user_decision.return_value = (confirmed_event, "confirmed")
 
         es_service = MagicMock()
         es_service.ensure_projections_up_to_date.return_value = 1
@@ -307,7 +307,7 @@ class DescribeRecordFeedback:
         rejected_event = MagicMock(spec=DuplicateRejected)
 
         review_service = MagicMock()
-        review_service.apply_user_decision.return_value = (rejected_event, "rejected")
+        review_service.run_user_decision.return_value = (rejected_event, "rejected")
 
         es_service = MagicMock()
         es_service.ensure_projections_up_to_date.return_value = 0
@@ -336,7 +336,7 @@ class DescribeRecordFeedback:
         confirmed_event.canonical_description = "SAMPLE STORE"
 
         review_service = MagicMock()
-        review_service.apply_user_decision.return_value = (confirmed_event, "confirmed")
+        review_service.run_user_decision.return_value = (confirmed_event, "confirmed")
 
         es_service = MagicMock()
         es_service.ensure_projections_up_to_date.return_value = 5

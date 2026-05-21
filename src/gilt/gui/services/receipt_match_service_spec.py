@@ -194,7 +194,7 @@ class DescribeReceiptMatchServiceApplyMatch:
 
             # Find candidate and apply
             receipt = load_receipt_file(receipts_dir / "acme.json")
-            svc.apply_match(receipt, "abcd1234abcd1234")
+            svc.run_match(receipt, "abcd1234abcd1234")
 
             # Verify event was written
             events = store.get_events_by_type("TransactionEnriched")
@@ -215,7 +215,7 @@ class DescribeReceiptMatchServiceApplyMatch:
             svc = ReceiptMatchService(receipts_dir, store)
 
             receipt = load_receipt_file(receipts_dir / "acme.json")
-            svc.apply_match(receipt, "abcd1234abcd1234", match_confidence="exact")
+            svc.run_match(receipt, "abcd1234abcd1234", match_confidence="exact")
 
             events = store.get_events_by_type("TransactionEnriched")
             assert events[0].match_confidence == "exact"

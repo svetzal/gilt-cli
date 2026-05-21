@@ -56,7 +56,7 @@ class BudgetReport:
     over_budget_count: int
 
 
-def calculate_budget_for_period(budget: Budget | None, month: int | None) -> float | None:
+def get_budget_for_period(budget: Budget | None, month: int | None) -> float | None:
     """Return the budget amount adjusted for the report period.
 
     For a monthly report (month is not None):
@@ -192,13 +192,13 @@ class BudgetReportingService:
 
         Returns None when no budget is defined.
         """
-        return calculate_budget_for_period(budget, month)
+        return get_budget_for_period(budget, month)
 
     # ------------------------------------------------------------------
     # Report assembly
     # ------------------------------------------------------------------
 
-    def generate_report(
+    def build_report(
         self,
         transactions: list[Transaction],
         *,
@@ -431,5 +431,5 @@ __all__ = [
     "BudgetSummaryLine",
     "ExpenseDetail",
     "aggregate_spending",
-    "calculate_budget_for_period",
+    "get_budget_for_period",
 ]

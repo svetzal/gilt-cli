@@ -112,7 +112,7 @@ class _FeedbackResult:
 
 def _record_feedback(ctx: ReviewContext, decision, pair, assessment, suggestion_event_id: str) -> _FeedbackResult:
     """Apply user decision, update projections, and update prompt manager. Returns result for display."""
-    event, action = ctx.review_service.apply_user_decision(
+    event, action = ctx.review_service.run_user_decision(
         decision=decision,
         pair=pair,
         assessment=assessment,
@@ -174,7 +174,7 @@ def _display_and_review_match(ctx: ReviewContext, i: int, total: int, match, sug
     ctx.console.print()
 
     # Display options
-    smart_default = ctx.review_service.calculate_smart_default(ctx.detector.learned_patterns)
+    smart_default = ctx.review_service.get_smart_default(ctx.detector.learned_patterns)
     _display_match_options(ctx.console, smart_default)
 
     # Prompt
@@ -323,7 +323,7 @@ def _filter_matches(detector, review_service, candidates, detection_method, min_
     """
     matches = _analyze_candidates(console, detector, candidates, detection_method)
 
-    filtered_matches = review_service.filter_by_confidence(matches, min_confidence)
+    filtered_matches = review_service.find_by_confidence(matches, min_confidence)
     if not filtered_matches:
         return [], 0
 

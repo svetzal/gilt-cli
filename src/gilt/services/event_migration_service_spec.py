@@ -68,7 +68,7 @@ class DescribeGenerateTransactionEvents:
         service = EventMigrationService()
 
         # Act
-        events, errors = service.generate_transaction_events(sample_csv_content, "test_ledger.csv")
+        events, errors = service.build_transaction_events(sample_csv_content, "test_ledger.csv")
 
         # Assert
         assert len(errors) == 0
@@ -103,7 +103,7 @@ class DescribeGenerateTransactionEvents:
         service = EventMigrationService()
 
         # Act
-        events, errors = service.generate_transaction_events(sample_csv_content, "test_ledger.csv")
+        events, errors = service.build_transaction_events(sample_csv_content, "test_ledger.csv")
 
         # Assert
         # Should not include jkl012 (duplicate row_type)
@@ -118,7 +118,7 @@ class DescribeGenerateTransactionEvents:
         empty_csv = "transaction_id,date,description,amount,currency,account_id,row_type\n"
 
         # Act
-        events, errors = service.generate_transaction_events(empty_csv, "empty_ledger.csv")
+        events, errors = service.build_transaction_events(empty_csv, "empty_ledger.csv")
 
         # Assert
         assert len(events) == 0
@@ -133,7 +133,7 @@ class DescribeGenerateTransactionEvents:
 """
 
         # Act
-        events, errors = service.generate_transaction_events(content, "no_id.csv")
+        events, errors = service.build_transaction_events(content, "no_id.csv")
 
         # Assert
         assert len(events) == 0
@@ -150,7 +150,7 @@ def456,2025-01-16,Test,-100.00,CAD,MC,primary
 """
 
         # Act
-        events, errors = service.generate_transaction_events(content, "malformed_ledger.csv")
+        events, errors = service.build_transaction_events(content, "malformed_ledger.csv")
 
         # Assert
         assert len(errors) >= 1
@@ -164,7 +164,7 @@ def456,2025-01-16,Test,-100.00,CAD,MC,primary
         service = EventMigrationService()
 
         # Act
-        events, errors = service.generate_transaction_events(sample_csv_content, "test_ledger.csv")
+        events, errors = service.build_transaction_events(sample_csv_content, "test_ledger.csv")
 
         # Assert
         tx_imported = events[0]
@@ -184,7 +184,7 @@ abc123,2025-02-20,Test,-100.00,CAD,CHQ,import.csv,primary
 """
 
         # Act
-        events, errors = service.generate_transaction_events(content, "no-date-in-filename.csv")
+        events, errors = service.build_transaction_events(content, "no-date-in-filename.csv")
 
         # Assert
         tx_imported = events[0]
@@ -203,7 +203,7 @@ abc123,2025-01-15,Test,-100.00,CHQ,primary
 """
 
         # Act
-        events, errors = service.generate_transaction_events(content, "minimal.csv")
+        events, errors = service.build_transaction_events(content, "minimal.csv")
 
         # Assert
         assert len(errors) == 0
@@ -222,7 +222,7 @@ abc123,2025-01-15,Test,-100.00,CAD,CHQ,,,primary
 """
 
         # Act
-        events, errors = service.generate_transaction_events(content, "empty_cat.csv")
+        events, errors = service.build_transaction_events(content, "empty_cat.csv")
 
         # Assert
         assert len(errors) == 0
@@ -235,7 +235,7 @@ abc123,2025-01-15,Test,-100.00,CAD,CHQ,,,primary
         service = EventMigrationService()
 
         # Act
-        events, errors = service.generate_transaction_events(sample_csv_content, "test_ledger.csv")
+        events, errors = service.build_transaction_events(sample_csv_content, "test_ledger.csv")
 
         # Assert
         tx = events[0]
@@ -256,7 +256,7 @@ class DescribeGenerateBudgetEvents:
         service = EventMigrationService()
 
         # Act
-        events = service.generate_budget_events(sample_category_config)
+        events = service.build_budget_events(sample_category_config)
 
         # Assert
         assert len(events) == 2  # Housing and Groceries have budgets
@@ -281,7 +281,7 @@ class DescribeGenerateBudgetEvents:
         service = EventMigrationService()
 
         # Act
-        events = service.generate_budget_events(sample_category_config)
+        events = service.build_budget_events(sample_category_config)
 
         # Assert
         for event in events:
@@ -294,7 +294,7 @@ class DescribeGenerateBudgetEvents:
         custom_ts = datetime(2024, 6, 15, 14, 30, 0)
 
         # Act
-        events = service.generate_budget_events(sample_category_config, timestamp=custom_ts)
+        events = service.build_budget_events(sample_category_config, timestamp=custom_ts)
 
         # Assert
         for event in events:
@@ -306,7 +306,7 @@ class DescribeGenerateBudgetEvents:
         service = EventMigrationService()
 
         # Act
-        events = service.generate_budget_events(sample_category_config)
+        events = service.build_budget_events(sample_category_config)
 
         # Assert
         # Transportation has no budget
@@ -320,7 +320,7 @@ class DescribeGenerateBudgetEvents:
         empty_config = CategoryConfig(categories=[])
 
         # Act
-        events = service.generate_budget_events(empty_config)
+        events = service.build_budget_events(empty_config)
 
         # Assert
         assert len(events) == 0
@@ -339,7 +339,7 @@ class DescribeGenerateBudgetEvents:
         )
 
         # Act
-        events = service.generate_budget_events(config)
+        events = service.build_budget_events(config)
 
         # Assert
         assert len(events) == 1
@@ -354,7 +354,7 @@ class DescribeGenerateBudgetEvents:
         service = EventMigrationService()
 
         # Act
-        events = service.generate_budget_events(sample_category_config)
+        events = service.build_budget_events(sample_category_config)
 
         # Assert
         for event in events:
@@ -645,7 +645,7 @@ abc123,2025-01-15,Test,-100.00,CAD,CHQ,primary,ignored
 """
 
         # Act
-        events, errors = service.generate_transaction_events(content, "extra_cols.csv")
+        events, errors = service.build_transaction_events(content, "extra_cols.csv")
 
         # Assert
         assert len(errors) == 0
@@ -660,7 +660,7 @@ abc123,2025-01-15,Café Déjà vu 🎉,-100.00,CAD,CHQ,primary
 """
 
         # Act
-        events, errors = service.generate_transaction_events(content, "unicode.csv")
+        events, errors = service.build_transaction_events(content, "unicode.csv")
 
         # Assert
         assert len(errors) == 0
@@ -678,7 +678,7 @@ abc123,2025-01-15,Test,-123.456789,CAD,CHQ,primary
 """
 
         # Act
-        events, errors = service.generate_transaction_events(content, "precision.csv")
+        events, errors = service.build_transaction_events(content, "precision.csv")
 
         # Assert
         assert len(errors) == 0
@@ -699,7 +699,7 @@ abc123,2025-01-15,Test,-123.456789,CAD,CHQ,primary
         content = "\n".join(lines)
 
         # Act
-        events, errors = service.generate_transaction_events(content, "large.csv")
+        events, errors = service.build_transaction_events(content, "large.csv")
 
         # Assert
         assert len(errors) == 0
@@ -714,7 +714,7 @@ abc123,2025-01-15,Test,-123.456789,CAD,CHQ,primary
 """
 
         # Act
-        events, errors = service.generate_transaction_events(content, "whitespace.csv")
+        events, errors = service.build_transaction_events(content, "whitespace.csv")
 
         # Assert
         assert len(errors) == 0
@@ -732,7 +732,7 @@ abc123,2025-01-15,Test,-100.00,CAD,CHQ,  Housing  ,  Rent  ,primary
 """
 
         # Act
-        events, errors = service.generate_transaction_events(content, "cat_whitespace.csv")
+        events, errors = service.build_transaction_events(content, "cat_whitespace.csv")
 
         # Assert
         assert len(events) == 2

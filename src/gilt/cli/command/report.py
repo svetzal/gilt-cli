@@ -161,7 +161,7 @@ def run(
 
     transactions = _load_transactions(workspace)
     service = BudgetReportingService(category_config)
-    report = service.generate_report(transactions, year=year, month=month)
+    report = service.build_report(transactions, year=year, month=month)
     markdown_content = service.render_markdown(report)
 
     markdown_path, docx_path = _resolve_output_paths(output, workspace, year, month)

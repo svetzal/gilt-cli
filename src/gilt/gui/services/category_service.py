@@ -11,8 +11,8 @@ from pathlib import Path
 
 from gilt.model.category import Budget, BudgetPeriod, Category, CategoryConfig
 from gilt.model.category_io import (
+    build_category_from_path,
     load_categories_config,
-    parse_category_path,
     save_categories_config,
 )
 from gilt.services.categorization_service import CategorizationService
@@ -248,7 +248,7 @@ class CategoryService:
         svc = CategorizationService(config)
         return svc.validate_category(category, subcategory).is_valid
 
-    def parse_category_string(self, category_str: str) -> tuple[str, str | None]:
+    def build_category_from_string(self, category_str: str) -> tuple[str, str | None]:
         """
         Parse a category string (e.g., "Housing:Utilities") into parts.
 
@@ -258,7 +258,7 @@ class CategoryService:
         Returns:
             Tuple of (category_name, subcategory_name or None)
         """
-        return parse_category_path(category_str)
+        return build_category_from_path(category_str)
 
     def load_usage_stats(self, category_name: str, transactions) -> dict:
         """

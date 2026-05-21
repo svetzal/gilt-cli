@@ -81,7 +81,7 @@ def _generate_and_emit_update(console: Console, learning_service: PromptLearning
         if isinstance(latest_prompt, PromptUpdated):
             current_version = latest_prompt.prompt_version
 
-    prompt_update = learning_service.generate_prompt_update(current_version)
+    prompt_update = learning_service.build_prompt_update(current_version)
 
     if prompt_update:
         event_store.append_event(prompt_update)
@@ -120,7 +120,7 @@ def run(
     console.print()
 
     # Compute metrics
-    metrics = learning_service.calculate_accuracy()
+    metrics = learning_service.get_accuracy()
 
     if metrics.total_feedback == 0:
         console.print("[yellow]No feedback data available yet.[/yellow]")

@@ -81,7 +81,7 @@ def _resolve_note_targets(
     if validate_single_vs_batch_mode(txid, description, desc_prefix, pattern) is None:
         return 1
 
-    result = service.resolve_transaction_targets(
+    result = service.find_transaction_targets(
         groups,
         txid=txid,
         description=description,
