@@ -9,12 +9,13 @@ to TransactionGroup objects.
 """
 
 import tempfile
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
 import pytest
 
-from gilt.gui.services.transaction_service import TransactionService
+from gilt.gui.services.transaction_service import TransactionService, compute_date_range
 from gilt.model.events import (
     DuplicateConfirmed,
     TransactionCategorized,
@@ -214,3 +215,57 @@ class DescribeTransactionServiceProjectionLoading:
 
         assert len(filtered) == 1
         assert filtered[0].primary.description == "ACME CORP PAYMENT"
+
+
+class DescribeComputeDateRange:
+    def it_should_return_this_month_range(self):
+        today = date(2025, 3, 15)
+
+        start, end = compute_date_range("This Month", today)
+
+        assert start == date(2025, 3, 1)
+        assert end == date(2025, 3, 15)
+
+    def it_should_return_last_month_range(self):
+        today = date(2025, 3, 15)
+
+        start, end = compute_date_range("Last Month", today)
+
+        assert start == date(2025, 2, 1)
+        assert end == date(2025, 2, 28)
+
+    def it_should_handle_last_month_year_rollover(self):
+        today = date(2025, 1, 15)
+
+        start, end = compute_date_range("Last Month", today)
+
+        assert start == date(2024, 12, 1)
+        assert end == date(2024, 12, 31)
+
+    def it_should_return_this_year_range(self):
+        today = date(2025, 3, 15)
+
+        start, end = compute_date_range("This Year", today)
+
+        assert start == date(2025, 1, 1)
+        assert end == date(2025, 3, 15)
+
+    def it_should_return_last_year_range(self):
+        today = date(2025, 3, 15)
+
+        start, end = compute_date_range("Last Year", today)
+
+        assert start == date(2024, 1, 1)
+        assert end == date(2024, 12, 31)
+
+    def it_should_return_none_none_for_all(self):
+        start, end = compute_date_range("All", date(2025, 3, 15))
+
+        assert start is None
+        assert end is None
+
+    def it_should_return_none_none_for_custom(self):
+        start, end = compute_date_range("Custom", date(2025, 3, 15))
+
+        assert start is None
+        assert end is None

@@ -8,7 +8,7 @@ All operations remain local-only with no network I/O.
 """
 
 import logging
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 from gilt.model.account import TransactionGroup
@@ -16,6 +16,24 @@ from gilt.model.ledger_repository import LEDGER_IO_ERRORS, LedgerRepository
 from gilt.storage.projection import ProjectionBuilder
 
 logger = logging.getLogger(__name__)
+
+
+def compute_date_range(selection: str, today: date) -> tuple[date | None, date | None]:
+    """Compute (start_date, end_date) from a date range preset selection.
+
+    Returns (None, None) for unrecognized selections (including 'All' and 'Custom').
+    """
+    if selection == "This Month":
+        return date(today.year, today.month, 1), today
+    if selection == "Last Month":
+        first_of_current = date(today.year, today.month, 1)
+        end = first_of_current - timedelta(days=1)
+        return date(end.year, end.month, 1), end
+    if selection == "This Year":
+        return date(today.year, 1, 1), today
+    if selection == "Last Year":
+        return date(today.year - 1, 1, 1), date(today.year - 1, 12, 31)
+    return None, None
 
 
 class TransactionService:

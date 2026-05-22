@@ -6,14 +6,11 @@ Transactions View - Main view for browsing and filtering transactions
 Provides filter controls and transaction table for comprehensive transaction management.
 """
 
-import contextlib
 import logging
-import sqlite3
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 
-import yaml
-from PySide6.QtCore import QDate, Qt, QThread, Signal
+from PySide6.QtCore import QDate, Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -22,164 +19,37 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QMessageBox,
     QPushButton,
     QSplitter,
     QVBoxLayout,
     QWidget,
 )
 
-from gilt.gui.dialogs.categorize_dialog import CategorizeDialog
-from gilt.gui.dialogs.duplicate_resolution_dialog import DuplicateResolutionDialog
-from gilt.gui.dialogs.note_dialog import NoteDialog
-from gilt.gui.dialogs.receipt_match_dialog import (
-    BatchReceiptMatchDialog,
-    ReceiptMatchDialog,
-)
-from gilt.gui.dialogs.settings_dialog import SettingsDialog
+from gilt.gui.controllers.intelligence_scan_controller import IntelligenceScanController
+from gilt.gui.controllers.receipt_match_controller import ReceiptMatchController
+from gilt.gui.controllers.transaction_mutation_controller import TransactionMutationController
 from gilt.gui.services.enrichment_service import EnrichmentService
 from gilt.gui.services.intelligence_cache import IntelligenceCache
-from gilt.gui.services.receipt_match_service import ReceiptMatchService
-from gilt.gui.services.transaction_service import TransactionService
+from gilt.gui.services.transaction_service import TransactionService, compute_date_range
 from gilt.gui.widgets.transaction_detail_panel import TransactionDetailPanel
 from gilt.gui.widgets.transaction_table import TransactionTableWidget
 from gilt.model.account import TransactionGroup
-from gilt.model.duplicate import DuplicateAssessment, DuplicateMatch, TransactionPair
-from gilt.model.ledger_repository import LedgerRepository
-from gilt.services.categorization_persistence_service import (
-    CategorizationPersistenceService,
-    CategorizationUpdate,
-    persist_note_update,
-)
-from gilt.services.duplicate_service import DuplicateResolutionResult, DuplicateService
+from gilt.services.duplicate_service import DuplicateService
 from gilt.services.event_sourcing_service import EventSourcingService
-from gilt.services.intelligence_scan_service import IntelligenceScanService
 from gilt.services.smart_category_service import SmartCategoryService
 from gilt.storage.event_store import EventStore
 
 logger = logging.getLogger(__name__)
 
 
-class IntelligenceWorker(QThread):
-    """Worker thread for background intelligence scanning."""
-
-    finished = Signal(dict)  # metadata dict
-    error = Signal(str)  # error message
-    status = Signal(str)  # progress status
-    progress = Signal(int, int)  # current, total
-
-    def __init__(
-        self,
-        transactions: list[TransactionGroup],
-        duplicate_service: DuplicateService,
-        smart_category_service: SmartCategoryService,
-        projections_path: Path | None = None,
-    ):
-        super().__init__()
-        self.transactions = transactions
-        self.duplicate_service = duplicate_service
-        self.smart_category_service = smart_category_service
-        self.projections_path = projections_path
-
-    def run(self):
-        try:
-            scan_service = IntelligenceScanService()
-            all_txns = [g.primary for g in self.transactions]
-
-            uncategorized = [t for t in all_txns if not t.category]
-            total_units = (
-                (1 if self.duplicate_service else 0)
-                + (1 if self.projections_path else 0)
-                + (len(uncategorized) if self.smart_category_service else 0)
-            )
-            completed = 0
-            metadata: dict = {}
-
-            if self.duplicate_service:
-                if self.isInterruptionRequested():
-                    return
-                self.status.emit("Scanning for duplicates...")
-                metadata.update(scan_service.find_duplicates(all_txns, self.duplicate_service))
-                completed += 1
-                self.progress.emit(completed, total_units)
-
-            rule_matched_ids: set[str] = set()
-            if self.projections_path and self.projections_path.exists():
-                if self.isInterruptionRequested():
-                    return
-                self.status.emit("Applying inferred rules...")
-                try:
-                    fragment = scan_service.run_inferred_rules(all_txns, self.projections_path)
-                    metadata.update(fragment)
-                    rule_matched_ids = set(fragment.keys())
-                except (OSError, ValueError, sqlite3.OperationalError) as e:
-                    self.status.emit(f"Rule inference skipped: {e}")
-                completed += 1
-                self.progress.emit(completed, total_units)
-
-            if self.smart_category_service:
-                if self.isInterruptionRequested():
-                    return
-                self.status.emit("Predicting categories...")
-                completed = self._predict_with_progress(
-                    scan_service, all_txns, rule_matched_ids, metadata, completed, total_units
-                )
-                if completed is None:
-                    return
-
-            if not self.isInterruptionRequested():
-                self.finished.emit(metadata)
-        except (OSError, ValueError, UnicodeDecodeError, RuntimeError) as e:
-            logger.error("Intelligence scan failed", exc_info=True)
-            self.error.emit(f"Intelligence scan failed: {e}")
-
-    def _predict_with_progress(
-        self, scan_service, all_txns, rule_matched_ids, metadata, completed, total_units
-    ) -> int | None:
-        """Predict categories for uncategorized transactions, emitting progress. Returns None if interrupted."""
-        for txn in all_txns:
-            if self.isInterruptionRequested():
-                return None
-            if not txn.category and txn.transaction_id not in rule_matched_ids:
-                fragment = scan_service.predict_categories([txn], self.smart_category_service)
-                for tid, data in fragment.items():
-                    if tid in metadata:
-                        metadata[tid].update(data)
-                    else:
-                        metadata[tid] = data
-                completed += 1
-                self.progress.emit(completed, total_units)
-        return completed
-
-
-def compute_date_range(selection: str, today: date) -> tuple[date | None, date | None]:
-    """Compute (start_date, end_date) from a date range preset selection.
-
-    Returns (None, None) for unrecognized selections (including 'All' and 'Custom').
-    """
-    if selection == "This Month":
-        return date(today.year, today.month, 1), today
-    if selection == "Last Month":
-        first_of_current = date(today.year, today.month, 1)
-        end = first_of_current - timedelta(days=1)
-        return date(end.year, end.month, 1), end
-    if selection == "This Year":
-        return date(today.year, 1, 1), today
-    if selection == "Last Year":
-        return date(today.year - 1, 1, 1), date(today.year - 1, 12, 31)
-    return None, None
-
-
 class TransactionsView(QWidget):
     """View for browsing and filtering transactions."""
 
-    # Signal emitted when transactions are loaded
-    transactions_loaded = Signal(int)  # count
-    status_message = Signal(str)  # for main window status bar
+    transactions_loaded = Signal(int)
+    status_message = Signal(str)
 
-    # Relay signals for background task progress
-    scan_started = Signal(str, int)  # description, total
-    scan_progress = Signal(int, int)  # current, total
+    scan_started = Signal(str, int)
+    scan_progress = Signal(int, int)
     scan_finished = Signal()
 
     def __init__(
@@ -214,15 +84,11 @@ class TransactionsView(QWidget):
             self.es_service = None
         self.enrichment_service: EnrichmentService | None = None
         self._all_transactions: list[TransactionGroup] = []
-        self.worker: IntelligenceWorker | None = None
-        self._old_workers: list[IntelligenceWorker] = []
 
-        # Intelligence cache
         if cache_path is None:
             cache_path = data_dir.parent / "private" / "intelligence_cache.json"
         self._intelligence_cache = IntelligenceCache(cache_path)
 
-        # Initialize CategoryService
         from gilt.gui.dialogs.settings_dialog import SettingsDialog
         from gilt.gui.services.category_service import CategoryService
 
@@ -230,48 +96,37 @@ class TransactionsView(QWidget):
         self.category_service = CategoryService(categories_config)
 
         self._load_enrichment()
+
+        self._intelligence_controller = IntelligenceScanController(
+            self._intelligence_cache,
+            self.duplicate_service,
+            self.smart_category_service,
+            self.projections_path,
+            parent=self,
+        )
+        self._receipt_controller = ReceiptMatchController(
+            self.event_store,
+            parent_widget=self,
+        )
+        self._mutation_controller = TransactionMutationController(
+            self.event_store,
+            self.es_service,
+            self.smart_category_service,
+            self.service,
+            self.duplicate_service,
+            parent_widget=self,
+        )
+
         self._init_ui()
         self._connect_signals()
 
-        # Stop background workers cleanly when the application exits
         from PySide6.QtWidgets import QApplication
 
         app = QApplication.instance()
         if app:
-            app.aboutToQuit.connect(self._stop_workers)
+            app.aboutToQuit.connect(self._intelligence_controller.stop)
 
-        # Load initial data
         self.reload_transactions()
-
-    def _disconnect_all_worker_signals(self, worker: IntelligenceWorker) -> None:
-        """Disconnect all signals from a worker to prevent callbacks on dead slots."""
-        for sig in (worker.finished, worker.error, worker.status, worker.progress):
-            with contextlib.suppress(RuntimeError):
-                sig.disconnect()
-
-    def _stop_workers(self) -> None:
-        """Interrupt and join all intelligence workers before the app exits."""
-        if self.worker and self.worker.isRunning():
-            self._disconnect_all_worker_signals(self.worker)
-            self.worker.requestInterruption()
-            self.worker.wait(3000)
-        self.worker = None
-        for w in self._old_workers:
-            if w.isRunning():
-                w.requestInterruption()
-                w.wait(2000)
-            else:
-                w.wait(0)
-        self._old_workers.clear()
-
-    def _sync_projections(self):
-        """Incrementally rebuild projections DB from new events."""
-        if not self.es_service or not self.event_store:
-            return
-        try:
-            self.es_service.ensure_projections_up_to_date(self.event_store)
-        except (OSError, ValueError):
-            self.status_message.emit("Warning: projections sync failed — view may be stale")
 
     def _load_enrichment(self):
         """Load enrichment data from event store."""
@@ -288,23 +143,18 @@ class TransactionsView(QWidget):
         """Initialize the user interface."""
         layout = QVBoxLayout(self)
 
-        # Filter controls (fixed size, no vertical stretch)
         filter_group = self._create_filter_controls()
         layout.addWidget(filter_group, 0)
 
-        # Splitter: table on left, detail panel on right (expands to fill)
         self._splitter = QSplitter(Qt.Orientation.Horizontal, self)
 
-        # Transaction table
         self.table = TransactionTableWidget(self)
         self._splitter.addWidget(self.table)
 
-        # Detail panel (hidden by default)
         self.detail_panel = TransactionDetailPanel(self)
         self._splitter.addWidget(self.detail_panel)
         self.detail_panel.setVisible(False)
 
-        # Give the table most of the space
         self._splitter.setStretchFactor(0, 3)
         self._splitter.setStretchFactor(1, 1)
 
@@ -312,7 +162,6 @@ class TransactionsView(QWidget):
 
         self._update_status()
 
-        # Set categories for inline editing
         all_cats = []
         for c in self.category_service.load_all_categories():
             all_cats.append(c.name)
@@ -320,12 +169,8 @@ class TransactionsView(QWidget):
                 all_cats.append(f"{c.name}: {sub.name}")
         self.table.set_categories(all_cats)
 
-        # Set enrichment service on model
         if self.enrichment_service:
             self.table.transaction_model.set_enrichment_service(self.enrichment_service)
-
-        # Connect update signal
-        self.table.transaction_model.transaction_updated.connect(self._on_transaction_updated)
 
     def _create_account_and_date_row(self) -> QHBoxLayout:
         """Row 1: account combo, date range combo, custom date edits."""
@@ -468,7 +313,6 @@ class TransactionsView(QWidget):
         self.reload_btn.clicked.connect(self.reload_transactions)
         self.rescan_btn.clicked.connect(self._rescan_intelligence)
 
-        # Auto-apply filters on any change
         self.account_combo.currentIndexChanged.connect(self.run_filters)
         self.date_range_combo.currentIndexChanged.connect(self._on_date_range_changed)
         self.start_date_edit.dateChanged.connect(self.run_filters)
@@ -477,21 +321,43 @@ class TransactionsView(QWidget):
         self.uncategorized_check.stateChanged.connect(self.run_filters)
         self.search_edit.textChanged.connect(self.run_filters)
 
-        # Update status and detail panel when selection changes
         self.table.selection_changed.connect(self._update_status)
         self.table.selection_changed.connect(self._on_selection_changed)
 
-        # Context menu actions
         self.table.categorize_requested.connect(self._on_categorize_requested)
-        self.table.apply_prediction_requested.connect(self._on_apply_prediction)
+        self.table.apply_prediction_requested.connect(self._mutation_controller._apply_prediction)
         self.table.note_requested.connect(self._on_note_requested)
         self.table.duplicate_resolution_requested.connect(self._on_resolve_duplicate_requested)
         self.table.manual_merge_requested.connect(self._on_manual_merge_requested)
         self.table.receipt_match_requested.connect(self._on_receipt_match_requested)
         self.detail_panel.receipt_match_requested.connect(self._on_receipt_match_requested)
-        self.detail_panel.apply_prediction_requested.connect(self._on_apply_prediction)
-        self.detail_panel.apply_receipt_requested.connect(self._on_apply_receipt_from_panel)
+        self.detail_panel.apply_prediction_requested.connect(
+            self._mutation_controller._apply_prediction
+        )
+        self.detail_panel.apply_receipt_requested.connect(
+            self._receipt_controller.apply_from_panel
+        )
         self.match_receipts_btn.clicked.connect(self._on_batch_receipt_match)
+
+        self._mutation_controller.data_changed.connect(self._on_mutation_data_changed)
+        self._mutation_controller.status_message.connect(self.status_message.emit)
+        self._receipt_controller.data_changed.connect(self._on_receipt_data_changed)
+        self._receipt_controller.status_message.connect(self.status_message.emit)
+        self._intelligence_controller.status_message.connect(self.status_message.emit)
+        self._intelligence_controller.scan_started.connect(self.scan_started.emit)
+        self._intelligence_controller.scan_progress.connect(self.scan_progress.emit)
+        self._intelligence_controller.scan_finished.connect(self.scan_finished.emit)
+        self._intelligence_controller.scan_finished.connect(self._update_status)
+        self._intelligence_controller.metadata_updated.connect(
+            self.table.transaction_model.update_metadata
+        )
+        self._intelligence_controller.metadata_cleared.connect(
+            self.table.transaction_model.clear_metadata
+        )
+
+        self.table.transaction_model.transaction_updated.connect(
+            self._mutation_controller.on_transaction_updated
+        )
 
     def reload_transactions(self, restore_transaction_id: str | None = None):
         """Reload all transactions from disk.
@@ -499,122 +365,68 @@ class TransactionsView(QWidget):
         Args:
             restore_transaction_id: If provided, re-select this transaction after reload.
         """
-        # Refresh enrichment data
         self._load_enrichment()
         if self.enrichment_service:
             self.table.transaction_model.set_enrichment_service(self.enrichment_service)
 
-        # Clear cache
         self.service.clear_cache()
 
-        # Reset the view before swapping model data. QAbstractItemView.reset()
-        # clears internal current-index, selection, scroll, and editor state so
-        # no stale QModelIndex survives into the new data.
         self.table.reset()
 
-        # Load all transactions into the stable source model
         self._all_transactions = self.service.load_all_transactions()
         self.table.set_all_transactions(self._all_transactions)
 
-        # Update filter combos
         self._update_account_combo()
         self._update_category_combo()
 
-        # Apply current filter criteria to proxy
         self.run_filters()
 
-        # Restore selection if requested
         if restore_transaction_id:
             self.table.select_transaction_by_id(restore_transaction_id)
 
-        # Emit signal
         self.transactions_loaded.emit(len(self._all_transactions))
 
-        # Start intelligence scan
-        self._start_intelligence_scan()
-
-    def _start_intelligence_scan(self):
-        """Start background scan for duplicates and categorization."""
-        if not self.duplicate_service and not self.smart_category_service:
-            return
-
-        # Load cached results immediately
-        cached = self._intelligence_cache.get_all()
-        if cached:
-            self.table._model.update_metadata(cached)
-
-        # Determine which transactions still need scanning
-        all_ids = [g.primary.transaction_id for g in self._all_transactions]
-        uncached_ids = self._intelligence_cache.uncached_transaction_ids(all_ids)
-
-        if not uncached_ids:
-            self.status_message.emit("Intelligence scan: all cached")
-            return
-
-        uncached_txns = [
-            g for g in self._all_transactions if g.primary.transaction_id in uncached_ids
-        ]
-
-        # Handle existing worker — disconnect all signals regardless of running state
-        if self.worker:
-            if self.worker.isRunning():
-                self.worker.requestInterruption()
-                self._old_workers.append(self.worker)
-            else:
-                self.worker.wait(0)  # join finished OS thread
-            self._disconnect_all_worker_signals(self.worker)
-            self.worker = None
-
-        # Clean up finished old workers — join stopped threads to release OS resources
-        still_running = []
-        for w in self._old_workers:
-            if w.isRunning():
-                still_running.append(w)
-            else:
-                w.wait(0)  # ensure OS thread is fully joined
-        self._old_workers = still_running
-
-        # Calculate total work units for progress
-        uncategorized_count = sum(1 for g in uncached_txns if not g.primary.category)
-        total_units = 0
-        if self.duplicate_service:
-            total_units += 1
-        if self.smart_category_service:
-            total_units += uncategorized_count
-
-        self.status_message.emit(f"Scanning {len(uncached_txns)} of {len(all_ids)} transactions...")
-        self.scan_started.emit("Scanning...", total_units)
-
-        self.worker = IntelligenceWorker(
-            uncached_txns,
-            self.duplicate_service,
-            self.smart_category_service,
-            projections_path=getattr(self, "projections_path", None),
-        )
-        self.worker.finished.connect(self._on_intelligence_scan_finished)
-        self.worker.error.connect(self._on_intelligence_scan_error)
-        self.worker.status.connect(self.status_message.emit)
-        self.worker.progress.connect(self.scan_progress.emit)
-        self.worker.start()
-
-    def _on_intelligence_scan_finished(self, metadata: dict):
-        """Handle completion of intelligence scan."""
-        self._intelligence_cache.update(metadata)
-        self.table._model.update_metadata(metadata)
-        self._update_status()
-        self.status_message.emit("Intelligence scan complete")
-        self.scan_finished.emit()
-
-    def _on_intelligence_scan_error(self, message: str):
-        """Handle error from intelligence scan."""
-        self.status_message.emit(message)
-        self.scan_finished.emit()
+        self._intelligence_controller.start_scan(self._all_transactions)
 
     def _rescan_intelligence(self):
-        """Clear the intelligence cache and rescan all transactions."""
-        self._intelligence_cache.clear()
-        self.table._model.clear_metadata()
-        self._start_intelligence_scan()
+        """Delegate intelligence rescan to the controller."""
+        self._intelligence_controller.rescan(self._all_transactions)
+
+    def _on_categorize_requested(self):
+        """Bridge: get selected transactions and delegate to mutation controller."""
+        self._mutation_controller.categorize_selected(self.table.get_selected_transactions())
+
+    def _on_note_requested(self):
+        """Bridge: get selected transactions and delegate to mutation controller."""
+        self._mutation_controller.note_selected(self.table.get_selected_transactions())
+
+    def _on_resolve_duplicate_requested(self):
+        """Bridge: get selected transaction with metadata and delegate to mutation controller."""
+        selected = self.table.get_selected_transactions()
+        if len(selected) != 1:
+            return
+        meta = self.table.transaction_model.get_metadata(selected[0].primary.transaction_id)
+        self._mutation_controller.resolve_duplicate(selected[0], meta)
+
+    def _on_manual_merge_requested(self):
+        """Bridge: get selected transactions and delegate to mutation controller."""
+        self._mutation_controller.manual_merge(self.table.get_selected_transactions())
+
+    def _on_receipt_match_requested(self):
+        """Bridge: get selected transactions and delegate to receipt controller."""
+        self._receipt_controller.handle_single_match(self.table.get_selected_transactions())
+
+    def _on_batch_receipt_match(self):
+        """Bridge: delegate batch receipt match to receipt controller."""
+        self._receipt_controller.handle_batch_match(self._all_transactions, self.enrichment_service)
+
+    def _on_mutation_data_changed(self, restore_id):
+        """Reload transactions after a mutation, optionally restoring selection."""
+        self.reload_transactions(restore_transaction_id=restore_id)
+
+    def _on_receipt_data_changed(self, restore_id):
+        """Reload transactions after a receipt match, optionally restoring selection."""
+        self.reload_transactions(restore_transaction_id=restore_id)
 
     def _update_account_combo(self):
         """Update the account combo box with available accounts."""
@@ -627,7 +439,6 @@ class TransactionsView(QWidget):
         for account_id in accounts:
             self.account_combo.addItem(account_id, account_id)
 
-        # Restore previous selection if possible
         if current:
             index = self.account_combo.findData(current)
             if index >= 0:
@@ -644,7 +455,6 @@ class TransactionsView(QWidget):
         for category in categories:
             self.category_combo.addItem(category, category)
 
-        # Restore previous selection if possible
         if current:
             index = self.category_combo.findData(current)
             if index >= 0:
@@ -686,7 +496,7 @@ class TransactionsView(QWidget):
     def clear_filters(self):
         """Clear all filter settings."""
         self.account_combo.setCurrentIndex(0)
-        self.date_range_combo.setCurrentIndex(0)  # "This Month"
+        self.date_range_combo.setCurrentIndex(0)
         self.category_combo.setCurrentIndex(0)
         self.search_edit.clear()
         self.uncategorized_check.setChecked(False)
@@ -712,395 +522,6 @@ class TransactionsView(QWidget):
         """Get currently selected transactions."""
         return self.table.get_selected_transactions()
 
-    def _on_apply_prediction(self, transaction: TransactionGroup, predicted: str):
-        """Apply a predicted category directly to a transaction."""
-        parts = predicted.split(":", 1)
-        category = parts[0].strip()
-        subcategory = parts[1].strip() if len(parts) == 2 else None
-        self._apply_categorization(
-            [transaction],
-            category,
-            subcategory,
-            source="llm",
-            restore_transaction_id=transaction.primary.transaction_id,
-        )
-
-    def _on_categorize_requested(self):
-        """Handle categorize request from context menu."""
-        try:
-            selected = self.table.get_selected_transactions()
-            if not selected:
-                return
-
-            # Get categories config path
-            categories_config = SettingsDialog.get_categories_config()
-
-            # Get suggestion if available
-            suggestion = None
-            if self.smart_category_service and len(selected) > 0:
-                txn = selected[0].primary
-                cat, _ = self.smart_category_service.predict_category(
-                    txn.description, txn.amount, txn.account_id
-                )
-                if cat:
-                    parts = cat.split(":", 1)
-                    suggestion = (parts[0], parts[1]) if len(parts) == 2 else (parts[0], None)
-
-            # Show categorize dialog
-            dialog = CategorizeDialog(
-                selected, categories_config, self, suggested_category=suggestion
-            )
-            if dialog.exec():
-                # Get selected category
-                category, subcategory = dialog.get_selected_category()
-
-                # Apply categorization
-                self._apply_categorization(selected, category, subcategory)
-        except (OSError, ValueError, yaml.YAMLError) as e:
-            QMessageBox.critical(self, "Error", f"Failed to open categorize dialog:\n{e}")
-
-    def _apply_categorization(
-        self,
-        transactions: list[TransactionGroup],
-        category: str,
-        subcategory: str | None,
-        source: str = "user",
-        restore_transaction_id: str | None = None,
-    ):
-        """
-        Apply categorization to transactions and save to disk.
-
-        Args:
-            transactions: List of transactions to categorize
-            category: Category name
-            subcategory: Optional subcategory name
-            source: Who assigned it ("user", "llm", "rule")
-            restore_transaction_id: If set, re-select this transaction after reload.
-        """
-        try:
-            updates = [
-                CategorizationUpdate(
-                    transaction_id=txn_group.primary.transaction_id,
-                    account_id=txn_group.primary.account_id,
-                    category=category,
-                    subcategory=subcategory,
-                    source=source,
-                    confidence=1.0,
-                )
-                for txn_group in transactions
-            ]
-
-            ledger_repo = LedgerRepository(self.service.data_dir)
-            if self.event_store and self.es_service:
-                persistence_svc = CategorizationPersistenceService(
-                    event_store=self.event_store,
-                    projection_builder=self.es_service.get_projection_builder(),
-                    ledger_repo=ledger_repo,
-                )
-                persistence_svc.persist_categorizations(updates)
-            else:
-                from gilt.services.categorization_persistence_service import (
-                    persist_categorizations_to_csv,
-                )
-
-                persist_categorizations_to_csv(updates, ledger_repo)
-                self._sync_projections()
-
-            # Record categorization events for ML training
-            if self.smart_category_service:
-                for txn_group in transactions:
-                    txn = txn_group.primary
-                    self.smart_category_service.record_categorization(
-                        transaction_id=txn.transaction_id,
-                        category=category,
-                        subcategory=subcategory,
-                        source=source,
-                        previous_category=txn.category,
-                        previous_subcategory=txn.subcategory,
-                    )
-
-            # Reload transactions
-            self.reload_transactions(restore_transaction_id=restore_transaction_id)
-
-        except (OSError, ValueError, UnicodeDecodeError) as e:
-            QMessageBox.critical(self, "Error", f"Failed to categorize transactions:\n{str(e)}")
-
-    def _on_note_requested(self):
-        """Handle note edit request from context menu."""
-        selected = self.table.get_selected_transactions()
-        if len(selected) != 1:
-            return
-
-        txn_group = selected[0]
-        txn = txn_group.primary
-
-        # Show note dialog
-        dialog = NoteDialog(
-            current_note=txn.notes or "",
-            transaction_desc=txn.description or "",
-            parent=self,
-        )
-
-        if dialog.exec():
-            # Get new note
-            new_note = dialog.get_note()
-
-            # Apply note
-            self._apply_note(txn_group, new_note)
-
-    def _apply_note(self, transaction: TransactionGroup, note: str):
-        """
-        Apply note to a transaction and save to disk.
-
-        Args:
-            transaction: Transaction to update
-            note: New note text
-        """
-        try:
-            persist_note_update(
-                account_id=transaction.primary.account_id,
-                transaction_id=transaction.primary.transaction_id,
-                note=note if note else None,
-                ledger_repo=LedgerRepository(self.service.data_dir),
-            )
-
-            # Sync projections DB so reload sees the updated data
-            self._sync_projections()
-
-            # Reload transactions
-            self.reload_transactions()
-
-            # Show success message
-            QMessageBox.information(self, "Success", "Note updated successfully")
-
-        except (FileNotFoundError, OSError, ValueError, UnicodeDecodeError) as e:
-            QMessageBox.critical(self, "Error", f"Failed to update note:\n{str(e)}")
-
-    def _on_resolve_duplicate_requested(self):
-        """Handle duplicate resolution request."""
-        selected = self.table.get_selected_transactions()
-        if len(selected) != 1:
-            return
-
-        txn = selected[0].primary
-        meta = self.table._model.get_metadata(txn.transaction_id)
-        match = meta.get("duplicate_match")
-
-        if not match:
-            QMessageBox.warning(self, "Error", "Duplicate match data not found.")
-            return
-
-        dialog = DuplicateResolutionDialog(match, self)
-        if dialog.exec():
-            is_duplicate, keep_id = dialog.get_resolution()
-
-            try:
-                resolution: DuplicateResolutionResult = (
-                    self.duplicate_service.run_duplicate_deletion(
-                        match, is_duplicate, keep_id
-                    )
-                )
-
-                if resolution.confirmed:
-                    if self.service.delete_transaction(
-                        resolution.delete_transaction_id, resolution.delete_account_id
-                    ):
-                        QMessageBox.information(self, "Success", "Duplicate resolved and removed.")
-                    else:
-                        QMessageBox.warning(
-                            self,
-                            "Warning",
-                            "Duplicate resolved but failed to remove transaction file.",
-                        )
-                else:
-                    QMessageBox.information(self, "Success", "Marked as not a duplicate.")
-
-                # Sync projections DB so reload sees the updated data
-                self._sync_projections()
-
-                # Reload to refresh view and clear warnings
-                self.reload_transactions()
-
-            except (ValueError, OSError, UnicodeDecodeError) as e:
-                QMessageBox.critical(self, "Error", f"Failed to resolve duplicate:\n{str(e)}")
-
-    def _on_manual_merge_requested(self):
-        """Handle manual merge request for two selected transactions."""
-        selected = self.table.get_selected_transactions()
-        if len(selected) != 2:
-            return
-
-        txn1 = selected[0].primary
-        txn2 = selected[1].primary
-
-        # Create synthetic match
-        pair = TransactionPair(
-            txn1_id=txn1.transaction_id,
-            txn1_date=txn1.date,
-            txn1_description=txn1.description,
-            txn1_amount=txn1.amount,
-            txn1_account=txn1.account_id,
-            txn1_source_file=txn1.source_file,
-            txn2_id=txn2.transaction_id,
-            txn2_date=txn2.date,
-            txn2_description=txn2.description,
-            txn2_amount=txn2.amount,
-            txn2_account=txn2.account_id,
-            txn2_source_file=txn2.source_file,
-        )
-
-        assessment = DuplicateAssessment(
-            is_duplicate=True, confidence=1.0, reasoning="Manually identified by user"
-        )
-
-        match = DuplicateMatch(pair=pair, assessment=assessment)
-
-        # Reuse resolution dialog
-        dialog = DuplicateResolutionDialog(match, self)
-        if dialog.exec():
-            is_duplicate, keep_id = dialog.get_resolution()
-
-            if not is_duplicate:
-                return
-
-            try:
-                resolution: DuplicateResolutionResult = (
-                    self.duplicate_service.run_duplicate_deletion(
-                        match, is_duplicate, keep_id, rationale="Manual merge"
-                    )
-                )
-
-                if resolution.confirmed:
-                    if self.service.delete_transaction(
-                        resolution.delete_transaction_id, resolution.delete_account_id
-                    ):
-                        QMessageBox.information(self, "Success", "Transactions merged.")
-                    else:
-                        QMessageBox.warning(
-                            self,
-                            "Warning",
-                            "Merged but failed to remove duplicate transaction file.",
-                        )
-
-                # Sync projections DB so reload sees the updated data
-                self._sync_projections()
-
-                # Reload to refresh view
-                self.reload_transactions()
-
-            except (ValueError, OSError, UnicodeDecodeError) as e:
-                QMessageBox.critical(self, "Error", f"Failed to merge transactions:\n{str(e)}")
-
-    def _get_receipt_match_service(self) -> ReceiptMatchService | None:
-        """Create a ReceiptMatchService if event_store and receipts_dir are available."""
-        if not self.event_store:
-            return None
-        receipts_dir = SettingsDialog.get_receipts_dir()
-        if not receipts_dir.is_dir():
-            QMessageBox.warning(
-                self,
-                "Receipts Directory",
-                f"Receipts directory not found: {receipts_dir}\n\n"
-                "Configure it in Settings > Paths.",
-            )
-            return None
-        return ReceiptMatchService(receipts_dir, self.event_store)
-
-    def _on_receipt_match_requested(self):
-        """Handle receipt match request for a single selected transaction."""
-        selected = self.table.get_selected_transactions()
-        if len(selected) != 1:
-            return
-
-        svc = self._get_receipt_match_service()
-        if not svc:
-            return
-
-        txn = selected[0].primary
-        candidates = svc.find_candidates_for_transaction(
-            txn_id=txn.transaction_id,
-            txn_amount=txn.amount,
-            txn_date=txn.date,
-            txn_description=txn.description or "",
-            txn_account_id=txn.account_id,
-            txn_currency=txn.currency or "CAD",
-        )
-
-        dialog = ReceiptMatchDialog(
-            transaction_id=txn.transaction_id,
-            transaction_desc=txn.description or "",
-            transaction_amount=txn.amount,
-            transaction_date=str(txn.date),
-            candidates=candidates,
-            parent=self,
-        )
-
-        if dialog.exec():
-            receipt = dialog.get_selected_receipt()
-            if receipt:
-                svc.run_match(receipt, txn.transaction_id)
-                self._load_enrichment()
-                self.reload_transactions()
-                QMessageBox.information(self, "Success", "Receipt matched successfully.")
-
-    def _on_batch_receipt_match(self):
-        """Handle batch receipt matching for unenriched transactions."""
-        svc = self._get_receipt_match_service()
-        if not svc:
-            return
-
-        # Filter to unenriched transactions
-        unenriched = [
-            g
-            for g in self._all_transactions
-            if not (
-                self.enrichment_service
-                and self.enrichment_service.is_enriched(g.primary.transaction_id)
-            )
-        ]
-
-        if not unenriched:
-            QMessageBox.information(
-                self, "No Transactions", "All transactions already have receipt enrichment."
-            )
-            return
-
-        self.status_message.emit(f"Matching receipts against {len(unenriched)} transactions...")
-
-        result = svc.run_batch_matching(unenriched)
-
-        if not result.matched and not result.ambiguous:
-            QMessageBox.information(
-                self,
-                "No Matches",
-                f"No receipt matches found.\nUnmatched receipts: {len(result.unmatched)}",
-            )
-            return
-
-        dialog = BatchReceiptMatchDialog(
-            matched=result.matched,
-            ambiguous=result.ambiguous,
-            unmatched=result.unmatched,
-            parent=self,
-        )
-
-        if dialog.exec():
-            resolved = dialog.get_resolved_matches()
-            written = 0
-            for match in resolved:
-                confidence = match.match_confidence or "exact"
-                svc.run_match(match.receipt, match.transaction_id, confidence)
-                written += 1
-
-            if written:
-                self._load_enrichment()
-                self.reload_transactions()
-                QMessageBox.information(
-                    self, "Success", f"{written} receipt(s) matched successfully."
-                )
-
-        self.status_message.emit("Receipt matching complete.")
-
     def _on_selection_changed(self):
         """Update the detail panel when the table selection changes."""
         if not self.detail_panel.isVisible():
@@ -1112,36 +533,10 @@ class TransactionsView(QWidget):
         if txn:
             if self.enrichment_service:
                 enrichment = self.enrichment_service.get_enrichment(txn.primary.transaction_id)
-            metadata = self.table._model.get_metadata(txn.primary.transaction_id)
+            metadata = self.table.transaction_model.get_metadata(txn.primary.transaction_id)
             if not enrichment:
-                receipt_candidates = self._find_receipt_candidates(txn)
+                receipt_candidates = self._receipt_controller.find_candidates(txn)
         self.detail_panel.update_transaction(txn, enrichment, metadata, receipt_candidates)
-
-    def _find_receipt_candidates(self, txn_group: TransactionGroup) -> list:
-        """Find receipt candidates for a transaction."""
-        svc = self._get_receipt_match_service()
-        if not svc:
-            return []
-        txn = txn_group.primary
-        return svc.find_candidates_for_transaction(
-            txn_id=txn.transaction_id,
-            txn_amount=txn.amount,
-            txn_date=txn.date,
-            txn_description=txn.description or "",
-            txn_account_id=txn.account_id,
-            txn_currency=txn.currency or "CAD",
-        )
-
-    def _on_apply_receipt_from_panel(self, receipt, transaction_id: str):
-        """Apply a receipt match selected from the detail panel."""
-        svc = self._get_receipt_match_service()
-        if not svc:
-            return
-        try:
-            svc.run_match(receipt, transaction_id)
-            self.reload_transactions(restore_transaction_id=transaction_id)
-        except (OSError, ValueError, UnicodeDecodeError) as e:
-            QMessageBox.critical(self, "Error", f"Failed to apply receipt match:\n{str(e)}")
 
     def toggle_detail_panel(self):
         """Toggle the detail panel visibility."""
@@ -1149,20 +544,3 @@ class TransactionsView(QWidget):
         self.detail_panel.setVisible(visible)
         if visible:
             self._on_selection_changed()
-
-    def _on_transaction_updated(self, group: TransactionGroup):
-        """Handle transaction update from table (inline edit)."""
-        if self.service.update_transaction(group):
-            # Record categorization event for ML training
-            txn = group.primary
-            if self.smart_category_service and txn.category:
-                self.smart_category_service.record_categorization(
-                    transaction_id=txn.transaction_id,
-                    category=txn.category,
-                    subcategory=txn.subcategory,
-                    source="user",
-                )
-            self._sync_projections()
-        else:
-            QMessageBox.critical(self, "Error", "Failed to update transaction.")
-            self.reload_transactions()
