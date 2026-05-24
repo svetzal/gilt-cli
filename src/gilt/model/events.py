@@ -81,7 +81,7 @@ class Event(BaseModel):
 
     @field_validator("event_timestamp", mode="before")
     @classmethod
-    def parse_timestamp(cls, value: Any) -> datetime:
+    def build_timestamp(cls, value: Any) -> datetime:
         """Parse timestamp from string or datetime."""
         if isinstance(value, str):
             return datetime.fromisoformat(value)

@@ -78,7 +78,7 @@ class DuplicateClassifier:
         self.feature_extractor.fit(pairs)
 
         # Extract features
-        X = np.vstack([self.feature_extractor.extract_features(p) for p in pairs])
+        X = np.vstack([self.feature_extractor.build_features(p) for p in pairs])
         y = np.array(labels, dtype=int)
 
         # Convert to DataFrame with feature names to avoid sklearn warnings
@@ -192,7 +192,7 @@ class DuplicateClassifier:
             raise RuntimeError("Model not trained. Call train() first or load a model.")
 
         # Extract features
-        features = self.feature_extractor.extract_features(pair)
+        features = self.feature_extractor.build_features(pair)
 
         # Convert to DataFrame with feature names to avoid sklearn warnings
         feature_names = self.feature_extractor.get_feature_names()

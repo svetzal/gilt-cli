@@ -56,7 +56,7 @@ class DuplicateFeatureExtractor:
         self.vectorizer.fit(all_descriptions)
         self._is_fitted = True
 
-    def extract_features(self, pair: TransactionPair) -> np.ndarray:
+    def build_features(self, pair: TransactionPair) -> np.ndarray:
         """Extract feature vector from a transaction pair.
 
         Args:

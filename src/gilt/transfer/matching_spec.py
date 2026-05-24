@@ -15,7 +15,7 @@ from gilt.transfer.matching import (
     _select_best_match,
     _try_match_for_debit,
     _valid_sign_pair,
-    compute_matches,
+    find_matches,
     score_pair,
 )
 
@@ -79,7 +79,7 @@ def it_should_match_direct_same_day_and_capture_fee(tmp_path: Path):
         ],
     )
 
-    matches = compute_matches(tmp_path)
+    matches = find_matches(tmp_path)
     assert len(matches) == 1
     m = matches[0]
     assert m.debit.transaction_id == debit_id
@@ -134,7 +134,7 @@ def it_should_allow_bank2_biz_loc_same_sign_pair(tmp_path: Path):
         ],
     )
 
-    matches = compute_matches(tmp_path)
+    matches = find_matches(tmp_path)
     assert len(matches) == 1
     m = matches[0]
     assert m.debit.account_id == "BANK2_BIZ"

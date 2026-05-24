@@ -18,7 +18,7 @@ from gilt.storage.projection import ProjectionBuilder
 logger = logging.getLogger(__name__)
 
 
-def compute_date_range(selection: str, today: date) -> tuple[date | None, date | None]:
+def get_date_range(selection: str, today: date) -> tuple[date | None, date | None]:
     """Compute (start_date, end_date) from a date range preset selection.
 
     Returns (None, None) for unrecognized selections (including 'All' and 'Custom').

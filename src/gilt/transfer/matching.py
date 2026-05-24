@@ -4,7 +4,7 @@ from __future__ import annotations
 Pure transfer matching logic (no CLI, no printing).
 
 - Operates on per-account ledger CSVs under data/accounts/ (or a provided directory).
-- Provides data structures and compute_matches() for use by other modules.
+- Provides data structures and find_matches() for use by other modules.
 - Privacy-safe: does not print raw descriptions.
 """
 
@@ -266,7 +266,7 @@ def _try_match_for_debit(
     )
 
 
-def compute_matches(
+def find_matches(
     processed_dir: Path,
     window_days: int = 3,
     epsilon_direct: float = 0.0,
@@ -326,5 +326,5 @@ __all__ = [
     "Match",
     "load_normalized",
     "score_pair",
-    "compute_matches",
+    "find_matches",
 ]

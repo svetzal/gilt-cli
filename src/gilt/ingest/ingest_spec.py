@@ -11,7 +11,7 @@ import pandas as pd
 from gilt.ingest import (
     _detect_columns,
     _detect_rbc_overrides,
-    compute_transaction_id_fields,
+    build_transaction_id,
     build_normalization_plan,
     infer_account_for_file,
     load_accounts_config,
@@ -184,37 +184,37 @@ class DescribePlanNormalization:
         assert ids["/ingest/other-export.csv"] is None
 
 
-class DescribeComputeTransactionIdFields:
-    """Behaviour of compute_transaction_id_fields() SHA-256 hash."""
+class DescribeBuildTransactionId:
+    """Behaviour of build_transaction_id() SHA-256 hash."""
 
     def it_should_return_16_hex_character_string(self):
-        txn_id = compute_transaction_id_fields("MYBANK_CHQ", "2025-01-15", -42.50, "SAMPLE STORE")
+        txn_id = build_transaction_id("MYBANK_CHQ", "2025-01-15", -42.50, "SAMPLE STORE")
         assert len(txn_id) == 16
         assert all(c in "0123456789abcdef" for c in txn_id)
 
     def it_should_produce_deterministic_output_for_same_inputs(self):
-        id1 = compute_transaction_id_fields("MYBANK_CHQ", "2025-01-15", -42.50, "SAMPLE STORE")
-        id2 = compute_transaction_id_fields("MYBANK_CHQ", "2025-01-15", -42.50, "SAMPLE STORE")
+        id1 = build_transaction_id("MYBANK_CHQ", "2025-01-15", -42.50, "SAMPLE STORE")
+        id2 = build_transaction_id("MYBANK_CHQ", "2025-01-15", -42.50, "SAMPLE STORE")
         assert id1 == id2
 
     def it_should_produce_different_ids_for_different_accounts(self):
-        id1 = compute_transaction_id_fields("MYBANK_CHQ", "2025-01-15", -42.50, "SAMPLE STORE")
-        id2 = compute_transaction_id_fields("MYBANK_CC", "2025-01-15", -42.50, "SAMPLE STORE")
+        id1 = build_transaction_id("MYBANK_CHQ", "2025-01-15", -42.50, "SAMPLE STORE")
+        id2 = build_transaction_id("MYBANK_CC", "2025-01-15", -42.50, "SAMPLE STORE")
         assert id1 != id2
 
     def it_should_produce_different_ids_for_different_dates(self):
-        id1 = compute_transaction_id_fields("MYBANK_CHQ", "2025-01-15", -42.50, "SAMPLE STORE")
-        id2 = compute_transaction_id_fields("MYBANK_CHQ", "2025-01-16", -42.50, "SAMPLE STORE")
+        id1 = build_transaction_id("MYBANK_CHQ", "2025-01-15", -42.50, "SAMPLE STORE")
+        id2 = build_transaction_id("MYBANK_CHQ", "2025-01-16", -42.50, "SAMPLE STORE")
         assert id1 != id2
 
     def it_should_produce_different_ids_for_different_amounts(self):
-        id1 = compute_transaction_id_fields("MYBANK_CHQ", "2025-01-15", -42.50, "SAMPLE STORE")
-        id2 = compute_transaction_id_fields("MYBANK_CHQ", "2025-01-15", -43.00, "SAMPLE STORE")
+        id1 = build_transaction_id("MYBANK_CHQ", "2025-01-15", -42.50, "SAMPLE STORE")
+        id2 = build_transaction_id("MYBANK_CHQ", "2025-01-15", -43.00, "SAMPLE STORE")
         assert id1 != id2
 
     def it_should_produce_different_ids_for_different_descriptions(self):
-        id1 = compute_transaction_id_fields("MYBANK_CHQ", "2025-01-15", -42.50, "SAMPLE STORE")
-        id2 = compute_transaction_id_fields("MYBANK_CHQ", "2025-01-15", -42.50, "ACME CORP")
+        id1 = build_transaction_id("MYBANK_CHQ", "2025-01-15", -42.50, "SAMPLE STORE")
+        id2 = build_transaction_id("MYBANK_CHQ", "2025-01-15", -42.50, "ACME CORP")
         assert id1 != id2
 
     def it_should_match_manually_computed_sha256_first_16_chars(self):
@@ -224,7 +224,7 @@ class DescribeComputeTransactionIdFields:
         description = "SAMPLE STORE"
         base = f"{account_id}|{txn_date}|{amount}|{description}"
         expected = hashlib.sha256(base.encode("utf-8")).hexdigest()[:16]
-        result = compute_transaction_id_fields(account_id, txn_date, amount, description)
+        result = build_transaction_id(account_id, txn_date, amount, description)
         assert result == expected
 
 

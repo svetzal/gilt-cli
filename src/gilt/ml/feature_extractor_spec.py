@@ -33,7 +33,7 @@ class DescribeFeatureExtractor:
         )
 
         extractor = DuplicateFeatureExtractor()
-        features = extractor.extract_features(pair)
+        features = extractor.build_features(pair)
 
         # Check feature vector shape
         assert features.shape == (8,)
@@ -72,7 +72,7 @@ class DescribeFeatureExtractor:
         )
 
         extractor = DuplicateFeatureExtractor()
-        features = extractor.extract_features(pair)
+        features = extractor.build_features(pair)
 
         # Should have:
         # - Moderate cosine similarity (character n-grams share some patterns)
@@ -105,7 +105,7 @@ class DescribeFeatureExtractor:
         )
 
         extractor = DuplicateFeatureExtractor()
-        features = extractor.extract_features(pair)
+        features = extractor.build_features(pair)
 
         # Should have:
         # - Low cosine similarity (different words)
@@ -137,7 +137,7 @@ class DescribeFeatureExtractor:
         )
 
         extractor = DuplicateFeatureExtractor()
-        features = extractor.extract_features(pair)
+        features = extractor.build_features(pair)
 
         # Should produce valid features (no NaN or inf)
         assert features.shape == (8,)
@@ -188,7 +188,7 @@ class DescribeFeatureExtractor:
         extractor.fit(pairs)
 
         # Should be able to extract features after fitting
-        features = extractor.extract_features(pairs[0])
+        features = extractor.build_features(pairs[0])
         assert features.shape == (8,)
         assert extractor._is_fitted
 
@@ -258,7 +258,7 @@ class DescribeFeatureExtractorPerformance:
         # Measure 100 extractions
         start = time.time()
         for _ in range(100):
-            extractor.extract_features(pair)
+            extractor.build_features(pair)
         elapsed = time.time() - start
 
         # Should be fast (<<1 second for 100 pairs)

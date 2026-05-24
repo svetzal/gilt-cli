@@ -177,7 +177,7 @@ class DuplicateFeatureExtractor:
             max_features=500
         )
 
-    def extract_features(self, pair: TransactionPair) -> np.ndarray:
+    def build_features(self, pair: TransactionPair) -> np.ndarray:
         """Extract features for duplicate detection."""
         # Text similarity features
         desc1_vec = self.vectorizer.transform([pair.txn1_description])
@@ -233,14 +233,14 @@ class DuplicateClassifier:
 
     def train(self, pairs: List[TransactionPair], labels: List[bool]):
         """Train on labeled examples."""
-        X = np.vstack([self.feature_extractor.extract_features(p) for p in pairs])
+        X = np.vstack([self.feature_extractor.build_features(p) for p in pairs])
         y = np.array(labels)
 
         self.model.fit(X, y)
 
     def predict(self, pair: TransactionPair) -> DuplicateAssessment:
         """Predict if pair is duplicate with confidence."""
-        features = self.feature_extractor.extract_features(pair)
+        features = self.feature_extractor.build_features(pair)
 
         # Get probability (0-1 for is_duplicate=True)
         proba = self.model.predict_proba(features.reshape(1, -1))[0, 1]

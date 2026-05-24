@@ -40,7 +40,7 @@ from gilt.transfer._constants import (
 )
 
 # We reuse the matching logic from the matching module (no CLI deps)
-from gilt.transfer.matching import Match, Txn, compute_matches
+from gilt.transfer.matching import Match, Txn, find_matches
 
 logger = logging.getLogger(__name__)
 
@@ -161,7 +161,7 @@ def link_transfers(
     """
     processed_dir = Path(processed_dir)
     # 1) Find matches using existing logic (operates on processed_dir files)
-    matches: list[Match] = compute_matches(
+    matches: list[Match] = find_matches(
         processed_dir=processed_dir,
         window_days=window_days,
         epsilon_direct=epsilon_direct,

@@ -837,7 +837,7 @@ def infer_rules(
 
 
 @app.command(name="rebuild-projections")
-def rebuild_projections(
+def build_projections(
     ctx: typer.Context,
     from_scratch: bool = typer.Option(
         False, "--from-scratch", help="Delete existing projections and rebuild from all events"

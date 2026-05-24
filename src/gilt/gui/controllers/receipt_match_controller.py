@@ -54,7 +54,7 @@ class ReceiptMatchController(QObject):
             txn_currency=txn.currency or "CAD",
         )
 
-    def handle_single_match(self, selected_transactions: list[TransactionGroup]) -> None:
+    def run_single_match(self, selected_transactions: list[TransactionGroup]) -> None:
         """Handle receipt match request for a single selected transaction."""
         if len(selected_transactions) != 1:
             return
@@ -85,7 +85,7 @@ class ReceiptMatchController(QObject):
                 self.data_changed.emit(None)
                 QMessageBox.information(self._parent, "Success", "Receipt matched successfully.")
 
-    def handle_batch_match(
+    def run_batch_match(
         self,
         all_transactions: list[TransactionGroup],
         enrichment_service: EnrichmentService | None,
@@ -135,7 +135,7 @@ class ReceiptMatchController(QObject):
                 )
         self.status_message.emit("Receipt matching complete.")
 
-    def apply_from_panel(self, receipt, transaction_id: str) -> None:
+    def run_match_from_panel(self, receipt, transaction_id: str) -> None:
         """Apply a receipt match selected from the detail panel."""
         svc = self.get_service()
         if not svc:

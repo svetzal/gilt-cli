@@ -30,7 +30,7 @@ from gilt.gui.controllers.receipt_match_controller import ReceiptMatchController
 from gilt.gui.controllers.transaction_mutation_controller import TransactionMutationController
 from gilt.gui.services.enrichment_service import EnrichmentService
 from gilt.gui.services.intelligence_cache import IntelligenceCache
-from gilt.gui.services.transaction_service import TransactionService, compute_date_range
+from gilt.gui.services.transaction_service import TransactionService, get_date_range
 from gilt.gui.widgets.transaction_detail_panel import TransactionDetailPanel
 from gilt.gui.widgets.transaction_table import TransactionTableWidget
 from gilt.model.account import TransactionGroup
@@ -298,7 +298,7 @@ class TransactionsView(QWidget):
 
         today = QDate.currentDate()
         today_py = date(today.year(), today.month(), today.day())
-        start, end = compute_date_range(preset, today_py)
+        start, end = get_date_range(preset, today_py)
 
         if start is None:
             return
@@ -335,7 +335,7 @@ class TransactionsView(QWidget):
             self._mutation_controller._apply_prediction
         )
         self.detail_panel.apply_receipt_requested.connect(
-            self._receipt_controller.apply_from_panel
+            self._receipt_controller.run_match_from_panel
         )
         self.match_receipts_btn.clicked.connect(self._on_batch_receipt_match)
 
@@ -406,7 +406,7 @@ class TransactionsView(QWidget):
         if len(selected) != 1:
             return
         meta = self.table.transaction_model.get_metadata(selected[0].primary.transaction_id)
-        self._mutation_controller.resolve_duplicate(selected[0], meta)
+        self._mutation_controller.run_duplicate_resolution(selected[0], meta)
 
     def _on_manual_merge_requested(self):
         """Bridge: get selected transactions and delegate to mutation controller."""
@@ -414,11 +414,11 @@ class TransactionsView(QWidget):
 
     def _on_receipt_match_requested(self):
         """Bridge: get selected transactions and delegate to receipt controller."""
-        self._receipt_controller.handle_single_match(self.table.get_selected_transactions())
+        self._receipt_controller.run_single_match(self.table.get_selected_transactions())
 
     def _on_batch_receipt_match(self):
         """Bridge: delegate batch receipt match to receipt controller."""
-        self._receipt_controller.handle_batch_match(self._all_transactions, self.enrichment_service)
+        self._receipt_controller.run_batch_match(self._all_transactions, self.enrichment_service)
 
     def _on_mutation_data_changed(self, restore_id):
         """Reload transactions after a mutation, optionally restoring selection."""

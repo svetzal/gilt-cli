@@ -179,7 +179,7 @@ class TransactionMutationController(QObject):
         except (FileNotFoundError, OSError, ValueError, UnicodeDecodeError) as e:
             QMessageBox.critical(self._parent, "Error", f"Failed to update note:\n{str(e)}")
 
-    def resolve_duplicate(self, txn_group: TransactionGroup, meta: dict):
+    def run_duplicate_resolution(self, txn_group: TransactionGroup, meta: dict):
         """Handle duplicate resolution request."""
         match = meta.get("duplicate_match")
         if not match:

@@ -105,7 +105,7 @@ HASH_ALGO_SPEC = (
 )
 
 
-def compute_transaction_id_fields(account_id: str, date: str, amount, description: str) -> str:
+def build_transaction_id(account_id: str, date: str, amount, description: str) -> str:
     base = f"{account_id}|{date}|{amount}|{description}"
     return hashlib.sha256(base.encode("utf-8")).hexdigest()[:16]
 
@@ -322,7 +322,7 @@ def _build_transaction_dataframe(
 
     # Compute transaction_id hash (frozen spec)
     out["transaction_id"] = out.apply(
-        lambda row: compute_transaction_id_fields(
+        lambda row: build_transaction_id(
             row["account_id"], row["date"], row["amount"], row["description"]
         ),
         axis=1,
@@ -572,6 +572,6 @@ __all__ = [
     "infer_account_for_file",
     "build_normalization_plan",
     "normalize_file",
-    "compute_transaction_id_fields",
+    "build_transaction_id",
     "HASH_ALGO_SPEC",
 ]
