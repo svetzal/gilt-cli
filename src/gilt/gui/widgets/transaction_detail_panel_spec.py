@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from unittest.mock import MagicMock
 
 from gilt.gui.services.enrichment_service import EnrichmentData
 from gilt.testing.fixtures import make_group
+from gilt.transfer._constants import TRANSFER_META_KEY
 
 
 class DescribeTransactionDetailPanel:
@@ -57,3 +59,98 @@ class DescribeTransactionDetailPanel:
         """Panel should accept None to show placeholder state."""
         # This tests the contract — None means "no selection"
         assert make_group() is not None  # sanity check
+
+
+class DescribeUpdateTransactionBehavior:
+    """Tests for TransactionDetailPanel.update_transaction branching logic (mock-based)."""
+
+    def it_should_show_placeholder_when_transaction_is_none(self):
+        panel = MagicMock()
+
+        from gilt.gui.widgets.transaction_detail_panel import TransactionDetailPanel
+
+        TransactionDetailPanel.update_transaction(panel, None)
+
+        panel._clear.assert_called_once()
+        panel._show_placeholder.assert_called_once()
+
+    def it_should_build_basics_section_for_valid_transaction(self):
+        panel = MagicMock()
+        group = make_group()
+        panel._build_basics_section.return_value = MagicMock()
+        panel._build_receipt_candidates_section.return_value = MagicMock()
+
+        from gilt.gui.widgets.transaction_detail_panel import TransactionDetailPanel
+
+        TransactionDetailPanel.update_transaction(panel, group)
+
+        panel._build_basics_section.assert_called_once_with(group.primary)
+
+    def it_should_show_prediction_section_when_metadata_has_prediction_and_no_category(self):
+        panel = MagicMock()
+        group = make_group()  # no category by default
+        panel._build_basics_section.return_value = MagicMock()
+        panel._build_prediction_section.return_value = MagicMock()
+        panel._build_receipt_candidates_section.return_value = MagicMock()
+        metadata = {"predicted_category": "Food: Groceries", "confidence": 0.85}
+
+        from gilt.gui.widgets.transaction_detail_panel import TransactionDetailPanel
+
+        TransactionDetailPanel.update_transaction(panel, group, metadata=metadata)
+
+        panel._build_prediction_section.assert_called_once_with(group, metadata)
+
+    def it_should_skip_prediction_section_when_transaction_has_category(self):
+        panel = MagicMock()
+        group = make_group(category="Food", subcategory="Groceries")
+        panel._build_basics_section.return_value = MagicMock()
+        panel._build_receipt_candidates_section.return_value = MagicMock()
+        metadata = {"predicted_category": "Transport", "confidence": 0.90}
+
+        from gilt.gui.widgets.transaction_detail_panel import TransactionDetailPanel
+
+        TransactionDetailPanel.update_transaction(panel, group, metadata=metadata)
+
+        panel._build_prediction_section.assert_not_called()
+
+    def it_should_show_transfer_section_when_transfer_metadata_exists(self):
+        panel = MagicMock()
+        group = make_group(
+            metadata={TRANSFER_META_KEY: {"role": "debit", "counterparty_account_id": "ACC2"}}
+        )
+        panel._build_basics_section.return_value = MagicMock()
+        panel._build_receipt_candidates_section.return_value = MagicMock()
+        panel._build_transfer_section.return_value = MagicMock()
+
+        from gilt.gui.widgets.transaction_detail_panel import TransactionDetailPanel
+
+        TransactionDetailPanel.update_transaction(panel, group)
+
+        panel._build_transfer_section.assert_called_once_with(
+            group.primary.metadata[TRANSFER_META_KEY]
+        )
+
+    def it_should_show_enrichment_section_when_enrichment_provided(self):
+        panel = MagicMock()
+        group = make_group()
+        enrichment = EnrichmentData(
+            vendor="ACME CORP",
+            service=None,
+            invoice_number=None,
+            tax_amount=None,
+            tax_type=None,
+            currency="CAD",
+            receipt_file=None,
+            enrichment_source=None,
+            source_email=None,
+            match_confidence="exact",
+        )
+        panel._build_basics_section.return_value = MagicMock()
+        panel._build_enrichment_section.return_value = MagicMock()
+
+        from gilt.gui.widgets.transaction_detail_panel import TransactionDetailPanel
+
+        TransactionDetailPanel.update_transaction(panel, group, enrichment=enrichment)
+
+        panel._build_enrichment_section.assert_called_once_with(enrichment, group.primary.currency)
+        panel._build_receipt_candidates_section.assert_not_called()

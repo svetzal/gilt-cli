@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
+from unittest.mock import MagicMock
 
 from gilt.services.receipt_ingestion_service import MatchResult, ReceiptData
 
@@ -136,3 +137,113 @@ class DescribeUserSelectedResolution:
 
         assert resolved.receipt.vendor == "Example Vendor"
         assert resolved.receipt.service == "Pro Plan"
+
+
+class DescribeFormatReceipt:
+    """Tests for ReceiptMatchDialog._format_receipt (pure formatting logic, no Qt required)."""
+
+    def it_should_format_receipt_with_tax_included(self):
+        from gilt.gui.dialogs.receipt_match_dialog import ReceiptMatchDialog
+
+        dialog = MagicMock(spec=ReceiptMatchDialog)
+        receipt = _make_receipt(
+            vendor="Acme Corp",
+            service=None,
+            amount=Decimal("35.01"),
+            invoice_number=None,
+        )
+        # tax_amount=4.03 from _make_receipt default
+
+        result = ReceiptMatchDialog._format_receipt(dialog, receipt)
+
+        assert "$35.01" in result
+        assert "$4.03" in result
+        assert "HST" in result
+        assert "$39.04" in result  # 35.01 + 4.03
+
+    def it_should_format_receipt_without_tax(self):
+        from gilt.gui.dialogs.receipt_match_dialog import ReceiptMatchDialog
+
+        dialog = MagicMock(spec=ReceiptMatchDialog)
+        receipt = ReceiptData(
+            vendor="Example Store",
+            service=None,
+            amount=Decimal("50.00"),
+            currency="CAD",
+            tax_amount=None,
+            tax_type=None,
+            receipt_date=date(2025, 5, 10),
+            invoice_number=None,
+            source_email=None,
+            receipt_file=None,
+            source_path=Path("/tmp/no-tax.json"),
+        )
+
+        result = ReceiptMatchDialog._format_receipt(dialog, receipt)
+
+        assert "$50.00" in result
+        assert "tax" not in result.lower() or "=" not in result
+
+    def it_should_include_invoice_number_in_format(self):
+        from gilt.gui.dialogs.receipt_match_dialog import ReceiptMatchDialog
+
+        dialog = MagicMock(spec=ReceiptMatchDialog)
+        receipt = _make_receipt(invoice_number="INV-2025-999")
+
+        result = ReceiptMatchDialog._format_receipt(dialog, receipt)
+
+        assert "[INV-2025-999]" in result
+
+    def it_should_include_service_in_format(self):
+        from gilt.gui.dialogs.receipt_match_dialog import ReceiptMatchDialog
+
+        dialog = MagicMock(spec=ReceiptMatchDialog)
+        receipt = _make_receipt(service="Premium Plan")
+
+        result = ReceiptMatchDialog._format_receipt(dialog, receipt)
+
+        assert "Premium Plan" in result
+
+
+class DescribeBatchReceiptMatchDialogLogic:
+    """Tests for BatchReceiptMatchDialog resolution state (no Qt widget instantiation)."""
+
+    def it_should_initialize_resolved_with_matched_results(self):
+        from gilt.gui.dialogs.receipt_match_dialog import BatchReceiptMatchDialog
+
+        matched = [
+            MatchResult(
+                receipt=_make_receipt(),
+                status="matched",
+                transaction_id="abcd1234abcd1234",
+                candidate_count=1,
+                candidates=[_make_candidate()],
+                match_confidence="exact",
+            )
+        ]
+        dialog = MagicMock(spec=BatchReceiptMatchDialog)
+        dialog._matched = matched
+        dialog._ambiguous = []
+        dialog._resolved = list(matched)  # mirrors __init__ behaviour
+
+        assert len(dialog._resolved) == 1
+        assert dialog._resolved[0].status == "matched"
+
+    def it_should_increment_ambiguous_index_on_next(self):
+        from gilt.gui.dialogs.receipt_match_dialog import BatchReceiptMatchDialog
+
+        dialog = MagicMock(spec=BatchReceiptMatchDialog)
+        dialog._current_ambiguous_index = 0
+        dialog._ambiguous = [
+            MatchResult(
+                receipt=_make_receipt(),
+                status="ambiguous",
+                candidate_count=1,
+                candidates=[_make_candidate()],
+            )
+        ]
+
+        BatchReceiptMatchDialog._next_ambiguous(dialog)
+
+        assert dialog._current_ambiguous_index == 1
+        dialog._show_current_ambiguous.assert_called_once()
