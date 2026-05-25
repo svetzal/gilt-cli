@@ -50,7 +50,7 @@ class DescribeGetReceiptMatchService:
 
     def it_should_return_empty_list_when_no_service(self):
         controller = MagicMock()
-        controller._event_store = None
+        controller.get_service.return_value = None
 
         txn_group = MagicMock()
         result = ReceiptMatchController.find_candidates(controller, txn_group)
