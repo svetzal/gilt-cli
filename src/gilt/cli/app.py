@@ -565,6 +565,27 @@ def note(
 
 
 @app.command()
+def show(
+    ctx: typer.Context,
+    txid: str = typer.Option(..., "--txid", "-t", help="Transaction ID prefix (8+ characters)"),
+):
+    """Show all stored fields for a single transaction.
+
+    Displays the full projection record for a transaction identified by an
+    8+ character ID prefix, including description history, enrichment fields,
+    duplicate status, and event metadata.
+
+    Examples:
+      gilt show --txid a1b2c3d4
+      gilt show -t a1b2c3d4e5f6g7h8
+    """
+    from gilt.cli.command import show as cmd_show
+
+    code = cmd_show.run(txid=txid, workspace=_ws(ctx))
+    raise typer.Exit(code=code)
+
+
+@app.command()
 def ingest(
     ctx: typer.Context,
     write: bool = typer.Option(False, "--write", help=HELP_WRITE),

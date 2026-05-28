@@ -62,6 +62,7 @@ Commands use Rich formatting for readable output:
 ### Transaction Viewing
 
 - [`ytd`](viewing.md#viewing-transactions) - View year-to-date transactions
+- [`show`](viewing.md#inspecting-a-transaction) - Inspect all fields of a single transaction
 - [`uncategorized`](categorization.md#finding-uncategorized) - Find transactions without categories
 
 ### Categorization

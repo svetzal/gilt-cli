@@ -224,6 +224,37 @@ A rich formatted table showing:
 
 ---
 
+### `show` - Inspect a Single Transaction
+
+Display all stored fields for one transaction by ID prefix. Useful for inspecting enrichment metadata, description history, duplicate flags, and receipt links that are not shown in `ytd` output.
+
+```bash
+# Show full record for a transaction (8+ char prefix)
+gilt show --txid a1b2c3d4
+
+# Full 16-character ID also accepted
+gilt show --txid a1b2c3d4e5f60718
+```
+
+**Options:**
+- `--txid, -t TXID`: Transaction ID or prefix (8+ characters, required)
+
+**Output:**
+A vertical key-value layout showing every stored field:
+- Transaction ID, date, account, description
+- Description history (bulleted list of past values)
+- Amount, currency, category, subcategory
+- Counterparty, notes, source file
+- Duplicate flag, primary transaction ID
+- Enrichment fields: vendor, service, invoice number, tax, receipt file, source email
+- Projection metadata: last event ID, projection version
+
+If the prefix matches multiple transactions, a candidate list is shown and the command exits non-zero. If no match is found, an error is printed.
+
+Read-only — no `--write` flag needed.
+
+---
+
 ### `note` - Annotate Transactions
 
 Attach or update notes on one or more transactions. Supports both single-transaction and batch modes.
