@@ -345,7 +345,9 @@ class DescribePlanRemoval:
         service = CategoryManagementService(sample_category_config)
 
         # Act
-        plan = service.build_removal_plan("Housing", "NonExistent", sample_transactions, force=False)
+        plan = service.build_removal_plan(
+            "Housing", "NonExistent", sample_transactions, force=False
+        )
 
         # Assert
         assert plan.can_remove is True  # Nothing to remove

@@ -275,13 +275,17 @@ def _collect_candidates(
             s.upper() in desc for s in vendor_substrings
         )
 
-        if _is_exact_match(amount_diff, days_diff, desc_matches_vendor, amount_tolerance, date_window_days):
+        if _is_exact_match(
+            amount_diff, days_diff, desc_matches_vendor, amount_tolerance, date_window_days
+        ):
             exact_candidates.append(txn)
 
         if _is_fx_match(receipt, txn, amount_diff, days_diff, desc_matches_vendor, receipt_amount):
             fx_candidates.append(txn)
 
-        if _is_pattern_match(amount_diff, days_diff, vendor_substrings, desc, receipt_amount, date_window_days):
+        if _is_pattern_match(
+            amount_diff, days_diff, vendor_substrings, desc, receipt_amount, date_window_days
+        ):
             pattern_candidates.append(txn)
 
     return exact_candidates, fx_candidates, pattern_candidates

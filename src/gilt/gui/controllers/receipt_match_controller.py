@@ -97,9 +97,7 @@ class ReceiptMatchController(QObject):
         unenriched = [
             g
             for g in all_transactions
-            if not (
-                enrichment_service and enrichment_service.is_enriched(g.primary.transaction_id)
-            )
+            if not (enrichment_service and enrichment_service.is_enriched(g.primary.transaction_id))
         ]
         if not unenriched:
             QMessageBox.information(
@@ -144,6 +142,4 @@ class ReceiptMatchController(QObject):
             svc.run_match(receipt, transaction_id)
             self.data_changed.emit(transaction_id)
         except (OSError, ValueError, UnicodeDecodeError) as e:
-            QMessageBox.critical(
-                self._parent, "Error", f"Failed to apply receipt match:\n{str(e)}"
-            )
+            QMessageBox.critical(self._parent, "Error", f"Failed to apply receipt match:\n{str(e)}")

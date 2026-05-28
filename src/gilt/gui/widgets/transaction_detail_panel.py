@@ -107,9 +107,7 @@ class TransactionDetailPanel(QScrollArea):
         return build_basics_section(
             self._label,
             txn,
-            form_setup_fn=lambda form: form.setRowWrapPolicy(
-                QFormLayout.RowWrapPolicy.WrapAllRows
-            ),
+            form_setup_fn=lambda form: form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapAllRows),
             description_label_fn=self._copyable_label,
         )
 

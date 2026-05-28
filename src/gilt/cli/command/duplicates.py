@@ -110,7 +110,9 @@ class _FeedbackResult:
     events_processed: int
 
 
-def _record_feedback(ctx: ReviewContext, decision, pair, assessment, suggestion_event_id: str) -> _FeedbackResult:
+def _record_feedback(
+    ctx: ReviewContext, decision, pair, assessment, suggestion_event_id: str
+) -> _FeedbackResult:
     """Apply user decision, update projections, and update prompt manager. Returns result for display."""
     event, action = ctx.review_service.run_user_decision(
         decision=decision,
@@ -136,7 +138,11 @@ def _record_feedback(ctx: ReviewContext, decision, pair, assessment, suggestion_
             llm_reasoning=assessment.reasoning,
         )
 
-    return _FeedbackResult(action=action, canonical_description=canonical_description, events_processed=events_processed)
+    return _FeedbackResult(
+        action=action,
+        canonical_description=canonical_description,
+        events_processed=events_processed,
+    )
 
 
 def _analyze_candidates(console, detector, candidates, detection_method):
@@ -160,7 +166,9 @@ def _analyze_candidates(console, detector, candidates, detection_method):
     return matches
 
 
-def _display_and_review_match(ctx: ReviewContext, i: int, total: int, match, suggestion_event_id: str):
+def _display_and_review_match(
+    ctx: ReviewContext, i: int, total: int, match, suggestion_event_id: str
+):
     """Display a single match and handle interactive review. Appends result to ctx.feedback."""
     pair = match.pair
     assessment = match.assessment
@@ -190,7 +198,9 @@ def _display_and_review_match(ctx: ReviewContext, i: int, total: int, match, sug
     # Record feedback and display result
     fb = _record_feedback(ctx, decision, pair, assessment, suggestion_event_id)
     if fb.action == "confirmed":
-        ctx.console.print(f"[green]✓ Duplicate confirmed (using: {fb.canonical_description})[/green]")
+        ctx.console.print(
+            f"[green]✓ Duplicate confirmed (using: {fb.canonical_description})[/green]"
+        )
     else:
         ctx.console.print("[green]✓ Rejection recorded[/green]")
     if fb.events_processed > 0:
@@ -231,7 +241,13 @@ def _finalize_session(
         )
 
     _display_summary(
-        console, filtered_matches, review_ctx.feedback, use_llm, detector, interactive, review_service
+        console,
+        filtered_matches,
+        review_ctx.feedback,
+        use_llm,
+        detector,
+        interactive,
+        review_service,
     )
 
 
@@ -316,7 +332,9 @@ def _scan_for_candidates(detector, data_dir, max_days_apart, amount_tolerance):
     return transactions, candidates
 
 
-def _filter_matches(detector, review_service, candidates, detection_method, min_confidence, projection_builder):
+def _filter_matches(
+    detector, review_service, candidates, detection_method, min_confidence, projection_builder
+):
     """Analyze, confidence-filter, and exclude already-processed matches.
 
     Returns (filtered_matches, skipped_count).
@@ -333,7 +351,9 @@ def _filter_matches(detector, review_service, candidates, detection_method, min_
     return filtered_matches, skipped_count
 
 
-def _run_review_loop(review_ctx: ReviewContext, filtered_matches, review_service, detector, model, interactive):
+def _run_review_loop(
+    review_ctx: ReviewContext, filtered_matches, review_service, detector, model, interactive
+):
     """Iterate over matches, emit suggestion events, and run interactive review if enabled."""
     for i, match in enumerate(filtered_matches, 1):
         pair = match.pair
@@ -427,7 +447,9 @@ def run(
     if not interactive:
         _display_non_interactive_results(filtered_matches)
 
-    _finalize_session(detector, skipped_count, filtered_matches, review_ctx, use_llm, interactive, review_service)
+    _finalize_session(
+        detector, skipped_count, filtered_matches, review_ctx, use_llm, interactive, review_service
+    )
     return 0
 
 

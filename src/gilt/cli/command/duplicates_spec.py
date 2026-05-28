@@ -204,7 +204,9 @@ class DescribeFilterMatches:
         review_service.exclude_already_processed.return_value = ([high_conf], 0)
         projection_builder = MagicMock()
 
-        with patch("gilt.cli.command.duplicates._analyze_candidates", return_value=[high_conf, low_conf]):
+        with patch(
+            "gilt.cli.command.duplicates._analyze_candidates", return_value=[high_conf, low_conf]
+        ):
             result, skipped = _filter_matches(
                 detector, review_service, [pair], "ML", 0.5, projection_builder
             )
@@ -383,7 +385,9 @@ class DescribeRunReviewLoop:
         )
 
         with patch("gilt.cli.command.duplicates._display_and_review_match") as mock_display:
-            _run_review_loop(ctx, filtered_matches, review_service, detector, "llama3", interactive=True)
+            _run_review_loop(
+                ctx, filtered_matches, review_service, detector, "llama3", interactive=True
+            )
 
         mock_display.assert_called_once()
 
@@ -410,7 +414,9 @@ class DescribeRunReviewLoop:
             "gilt.cli.command.duplicates._display_and_review_match",
             side_effect=KeyboardInterrupt,
         ):
-            _run_review_loop(ctx, filtered_matches, review_service, detector, "llama3", interactive=True)
+            _run_review_loop(
+                ctx, filtered_matches, review_service, detector, "llama3", interactive=True
+            )
 
 
 class DescribeDuplicatesRun:
@@ -450,7 +456,9 @@ class DescribeDuplicatesRun:
 
             with (
                 patch("gilt.cli.command.duplicates.require_event_sourcing", return_value=ready),
-                patch("gilt.cli.command.duplicates._scan_for_candidates", return_value=([], [pair])),
+                patch(
+                    "gilt.cli.command.duplicates._scan_for_candidates", return_value=([], [pair])
+                ),
                 patch("gilt.cli.command.duplicates._filter_matches", return_value=([match], 0)),
                 patch("gilt.cli.command.duplicates._run_review_loop"),
                 patch("gilt.cli.command.duplicates._display_summary"),

@@ -160,7 +160,9 @@ class CategoryManagementService:
             )
 
         if subcategory:
-            return self._plan_subcategory_removal(cat, category, subcategory, transaction_groups, force)
+            return self._plan_subcategory_removal(
+                cat, category, subcategory, transaction_groups, force
+            )
 
         return self._plan_category_removal(cat, category, transaction_groups, force)
 
@@ -263,7 +265,9 @@ class CategoryManagementService:
             return AdditionResult(
                 success=False,
                 already_exists=True,
-                errors=[f"Subcategory '{format_category_path(category, subcategory)}' already exists"],
+                errors=[
+                    f"Subcategory '{format_category_path(category, subcategory)}' already exists"
+                ],
             )
 
         new_subcat = Subcategory(name=subcategory, description=description)
@@ -335,7 +339,9 @@ class CategoryManagementService:
                     already_exists=False,
                     errors=[f"Parent category '{category}' does not exist"],
                 )
-            return self._add_subcategory_to_category(existing_cat, category, subcategory, description)
+            return self._add_subcategory_to_category(
+                existing_cat, category, subcategory, description
+            )
 
         return self._add_new_category(category, description)
 

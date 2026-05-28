@@ -91,9 +91,7 @@ class DescribePromptStatsCommand:
                 mock_es_cls.return_value = mock_es
 
                 mock_learning = MagicMock()
-                mock_learning.get_accuracy.return_value = _make_accuracy_metrics(
-                    total_feedback=0
-                )
+                mock_learning.get_accuracy.return_value = _make_accuracy_metrics(total_feedback=0)
                 mock_learning_cls.return_value = mock_learning
 
                 result = run(workspace=workspace)
@@ -126,9 +124,7 @@ class DescribePromptStatsCommand:
                 mock_es_cls.return_value = mock_es
 
                 mock_learning = MagicMock()
-                mock_learning.get_accuracy.return_value = _make_accuracy_metrics(
-                    total_feedback=10
-                )
+                mock_learning.get_accuracy.return_value = _make_accuracy_metrics(total_feedback=10)
                 mock_learning.identify_learned_patterns.return_value = []
                 mock_learning_cls.return_value = mock_learning
 
@@ -173,9 +169,7 @@ class DescribePromptStatsCommand:
                 mock_es_cls.return_value = mock_es
 
                 mock_learning = MagicMock()
-                mock_learning.get_accuracy.return_value = _make_accuracy_metrics(
-                    total_feedback=5
-                )
+                mock_learning.get_accuracy.return_value = _make_accuracy_metrics(total_feedback=5)
                 mock_learning.identify_learned_patterns.return_value = []
                 mock_learning_cls.return_value = mock_learning
 

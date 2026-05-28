@@ -404,9 +404,7 @@ class DescribeFilterCandidateOthers:
 
     def it_should_exclude_transaction_from_same_account(self):
         d = _make_txn(transaction_id="d1", account_id="A1", amount=-100.0, currency="CAD")
-        same_account = _make_txn(
-            transaction_id="s1", account_id="A1", amount=100.0, currency="CAD"
-        )
+        same_account = _make_txn(transaction_id="s1", account_id="A1", amount=100.0, currency="CAD")
         txns_by_ccy = {"CAD": [d, same_account]}
 
         result = _filter_candidate_others(d, txns_by_ccy, set())

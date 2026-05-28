@@ -95,19 +95,16 @@ class DescribeShowImportWizard:
         window.workspace = MagicMock()
         window.data_dir = Path("/tmp/data")
 
-        with patch("gilt.gui.main_window.SettingsDialog"), patch(
-            "gilt.gui.main_window.EventSourcingService"
-        ), patch("gilt.gui.main_window.DuplicateDetector"), patch(
-            "gilt.gui.main_window.DuplicateService"
-        ), patch(
-            "gilt.gui.main_window.CategorizationClassifier"
-        ), patch(
-            "gilt.gui.main_window.SmartCategoryService"
-        ), patch(
-            "gilt.gui.main_window.ImportService"
-        ), patch(
-            "gilt.gui.main_window.ImportWizard"
-        ) as mock_wizard_cls:
+        with (
+            patch("gilt.gui.main_window.SettingsDialog"),
+            patch("gilt.gui.main_window.EventSourcingService"),
+            patch("gilt.gui.main_window.DuplicateDetector"),
+            patch("gilt.gui.main_window.DuplicateService"),
+            patch("gilt.gui.main_window.CategorizationClassifier"),
+            patch("gilt.gui.main_window.SmartCategoryService"),
+            patch("gilt.gui.main_window.ImportService"),
+            patch("gilt.gui.main_window.ImportWizard") as mock_wizard_cls,
+        ):
             mock_wizard_cls.return_value.exec.return_value = True
 
             MainWindow._show_import_wizard(window)
@@ -119,19 +116,16 @@ class DescribeShowImportWizard:
         window.workspace = MagicMock()
         window.data_dir = Path("/tmp/data")
 
-        with patch("gilt.gui.main_window.SettingsDialog"), patch(
-            "gilt.gui.main_window.EventSourcingService"
-        ), patch("gilt.gui.main_window.DuplicateDetector"), patch(
-            "gilt.gui.main_window.DuplicateService"
-        ), patch(
-            "gilt.gui.main_window.CategorizationClassifier"
-        ), patch(
-            "gilt.gui.main_window.SmartCategoryService"
-        ), patch(
-            "gilt.gui.main_window.ImportService"
-        ), patch(
-            "gilt.gui.main_window.ImportWizard"
-        ) as mock_wizard_cls:
+        with (
+            patch("gilt.gui.main_window.SettingsDialog"),
+            patch("gilt.gui.main_window.EventSourcingService"),
+            patch("gilt.gui.main_window.DuplicateDetector"),
+            patch("gilt.gui.main_window.DuplicateService"),
+            patch("gilt.gui.main_window.CategorizationClassifier"),
+            patch("gilt.gui.main_window.SmartCategoryService"),
+            patch("gilt.gui.main_window.ImportService"),
+            patch("gilt.gui.main_window.ImportWizard") as mock_wizard_cls,
+        ):
             mock_wizard_cls.return_value.exec.return_value = False
 
             MainWindow._show_import_wizard(window)

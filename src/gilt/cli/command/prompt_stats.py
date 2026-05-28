@@ -70,7 +70,9 @@ def _display_learned_patterns(console: Console, patterns: list) -> None:
         console.print()
 
 
-def _generate_and_emit_update(console: Console, learning_service: PromptLearningService, event_store) -> None:
+def _generate_and_emit_update(
+    console: Console, learning_service: PromptLearningService, event_store
+) -> None:
     """Generate a prompt update from learned patterns and emit it to the event store."""
     console.print("[yellow]Generating prompt update...[/yellow]")
 

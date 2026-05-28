@@ -343,7 +343,9 @@ class ImportService:
             _logger.error("Error scanning for duplicates: %s", e)
             return []
 
-    def _build_review_item_from_row(self, row, exclude_set: set[str]) -> CategorizationReviewItem | None:
+    def _build_review_item_from_row(
+        self, row, exclude_set: set[str]
+    ) -> CategorizationReviewItem | None:
         """Build a CategorizationReviewItem from a single DataFrame row, or None if the row is excluded."""
         txn_id = str(row["transaction_id"])
         if txn_id in exclude_set:

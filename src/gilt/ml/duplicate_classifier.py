@@ -85,8 +85,8 @@ class DuplicateClassifier:
         feature_names = self.feature_extractor.get_feature_names()
         X_df = pd.DataFrame(X, columns=feature_names)
 
-        X_train, y_train, X_val, y_val, train_indices, val_indices = (
-            self._prepare_train_val_split(X_df, y, validation_split)
+        X_train, y_train, X_val, y_val, train_indices, val_indices = self._prepare_train_val_split(
+            X_df, y, validation_split
         )
 
         # Train LightGBM

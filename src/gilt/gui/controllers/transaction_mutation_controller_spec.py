@@ -20,11 +20,12 @@ class DescribeApplyCategorization:
             transaction_id="t1", date=date(2025, 1, 15), amount=-50.0, description="SAMPLE STORE"
         )
 
-        with patch(
-            "gilt.gui.controllers.transaction_mutation_controller.LedgerRepository"
-        ), patch(
-            "gilt.gui.controllers.transaction_mutation_controller.CategorizationPersistenceService"
-        ) as mock_persist_svc:
+        with (
+            patch("gilt.gui.controllers.transaction_mutation_controller.LedgerRepository"),
+            patch(
+                "gilt.gui.controllers.transaction_mutation_controller.CategorizationPersistenceService"
+            ) as mock_persist_svc,
+        ):
             TransactionMutationController._apply_categorization(controller, [group], "Food", None)
 
         mock_persist_svc.return_value.persist_categorizations.assert_called_once()
@@ -38,11 +39,12 @@ class DescribeApplyCategorization:
             transaction_id="t1", date=date(2025, 1, 15), amount=-50.0, description="SAMPLE STORE"
         )
 
-        with patch(
-            "gilt.gui.controllers.transaction_mutation_controller.LedgerRepository"
-        ), patch(
-            "gilt.services.categorization_persistence_service.persist_categorizations_to_csv"
-        ) as mock_write:
+        with (
+            patch("gilt.gui.controllers.transaction_mutation_controller.LedgerRepository"),
+            patch(
+                "gilt.services.categorization_persistence_service.persist_categorizations_to_csv"
+            ) as mock_write,
+        ):
             TransactionMutationController._apply_categorization(controller, [group], "Food", None)
 
         mock_write.assert_called_once()
@@ -59,10 +61,11 @@ class DescribeApplyCategorization:
         )
         txn = group.primary
 
-        with patch(
-            "gilt.gui.controllers.transaction_mutation_controller.LedgerRepository"
-        ), patch(
-            "gilt.gui.controllers.transaction_mutation_controller.CategorizationPersistenceService"
+        with (
+            patch("gilt.gui.controllers.transaction_mutation_controller.LedgerRepository"),
+            patch(
+                "gilt.gui.controllers.transaction_mutation_controller.CategorizationPersistenceService"
+            ),
         ):
             TransactionMutationController._apply_categorization(
                 controller, [group], "Food", "Groceries", source="user"
@@ -87,13 +90,13 @@ class DescribeApplyNote:
             transaction_id="t1", date=date(2025, 1, 15), amount=-50.0, description="SAMPLE STORE"
         )
 
-        with patch(
-            "gilt.gui.controllers.transaction_mutation_controller.LedgerRepository"
-        ), patch(
-            "gilt.gui.controllers.transaction_mutation_controller.QMessageBox"
-        ), patch(
-            "gilt.gui.controllers.transaction_mutation_controller.persist_note_update"
-        ) as mock_persist:
+        with (
+            patch("gilt.gui.controllers.transaction_mutation_controller.LedgerRepository"),
+            patch("gilt.gui.controllers.transaction_mutation_controller.QMessageBox"),
+            patch(
+                "gilt.gui.controllers.transaction_mutation_controller.persist_note_update"
+            ) as mock_persist,
+        ):
             TransactionMutationController._apply_note(controller, group, "Test note")
 
         mock_persist.assert_called_once()
@@ -111,13 +114,13 @@ class DescribeApplyNote:
             transaction_id="t1", date=date(2025, 1, 15), amount=-50.0, description="SAMPLE STORE"
         )
 
-        with patch(
-            "gilt.gui.controllers.transaction_mutation_controller.LedgerRepository"
-        ), patch(
-            "gilt.gui.controllers.transaction_mutation_controller.QMessageBox"
-        ), patch(
-            "gilt.gui.controllers.transaction_mutation_controller.persist_note_update"
-        ) as mock_persist:
+        with (
+            patch("gilt.gui.controllers.transaction_mutation_controller.LedgerRepository"),
+            patch("gilt.gui.controllers.transaction_mutation_controller.QMessageBox"),
+            patch(
+                "gilt.gui.controllers.transaction_mutation_controller.persist_note_update"
+            ) as mock_persist,
+        ):
             TransactionMutationController._apply_note(controller, group, "")
 
         assert mock_persist.call_args.kwargs["note"] is None
@@ -192,10 +195,11 @@ class DescribeRunDuplicateResolution:
         group = make_group(transaction_id="t1", date=date(2025, 1, 15), amount=-100.0)
         meta = {"duplicate_match": MagicMock()}
 
-        with patch(
-            "gilt.gui.controllers.transaction_mutation_controller.DuplicateResolutionDialog"
-        ) as mock_dialog_cls, patch(
-            "gilt.gui.controllers.transaction_mutation_controller.QMessageBox"
+        with (
+            patch(
+                "gilt.gui.controllers.transaction_mutation_controller.DuplicateResolutionDialog"
+            ) as mock_dialog_cls,
+            patch("gilt.gui.controllers.transaction_mutation_controller.QMessageBox"),
         ):
             mock_dialog = mock_dialog_cls.return_value
             mock_dialog.exec.return_value = True

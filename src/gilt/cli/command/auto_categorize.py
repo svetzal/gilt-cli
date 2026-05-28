@@ -60,7 +60,9 @@ def _train_classifier(workspace, min_samples) -> _TrainResult:
         return _TrainResult(exit_code=1)
 
     try:
-        classifier = CategorizationClassifier(ready.event_store, min_samples_per_category=min_samples)
+        classifier = CategorizationClassifier(
+            ready.event_store, min_samples_per_category=min_samples
+        )
         metrics = classifier.train()
     except ValueError as e:
         return _TrainResult(exit_code=1, error_message=str(e))
@@ -86,7 +88,12 @@ def _load_uncategorized(workspace, account, limit) -> _LoadResult:
         limited_to = limit
 
     uncategorized_txns = [Transaction.from_projection_row(row) for row in uncategorized_rows]
-    return _LoadResult(exit_code=None, projection_builder=projection_builder, uncategorized_txns=uncategorized_txns, limited_to=limited_to)
+    return _LoadResult(
+        exit_code=None,
+        projection_builder=projection_builder,
+        uncategorized_txns=uncategorized_txns,
+        limited_to=limited_to,
+    )
 
 
 def _write_categorizations(approved, ready, workspace) -> int:
@@ -231,7 +238,9 @@ def run(
     # Phase 1: Apply inferred rules (deterministic, high confidence)
     rule_approved, remaining_txns = _apply_rules_first(workspace, uncategorized_txns)
     if rule_approved:
-        console.print(f"[green]{len(rule_approved)}[/green] transaction(s) matched by inferred rules")
+        console.print(
+            f"[green]{len(rule_approved)}[/green] transaction(s) matched by inferred rules"
+        )
 
     # Phase 2: ML predictions for remaining uncategorized
     ml_predictions: list[tuple] = []
@@ -369,7 +378,9 @@ def _interactive_review(
 
     for i, (account_id, txn_id, txn, category, conf) in enumerate(predictions, 1):
         # Display transaction
-        _display_transaction_for_review(console, i, len(predictions), account_id, txn, category, conf)
+        _display_transaction_for_review(
+            console, i, len(predictions), account_id, txn, category, conf
+        )
 
         # Get user decision
         while True:

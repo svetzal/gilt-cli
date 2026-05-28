@@ -45,7 +45,9 @@ def _find_account_ledgers(data_dir: Path, account: str | None) -> list[Path]:
         return repo.ledger_paths()
 
 
-def _parse_and_validate_category(category: str, subcategory: str | None) -> tuple[str, str | None, str | None]:
+def _parse_and_validate_category(
+    category: str, subcategory: str | None
+) -> tuple[str, str | None, str | None]:
     """Parse 'Category:Subcategory' syntax and resolve conflicts. Returns (cat, subcat, warning)."""
     if ":" in category:
         cat_name, subcat_from_path = build_category_from_path(category)
@@ -57,8 +59,6 @@ def _parse_and_validate_category(category: str, subcategory: str | None) -> tupl
             )
         return cat_name, subcat_from_path, warning
     return category, subcategory, None
-
-
 
 
 def _load_and_filter_transactions(
@@ -296,8 +296,15 @@ def run(
         Exit code (0 success, 1 error)
     """
     inputs = _validate_inputs(
-        workspace, service, categorization_service, category, subcategory,
-        txid, description, desc_prefix, pattern,
+        workspace,
+        service,
+        categorization_service,
+        category,
+        subcategory,
+        txid,
+        description,
+        desc_prefix,
+        pattern,
     )
     if isinstance(inputs, int):
         return inputs
@@ -334,8 +341,14 @@ def run(
         )
 
     result = _confirm_and_apply(
-        all_matches, category, subcategory, single_mode, assume_yes, write,
-        workspace, categorization_service,
+        all_matches,
+        category,
+        subcategory,
+        single_mode,
+        assume_yes,
+        write,
+        workspace,
+        categorization_service,
     )
     return _report_categorization_result(all_matches, result, recategorized_count, write)
 

@@ -38,10 +38,16 @@ def _build_comparison_table(primary_txn: dict, duplicate_txn: dict) -> Table:
     table.add_column("Primary (Keep)", style="green")
     table.add_column("Duplicate (Hide)", style="red")
     table.add_row("ID", primary_txn["transaction_id"][:8], duplicate_txn["transaction_id"][:8])
-    table.add_row("Date", str(primary_txn["transaction_date"]), str(duplicate_txn["transaction_date"]))
+    table.add_row(
+        "Date", str(primary_txn["transaction_date"]), str(duplicate_txn["transaction_date"])
+    )
     table.add_row("Account", primary_txn["account_id"], duplicate_txn["account_id"])
-    table.add_row("Amount", f"{float(primary_txn['amount']):.2f}", f"{float(duplicate_txn['amount']):.2f}")
-    table.add_row("Description", primary_txn["canonical_description"], duplicate_txn["canonical_description"])
+    table.add_row(
+        "Amount", f"{float(primary_txn['amount']):.2f}", f"{float(duplicate_txn['amount']):.2f}"
+    )
+    table.add_row(
+        "Description", primary_txn["canonical_description"], duplicate_txn["canonical_description"]
+    )
     return table
 
 
@@ -52,15 +58,21 @@ def _prompt_description_choice(primary_txn: dict, duplicate_txn: dict) -> str:
     console.print(f"  1) {primary_txn['canonical_description']} [green](primary)[/green]")
     console.print(f"  2) {duplicate_txn['canonical_description']} [red](duplicate)[/red]")
     console.print()
-    choice = Prompt.ask("Description choice [1/2]", choices=["1", "2"], default="1", show_choices=False)
+    choice = Prompt.ask(
+        "Description choice [1/2]", choices=["1", "2"], default="1", show_choices=False
+    )
     canonical_description = (
-        primary_txn["canonical_description"] if choice == "1" else duplicate_txn["canonical_description"]
+        primary_txn["canonical_description"]
+        if choice == "1"
+        else duplicate_txn["canonical_description"]
     )
     console.print()
     return canonical_description
 
 
-def _persist_mark(review_service, ready, primary_txn: dict, duplicate_txn: dict, canonical_description: str) -> int:
+def _persist_mark(
+    review_service, ready, primary_txn: dict, duplicate_txn: dict, canonical_description: str
+) -> int:
     """Emit the DuplicateConfirmed event and rebuild projections. Returns events_processed."""
     review_service.mark_manual_duplicate(
         primary_transaction_id=primary_txn["transaction_id"],
@@ -130,17 +142,23 @@ def run(
 
     if not write:
         console.print("[yellow]Dry-run mode:[/yellow]")
-        console.print(f"  Would mark {duplicate_txn['transaction_id'][:8]} as duplicate of {primary_txn['transaction_id'][:8]}")
+        console.print(
+            f"  Would mark {duplicate_txn['transaction_id'][:8]} as duplicate of {primary_txn['transaction_id'][:8]}"
+        )
         console.print(f"  Would use description: {canonical_description}")
         console.print("[dim]Use --write to persist changes[/dim]")
         return 0
 
     console.print("[dim]Rebuilding projections...[/dim]")
-    events_processed = _persist_mark(review_service, ready, primary_txn, duplicate_txn, canonical_description)
+    events_processed = _persist_mark(
+        review_service, ready, primary_txn, duplicate_txn, canonical_description
+    )
     console.print()
     console.print("[green]✓ Duplicate marked successfully[/green]")
     console.print(f"  Primary: {primary_txn['transaction_id'][:8]}")
-    console.print(f"  Duplicate: {duplicate_txn['transaction_id'][:8]} [dim](hidden from budgets)[/dim]")
+    console.print(
+        f"  Duplicate: {duplicate_txn['transaction_id'][:8]} [dim](hidden from budgets)[/dim]"
+    )
     console.print(f"  Description: {canonical_description}")
     console.print(f"  Events processed: {events_processed}")
     return 0

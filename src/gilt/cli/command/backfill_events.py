@@ -47,7 +47,9 @@ def _init_event_sourcing(
     return es_service, service, event_store
 
 
-def _display_summary(stats: MigrationStats, dry_run: bool, effective_event_store_path: Path) -> None:
+def _display_summary(
+    stats: MigrationStats, dry_run: bool, effective_event_store_path: Path
+) -> None:
     """Print the migration summary and dry-run/completion message."""
     console.print("\n[bold cyan]Migration Summary[/]")
     console.print(f"TransactionImported events: {stats.transaction_imported}")
@@ -99,7 +101,9 @@ def run(
         effective_event_store_path,
         effective_projections_db_path,
         effective_budget_projections_db_path,
-    ) = build_effective_paths(workspace, event_store_path, projections_db_path, budget_projections_db_path)
+    ) = build_effective_paths(
+        workspace, event_store_path, projections_db_path, budget_projections_db_path
+    )
 
     console.print("[bold cyan]Event Sourcing Migration - Manual Backfill[/]")
     console.print("[yellow]ℹ Most users should use 'gilt migrate-to-events --write'[/]")
@@ -326,4 +330,6 @@ def _validate_projections(
     )
 
     passed = not result.errors
-    return _ValidationResult(passed=passed, tx_count=tx_count, budget_count=budget_count, validation=result)
+    return _ValidationResult(
+        passed=passed, tx_count=tx_count, budget_count=budget_count, validation=result
+    )

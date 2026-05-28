@@ -71,7 +71,10 @@ class DescribeFilterByAccount:
 
         result = find_by_account(rows, "ACC1")
 
-        assert result == [{"account_id": "ACC1", "amount": -100}, {"account_id": "ACC1", "amount": -50}]
+        assert result == [
+            {"account_id": "ACC1", "amount": -100},
+            {"account_id": "ACC1", "amount": -50},
+        ]
 
     def it_should_return_all_when_account_is_none(self):
         rows = [
@@ -364,7 +367,9 @@ class DescribeRequirePersistenceService:
         assert isinstance(result, CategorizationPersistenceService)
 
 
-def _make_group(transaction_id: str, description: str = "Test", amount: float = -10.0) -> TransactionGroup:
+def _make_group(
+    transaction_id: str, description: str = "Test", amount: float = -10.0
+) -> TransactionGroup:
     return TransactionGroup(
         group_id=transaction_id,
         primary=Transaction(
@@ -458,9 +463,7 @@ class DescribeResolveIdPrefix:
         g1 = _make_group("abcd1234abcd1234", description="First")
         g2 = _make_group("abcd1234eeff5566", description="Second")
         service = Mock(spec=TransactionOperationsService)
-        service.find_by_id_prefix.return_value = MatchResult(
-            type="ambiguous", matches=[g1, g2]
-        )
+        service.find_by_id_prefix.return_value = MatchResult(type="ambiguous", matches=[g1, g2])
 
         result = find_by_id_prefix(service, "abcd1234", [g1, g2])
 

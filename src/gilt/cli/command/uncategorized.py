@@ -18,7 +18,9 @@ from .util import (
 )
 
 
-def _filter_transactions(filtered_rows: list, year: int | None, min_amount: float | None) -> list[Transaction]:
+def _filter_transactions(
+    filtered_rows: list, year: int | None, min_amount: float | None
+) -> list[Transaction]:
     """Apply year and min_amount filters and convert rows to Transaction objects."""
     result: list[Transaction] = []
     for row in filtered_rows:

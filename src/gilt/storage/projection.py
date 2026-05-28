@@ -32,6 +32,137 @@ from gilt.model.events import (
 from gilt.storage.event_store import EventStore
 
 
+def _resolve_root_primary(
+    conn: sqlite3.Connection, txn_id: str, max_hops: int = 8
+) -> tuple[str | None, list[str]]:
+    """Walk primary_transaction_id chain to find the root non-duplicate ancestor.
+
+    Args:
+        conn: Database connection to query.
+        txn_id: Starting transaction ID.
+        max_hops: Maximum chain length to follow before giving up (cycle guard).
+
+    Returns:
+        Tuple of (root_id, visited) where root_id is the first ancestor with
+        is_duplicate=0, or None if a cycle is detected or no non-duplicate
+        ancestor is found within max_hops.
+    """
+    visited: list[str] = []
+    current = txn_id
+    for _ in range(max_hops):
+        if current in visited:
+            return None, visited  # cycle detected
+        visited.append(current)
+        cursor = conn.execute(
+            "SELECT is_duplicate, primary_transaction_id FROM transaction_projections "
+            "WHERE transaction_id = ?",
+            (current,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None, visited  # row not found
+        is_dup, primary_id = row
+        if not is_dup:
+            return current, visited  # found a non-duplicate root
+        if not primary_id:
+            return None, visited  # is_duplicate=1 but no pointer — dead end
+        current = primary_id
+    return None, visited  # exceeded max_hops
+
+
+def _normalize_duplicate_groups(conn: sqlite3.Connection) -> None:
+    """Ensure every is_duplicate=1 row has a valid non-duplicate primary.
+
+    Scans all rows flagged as duplicates and repairs two problem patterns:
+    1. Orphan cycles — connected components where no member has is_duplicate=0.
+       Resolution: pick min(transaction_id) as the new primary, clear its flag,
+       and repoint all other members at it.
+    2. Stale chains — rows whose primary_transaction_id itself has is_duplicate=1.
+       Resolution: walk the chain to the root and update the pointer.
+    """
+    # Load all duplicate rows
+    cursor = conn.execute(
+        "SELECT transaction_id, primary_transaction_id FROM transaction_projections "
+        "WHERE is_duplicate = 1"
+    )
+    dup_rows = cursor.fetchall()
+
+    # Load all known non-duplicate ids for quick lookup
+    cursor = conn.execute(
+        "SELECT transaction_id FROM transaction_projections WHERE is_duplicate = 0"
+    )
+    non_dup_ids: set[str] = {row[0] for row in cursor.fetchall()}
+
+    if not dup_rows:
+        return
+
+    # Build union-find over all known ids (dup + non-dup)
+    all_ids: set[str] = non_dup_ids | {r[0] for r in dup_rows}
+    parent: dict[str, str] = {txn_id: txn_id for txn_id in all_ids}
+
+    for txn_id, primary_id in dup_rows:
+        if primary_id and primary_id in all_ids and primary_id != txn_id:
+            _uf_union(parent, txn_id, primary_id)
+
+    # Group by component root
+    components: dict[str, list[str]] = {}
+    for txn_id in all_ids:
+        root = _uf_find(parent, txn_id)
+        components.setdefault(root, []).append(txn_id)
+
+    # Fix each component
+    for members in components.values():
+        non_dup_members = [m for m in members if m in non_dup_ids]
+        dup_members = [m for m in members if m not in non_dup_ids]
+
+        if not dup_members:
+            continue  # No duplicates in this component — nothing to fix
+
+        if non_dup_members:
+            # Well-formed component: repoint any stale chains to the existing root.
+            # Choose the lexicographically smallest non-dup member as canonical root.
+            root = min(non_dup_members)
+            for dup_id in dup_members:
+                conn.execute(
+                    "UPDATE transaction_projections "
+                    "SET primary_transaction_id = ? "
+                    "WHERE transaction_id = ? AND primary_transaction_id != ?",
+                    (root, dup_id, root),
+                )
+        else:
+            # Orphan cycle: no non-duplicate member — elect the min id as primary.
+            elected = min(members)
+            conn.execute(
+                "UPDATE transaction_projections "
+                "SET is_duplicate = 0, primary_transaction_id = NULL "
+                "WHERE transaction_id = ?",
+                (elected,),
+            )
+            for dup_id in members:
+                if dup_id != elected:
+                    conn.execute(
+                        "UPDATE transaction_projections "
+                        "SET is_duplicate = 1, primary_transaction_id = ? "
+                        "WHERE transaction_id = ?",
+                        (elected, dup_id),
+                    )
+
+
+def _uf_find(parent: dict[str, str], x: str) -> str:
+    """Path-compressing find for union-find."""
+    while parent[x] != x:
+        parent[x] = parent[parent[x]]
+        x = parent[x]
+    return x
+
+
+def _uf_union(parent: dict[str, str], a: str, b: str) -> None:
+    """Union two sets in union-find."""
+    ra, rb = _uf_find(parent, a), _uf_find(parent, b)
+    if ra != rb:
+        parent[ra] = rb
+
+
 class ProjectionBuilder:
     """Builds transaction projections from event stream."""
 
@@ -155,7 +286,10 @@ class ProjectionBuilder:
 
             # Replay all events
             events = event_store.get_all_events()
-            return self._apply_events(conn, events, start_sequence=0)
+            processed = self._apply_events(conn, events, start_sequence=0)
+            _normalize_duplicate_groups(conn)
+            conn.commit()
+            return processed
         finally:
             conn.close()
 
@@ -184,7 +318,10 @@ class ProjectionBuilder:
             if not events:
                 return 0
 
-            return self._apply_events(conn, events, start_sequence=last_sequence)
+            processed = self._apply_events(conn, events, start_sequence=last_sequence)
+            _normalize_duplicate_groups(conn)
+            conn.commit()
+            return processed
         finally:
             conn.close()
 
@@ -272,13 +409,24 @@ class ProjectionBuilder:
     def _link_duplicate_if_present(
         self, conn: sqlite3.Connection, event: TransactionDescriptionObserved
     ) -> None:
-        # If new transaction_id exists as separate projection, mark it as duplicate
-        # This handles the case where it was imported before we detected the change
+        # If new transaction_id exists as separate projection, mark it as duplicate.
+        # This handles the case where it was imported before we detected the change.
+        original_id = event.original_transaction_id
+        new_id = event.new_transaction_id
+
+        # Self-reference guard
+        if original_id == new_id:
+            return
+
         cursor = conn.execute(
             "SELECT transaction_id FROM transaction_projections WHERE transaction_id = ?",
-            (event.new_transaction_id,),
+            (new_id,),
         )
         if cursor.fetchone():
+            # Resolve the original to its root in case it is itself a duplicate
+            root_id, _ = _resolve_root_primary(conn, original_id)
+            actual_primary = root_id if root_id else original_id
+
             conn.execute(
                 """
                 UPDATE transaction_projections
@@ -288,9 +436,9 @@ class ProjectionBuilder:
                 WHERE transaction_id = ?
                 """,
                 (
-                    event.original_transaction_id,
+                    actual_primary,
                     event.event_id,
-                    event.new_transaction_id,
+                    new_id,
                 ),
             )
 
@@ -411,7 +559,49 @@ class ProjectionBuilder:
         Marks the duplicate transaction with is_duplicate flag and links it
         to the primary transaction. Updates the primary transaction's canonical
         description to the user's preferred choice.
+
+        Guards against:
+        - Self-referential events (primary == duplicate)
+        - Cycles where the proposed primary is itself a duplicate
+        - Direct flips where T1→T2 and then T2→T1 are both confirmed
         """
+        primary_id = event.primary_transaction_id
+        duplicate_id = event.duplicate_transaction_id
+
+        # Self-reference guard
+        if primary_id == duplicate_id:
+            return
+
+        # If the proposed primary is itself marked as a duplicate, resolve its root
+        cursor = conn.execute(
+            "SELECT is_duplicate, primary_transaction_id FROM transaction_projections "
+            "WHERE transaction_id = ?",
+            (primary_id,),
+        )
+        primary_row = cursor.fetchone()
+        if primary_row and primary_row[0]:  # primary is itself a duplicate
+            root_id, _ = _resolve_root_primary(conn, primary_id)
+            if root_id:
+                primary_id = root_id
+
+        # Direct-flip guard: if the proposed primary currently points at the proposed duplicate,
+        # clear that stale marker before writing the new relationship.
+        cursor = conn.execute(
+            "SELECT primary_transaction_id FROM transaction_projections WHERE transaction_id = ?",
+            (primary_id,),
+        )
+        primary_ptr_row = cursor.fetchone()
+        if primary_ptr_row and primary_ptr_row[0] == duplicate_id:
+            conn.execute(
+                """
+                UPDATE transaction_projections
+                SET is_duplicate = 0,
+                    primary_transaction_id = NULL
+                WHERE transaction_id = ?
+                """,
+                (primary_id,),
+            )
+
         # Update primary transaction with canonical description
         conn.execute(
             """
@@ -423,7 +613,7 @@ class ProjectionBuilder:
             (
                 event.canonical_description,
                 event.event_id,
-                event.primary_transaction_id,
+                primary_id,
             ),
         )
 
@@ -437,9 +627,9 @@ class ProjectionBuilder:
             WHERE transaction_id = ?
             """,
             (
-                event.primary_transaction_id,
+                primary_id,
                 event.event_id,
-                event.duplicate_transaction_id,
+                duplicate_id,
             ),
         )
 

@@ -401,6 +401,7 @@ class DescribeAutoCategorize:
 
             assert rc == 0
 
+
 class DescribeInteractiveReview:
     """Specs for _interactive_review()."""
 
@@ -441,10 +442,12 @@ class DescribeInteractiveReview:
     def it_should_allow_category_modification(self):
         from gilt.model.category import Category, CategoryConfig
 
-        category_config = CategoryConfig(categories=[
-            Category(name="Groceries"),
-            Category(name="Dining Out"),
-        ])
+        category_config = CategoryConfig(
+            categories=[
+                Category(name="Groceries"),
+                Category(name="Dining Out"),
+            ]
+        )
         predictions = [self._make_prediction()]
 
         with (
@@ -480,10 +483,12 @@ class DescribeHandleModifyChoice:
     def it_should_return_updated_prediction_with_valid_category(self):
         from gilt.model.category import Category, CategoryConfig
 
-        category_config = CategoryConfig(categories=[
-            Category(name="Groceries"),
-            Category(name="Dining Out"),
-        ])
+        category_config = CategoryConfig(
+            categories=[
+                Category(name="Groceries"),
+                Category(name="Dining Out"),
+            ]
+        )
 
         with patch("gilt.cli.command.auto_categorize.Prompt.ask", return_value="Dining Out"):
             result = _handle_modify_choice(category_config, "Groceries")
@@ -503,11 +508,13 @@ class DescribeHandleModifyChoice:
     def it_should_return_none_for_invalid_subcategory(self):
         from gilt.model.category import Category, CategoryConfig, Subcategory
 
-        category_config = CategoryConfig(categories=[
-            Category(name="Entertainment", subcategories=[Subcategory(name="Music")])
-        ])
+        category_config = CategoryConfig(
+            categories=[Category(name="Entertainment", subcategories=[Subcategory(name="Music")])]
+        )
 
-        with patch("gilt.cli.command.auto_categorize.Prompt.ask", return_value="Entertainment:Movies"):
+        with patch(
+            "gilt.cli.command.auto_categorize.Prompt.ask", return_value="Entertainment:Movies"
+        ):
             result = _handle_modify_choice(category_config, "Entertainment:Music")
 
         assert result is None

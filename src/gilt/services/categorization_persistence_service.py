@@ -178,7 +178,9 @@ class CategorizationPersistenceService:
                 transaction_id=group.primary.transaction_id,
                 account_id=account_id,
                 category=to_category,
-                subcategory=to_subcategory if to_subcategory is not None else group.primary.subcategory,
+                subcategory=to_subcategory
+                if to_subcategory is not None
+                else group.primary.subcategory,
                 source="user",
                 confidence=1.0,
             )

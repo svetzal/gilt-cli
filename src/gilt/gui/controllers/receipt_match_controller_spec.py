@@ -20,11 +20,10 @@ class DescribeGetReceiptMatchService:
         controller = MagicMock()
         controller._event_store = MagicMock()
 
-        with patch(
-            "gilt.gui.controllers.receipt_match_controller.SettingsDialog"
-        ) as mock_settings, patch(
-            "gilt.gui.controllers.receipt_match_controller.ReceiptMatchService"
-        ) as mock_svc:
+        with (
+            patch("gilt.gui.controllers.receipt_match_controller.SettingsDialog") as mock_settings,
+            patch("gilt.gui.controllers.receipt_match_controller.ReceiptMatchService") as mock_svc,
+        ):
             mock_settings.get_receipts_dir.return_value = tmp_path
 
             result = ReceiptMatchController.get_service(controller)
@@ -37,10 +36,9 @@ class DescribeGetReceiptMatchService:
         controller._event_store = MagicMock()
         nonexistent = tmp_path / "nonexistent"
 
-        with patch(
-            "gilt.gui.controllers.receipt_match_controller.SettingsDialog"
-        ) as mock_settings, patch(
-            "gilt.gui.controllers.receipt_match_controller.QMessageBox"
+        with (
+            patch("gilt.gui.controllers.receipt_match_controller.SettingsDialog") as mock_settings,
+            patch("gilt.gui.controllers.receipt_match_controller.QMessageBox"),
         ):
             mock_settings.get_receipts_dir.return_value = nonexistent
 

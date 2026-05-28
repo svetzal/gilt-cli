@@ -314,7 +314,9 @@ class DescribeLoadLedgerCsv:
             account_id="MYBANK_CHQ",
         )
         # Dump in reverse order to verify sorting
-        text = dump_ledger_csv([make_group(primary=t3), make_group(primary=t1), make_group(primary=t2)])
+        text = dump_ledger_csv(
+            [make_group(primary=t3), make_group(primary=t1), make_group(primary=t2)]
+        )
         result = load_ledger_csv(text)
         dates = [str(g.primary.date) for g in result]
         assert dates[0] == "2025-01-01"

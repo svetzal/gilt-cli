@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from gilt.model.events import (
+    DuplicateConfirmed,
     TransactionCategorized,
     TransactionDescriptionObserved,
     TransactionEnriched,
@@ -694,9 +695,7 @@ class DescribeProjectionBuilder:
         assert deleted == 3
         assert len(projection_builder.get_all_transactions()) == 0
 
-    def it_should_return_distinct_non_duplicate_account_ids(
-        self, event_store, projection_builder
-    ):
+    def it_should_return_distinct_non_duplicate_account_ids(self, event_store, projection_builder):
         for account_id, txn_id in [
             ("MYBANK_CHQ", "txn000000000001"),
             ("MYBANK_CHQ", "txn000000000002"),
@@ -739,3 +738,214 @@ class DescribeProjectionBuilder:
 
         projection_builder.reset_metadata()
         assert projection_builder.get_current_sequence() == 0
+
+    def it_should_not_leave_orphan_when_duplicate_pair_is_confirmed_in_both_directions(
+        self, event_store, projection_builder
+    ):
+        """Both-direction DuplicateConfirmed events must not leave an orphan group."""
+        for txn_id, desc in [
+            ("t1000000000001", "SAMPLE STORE A"),
+            ("t2000000000002", "SAMPLE STORE B"),
+        ]:
+            event_store.append_event(
+                TransactionImported(
+                    transaction_date="2025-01-15",
+                    transaction_id=txn_id,
+                    source_file="test.csv",
+                    source_account="MYBANK_CHQ",
+                    raw_description=desc,
+                    amount=Decimal("-50.00"),
+                    currency="CAD",
+                    raw_data={},
+                )
+            )
+
+        # Confirm T1 as primary of T2, then T2 as primary of T1 (cycle)
+        event_store.append_event(
+            DuplicateConfirmed(
+                suggestion_event_id="sug-001",
+                primary_transaction_id="t1000000000001",
+                duplicate_transaction_id="t2000000000002",
+                canonical_description="SAMPLE STORE A",
+                user_rationale="test",
+                llm_was_correct=True,
+            )
+        )
+        event_store.append_event(
+            DuplicateConfirmed(
+                suggestion_event_id="sug-002",
+                primary_transaction_id="t2000000000002",
+                duplicate_transaction_id="t1000000000001",
+                canonical_description="SAMPLE STORE B",
+                user_rationale="test",
+                llm_was_correct=True,
+            )
+        )
+
+        projection_builder.build_from_scratch(event_store)
+
+        t1 = projection_builder.get_transaction("t1000000000001")
+        t2 = projection_builder.get_transaction("t2000000000002")
+        assert t1 is not None
+        assert t2 is not None
+
+        # Exactly one must be the primary (is_duplicate=0) and one the duplicate
+        primaries = [t for t in [t1, t2] if t["is_duplicate"] == 0]
+        duplicates = [t for t in [t1, t2] if t["is_duplicate"] == 1]
+        assert len(primaries) == 1, "Expected exactly one primary"
+        assert len(duplicates) == 1, "Expected exactly one duplicate"
+        assert duplicates[0]["primary_transaction_id"] == primaries[0]["transaction_id"]
+
+    def it_should_chain_resolve_stale_primary_when_marking_duplicate(
+        self, event_store, projection_builder
+    ):
+        """Confirming (T3, T1) after (T1, T2) should result in T3 being primary for both T1 and T2."""
+        for txn_id, desc in [
+            ("t1000000000001", "ACME CORP A"),
+            ("t2000000000002", "ACME CORP B"),
+            ("t3000000000003", "ACME CORP C"),
+        ]:
+            event_store.append_event(
+                TransactionImported(
+                    transaction_date="2025-02-01",
+                    transaction_id=txn_id,
+                    source_file="test.csv",
+                    source_account="MYBANK_CHQ",
+                    raw_description=desc,
+                    amount=Decimal("-75.00"),
+                    currency="CAD",
+                    raw_data={},
+                )
+            )
+
+        # T1 is primary, T2 is dup of T1
+        event_store.append_event(
+            DuplicateConfirmed(
+                suggestion_event_id="sug-001",
+                primary_transaction_id="t1000000000001",
+                duplicate_transaction_id="t2000000000002",
+                canonical_description="ACME CORP A",
+                user_rationale="test",
+                llm_was_correct=True,
+            )
+        )
+        # T3 is primary, T1 is dup of T3 (T1 is itself a dup, so T2 should get re-rooted)
+        event_store.append_event(
+            DuplicateConfirmed(
+                suggestion_event_id="sug-002",
+                primary_transaction_id="t3000000000003",
+                duplicate_transaction_id="t1000000000001",
+                canonical_description="ACME CORP C",
+                user_rationale="test",
+                llm_was_correct=True,
+            )
+        )
+
+        projection_builder.build_from_scratch(event_store)
+
+        t1 = projection_builder.get_transaction("t1000000000001")
+        t2 = projection_builder.get_transaction("t2000000000002")
+        t3 = projection_builder.get_transaction("t3000000000003")
+
+        assert t3["is_duplicate"] == 0
+        assert t1["is_duplicate"] == 1
+        assert t1["primary_transaction_id"] == "t3000000000003"
+        # T2 must not point at a duplicate (T1); normaliser should have re-rooted it to T3
+        assert t2["is_duplicate"] == 1
+        assert t2["primary_transaction_id"] == "t3000000000003"
+
+    def it_should_ignore_self_referential_duplicate_confirmations(
+        self, event_store, projection_builder
+    ):
+        """A DuplicateConfirmed where primary == duplicate must not alter is_duplicate."""
+        event_store.append_event(
+            TransactionImported(
+                transaction_date="2025-03-01",
+                transaction_id="t1000000000001",
+                source_file="test.csv",
+                source_account="MYBANK_CHQ",
+                raw_description="EXAMPLE UTILITY",
+                amount=Decimal("-30.00"),
+                currency="CAD",
+                raw_data={},
+            )
+        )
+        # Self-referential confirmation
+        event_store.append_event(
+            DuplicateConfirmed(
+                suggestion_event_id="sug-001",
+                primary_transaction_id="t1000000000001",
+                duplicate_transaction_id="t1000000000001",
+                canonical_description="EXAMPLE UTILITY",
+                user_rationale="test",
+                llm_was_correct=False,
+            )
+        )
+
+        projection_builder.build_from_scratch(event_store)
+
+        t1 = projection_builder.get_transaction("t1000000000001")
+        assert t1 is not None
+        assert t1["is_duplicate"] == 0
+        assert t1["primary_transaction_id"] is None
+
+    def it_should_normalize_existing_orphans_on_rebuild(
+        self, event_store, projection_builder, temp_dir
+    ):
+        """Projection DB with an orphan cycle (both-direction confirms) is repaired on rebuild.
+
+        This exercises _normalize_duplicate_groups by using events that create the
+        cycle (same scenario as the both-directions test) and then doing a second
+        build_from_scratch — confirming the normaliser fires on every full rebuild.
+        """
+        for txn_id, desc in [
+            ("t1000000000001", "SAMPLE STORE X"),
+            ("t2000000000002", "SAMPLE STORE Y"),
+        ]:
+            event_store.append_event(
+                TransactionImported(
+                    transaction_date="2025-04-01",
+                    transaction_id=txn_id,
+                    source_file="test.csv",
+                    source_account="MYBANK_CHQ",
+                    raw_description=desc,
+                    amount=Decimal("-20.00"),
+                    currency="CAD",
+                    raw_data={},
+                )
+            )
+
+        # Add cycle-creating events: T1→T2, then T2→T1
+        event_store.append_event(
+            DuplicateConfirmed(
+                suggestion_event_id="sug-001",
+                primary_transaction_id="t1000000000001",
+                duplicate_transaction_id="t2000000000002",
+                canonical_description="SAMPLE STORE X",
+                user_rationale="test",
+                llm_was_correct=True,
+            )
+        )
+        event_store.append_event(
+            DuplicateConfirmed(
+                suggestion_event_id="sug-002",
+                primary_transaction_id="t2000000000002",
+                duplicate_transaction_id="t1000000000001",
+                canonical_description="SAMPLE STORE Y",
+                user_rationale="test",
+                llm_was_correct=True,
+            )
+        )
+
+        # Build twice to confirm normaliser is idempotent
+        projection_builder.build_from_scratch(event_store)
+        projection_builder.build_from_scratch(event_store)
+
+        t1 = projection_builder.get_transaction("t1000000000001")
+        t2 = projection_builder.get_transaction("t2000000000002")
+
+        primaries = [t for t in [t1, t2] if t["is_duplicate"] == 0]
+        duplicates = [t for t in [t1, t2] if t["is_duplicate"] == 1]
+        assert len(primaries) == 1
+        assert len(duplicates) == 1
+        assert duplicates[0]["primary_transaction_id"] == primaries[0]["transaction_id"]

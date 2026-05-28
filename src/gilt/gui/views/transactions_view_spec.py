@@ -24,9 +24,17 @@ class DescribeLoadEnrichment:
 
 
 class DescribeRunFilters:
-    def _make_view(self, *, account_data=None, date_range_text="All", category_data=None,
-                   search_text="", uncategorized=False,
-                   start_date=None, end_date=None):
+    def _make_view(
+        self,
+        *,
+        account_data=None,
+        date_range_text="All",
+        category_data=None,
+        search_text="",
+        uncategorized=False,
+        start_date=None,
+        end_date=None,
+    ):
         """Build a minimal mock matching TransactionsView's filter attributes."""
         view = MagicMock()
         view.account_combo.currentData.return_value = account_data

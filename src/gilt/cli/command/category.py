@@ -88,7 +88,9 @@ def run(
 
     # Handle --set-budget
     if set_budget:
-        return _validate_and_handle_set_budget(category_config, set_budget, amount, period, config, write)
+        return _validate_and_handle_set_budget(
+            category_config, set_budget, amount, period, config, write
+        )
 
     return 1
 
@@ -142,7 +144,9 @@ def _handle_add(
     # Handle already exists case (not an error)
     if result.already_exists:
         if subcat_name:
-            console.print(f"[yellow]Subcategory '{format_category_path(cat_name, subcat_name)}' already exists[/]")
+            console.print(
+                f"[yellow]Subcategory '{format_category_path(cat_name, subcat_name)}' already exists[/]"
+            )
         else:
             console.print(f"[yellow]Category '{cat_name}' already exists[/]")
         return 0
@@ -152,9 +156,7 @@ def _handle_add(
         for error in result.errors:
             print_error(error)
         if subcat_name and any("does not exist" in e for e in result.errors):
-            console.print(
-                f"Create the parent first: gilt category --add '{cat_name}' --write"
-            )
+            console.print(f"Create the parent first: gilt category --add '{cat_name}' --write")
         return 1
 
     # Success - display what will be added
@@ -226,7 +228,9 @@ def _handle_remove(
 
     # Display what will be removed
     if subcat_name:
-        console.print(f"[bold]Removing subcategory:[/] {format_category_path(cat_name, subcat_name)}")
+        console.print(
+            f"[bold]Removing subcategory:[/] {format_category_path(cat_name, subcat_name)}"
+        )
     else:
         console.print(f"[bold]Removing category:[/] {cat_name}")
 

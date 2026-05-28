@@ -92,9 +92,7 @@ class TransactionMutationController(QObject):
                 category, subcategory = dialog.get_selected_category()
                 self._apply_categorization(selected_transactions, category, subcategory)
         except (OSError, ValueError, yaml.YAMLError) as e:
-            QMessageBox.critical(
-                self._parent, "Error", f"Failed to open categorize dialog:\n{e}"
-            )
+            QMessageBox.critical(self._parent, "Error", f"Failed to open categorize dialog:\n{e}")
 
     def _apply_categorization(
         self,
@@ -206,9 +204,7 @@ class TransactionMutationController(QObject):
                             "Duplicate resolved but failed to remove transaction file.",
                         )
                 else:
-                    QMessageBox.information(
-                        self._parent, "Success", "Marked as not a duplicate."
-                    )
+                    QMessageBox.information(self._parent, "Success", "Marked as not a duplicate.")
                 self._sync_projections()
                 self.data_changed.emit(None)
             except (ValueError, OSError, UnicodeDecodeError) as e:

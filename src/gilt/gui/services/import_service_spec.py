@@ -36,7 +36,6 @@ def _write_accounts_yml(path: Path) -> None:
     path.write_text(yaml.safe_dump(data))
 
 
-
 def _make_parse_row(txn_id: str = "txn001", description: str = "SAMPLE STORE") -> pd.DataFrame:
     return pd.DataFrame(
         [
@@ -173,7 +172,12 @@ class DescribeImportServiceDuplicateScanning:
             txn2_amount=-50.0,
             txn2_account="MYBANK_CHQ",
         )
-        mock_duplicate_service.find_duplicates.return_value = [DuplicateMatch(pair=existing_pair, assessment=DuplicateAssessment(is_duplicate=True, confidence=0.9, reasoning="Same"))]
+        mock_duplicate_service.find_duplicates.return_value = [
+            DuplicateMatch(
+                pair=existing_pair,
+                assessment=DuplicateAssessment(is_duplicate=True, confidence=0.9, reasoning="Same"),
+            )
+        ]
 
         with patch("gilt.gui.services.import_service.load_file") as mock_parse:
             mock_parse.return_value = new_df
@@ -199,7 +203,12 @@ class DescribeImportServiceDuplicateScanning:
             txn2_amount=-50.0,
             txn2_account="MYBANK_CHQ",
         )
-        mock_duplicate_service.find_duplicates.return_value = [DuplicateMatch(pair=pair, assessment=DuplicateAssessment(is_duplicate=True, confidence=0.9, reasoning="Same"))]
+        mock_duplicate_service.find_duplicates.return_value = [
+            DuplicateMatch(
+                pair=pair,
+                assessment=DuplicateAssessment(is_duplicate=True, confidence=0.9, reasoning="Same"),
+            )
+        ]
 
         with patch("gilt.gui.services.import_service.load_file") as mock_parse:
             mock_parse.return_value = new_df
@@ -243,7 +252,12 @@ class DescribeImportServiceDuplicateScanning:
             txn2_account="MYBANK_CHQ",
             txn2_source_file="import.csv",
         )
-        mock_duplicate_service.find_duplicates.return_value = [DuplicateMatch(pair=pair, assessment=DuplicateAssessment(is_duplicate=True, confidence=0.9, reasoning="Same"))]
+        mock_duplicate_service.find_duplicates.return_value = [
+            DuplicateMatch(
+                pair=pair,
+                assessment=DuplicateAssessment(is_duplicate=True, confidence=0.9, reasoning="Same"),
+            )
+        ]
 
         with patch("gilt.gui.services.import_service.load_file") as mock_parse:
             mock_parse.return_value = new_df

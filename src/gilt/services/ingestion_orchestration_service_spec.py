@@ -110,8 +110,16 @@ class DescribeIngestionOrchestrationService:
             mock_projection_builder: Mock,
         ):
             fake_transactions = [
-                {"transaction_id": "abc1", "account_id": "MYBANK_CHQ", "canonical_description": "EXAMPLE UTILITY"},
-                {"transaction_id": "abc2", "account_id": "MYBANK_CHQ", "canonical_description": "SAMPLE STORE"},
+                {
+                    "transaction_id": "abc1",
+                    "account_id": "MYBANK_CHQ",
+                    "canonical_description": "EXAMPLE UTILITY",
+                },
+                {
+                    "transaction_id": "abc2",
+                    "account_id": "MYBANK_CHQ",
+                    "canonical_description": "SAMPLE STORE",
+                },
             ]
             mock_projection_builder.get_all_transactions.return_value = fake_transactions
 

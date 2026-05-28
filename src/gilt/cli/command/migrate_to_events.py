@@ -205,7 +205,9 @@ def _validate_migration(
         )
 
 
-def _print_preconditions_failure(data_dir: Path, es_service, effective_event_store_path: Path) -> None:
+def _print_preconditions_failure(
+    data_dir: Path, es_service, effective_event_store_path: Path
+) -> None:
     ledger_files = LedgerRepository(data_dir).ledger_paths()
     if not ledger_files:
         console.print("[dim]Nothing to migrate.[/dim]")
@@ -216,7 +218,9 @@ def _print_preconditions_failure(data_dir: Path, es_service, effective_event_sto
     event_store = es_service.get_event_store()
     event_count = event_store.get_latest_sequence_number()
     if event_count > 0:
-        console.print(f"[yellow]Warning:[/yellow] Event store already exists with {event_count} events")
+        console.print(
+            f"[yellow]Warning:[/yellow] Event store already exists with {event_count} events"
+        )
         console.print(f"[dim]{effective_event_store_path}[/dim]")
         console.print()
         console.print("Options:")
@@ -225,7 +229,9 @@ def _print_preconditions_failure(data_dir: Path, es_service, effective_event_sto
         console.print("  3. Use 'gilt rebuild-projections' to rebuild from existing events")
 
 
-def _print_preconditions_success(ledger_files: list[Path], has_categories: bool, categories_config: Path) -> None:
+def _print_preconditions_success(
+    ledger_files: list[Path], has_categories: bool, categories_config: Path
+) -> None:
     console.print(f"[green]✓[/green] Found {len(ledger_files)} ledger CSV file(s)")
     if not has_categories:
         console.print(f"[yellow]Warning:[/yellow] Categories config not found: {categories_config}")
@@ -264,7 +270,9 @@ def run(
         effective_event_store_path,
         effective_projections_db_path,
         effective_budget_projections_db_path,
-    ) = build_effective_paths(workspace, event_store_path, projections_db_path, budget_projections_db_path)
+    ) = build_effective_paths(
+        workspace, event_store_path, projections_db_path, budget_projections_db_path
+    )
 
     console.print("[bold cyan]Migrating to Event Sourcing Architecture[/]")
     console.print()
@@ -319,13 +327,20 @@ def run(
     tx_builder, budget_builder, tx_count, budget_count = projections_result
     console.print(f"[green]✓[/green] Built transaction projections ({tx_count} events processed)")
     if has_categories:
-        console.print(f"[green]✓[/green] Built budget projections ({budget_count} events processed)")
+        console.print(
+            f"[green]✓[/green] Built budget projections ({budget_count} events processed)"
+        )
 
     # Validate
     console.print("\n[bold]Step 4: Validating migration[/]")
     try:
         validation_result = _validate_migration(
-            es_service, data_dir, has_categories, categories_config, tx_builder, budget_builder,
+            es_service,
+            data_dir,
+            has_categories,
+            categories_config,
+            tx_builder,
+            budget_builder,
         )
     except (OSError, ValueError) as e:
         print_error(f"Validation failed: {e}")

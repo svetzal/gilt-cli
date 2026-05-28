@@ -131,7 +131,9 @@ class DescribePromptManagerLearnedPatterns:
         assert result == ""
 
     def it_should_include_false_positive_section_when_fp_exists(self, manager):
-        pair = make_pair(txn1_description="SAMPLE STORE EXAMPLEVILLE", txn2_description="SAMPLE STORE ANYTOWN")
+        pair = make_pair(
+            txn1_description="SAMPLE STORE EXAMPLEVILLE", txn2_description="SAMPLE STORE ANYTOWN"
+        )
         manager.add_feedback(
             pair, llm_said_duplicate=True, llm_confidence=0.9, user_confirmed=False
         )
@@ -186,16 +188,28 @@ class DescribePromptManagerStats:
 
     def it_should_calculate_tp_fp_tn_fn_correctly(self, manager):
         manager.add_feedback(
-            make_pair(txn1_id="a", txn2_id="b"), llm_said_duplicate=True, llm_confidence=0.9, user_confirmed=True
+            make_pair(txn1_id="a", txn2_id="b"),
+            llm_said_duplicate=True,
+            llm_confidence=0.9,
+            user_confirmed=True,
         )
         manager.add_feedback(
-            make_pair(txn1_id="c", txn2_id="d"), llm_said_duplicate=True, llm_confidence=0.8, user_confirmed=False
+            make_pair(txn1_id="c", txn2_id="d"),
+            llm_said_duplicate=True,
+            llm_confidence=0.8,
+            user_confirmed=False,
         )
         manager.add_feedback(
-            make_pair(txn1_id="e", txn2_id="f"), llm_said_duplicate=False, llm_confidence=0.1, user_confirmed=False
+            make_pair(txn1_id="e", txn2_id="f"),
+            llm_said_duplicate=False,
+            llm_confidence=0.1,
+            user_confirmed=False,
         )
         manager.add_feedback(
-            make_pair(txn1_id="g", txn2_id="h"), llm_said_duplicate=False, llm_confidence=0.2, user_confirmed=True
+            make_pair(txn1_id="g", txn2_id="h"),
+            llm_said_duplicate=False,
+            llm_confidence=0.2,
+            user_confirmed=True,
         )
         stats = manager.get_stats()
         assert stats["true_positives"] == 1
@@ -206,16 +220,28 @@ class DescribePromptManagerStats:
 
     def it_should_calculate_accuracy_as_correct_over_total(self, manager):
         manager.add_feedback(
-            make_pair(txn1_id="a", txn2_id="b"), llm_said_duplicate=True, llm_confidence=0.9, user_confirmed=True
+            make_pair(txn1_id="a", txn2_id="b"),
+            llm_said_duplicate=True,
+            llm_confidence=0.9,
+            user_confirmed=True,
         )
         manager.add_feedback(
-            make_pair(txn1_id="c", txn2_id="d"), llm_said_duplicate=True, llm_confidence=0.9, user_confirmed=True
+            make_pair(txn1_id="c", txn2_id="d"),
+            llm_said_duplicate=True,
+            llm_confidence=0.9,
+            user_confirmed=True,
         )
         manager.add_feedback(
-            make_pair(txn1_id="e", txn2_id="f"), llm_said_duplicate=True, llm_confidence=0.8, user_confirmed=False
+            make_pair(txn1_id="e", txn2_id="f"),
+            llm_said_duplicate=True,
+            llm_confidence=0.8,
+            user_confirmed=False,
         )
         manager.add_feedback(
-            make_pair(txn1_id="g", txn2_id="h"), llm_said_duplicate=False, llm_confidence=0.2, user_confirmed=False
+            make_pair(txn1_id="g", txn2_id="h"),
+            llm_said_duplicate=False,
+            llm_confidence=0.2,
+            user_confirmed=False,
         )
         stats = manager.get_stats()
         assert stats["accuracy"] == pytest.approx(0.75)

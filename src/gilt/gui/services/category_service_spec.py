@@ -237,32 +237,48 @@ class DescribeCategoryServiceUsageStats:
 
     def it_should_count_transactions_matching_category(self, service):
         groups = [
-            make_group(category="Housing", amount=-50.0, date=date(2025, 1, 1), transaction_id="t1"),
-            make_group(category="Housing", amount=-30.0, date=date(2025, 1, 2), transaction_id="t2"),
-            make_group(category="Transportation", amount=-15.0, date=date(2025, 1, 3), transaction_id="t3"),
+            make_group(
+                category="Housing", amount=-50.0, date=date(2025, 1, 1), transaction_id="t1"
+            ),
+            make_group(
+                category="Housing", amount=-30.0, date=date(2025, 1, 2), transaction_id="t2"
+            ),
+            make_group(
+                category="Transportation", amount=-15.0, date=date(2025, 1, 3), transaction_id="t3"
+            ),
         ]
         stats = service.load_usage_stats("Housing", groups)
         assert stats["count"] == 2
 
     def it_should_sum_absolute_amounts(self, service):
         groups = [
-            make_group(category="Housing", amount=-50.0, date=date(2025, 1, 1), transaction_id="t1"),
-            make_group(category="Housing", amount=-30.0, date=date(2025, 1, 2), transaction_id="t2"),
+            make_group(
+                category="Housing", amount=-50.0, date=date(2025, 1, 1), transaction_id="t1"
+            ),
+            make_group(
+                category="Housing", amount=-30.0, date=date(2025, 1, 2), transaction_id="t2"
+            ),
         ]
         stats = service.load_usage_stats("Housing", groups)
         assert stats["total_amount"] == pytest.approx(80.0)
 
     def it_should_track_most_recent_date_as_last_used(self, service):
         groups = [
-            make_group(category="Housing", amount=-50.0, date=date(2025, 1, 5), transaction_id="t1"),
-            make_group(category="Housing", amount=-30.0, date=date(2025, 1, 10), transaction_id="t2"),
+            make_group(
+                category="Housing", amount=-50.0, date=date(2025, 1, 5), transaction_id="t1"
+            ),
+            make_group(
+                category="Housing", amount=-30.0, date=date(2025, 1, 10), transaction_id="t2"
+            ),
         ]
         stats = service.load_usage_stats("Housing", groups)
         assert stats["last_used"] == date(2025, 1, 10)
 
     def it_should_return_zero_count_for_unused_category(self, service):
         groups = [
-            make_group(category="Transportation", amount=-15.0, date=date(2025, 1, 1), transaction_id="t1"),
+            make_group(
+                category="Transportation", amount=-15.0, date=date(2025, 1, 1), transaction_id="t1"
+            ),
         ]
         stats = service.load_usage_stats("Housing", groups)
         assert stats["count"] == 0

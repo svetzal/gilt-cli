@@ -85,7 +85,9 @@ class IntelligenceScanService:
             tid = m.transaction["transaction_id"]
             if tid not in metadata:
                 metadata[tid] = {}
-            metadata[tid]["predicted_category"] = format_category_path(m.rule.category, m.rule.subcategory)
+            metadata[tid]["predicted_category"] = format_category_path(
+                m.rule.category, m.rule.subcategory
+            )
             metadata[tid]["confidence"] = m.rule.confidence
             metadata[tid]["prediction_source"] = "rule"
         return metadata

@@ -113,9 +113,7 @@ def build_transfer_section(
     if TRANSFER_ROLE in transfer:
         form.addRow("Role:", label_fn(transfer[TRANSFER_ROLE]))
     if TRANSFER_COUNTERPARTY_ACCOUNT_ID in transfer:
-        form.addRow(
-            "Counterparty account:", label_fn(transfer[TRANSFER_COUNTERPARTY_ACCOUNT_ID])
-        )
+        form.addRow("Counterparty account:", label_fn(transfer[TRANSFER_COUNTERPARTY_ACCOUNT_ID]))
     if TRANSFER_METHOD in transfer:
         form.addRow("Method:", label_fn(transfer[TRANSFER_METHOD]))
     return group

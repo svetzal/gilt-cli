@@ -108,9 +108,7 @@ class IntelligenceScanController(QObject):
         if self.smart_category_service:
             total_units += uncategorized_count
 
-        self.status_message.emit(
-            f"Scanning {len(uncached_txns)} of {len(all_ids)} transactions..."
-        )
+        self.status_message.emit(f"Scanning {len(uncached_txns)} of {len(all_ids)} transactions...")
         self.scan_started.emit("Scanning...", total_units)
 
         self.worker = IntelligenceWorker(

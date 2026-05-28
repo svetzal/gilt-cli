@@ -624,9 +624,7 @@ class DescribeInferImportTimestamp:
     def it_should_log_warning_when_transaction_date_is_unparseable(self, caplog):
         service = EventMigrationService()
 
-        with caplog.at_level(
-            logging.WARNING, logger="gilt.services.event_migration_service"
-        ):
+        with caplog.at_level(logging.WARNING, logger="gilt.services.event_migration_service"):
             timestamp = service._infer_import_timestamp("invalid.csv", "not-a-date")
 
         assert isinstance(timestamp, datetime)

@@ -56,7 +56,9 @@ def _reingest_source_files(
     return written, errors, written_paths
 
 
-def _finalize_reingest(output_dir: Path, projection_builder: object, event_store: object) -> tuple[int, int]:
+def _finalize_reingest(
+    output_dir: Path, projection_builder: object, event_store: object
+) -> tuple[int, int]:
     """Link transfers and rebuild projections. Returns (modified_transfer_count, events_processed)."""
     modified = link_transfers(processed_dir=output_dir, write=True)
     events_processed = projection_builder.build_from_scratch(event_store)
@@ -148,15 +150,21 @@ def run(
     )
 
     # Reingest files
-    written, _, written_paths = _reingest_source_files(account_files, ingestion_service, account, output_dir, event_store)
+    written, _, written_paths = _reingest_source_files(
+        account_files, ingestion_service, account, output_dir, event_store
+    )
     for out_path in written_paths:
         console.print(f"[green][ok][/] Wrote {out_path}")
 
     # Finalize
     console.print("[bold]Rebuilding projections[/]")
-    modified_transfers, events_processed = _finalize_reingest(output_dir, projection_builder, event_store)
+    modified_transfers, events_processed = _finalize_reingest(
+        output_dir, projection_builder, event_store
+    )
     if modified_transfers:
-        console.print(f"[green][ok][/] Updated {modified_transfers} ledger file(s) with transfer metadata")
+        console.print(
+            f"[green][ok][/] Updated {modified_transfers} ledger file(s) with transfer metadata"
+        )
     console.print(f"[green][ok][/] Rebuilt projections from {events_processed} events")
 
     console.print(f"\nDone. Re-ingested {written} file(s) for account {account}.")

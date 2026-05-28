@@ -214,7 +214,9 @@ def run(
         for w in parse_warnings:
             console.print(f"[yellow]Warning: {w}[/yellow]")
         if parse_warnings:
-            console.print(f"[yellow]Skipped {len(parse_warnings)} receipt file(s) due to errors.[/yellow]")
+            console.print(
+                f"[yellow]Skipped {len(parse_warnings)} receipt file(s) due to errors.[/yellow]"
+            )
     if not json_paths:
         console.print("[yellow]No receipt JSON files found.[/yellow]")
         return 0
@@ -255,6 +257,15 @@ def run(
         written = _emit_enrichment_events(matched, store)
 
     # Display summary
-    _display_summary(console, matched, ambiguous, unmatched, skipped_already_ingested, skipped_parse_errors, write, written)
+    _display_summary(
+        console,
+        matched,
+        ambiguous,
+        unmatched,
+        skipped_already_ingested,
+        skipped_parse_errors,
+        write,
+        written,
+    )
 
     return 0

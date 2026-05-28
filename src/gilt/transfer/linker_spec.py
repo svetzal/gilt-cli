@@ -133,7 +133,10 @@ def _make_match(
 ) -> Match:
     d = debit or _make_txn(account_id="ACC1", amount=-150.0, transaction_id="dddd111100000001")
     c = credit or _make_txn(
-        account_id="ACC2", amount=150.0, transaction_id="cccc222200000002", description="E-TRANSFER IN"
+        account_id="ACC2",
+        amount=150.0,
+        transaction_id="cccc222200000002",
+        description="E-TRANSFER IN",
     )
     return Match(debit=d, credit=c, score=score, method=method, fee_txn_ids=fee_txn_ids or [])
 

@@ -44,7 +44,9 @@ class DescribeWorkspaceResolution:
         ctx = MagicMock()
         ctx.obj = {}
 
-        with patch("gilt.cli.app.Workspace.resolve", return_value=Workspace(root=tmp_path)) as mock_resolve:
+        with patch(
+            "gilt.cli.app.Workspace.resolve", return_value=Workspace(root=tmp_path)
+        ) as mock_resolve:
             from gilt.cli.app import main
 
             main(ctx=ctx, data_dir=tmp_path)
@@ -108,12 +110,31 @@ class DescribeAppCommandRegistration:
     def it_should_register_all_expected_commands(self):
         names = {c.name or c.callback.__name__ for c in app.registered_commands}
         expected = {
-            "ingest", "reingest", "note", "ytd", "categorize", "recategorize",
-            "auto-categorize", "uncategorized", "budget", "report", "duplicates",
-            "mark-duplicate", "categories", "category", "accounts", "init",
-            "diagnose_categories", "rebuild-projections", "backfill-events",
-            "migrate-to-events", "audit-ml", "prompt-stats", "infer-rules",
-            "skill-init", "ingest-receipts",
+            "ingest",
+            "reingest",
+            "note",
+            "ytd",
+            "categorize",
+            "recategorize",
+            "auto-categorize",
+            "uncategorized",
+            "budget",
+            "report",
+            "duplicates",
+            "mark-duplicate",
+            "categories",
+            "category",
+            "accounts",
+            "init",
+            "diagnose_categories",
+            "rebuild-projections",
+            "backfill-events",
+            "migrate-to-events",
+            "audit-ml",
+            "prompt-stats",
+            "infer-rules",
+            "skill-init",
+            "ingest-receipts",
         }
         assert expected <= names
 

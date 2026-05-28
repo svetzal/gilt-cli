@@ -452,6 +452,22 @@ def diagnose_categories(ctx: typer.Context):
     raise typer.Exit(code=code)
 
 
+@app.command(name="diagnose-duplicates")
+def diagnose_duplicates(ctx: typer.Context):
+    """Diagnose duplicate-projection issues.
+
+    Scans the projections database and reports orphan duplicate groups,
+    stale primary references, and self-referential primaries.
+
+    Examples:
+      gilt diagnose-duplicates
+    """
+    from gilt.cli.command import diagnose_duplicates as cmd_diagnose_duplicates
+
+    code = cmd_diagnose_duplicates.run(workspace=_ws(ctx))
+    raise typer.Exit(code=code)
+
+
 @app.command()
 def report(
     ctx: typer.Context,

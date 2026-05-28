@@ -228,9 +228,7 @@ def validate_single_vs_batch_mode(
         [single_mode, description is not None, desc_prefix is not None, pattern is not None]
     )
     if modes_selected != 1:
-        print_error(
-            "Specify exactly one of --txid, --description, --desc-prefix, or --pattern"
-        )
+        print_error("Specify exactly one of --txid, --description, --desc-prefix, or --pattern")
         return None
     return single_mode
 
