@@ -72,7 +72,7 @@ Commands use Rich formatting for readable output:
 - [`categories`](categorization.md#listing-categories) - List all categories
 - [`category`](categorization.md#managing-categories) - Add/remove/manage categories
 - [`categorize`](categorization.md#categorizing-transactions) - Assign categories to transactions
-- [`recategorize`](categorization.md#renaming-categories) - Rename categories in ledgers
+- [`recategorize`](categorization.md#renaming-categories) - Rename categories or recategorize a filtered selection
 - [`diagnose-categories`](categorization.md#diagnosing-issues) - Find orphaned categories
 
 ### Budgeting

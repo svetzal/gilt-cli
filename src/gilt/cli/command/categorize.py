@@ -24,6 +24,7 @@ from .util import (
     display_transaction_matches,
     find_by_account,
     fmt_amount_str,
+    group_by_account,
     print_dry_run_message,
     print_error,
     require_event_sourcing,
@@ -115,17 +116,6 @@ def _find_matches(
     return all_matches
 
 
-def _group_by_account(transactions: list[dict]) -> dict[str, list[TransactionGroup]]:
-    """Group projection rows into TransactionGroup lists keyed by account_id."""
-    groups_by_account: dict[str, list[TransactionGroup]] = {}
-    for row in transactions:
-        account_id = row["account_id"]
-        groups_by_account.setdefault(account_id, []).append(
-            TransactionGroup.from_projection_row(row)
-        )
-    return groups_by_account
-
-
 def _resolve_targets(
     all_transactions: list[dict],
     single_mode: bool,
@@ -146,7 +136,7 @@ def _resolve_targets(
         pattern=pattern,
         amount=amount,
     )
-    groups_by_account = _group_by_account(all_transactions)
+    groups_by_account = group_by_account(all_transactions)
     return _find_matches(groups_by_account, single_mode, txid, criteria, pattern, service)
 
 

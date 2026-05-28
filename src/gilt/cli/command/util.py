@@ -38,6 +38,17 @@ def print_error_list(heading: str, errors: list[str]) -> None:
         console.print(f"  • {error}")
 
 
+def group_by_account(rows: list[dict]) -> dict[str, list[TransactionGroup]]:
+    """Group projection rows into TransactionGroup lists keyed by account_id."""
+    groups_by_account: dict[str, list[TransactionGroup]] = {}
+    for row in rows:
+        account_id = row["account_id"]
+        groups_by_account.setdefault(account_id, []).append(
+            TransactionGroup.from_projection_row(row)
+        )
+    return groups_by_account
+
+
 def find_uncategorized(rows: list[dict]) -> list[dict]:
     return [row for row in rows if not row.get("category")]
 

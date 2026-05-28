@@ -581,35 +581,54 @@ After manually categorizing some transactions, train the classifier to automatic
 
 ---
 
-### `recategorize` - Rename Categories in Ledgers
+### `recategorize` - Rename Categories or Recategorize a Filtered Selection
 
-Rename a category across all ledger files. Useful when renaming categories in `categories.yml` to update existing transaction categorizations.
+Two operating modes in one command:
+
+**Rename mode** (`--from` required, no selection flags): renames every transaction with the given category to the new category. Useful when renaming categories in `categories.yml`.
 
 ```bash
-# Rename a category
+# Rename a category across all ledger files
 gilt recategorize --from "Business" --to "Work" --write
 
-# Rename a category with subcategory
+# Rename only a specific subcategory
 gilt recategorize --from "Business:Subscriptions" --to "Work:Subscriptions" --write
 
 # Preview changes without writing (dry-run)
 gilt recategorize --from "Old Category" --to "New Category"
 ```
 
-**Options:**
-- `--from TEXT`: Original category name (supports "Category:Subcategory" syntax) (required)
+**Filtered recategorize** (one or more selection flags): applies `--to` to a filtered subset of transactions. `--from` is optional — when present it further narrows the selection.
+
+```bash
+# Recategorize all transactions with a given description prefix
+gilt recategorize --desc-prefix "ACME CORP" --to "Work:Subscriptions" --write
+
+# Narrow by amount (signed: negative = debit, positive = credit)
+gilt recategorize --desc-prefix "ACME CORP" --amount-eq -18.30 --to "Work:Subscriptions" --write
+
+# Narrow further by account and date range
+gilt recategorize --desc-prefix "ACME CORP" --amount-eq -18.30 \
+  --account MYBANK_CC --date-from 2025-01-01 --date-to 2025-12-31 \
+  --to "Work:Subscriptions" --write
+
+# Use a fiscal-year window
+gilt recategorize --pattern "SAMPLE STORE" --fy FY25 --to "Groceries" --write
+```
+
+**Selection flags:**
+- `--desc-prefix TEXT`: Description prefix filter (case-insensitive)
+- `--pattern TEXT`: Regex pattern filter on descriptions
+- `--amount-eq FLOAT`: Exact signed amount (`-18.30` matches debits only)
+- `--amount-min FLOAT` / `--amount-max FLOAT`: Signed amount range
+- `--account TEXT`: Restrict to this account ID
+- `--date-from YYYY-MM-DD` / `--date-to YYYY-MM-DD`: Date range
+- `--fy TEXT`: Fiscal year (e.g. `FY25`); cannot combine with `--date-from`/`--date-to`
+
+**Common options:**
+- `--from TEXT`: Original category name (supports "Category:Subcategory" syntax)
 - `--to TEXT`: New category name (supports "Category:Subcategory" syntax) (required)
-- `--data-dir PATH`: Directory containing ledgers (default: `data/accounts`)
 - `--write`: Persist changes (default: dry-run)
-
-**How it works:**
-1. Searches all ledger files for transactions with the specified category
-2. Shows a preview table of all matching transactions
-3. In dry-run mode (default), displays what would be changed
-4. With `--write`, prompts for confirmation and updates all matching transactions
-
-**Use case:**
-When you rename a category in `config/categories.yml`, existing transactions in ledger files still reference the old category name. Use this command to bulk-update all historical transactions to use the new category name.
 
 ---
 

@@ -361,17 +361,32 @@ uv run gilt rebuild-projections --from-scratch
 
 ## recategorize
 
-Rename a category across all ledger files.
+Rename a category or recategorize a filtered selection of transactions. Two modes:
+
+- **Rename mode** (no selection flags): renames every transaction with `--from` category to `--to`. `--from` is required.
+- **Selection mode** (any selection flag present): applies `--to` to the filtered subset. `--from` is optional narrowing filter.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `--from` | String | **required** | Original category name (`"Cat:Sub"` syntax) |
+| `--from` | String | None | Original category (`"Cat:Sub"` syntax); required in rename mode |
 | `--to` | String | **required** | New category name (`"Cat:Sub"` syntax) |
+| `--account`, `-a` | String | None | Restrict selection to this account ID |
+| `--desc-prefix`, `-p` | String | None | Description prefix filter (case-insensitive) |
+| `--pattern` | String | None | Regex pattern filter on descriptions |
+| `--amount-eq` | Float | None | Exact signed amount to match |
+| `--amount-min` | Float | None | Minimum signed amount (inclusive) |
+| `--amount-max` | Float | None | Maximum signed amount (inclusive) |
+| `--date-from` | String | None | Start date (YYYY-MM-DD, inclusive) |
+| `--date-to` | String | None | End date (YYYY-MM-DD, inclusive) |
+| `--fy` | String | None | Fiscal year filter (e.g. `FY25`); cannot combine with `--date-from`/`--date-to` |
 | `--write` | Bool | `False` | **Persist changes (dry-run by default)** |
 
 ```bash
 uv run gilt recategorize --from "Business" --to "Work" --write
 uv run gilt recategorize --from "Business:Meals" --to "Work:Meals" --write
+uv run gilt recategorize --desc-prefix "ACME CORP" --to "Work:Subscriptions" --write
+uv run gilt recategorize --desc-prefix "ACME CORP" --amount-eq -18.30 --account MYBANK_CC --to "Work:Subscriptions" --write
+uv run gilt recategorize --pattern "SAMPLE STORE" --fy FY25 --to "Groceries" --write
 ```
 
 ---

@@ -308,30 +308,116 @@ def categorize(
 @app.command()
 def recategorize(
     ctx: typer.Context,
-    from_cat: str = typer.Option(
-        ..., "--from", help="Original category name (supports 'Category:Subcategory')"
+    from_cat: str | None = typer.Option(
+        None, "--from", help="Original category name (supports 'Category:Subcategory')"
     ),
     to_cat: str = typer.Option(
         ..., "--to", help="New category name (supports 'Category:Subcategory')"
     ),
+    account: str | None = typer.Option(
+        None, "--account", "-a", help="Restrict selection to this account ID"
+    ),
+    desc_prefix: str | None = typer.Option(
+        None, "--desc-prefix", "-p", help="Description prefix filter (case-insensitive)"
+    ),
+    pattern: str | None = typer.Option(
+        None, "--pattern", help="Regex pattern filter on descriptions"
+    ),
+    amount_eq: float | None = typer.Option(
+        None, "--amount-eq", help="Exact signed amount to match"
+    ),
+    amount_min: float | None = typer.Option(
+        None, "--amount-min", help="Minimum signed amount (inclusive)"
+    ),
+    amount_max: float | None = typer.Option(
+        None, "--amount-max", help="Maximum signed amount (inclusive)"
+    ),
+    date_from_str: str | None = typer.Option(
+        None, "--date-from", help="Start date (YYYY-MM-DD, inclusive)"
+    ),
+    date_to_str: str | None = typer.Option(
+        None, "--date-to", help="End date (YYYY-MM-DD, inclusive)"
+    ),
+    fy: str | None = typer.Option(
+        None,
+        "--fy",
+        help="Fiscal year to filter (Nov 1 – Oct 31). Accepts FY25, fy25, FY2025.",
+    ),
     write: bool = typer.Option(False, "--write", help=HELP_WRITE),
 ):
-    """Rename a category across all ledger files.
+    """Rename a category or recategorize a filtered selection.
 
-    Useful when renaming categories in categories.yml to update existing
-    transaction categorizations in ledger files.
+    Without selection flags, renames every transaction with --from to --to.
+    With selection flags, applies --to to the filtered subset (--from is optional).
+
+    Selection flags: --account, --desc-prefix, --pattern, --amount-eq,
+    --amount-min, --amount-max, --date-from, --date-to, --fy.
 
     Examples:
       gilt recategorize --from "Business" --to "Work" --write
       gilt recategorize --from "Business:Meals" --to "Work:Meals" --write
+      gilt recategorize --desc-prefix "ACME" --to "Work:Supplies" --write
+      gilt recategorize --desc-prefix "ACME" --amount-eq -18.30 --account MYBANK_CC --to "Work:Subscriptions" --write
 
     Safety: dry-run by default. Use --write to persist changes.
     """
+    from datetime import date as date_type
+
     from gilt.cli.command import recategorize as cmd_recategorize
+    from gilt.util.fy import fiscal_year_range
+
+    if fy is not None and (date_from_str is not None or date_to_str is not None):
+        from gilt.cli.command.util import console as _console
+
+        _console.print("[red]Error:[/] --fy and --date-from/--date-to cannot be used together")
+        raise typer.Exit(code=1)
+
+    date_from = None
+    if date_from_str is not None:
+        try:
+            date_from = date_type.fromisoformat(date_from_str)
+        except ValueError as exc:
+            from gilt.cli.command.util import console as _console
+
+            _console.print(
+                f"[red]Error:[/] Invalid --date-from value: {date_from_str!r}. Expected YYYY-MM-DD"
+            )
+            raise typer.Exit(code=1) from exc
+
+    date_to = None
+    if date_to_str is not None:
+        try:
+            date_to = date_type.fromisoformat(date_to_str)
+        except ValueError as exc:
+            from gilt.cli.command.util import console as _console
+
+            _console.print(
+                f"[red]Error:[/] Invalid --date-to value: {date_to_str!r}. Expected YYYY-MM-DD"
+            )
+            raise typer.Exit(code=1) from exc
+
+    fy_range = None
+    if fy is not None:
+        try:
+            fy_range = fiscal_year_range(fy)
+        except ValueError as exc:
+            from gilt.cli.command.util import console as _console
+
+            _console.print(f"[red]Error:[/] {exc}")
+            raise typer.Exit(code=1) from exc
 
     code = cmd_recategorize.run(
         from_category=from_cat,
         to_category=to_cat,
+        account=account,
+        desc_prefix=desc_prefix,
+        pattern=pattern,
+        amount_eq=amount_eq,
+        amount_min=amount_min,
+        amount_max=amount_max,
+        date_from=date_from,
+        date_to=date_to,
+        fy_range=fy_range,
         workspace=_ws(ctx),
         write=write,
     )
