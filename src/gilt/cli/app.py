@@ -1226,5 +1226,67 @@ def migrate_to_events(
     raise typer.Exit(code=code)
 
 
+@app.command()
+def receipts(
+    ctx: typer.Context,
+    by_account: bool = typer.Option(
+        False,
+        "--by-account",
+        help="Group by account_id instead of subcategory",
+    ),
+    fy: str | None = typer.Option(
+        None,
+        "--fy",
+        help="Fiscal year filter (Nov 1 – Oct 31). Accepts FY25, fy25, FY2025.",
+    ),
+    missing: bool = typer.Option(
+        False,
+        "--missing",
+        help="List individual transactions without receipts instead of the summary table",
+    ),
+    category: str = typer.Option(
+        "Mojility",
+        "--category",
+        "-c",
+        help="Category to report on (default: Mojility)",
+    ),
+):
+    """Display receipt attachment coverage for categorised transactions.
+
+    Shows total transactions, how many have receipts attached, and coverage
+    percentage grouped by subcategory (default) or account.
+
+    Examples:
+      gilt receipts
+      gilt receipts --fy FY25
+      gilt receipts --by-account
+      gilt receipts --missing
+      gilt receipts --category Food
+      gilt receipts --fy FY25 --missing
+    """
+    from gilt.cli.command import receipts as cmd_receipts
+    from gilt.util.fy import fiscal_year_range
+
+    fy_range = None
+    if fy is not None:
+        try:
+            fy_range = fiscal_year_range(fy)
+        except ValueError as exc:
+            from gilt.cli.command.util import console
+
+            console.print(f"[red]Error:[/] {exc}")
+            raise typer.Exit(code=1) from exc
+
+    code = cmd_receipts.run(
+        category=category,
+        by_account=by_account,
+        fy_range=fy_range,
+        fy_label=fy,
+        missing=missing,
+        workspace=_ws(ctx),
+    )
+    raise typer.Exit(code=code)
+
+
 if __name__ == "__main__":
     app()  # pragma: no cover

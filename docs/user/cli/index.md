@@ -66,6 +66,7 @@ Commands use Rich formatting for readable output:
 - [`history`](viewing.md#categorization-history) - Look up how similar transactions were categorized
 - [`uncategorized`](categorization.md#finding-uncategorized) - Find transactions without categories
 - [`status`](#status-dashboard) - Per-account freshness and coverage dashboard
+- [`receipts`](#receipt-coverage-report) - Receipt attachment coverage by category or account
 
 ### Categorization
 
@@ -185,6 +186,58 @@ highlighted in red with a warning marker.
 | `mojility_txns` | Mojility-category transactions (FY-filtered when `--fy` given) |
 | `mojility_w_receipt` | Mojility transactions with a receipt attached |
 | `mojility_receipt_pct` | Receipt coverage percentage (`—` when no Mojility transactions) |
+
+## Receipt Coverage Report
+
+`gilt receipts` reports which transactions have receipts attached and which are still missing one.
+Defaults to the `Mojility` category, making it easy to identify business transactions that need
+receipts before a bookkeeping cycle.
+
+```bash
+# Summary table grouped by subcategory (default)
+gilt receipts
+
+# Scope to a fiscal year
+gilt receipts --fy FY25
+
+# Group by account instead of subcategory
+gilt receipts --by-account
+
+# List individual transactions that are missing a receipt
+gilt receipts --missing
+
+# Report for a different category
+gilt receipts --category "Work"
+
+# Combine flags
+gilt receipts --fy FY25 --missing --category "Work"
+```
+
+**Options:**
+
+- `--fy FY`: Fiscal year filter (e.g. FY25, fy2025). Same format as `status` and `uncategorized`.
+- `--by-account`: Group by `account_id` instead of `subcategory`.
+- `--missing`: Switch from the summary table to a per-transaction list of those without a receipt.
+- `--category, -c NAME`: Category to report on (default: `Mojility`).
+
+**Default output (summary table):**
+
+| Column | Description |
+|--------|-------------|
+| `category` | Category name (same for all rows) |
+| `subcategory` / `account_id` | Grouping column (subcategory by default, account when `--by-account`) |
+| `total_txns` | Total transactions in the group |
+| `with_receipt` | Transactions with a receipt file attached |
+| `without_receipt` | Transactions without a receipt |
+| `coverage_pct` | Percentage with receipt (rounded to whole %) |
+| `net_amount` | Signed sum of transaction amounts |
+
+**`--missing` output:**
+
+A flat table of transactions without receipts, showing: `txid`, `date`, `description`, `amount`,
+`account_id`. Useful as input to a future bulk-attach workflow.
+
+Read-only — no `--write` flag needed.
 
 ## Global Options
 

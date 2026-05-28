@@ -214,6 +214,45 @@ in red with a ⚠ prefix.
 
 ---
 
+### `receipts` - Receipt Coverage Report
+
+Show which transactions have receipts attached and which are still missing one.
+Defaults to the `Mojility` category — useful for identifying business expenses that need
+receipts before a quarterly bookkeeping cycle.
+
+```bash
+# Summary table grouped by subcategory (default)
+gilt receipts
+
+# Scope to a fiscal year
+gilt receipts --fy FY25
+
+# Group by account instead of subcategory
+gilt receipts --by-account
+
+# List individual transactions missing a receipt
+gilt receipts --missing
+
+# Report for a different category
+gilt receipts --category "Work"
+```
+
+**Options:**
+- `--fy FY`: Fiscal year filter (e.g. FY25, fy2025)
+- `--by-account`: Group results by account ID instead of subcategory
+- `--missing`: Show individual transactions without receipts instead of the summary table
+- `--category, -c NAME`: Category to report on (default: `Mojility`)
+
+**Output:**
+A summary table with columns: category, subcategory (or account_id with `--by-account`),
+total_txns, with_receipt, without_receipt, coverage_pct, net_amount.
+With `--missing`: a flat list of transactions (txid, date, description, amount, account_id)
+that are missing a receipt file.
+
+Read-only — no `--write` flag needed.
+
+---
+
 ### `ytd` - View Year-to-Date Transactions
 
 Display transactions for a specific account in a rich formatted table.
