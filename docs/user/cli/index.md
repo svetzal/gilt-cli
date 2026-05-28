@@ -67,6 +67,7 @@ Commands use Rich formatting for readable output:
 - [`uncategorized`](categorization.md#finding-uncategorized) - Find transactions without categories
 - [`status`](#status-dashboard) - Per-account freshness and coverage dashboard
 - [`receipts`](#receipt-coverage-report) - Receipt attachment coverage by category or account
+- [`summary`](viewing.md#category-summary) - Category/subcategory spending aggregation
 
 ### Categorization
 

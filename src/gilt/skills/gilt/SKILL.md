@@ -40,6 +40,7 @@ Local-only CLI for managing personal finance ledgers. Run with `uv run gilt <com
 | `categories` | List categories with usage stats |
 | `ytd` | Year-to-date transactions for one account |
 | `uncategorized` | Transactions missing categories |
+| `summary` | Category/subcategory spending aggregation |
 | `budget` | Budget vs actual spending summary |
 
 ### Setup

@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- `gilt summary` — category/subcategory spending aggregation command with `--category`, `--year`, `--fy`, `--account`, and `--include-uncategorized` flags
+
 ## [0.5.3] - 2026-04-20
 
 ### Added

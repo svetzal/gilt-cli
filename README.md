@@ -757,6 +757,54 @@ Transactions are sorted by account, then date. A per-account count summary table
 
 ---
 
+### `summary` - Category Aggregation
+
+Display a category-level spending breakdown for the selected time window, sorted by absolute net
+descending. Drill into a single category's subcategories with `--category`.
+
+```bash
+# Top-level category breakdown for the current year
+gilt summary
+
+# Specific calendar year
+gilt summary --year 2025
+
+# Fiscal year window (Nov 1 – Oct 31)
+gilt summary --fy FY25
+
+# Restrict to one account
+gilt summary --account MYBANK_CHQ
+
+# Include a row for transactions with no category
+gilt summary --include-uncategorized
+
+# Drill into one category's subcategories
+gilt summary --category Housing
+
+# Drill into subcategories for a fiscal year
+gilt summary --category Housing --fy FY25
+```
+
+**Options:**
+
+- `--category / -c CATEGORY`: Drill into one category's subcategories.
+- `--year / -y YYYY`: Calendar year filter (default: current year). Conflicts with `--fy`.
+- `--fy FYNN`: Fiscal year filter (Nov 1 – Oct 31). Accepts `FY25`, `fy25`, `FY2025`.
+- `--account / -a ID`: Restrict to one account ID.
+- `--include-uncategorized`: Include a row for transactions with no assigned category.
+
+**Output (default — top-level categories):**
+
+A table with columns: `Category`, `Count`, `Net`, sorted by absolute net descending.
+
+**Output (with `--category`):**
+
+A table with columns: `Subcategory`, `Count`, `Net`, `% of Category`, sorted by absolute
+net descending. Transactions tagged at the top level with no subcategory appear as `—`.
+A category-total line is shown below the table.
+
+---
+
 ### `budget` - Budget Reporting
 
 View budget vs actual spending by category.

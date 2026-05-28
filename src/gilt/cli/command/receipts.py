@@ -73,7 +73,9 @@ def run(
     if missing:
         _render_missing(result, con)
     else:
-        _render_summary(result, category=category, by_account=by_account, fy_label=fy_label, con=con)
+        _render_summary(
+            result, category=category, by_account=by_account, fy_label=fy_label, con=con
+        )
 
     return 0
 

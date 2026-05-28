@@ -583,6 +583,73 @@ def status(
 
 
 @app.command()
+def summary(
+    ctx: typer.Context,
+    category: str | None = typer.Option(
+        None, "--category", "-c", help="Drill into one category's subcategories"
+    ),
+    year: int | None = typer.Option(None, "--year", "-y", help="Calendar year (default: current)"),
+    fy: str | None = typer.Option(
+        None,
+        "--fy",
+        help="Fiscal year (Nov 1 – Oct 31). Accepts FY25, fy25, FY2025.",
+    ),
+    account: str | None = typer.Option(None, "--account", "-a", help="Account ID to filter"),
+    include_uncategorized: bool = typer.Option(
+        False, "--include-uncategorized", help="Include rows where category is null"
+    ),
+):
+    """Display category or subcategory spending summary.
+
+    Without --category: shows top-level category breakdown for the selected year,
+    sorted by absolute net descending.
+
+    With --category <name>: drills into that category's subcategories, showing
+    count, net, and percentage of the category total.
+
+    Examples:
+      gilt summary
+      gilt summary --year 2025
+      gilt summary --fy FY25
+      gilt summary --category Housing
+      gilt summary --category Housing --fy FY25
+      gilt summary --account MYBANK_CHQ --year 2025
+      gilt summary --include-uncategorized
+    """
+    from gilt.cli.command import summary as cmd_summary
+    from gilt.util.fy import fiscal_year_range
+
+    if fy is not None and year is not None:
+        from gilt.cli.command.util import console
+
+        console.print(
+            "[red]Error:[/] --fy and --year cannot be used together. Use one or the other."
+        )
+        raise typer.Exit(code=1)
+
+    fy_range = None
+    if fy is not None:
+        try:
+            fy_range = fiscal_year_range(fy)
+        except ValueError as exc:
+            from gilt.cli.command.util import console
+
+            console.print(f"[red]Error:[/] {exc}")
+            raise typer.Exit(code=1) from exc
+
+    code = cmd_summary.run(
+        year=year,
+        fy_range=fy_range,
+        fy_label=fy,
+        account=account,
+        category=category,
+        include_uncategorized=include_uncategorized,
+        workspace=_ws(ctx),
+    )
+    raise typer.Exit(code=code)
+
+
+@app.command()
 def budget(
     ctx: typer.Context,
     year: int | None = typer.Option(
