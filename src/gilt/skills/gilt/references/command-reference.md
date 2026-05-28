@@ -131,7 +131,7 @@ uv run gilt categories
 
 ## categorize
 
-Categorize transactions (single or batch mode).
+Categorize transactions (single, batch, or file-batch mode).
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
@@ -141,17 +141,30 @@ Categorize transactions (single or batch mode).
 | `--desc-prefix`, `-p` | String | None | Description prefix (batch, case-insensitive) |
 | `--pattern` | String | None | Regex on description (batch, case-insensitive) |
 | `--amount`, `-m` | Float | None | Exact amount to match (batch mode) |
-| `--category`, `-c` | String | **required** | Category name (`"Cat:Sub"` syntax) |
+| `--category`, `-c` | String | None | Category name (`"Cat:Sub"` syntax) |
 | `--subcategory`, `-s` | String | None | Subcategory (alternative to colon syntax) |
 | `--yes`, `-y` | Bool | `False` | Skip batch confirmations |
+| `--txid-file` | Path | None | File of `<txid-prefix> <category>` pairs (file-batch mode) |
+| `--from-stdin` | Bool | `False` | Read `<txid-prefix> <category>` pairs from stdin (file-batch mode) |
 | `--write` | Bool | `False` | **Persist changes (dry-run by default)** |
 
-Use exactly one matching mode: `--txid`, `--description`, `--desc-prefix`, or `--pattern`.
+Use exactly one matching mode: `--txid`, `--description`, `--desc-prefix`, `--pattern`, `--txid-file`, or `--from-stdin`.
+
+File/stdin format (one entry per line):
+```
+# Comments start with #
+7f860a03 Housing:Utilities
+9bc16ce1 Banking:Fees
+```
+
+File-batch is applied all-or-nothing — any unknown txid aborts the entire batch.
 
 ```bash
 uv run gilt categorize -a MYBANK_CHQ --txid a1b2c3d4 -c "Housing:Utilities" --write
 uv run gilt categorize --desc-prefix "SPOTIFY" -c "Entertainment:Subscriptions" --yes --write
 uv run gilt categorize --pattern "Payment.*EXAMPLE UTILITY" -c "Housing:Utilities" --yes --write
+uv run gilt categorize --txid-file batch.txt --write
+uv run gilt categorize --from-stdin --write < batch.txt
 ```
 
 ---
@@ -188,6 +201,18 @@ No command-specific options. All paths derived from workspace root.
 
 ```bash
 uv run gilt diagnose-categories
+```
+
+---
+
+## diagnose-duplicates
+
+Read-only diagnostic for duplicate-projection issues. Reports orphan duplicate groups, stale primary references, and self-referential primaries.
+
+No command-specific options.
+
+```bash
+uv run gilt diagnose-duplicates
 ```
 
 ---
@@ -229,6 +254,49 @@ Drop raw bank CSVs into `ingest/` (relative to workspace root), then run:
 ```bash
 uv run gilt ingest
 uv run gilt ingest --write
+```
+
+---
+
+## ingest-receipts
+
+Ingest receipt JSON sidecar files (`mailctl.receipt.v1` format) and enrich matching bank transactions by amount and date.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--source` | Path | **required** | Root directory containing receipt JSON files (recursive scan) |
+| `--year`, `-y` | Int | None | Only process receipts from this year |
+| `--account`, `-a` | String | None | Limit matching to this account |
+| `--interactive`, `-i` | Bool | `False` | Interactively resolve ambiguous matches |
+| `--write` | Bool | `False` | **Persist enrichment events (dry-run by default)** |
+
+```bash
+uv run gilt ingest-receipts --source ~/receipts
+uv run gilt ingest-receipts --source ~/receipts --year 2025 --write
+uv run gilt ingest-receipts --source ~/receipts --account MYBANK_CC --write
+uv run gilt ingest-receipts --source ~/receipts --interactive --write
+```
+
+---
+
+## infer-rules
+
+Infer categorization rules from transaction history. Scans categorization history for descriptions consistently categorized the same way. Use `--apply` to match rules against uncategorized transactions.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--apply` | Bool | `False` | Apply inferred rules to uncategorized transactions |
+| `--min-evidence` | Int | `3` | Minimum categorizations required to infer a rule (min 1) |
+| `--min-confidence` | Float | `0.9` | Minimum consistency ratio to infer a rule (0.0–1.0) |
+| `--export` | String | None | Export inferred rules to a JSON file |
+| `--write` | Bool | `False` | **Persist rule applications (dry-run by default; requires `--apply`)** |
+
+```bash
+uv run gilt infer-rules                          # Preview inferred rules
+uv run gilt infer-rules --apply                  # Preview which transactions would be updated
+uv run gilt infer-rules --apply --write          # Apply and persist
+uv run gilt infer-rules --min-evidence 5 --min-confidence 0.95
+uv run gilt infer-rules --export rules.json
 ```
 
 ---
@@ -359,6 +427,30 @@ uv run gilt rebuild-projections --from-scratch
 
 ---
 
+## receipts
+
+Display receipt attachment coverage for categorised transactions. Shows total transactions, how many have receipts attached, and coverage percentage grouped by subcategory (default) or account.
+
+Read-only — no `--write` flag needed.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--by-account` | Bool | `False` | Group by account_id instead of subcategory |
+| `--fy` | String | None | Fiscal year filter (Nov 1 – Oct 31). Accepts FY25, fy25, FY2025. |
+| `--missing` | Bool | `False` | List individual transactions without receipts instead of the summary table |
+| `--category`, `-c` | String | `Mojility` | Category to report on |
+
+```bash
+uv run gilt receipts
+uv run gilt receipts --fy FY25
+uv run gilt receipts --by-account
+uv run gilt receipts --missing
+uv run gilt receipts --category Food
+uv run gilt receipts --fy FY25 --missing
+```
+
+---
+
 ## recategorize
 
 Rename a category or recategorize a filtered selection of transactions. Two modes:
@@ -391,6 +483,22 @@ uv run gilt recategorize --pattern "SAMPLE STORE" --fy FY25 --to "Groceries" --w
 
 ---
 
+## reingest
+
+Purge and re-ingest all transactions for a single account. Removes the account's ledger CSV, purges related events and projections, clears cached intelligence, then re-runs ingestion from the original source files. Use after changing `import_hints` (e.g. `amount_sign`) or when an account's data needs a clean slate without affecting other accounts.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--account`, `-a` | String | **required** | Account ID to reingest (e.g. `MYBANK_CC`) |
+| `--write` | Bool | `False` | **Execute reingest (dry-run by default)** |
+
+```bash
+uv run gilt reingest --account MYBANK_CC          # Preview
+uv run gilt reingest -a MYBANK_CC --write          # Execute
+```
+
+---
+
 ## report
 
 Generate budget report as markdown and Word document (.docx).
@@ -408,6 +516,23 @@ Requires `pandoc` for .docx generation (`brew install pandoc` on macOS).
 uv run gilt report
 uv run gilt report --year 2025 --write
 uv run gilt report --year 2025 --month 10 --write
+```
+
+---
+
+## show
+
+Show all stored fields for a single transaction. Displays the full projection record including description history, enrichment fields, duplicate status, and event metadata.
+
+Read-only — no `--write` flag needed.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--txid`, `-t` | String | **required** | Transaction ID prefix (8+ characters) |
+
+```bash
+uv run gilt show --txid a1b2c3d4
+uv run gilt show -t a1b2c3d4e5f6g7h8
 ```
 
 ---
@@ -431,20 +556,48 @@ uv run gilt status --stale-threshold 30
 
 ---
 
-## uncategorized
+## summary
 
-Display transactions without categories.
+Display category or subcategory spending aggregation. Without `--category` shows the top-level category breakdown; with `--category <name>` drills into that category's subcategories.
+
+Read-only — no `--write` flag needed.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `--account`, `-a` | String | None | Account ID to filter (omit for all) |
-| `--year`, `-y` | Int | None | Year to filter |
-| `--limit`, `-n` | Int | None | Max transactions to show |
-| `--min-amount` | Float | None | Minimum absolute amount |
+| `--category`, `-c` | String | None | Drill into one category's subcategories |
+| `--year`, `-y` | Int | current year | Calendar year |
+| `--fy` | String | None | Fiscal year (Nov 1 – Oct 31). Accepts FY25, fy25, FY2025. |
+| `--account`, `-a` | String | None | Account ID to filter |
+| `--include-uncategorized` | Bool | `False` | Include rows where category is null |
+
+```bash
+uv run gilt summary
+uv run gilt summary --year 2025
+uv run gilt summary --fy FY25
+uv run gilt summary --category Housing
+uv run gilt summary --category Housing --fy FY25
+uv run gilt summary --account MYBANK_CHQ --year 2025
+uv run gilt summary --include-uncategorized
+```
+
+---
+
+## uncategorized
+
+Display transactions without categories. Defaults to all accounts; use `--account` to narrow. Includes a per-account count summary below the main table.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--account`, `-a` | String | None | Account ID to filter (omit for all accounts) |
+| `--year`, `-y` | Int | None | Calendar year to filter |
+| `--fy` | String | None | Fiscal year to filter (Nov 1 – Oct 31). Accepts FY25, fy25, FY2025. |
+| `--limit`, `-n` | Int | None | Max transactions to show (min 1) |
+| `--min-amount` | Float | None | Minimum absolute amount to include |
 
 ```bash
 uv run gilt uncategorized
 uv run gilt uncategorized --account MYBANK_CHQ --year 2025
+uv run gilt uncategorized --fy FY25
 uv run gilt uncategorized --min-amount 100 --limit 50
 ```
 

@@ -7,6 +7,9 @@ All notable changes to this project will be documented in this file.
 ### Added
 - `gilt summary` — category/subcategory spending aggregation command with `--category`, `--year`, `--fy`, `--account`, and `--include-uncategorized` flags
 
+### Documentation
+- Audit packaged skill (`src/gilt/skills/gilt/`) against batch `gilt-improvement-20260528`: updated `SKILL.md` and `references/command-reference.md` to cover new commands (`show`, `history`, `status`, `receipts`, `diagnose-duplicates`, `summary`, `reingest`, `ingest-receipts`, `infer-rules`), changed behaviour for `uncategorized` (all-accounts default, `--fy` flag), `categorize` (`--txid-file`/`--from-stdin` file-batch mode), `recategorize` (selection-mode flags), and `category --add` (auto-creates parent category if absent)
+
 ## [0.5.3] - 2026-04-20
 
 ### Added

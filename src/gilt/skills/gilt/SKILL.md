@@ -22,13 +22,16 @@ Local-only CLI for managing personal finance ledgers. Run with `uv run gilt <com
 | `recategorize` | `ytd` |
 | `auto-categorize` | `uncategorized` |
 | `category` | `budget` |
-| `note` | `diagnose-categories` |
-| `report` | `duplicates` |
-| `mark-duplicate` | `audit-ml` |
-| `backfill-events` | `prompt-stats` |
-| `migrate-to-events` | |
-| `rebuild-projections` (always writes) | |
-| `init` (always writes) | |
+| `note` | `summary` |
+| `report` | `status` |
+| `mark-duplicate` | `show` |
+| `reingest` | `history` |
+| `ingest-receipts` | `receipts` |
+| `backfill-events` | `diagnose-categories` |
+| `migrate-to-events` | `diagnose-duplicates` |
+| `infer-rules` (with `--apply`) | `duplicates` |
+| `rebuild-projections` (always writes) | `audit-ml` |
+| `init` (always writes) | `prompt-stats` |
 
 ## Quick Command Reference
 
@@ -39,9 +42,13 @@ Local-only CLI for managing personal finance ledgers. Run with `uv run gilt <com
 | `accounts` | List account IDs and descriptions |
 | `categories` | List categories with usage stats |
 | `ytd` | Year-to-date transactions for one account |
-| `uncategorized` | Transactions missing categories |
+| `uncategorized` | Transactions missing categories (all accounts by default) |
 | `summary` | Category/subcategory spending aggregation |
 | `budget` | Budget vs actual spending summary |
+| `status` | Per-account freshness and coverage dashboard |
+| `show` | Full record for a single transaction (all stored fields) |
+| `history` | Categorization history for transactions matching a description pattern |
+| `receipts` | Receipt attachment coverage report |
 
 ### Setup
 
@@ -54,14 +61,17 @@ Local-only CLI for managing personal finance ledgers. Run with `uv run gilt <com
 | Command | Purpose |
 |---------|---------|
 | `ingest` | Normalize raw bank CSVs into per-account ledgers |
+| `reingest` | Purge and re-ingest a single account from original source files |
+| `ingest-receipts` | Ingest receipt JSON sidecars and enrich matching transactions |
 
 ### Categorize
 
 | Command | Purpose |
 |---------|---------|
-| `categorize` | Assign category to transactions (single or batch) |
-| `recategorize` | Rename a category across all ledgers |
+| `categorize` | Assign category to transactions (single, batch, or file-batch) |
+| `recategorize` | Rename a category or recategorize a filtered selection |
 | `auto-categorize` | ML-based auto-categorization |
+| `infer-rules` | Infer categorization rules from history; optionally apply them |
 | `category` | Add/remove categories, set budgets |
 | `diagnose-categories` | Find categories in transactions not in config |
 
@@ -84,6 +94,7 @@ Local-only CLI for managing personal finance ledgers. Run with `uv run gilt <com
 |---------|---------|
 | `duplicates` | Scan for duplicates (ML or LLM) |
 | `mark-duplicate` | Manually mark a transaction pair as duplicates |
+| `diagnose-duplicates` | Read-only diagnostic for orphaned/stale duplicate states |
 
 ### ML / Debug
 
@@ -125,7 +136,7 @@ To add a new top-level category:
 gilt category --add "NewCategory" --description "..." --write
 ```
 
-To add a subcategory:
+To add a subcategory (auto-creates the parent if it doesn't already exist):
 ```
 gilt category --add "Existing:NewSub" --write
 ```
@@ -148,6 +159,19 @@ Commands like `categorize` and `note` support 4 matching modes:
 **Use only one matching mode per invocation.** Do not combine `--txid` with `--description`, etc.
 
 In batch mode, add `--yes` / `-y` to skip per-transaction confirmations.
+
+`categorize` also supports **file-batch mode**: supply many `txid → category` mappings in one atomic operation using `--txid-file <path>` or `--from-stdin`. Applied all-or-nothing; any unknown txid aborts the batch.
+
+```
+# File format (one entry per line, comments with #):
+7f860a03 Housing:Utilities
+9bc16ce1 Banking:Fees
+```
+
+```bash
+gilt categorize --txid-file batch.txt --write
+cat batch.txt | gilt categorize --from-stdin --write
+```
 
 ## Common Workflows
 
@@ -173,12 +197,27 @@ The `init` command creates all required directories (`config/`, `data/accounts/`
 uv run gilt ingest                  # Preview
 uv run gilt ingest --write          # Persist
 uv run gilt rebuild-projections     # Update projections
+
+# Re-ingest a single account from scratch (e.g. after changing import_hints)
+uv run gilt reingest --account MYBANK_CC --write
+
+# Attach receipts from JSON sidecar files
+uv run gilt ingest-receipts --source ~/receipts --write
+uv run gilt ingest-receipts --source ~/receipts --fy FY25 --write
 ```
 
 ### Categorize transactions
 ```bash
-# Find uncategorized
+# Find uncategorized (all accounts, or narrow by --account / --year / --fy)
+uv run gilt uncategorized
 uv run gilt uncategorized --account MYBANK_CHQ --year 2025
+uv run gilt uncategorized --fy FY25
+
+# Look up how similar transactions were categorized before
+uv run gilt history "SPOTIFY"
+
+# Inspect a specific transaction (full record with all stored fields)
+uv run gilt show --txid a1b2c3d4
 
 # Single transaction
 uv run gilt categorize -a MYBANK_CHQ --txid abc12345 -c "Groceries" --write
@@ -186,15 +225,37 @@ uv run gilt categorize -a MYBANK_CHQ --txid abc12345 -c "Groceries" --write
 # Batch by description prefix
 uv run gilt categorize --desc-prefix "SPOTIFY" -c "Entertainment:Subscriptions" --yes --write
 
+# Batch from file (all-or-nothing; format: "<txid-prefix> <Category:Sub>")
+uv run gilt categorize --txid-file batch.txt --write
+
 # ML auto-categorize
 uv run gilt auto-categorize --confidence 0.8 --write
+
+# Infer and apply rules from categorization history
+uv run gilt infer-rules            # preview inferred rules
+uv run gilt infer-rules --apply    # preview rule application
+uv run gilt infer-rules --apply --write
 ```
 
-### Budget review
+### Review spending and budget
 ```bash
+# Per-account dashboard: freshness, uncategorized count, receipt coverage
+uv run gilt status
+uv run gilt status --fy FY25
+
+# Category/subcategory spending breakdown
+uv run gilt summary                             # All categories, current year
+uv run gilt summary --fy FY25                   # Fiscal year
+uv run gilt summary --category Housing          # Drill into one category
+
+# Budget vs actual
 uv run gilt budget                              # Current year
 uv run gilt budget --year 2025 --month 10       # Specific month
 uv run gilt report --year 2025 --write          # Generate .docx
+
+# Receipt coverage
+uv run gilt receipts                            # Summary by subcategory
+uv run gilt receipts --fy FY25 --missing        # List transactions without receipts
 ```
 
 ### Handle duplicates
@@ -202,14 +263,17 @@ uv run gilt report --year 2025 --write          # Generate .docx
 uv run gilt duplicates                          # ML-based scan
 uv run gilt duplicates --interactive            # Train ML with feedback
 uv run gilt mark-duplicate -p abc12345 -d def67890 --write
+uv run gilt diagnose-duplicates                 # Read-only: report orphaned/stale states
 ```
 
 ### Manage categories
 ```bash
 uv run gilt categories                          # View all
-uv run gilt category --add "Travel:Flights" --write
+uv run gilt category --add "Travel:Flights" --write   # auto-creates "Travel" if absent
 uv run gilt category --set-budget "Dining Out" --amount 500 --write
 uv run gilt recategorize --from "OldName" --to "NewName" --write
+# Filtered recategorize (selection mode)
+uv run gilt recategorize --desc-prefix "ACME" --fy FY25 --to "Work:Supplies" --write
 uv run gilt diagnose-categories                 # Find orphaned categories
 ```
 
@@ -313,4 +377,4 @@ def test_with_minimal_dirs():
 
 ## Full Command Reference
 
-For complete option listings and examples for all 20 commands, see [references/command-reference.md](references/command-reference.md).
+For complete option listings and examples for all commands, see [references/command-reference.md](references/command-reference.md).
