@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+"""Categorize transactions (single or batch mode)."""
+
 import logging
+import sys
 from pathlib import Path
 
 import typer
@@ -28,8 +31,6 @@ from .util import (
     require_projections,
     validate_single_vs_batch_mode,
 )
-
-"""Categorize transactions (single or batch mode)."""
 
 logger = logging.getLogger(__name__)
 
@@ -258,6 +259,199 @@ def _init_services(
     return service, categorization_service
 
 
+def _read_batch_input(txid_file: Path | None, from_stdin: bool) -> str | int:
+    """Read batch input from file or stdin. Returns text or exit-code int on error."""
+    if txid_file is not None:
+        if not txid_file.exists():
+            print_error(f"Batch file not found: {txid_file}")
+            return 1
+        return txid_file.read_text(encoding="utf-8")
+    # from_stdin
+    return sys.stdin.read()
+
+
+def _parse_batch_lines(text: str) -> tuple[list[tuple[int, str, str]], list[str]]:
+    """Parse batch input text.
+
+    Returns (entries, errors).
+    Each entry is (line_no, txid_prefix, category_path).
+    Lines starting with '#' or blank after stripping are skipped.
+    Errors include the line number for malformed lines (fewer than two tokens).
+    """
+    entries: list[tuple[int, str, str]] = []
+    errors: list[str] = []
+    for line_no, raw_line in enumerate(text.splitlines(), start=1):
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split(None, 1)  # split on first whitespace, rest is category
+        if len(parts) < 2:
+            errors.append(
+                f"Line {line_no}: malformed — expected '<txid> <category>', got: {line!r}"
+            )
+            continue
+        txid_prefix, category_path = parts[0], parts[1].strip()
+        entries.append((line_no, txid_prefix, category_path))
+    return entries, errors
+
+
+def _resolve_batch_entries(
+    entries: list[tuple[int, str, str]],
+    all_transactions: list[dict],
+    account: str | None,
+    categorization_service: CategorizationService,
+    service: TransactionOperationsService,
+) -> tuple[list[tuple[str, str, str, str | None]], list[str]]:
+    """Resolve txid prefixes and validate categories for all batch entries.
+
+    Returns (resolved, errors).
+    Each resolved item is (transaction_id, account_id, category, subcategory).
+    Errors include line numbers for any problem lines.
+    """
+    resolved: list[tuple[str, str, str, str | None]] = []
+    errors: list[str] = []
+
+    for line_no, txid_prefix, category_path in entries:
+        # Validate category first
+        cat_name, subcat_name = build_category_from_path(category_path)
+        validation = categorization_service.validate_category(cat_name, subcat_name)
+        if not validation.is_valid:
+            errors.append(f"Line {line_no}: {'; '.join(validation.errors)}")
+            continue
+
+        # Resolve txid prefix
+        result = service.find_projection_by_prefix(txid_prefix, all_transactions)
+        if result.error is not None:
+            if result.error == "prefix_too_short":
+                msg = f"Transaction ID prefix must be at least 8 characters: '{txid_prefix}'"
+            elif result.error == "not_found":
+                msg = f"No transaction found for prefix '{txid_prefix}'"
+            else:
+                sample = ", ".join(result.ambiguous_matches or [])
+                msg = f"Ambiguous prefix '{txid_prefix}' — matches multiple transactions ({sample})"
+            errors.append(f"Line {line_no}: {msg}")
+            continue
+
+        txn = result.transaction
+        resolved.append((txn["transaction_id"], txn["account_id"], cat_name, subcat_name))
+
+    return resolved, errors
+
+
+def _run_file_batch(
+    workspace: Workspace,
+    account: str | None,
+    txid_file: Path | None,
+    from_stdin: bool,
+    write: bool,
+    service: TransactionOperationsService | None,
+    categorization_service: CategorizationService | None,
+) -> int:
+    """Orchestrate the file batch flow: read → parse → resolve → preview → persist."""
+    text = _read_batch_input(txid_file, from_stdin)
+    if isinstance(text, int):
+        return text
+
+    entries, parse_errors = _parse_batch_lines(text)
+    if parse_errors:
+        for err in parse_errors:
+            print_error(err)
+        return 1
+
+    if not entries:
+        console.print("[yellow]No entries found in batch input[/]")
+        return 0
+
+    all_transactions = _load_and_filter_transactions(workspace, account)
+    if all_transactions is None:
+        return 1
+
+    svc, cat_svc = _init_services(workspace, service, categorization_service)
+
+    resolved, resolve_errors = _resolve_batch_entries(
+        entries, all_transactions, account, cat_svc, svc
+    )
+    if resolve_errors:
+        for err in resolve_errors:
+            print_error(err)
+        return 1
+
+    # Build (account_id, TransactionGroup) preview pairs from resolved entries
+    txn_by_id = {row["transaction_id"]: row for row in all_transactions}
+    preview_matches: list[tuple[str, TransactionGroup]] = []
+    for txn_id, acct_id, cat, subcat in resolved:
+        row = txn_by_id.get(txn_id)
+        if row is None:
+            continue
+        group = TransactionGroup.from_projection_row(row)
+        # Temporarily set target category on the group for display
+        updated_txn = group.primary.model_copy(update={"category": cat, "subcategory": subcat})
+        updated_group = TransactionGroup(
+            group_id=group.group_id,
+            primary=updated_txn,
+            splits=group.splits,
+        )
+        preview_matches.append((acct_id, updated_group))
+
+    _display_batch_preview(preview_matches, resolved)
+
+    if not write:
+        print_dry_run_message()
+        return 0
+
+    ready = require_event_sourcing(workspace)
+    if ready is None:
+        return 1
+
+    from gilt.services.categorization_persistence_service import CategorizationUpdate
+
+    persistence_svc = require_persistence_service(ready, workspace)
+    updates = [
+        CategorizationUpdate(
+            transaction_id=txn_id,
+            account_id=acct_id,
+            category=cat,
+            subcategory=subcat,
+            source="user",
+            confidence=1.0,
+        )
+        for txn_id, acct_id, cat, subcat in resolved
+    ]
+    persistence_svc.persist_categorizations(updates)
+    console.print(f"[green]✓[/] Categorized {len(updates)} transaction(s)")
+    return 0
+
+
+def _display_batch_preview(
+    preview_matches: list[tuple[str, TransactionGroup]],
+    resolved: list[tuple[str, str, str, str | None]],
+) -> None:
+    """Display a preview table for file-batch categorizations."""
+    # Build a quick lookup: txn_id → (category, subcategory)
+    cat_by_txn = {txn_id: (cat, subcat) for txn_id, _acct, cat, subcat in resolved}
+
+    def row_fn(item: tuple[str, TransactionGroup]) -> tuple:
+        account_id, group = item
+        t = group.primary
+        cat, subcat = cat_by_txn.get(t.transaction_id, (t.category or "", t.subcategory))
+        new_cat = cat + (f":{subcat}" if subcat else "")
+        return (
+            account_id,
+            t.transaction_id[:8],
+            str(t.date),
+            (t.description or "")[:40],
+            fmt_amount_str(t.amount),
+            new_cat,
+        )
+
+    display_transaction_matches(
+        "Batch Categorization Preview",
+        [("→ Category", {"style": "green"})],
+        preview_matches,
+        row_fn,
+    )
+
+
 def run(
     *,
     account: str | None = None,
@@ -266,13 +460,15 @@ def run(
     desc_prefix: str | None = None,
     pattern: str | None = None,
     amount: float | None = None,
-    category: str,
+    category: str | None = None,
     subcategory: str | None = None,
     assume_yes: bool = False,
     workspace: Workspace,
     write: bool = False,
     service: TransactionOperationsService | None = None,
     categorization_service: CategorizationService | None = None,
+    txid_file: Path | None = None,
+    from_stdin: bool = False,
 ) -> int:
     """Categorize transactions in ledger files.
 
@@ -280,6 +476,7 @@ def run(
     - Single: --txid to target one transaction
     - Batch: --description, --desc-prefix, or --pattern
       (optionally with --amount) to target multiple
+    - File batch: --txid-file or --from-stdin to apply many txid→category mappings at once
 
     Category specification:
     - Use --category "Category" for category only
@@ -295,6 +492,35 @@ def run(
     Returns:
         Exit code (0 success, 1 error)
     """
+    file_batch_mode = txid_file is not None or from_stdin
+
+    if file_batch_mode:
+        # Reject combinations of file-batch with single/batch flags
+        if any(
+            v is not None for v in [txid, description, desc_prefix, pattern, category, subcategory]
+        ):
+            print_error(
+                "--txid-file / --from-stdin cannot be combined with "
+                "--txid, --description, --desc-prefix, --pattern, --category, or --subcategory"
+            )
+            return 1
+        return _run_file_batch(
+            workspace=workspace,
+            account=account,
+            txid_file=txid_file,
+            from_stdin=from_stdin,
+            write=write,
+            service=service,
+            categorization_service=categorization_service,
+        )
+
+    # Standard single/batch mode — category is required
+    if category is None:
+        print_error(
+            "--category is required (or use --txid-file / --from-stdin for file batch mode)"
+        )
+        return 1
+
     inputs = _validate_inputs(
         workspace,
         service,

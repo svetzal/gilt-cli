@@ -31,8 +31,7 @@ def fiscal_year_range(year_arg: str) -> tuple[date, date]:
     match = _FY_PATTERN.match(year_arg.strip())
     if not match:
         raise ValueError(
-            f"Invalid fiscal year format: {year_arg!r}. "
-            "Expected FY25, fy25, FY2025, or fy2025."
+            f"Invalid fiscal year format: {year_arg!r}. Expected FY25, fy25, FY2025, or fy2025."
         )
     digits = match.group(1)
     year = 2000 + int(digits) if len(digits) == 2 else int(digits)

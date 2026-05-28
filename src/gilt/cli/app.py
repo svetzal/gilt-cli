@@ -241,8 +241,8 @@ def categorize(
     amount: float | None = typer.Option(
         None, "--amount", "-m", help="Exact amount to match (batch mode)"
     ),
-    category: str = typer.Option(
-        ..., "--category", "-c", help="Category name (supports 'Category:Subcategory' syntax)"
+    category: str | None = typer.Option(
+        None, "--category", "-c", help="Category name (supports 'Category:Subcategory' syntax)"
     ),
     subcategory: str | None = typer.Option(
         None, "--subcategory", "-s", help="Subcategory name (alternative to colon syntax)"
@@ -250,19 +250,38 @@ def categorize(
     yes: bool = typer.Option(
         False, "--yes", "-y", help="Assume 'yes' for all confirmations in batch mode"
     ),
+    txid_file: Path | None = typer.Option(
+        None,
+        "--txid-file",
+        help="File of '<txid-prefix> <category>' pairs to apply in one batch",
+    ),
+    from_stdin: bool = typer.Option(
+        False,
+        "--from-stdin",
+        help="Read '<txid-prefix> <category>' pairs from stdin",
+    ),
     write: bool = typer.Option(False, "--write", help=HELP_WRITE),
 ):
-    """Categorize transactions (single or batch mode).
+    """Categorize transactions (single, batch, or file-batch mode).
 
     Modes:
     - Single: use --txid/-t to target one transaction
     - Batch: use --description/-d, --desc-prefix/-p, or --pattern to target multiple transactions
+    - File batch: use --txid-file or --from-stdin to apply many txid→category mappings at once
+
+    File/stdin format (one entry per line):
+      # Comments start with #
+      <txid-or-prefix> <category-string>
+      7f860a03 Housing:Utilities
+      9bc16ce1 Banking:Fees
 
     Examples:
       gilt categorize --account MYBANK_CHQ --txid a1b2c3d4 --category "Housing:Utilities" --write
       gilt categorize --desc-prefix "SPOTIFY" --category "Entertainment:Music" --yes --write
       gilt categorize --pattern "Payment.*EXAMPLE UTILITY" --category "Housing:Utilities" --yes --write
       gilt categorize --account MYBANK_CC --description "Monthly Fee" --category "Banking:Fees" --write
+      gilt categorize --txid-file batch.txt --write
+      gilt categorize --from-stdin --write < batch.txt
 
     Safety: dry-run by default. Use --write to persist changes.
     """
@@ -278,6 +297,8 @@ def categorize(
         category=category,
         subcategory=subcategory,
         assume_yes=yes,
+        txid_file=txid_file,
+        from_stdin=from_stdin,
         workspace=_ws(ctx),
         write=write,
     )
@@ -401,7 +422,9 @@ def uncategorized(
     if fy is not None and year is not None:
         from gilt.cli.command.util import console
 
-        console.print("[red]Error:[/] --fy and --year cannot be used together. Use one or the other.")
+        console.print(
+            "[red]Error:[/] --fy and --year cannot be used together. Use one or the other."
+        )
         raise typer.Exit(code=1)
 
     fy_range = None

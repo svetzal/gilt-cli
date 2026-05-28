@@ -453,6 +453,39 @@ gilt categorize --desc-prefix "AMAZON" --category "Shopping:Online" --yes --writ
 gilt categorize --account MYBANK_CHQ --description "Service Fee" --amount -12.95 --category "Banking:Fees" --write
 ```
 
+#### File Batch Mode
+
+When many transactions need categorizing at once, avoid the ~1.5s startup overhead of separate invocations by writing a batch file and using `--txid-file` or `--from-stdin`.
+
+**File format:**
+
+```
+# Comments start with #
+<txid-or-prefix> <category-string>
+7f860a03 Housing:Utilities
+9bc16ce1 Banking:Fees
+ab12cd34 Dining Out:Fast Food
+```
+
+- First whitespace-delimited token is the txid prefix (8+ characters).
+- The rest of the line is the category string (spaces are allowed — no quoting needed).
+- Comments (`#`) and blank lines are skipped.
+- **All-or-nothing:** if any line fails (ambiguous prefix, unknown category, malformed), the entire batch is aborted with a clear error message and line number. Nothing is written.
+
+```bash
+# Apply from a file (dry-run first, then --write)
+gilt categorize --txid-file batch.txt
+gilt categorize --txid-file batch.txt --write
+
+# Pipe from stdin
+gilt categorize --from-stdin --write < batch.txt
+
+# Scope to one account (all prefixes must resolve within that account)
+gilt categorize --account MYBANK_CHQ --txid-file batch.txt --write
+```
+
+---
+
 **Options:**
 - `--account, -a ACCOUNT`: Account ID (omit to categorize across all accounts)
 - `--txid, -t ID`: Transaction ID prefix (single mode)
@@ -463,6 +496,8 @@ gilt categorize --account MYBANK_CHQ --description "Service Fee" --amount -12.95
 - `--category, -c CATEGORY`: Category name (supports "Category:Subcategory" syntax)
 - `--subcategory, -s SUBCAT`: Subcategory name (alternative to colon syntax)
 - `--yes, -y`: Skip confirmations in batch mode
+- `--txid-file PATH`: File of `<txid-prefix> <category>` pairs (file batch mode)
+- `--from-stdin`: Read `<txid-prefix> <category>` pairs from stdin (file batch mode)
 - `--config PATH`: Path to categories.yml (default: `config/categories.yml`)
 - `--data-dir PATH`: Directory containing ledgers (default: `data/accounts`)
 - `--write`: Persist changes (default: dry-run)
