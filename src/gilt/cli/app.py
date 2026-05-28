@@ -450,6 +450,53 @@ def uncategorized(
 
 
 @app.command()
+def status(
+    ctx: typer.Context,
+    fy: str | None = typer.Option(
+        None,
+        "--fy",
+        help="Fiscal year for Mojility columns (Nov 1 – Oct 31). Accepts FY25, fy25, FY2025.",
+    ),
+    stale_threshold: int = typer.Option(
+        14,
+        "--stale-threshold",
+        min=0,
+        help="Days since latest transaction before account is flagged stale",
+    ),
+):
+    """Display per-account freshness and coverage dashboard.
+
+    Shows latest transaction date, days since last transaction, total transactions,
+    uncategorized count, and Mojility-specific coverage metrics per account.
+
+    Examples:
+      gilt status
+      gilt status --fy FY25
+      gilt status --stale-threshold 30
+    """
+    from gilt.cli.command import status as cmd_status
+    from gilt.util.fy import fiscal_year_range
+
+    fy_range = None
+    if fy is not None:
+        try:
+            fy_range = fiscal_year_range(fy)
+        except ValueError as exc:
+            from gilt.cli.command.util import console
+
+            console.print(f"[red]Error:[/] {exc}")
+            raise typer.Exit(code=1) from exc
+
+    code = cmd_status.run(
+        fy_range=fy_range,
+        fy_label=fy,
+        stale_threshold=stale_threshold,
+        workspace=_ws(ctx),
+    )
+    raise typer.Exit(code=code)
+
+
+@app.command()
 def budget(
     ctx: typer.Context,
     year: int | None = typer.Option(

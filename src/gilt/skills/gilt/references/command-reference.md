@@ -397,6 +397,25 @@ uv run gilt report --year 2025 --month 10 --write
 
 ---
 
+## status
+
+Display per-account freshness and coverage dashboard. Read-only — no `--write` flag needed.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--fy` | String | None | Fiscal year for Mojility columns (Nov 1 – Oct 31). Accepts FY25, fy25, FY2025. |
+| `--stale-threshold` | Int | `14` | Days since latest transaction before account is flagged stale (min 0) |
+
+Shows: `account_id`, `latest_txn`, `days_since`, `total_txns`, `uncategorized`, `mojility_txns` (FY-filtered when `--fy` given), `mojility_w_receipt`, `mojility_receipt_pct`. Stale accounts are highlighted in red with a ⚠ marker.
+
+```bash
+uv run gilt status
+uv run gilt status --fy FY25
+uv run gilt status --stale-threshold 30
+```
+
+---
+
 ## uncategorized
 
 Display transactions without categories.

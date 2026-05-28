@@ -188,6 +188,32 @@ After ingestion, the tool automatically identifies transfers between your accoun
 
 ---
 
+### `status` - Account Freshness Dashboard
+
+Display a per-account summary of data freshness and coverage.
+
+```bash
+# Show status for all accounts
+gilt status
+
+# Scope Mojility columns to a fiscal year
+gilt status --fy FY25
+
+# Change the staleness threshold to 30 days
+gilt status --stale-threshold 30
+```
+
+**Options:**
+- `--fy FY`: Fiscal year for Mojility columns (e.g. FY25, fy2025)
+- `--stale-threshold N`: Days before an account is flagged stale (default: 14)
+
+**Output:**
+A table with one row per account showing latest transaction date, days since last transaction,
+total and uncategorized counts, and Mojility receipt coverage. Stale accounts are highlighted
+in red with a ⚠ prefix.
+
+---
+
 ### `ytd` - View Year-to-Date Transactions
 
 Display transactions for a specific account in a rich formatted table.

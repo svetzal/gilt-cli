@@ -65,6 +65,7 @@ Commands use Rich formatting for readable output:
 - [`show`](viewing.md#inspecting-a-transaction) - Inspect all fields of a single transaction
 - [`history`](viewing.md#categorization-history) - Look up how similar transactions were categorized
 - [`uncategorized`](categorization.md#finding-uncategorized) - Find transactions without categories
+- [`status`](#status-dashboard) - Per-account freshness and coverage dashboard
 
 ### Categorization
 
@@ -155,6 +156,35 @@ gilt uncategorized --fy FY25   # fiscal year filter (Nov 1 – Oct 31)
 # Budget across all accounts
 gilt budget --year 2025 --month 10
 ```
+
+## Status Dashboard
+
+`gilt status` shows a per-account summary of data freshness and coverage at a glance.
+
+```bash
+# Show status for all accounts
+gilt status
+
+# Scope Mojility columns to a fiscal year
+gilt status --fy FY25
+
+# Raise the stale threshold to 30 days
+gilt status --stale-threshold 30
+```
+
+Accounts whose latest transaction is older than `--stale-threshold` days (default 14) are
+highlighted in red with a warning marker.
+
+| Column | Description |
+|--------|-------------|
+| `account_id` | Account identifier (red + ⚠ when stale) |
+| `latest_txn` | Date of most recent transaction |
+| `days_since` | Days since latest transaction |
+| `total_txns` | Total non-duplicate transactions |
+| `uncategorized` | Transactions with no category assigned |
+| `mojility_txns` | Mojility-category transactions (FY-filtered when `--fy` given) |
+| `mojility_w_receipt` | Mojility transactions with a receipt attached |
+| `mojility_receipt_pct` | Receipt coverage percentage (`—` when no Mojility transactions) |
 
 ## Global Options
 
