@@ -151,8 +151,10 @@ def _handle_add(
     if not result.success:
         for error in result.errors:
             print_error(error)
-        if "does not exist" in " ".join(result.errors):
-            console.print(f"Create parent category first: gilt category --add '{cat_name}' --write")
+        if subcat_name and any("does not exist" in e for e in result.errors):
+            console.print(
+                f"Create the parent first: gilt category --add '{cat_name}' --write"
+            )
         return 1
 
     # Success - display what will be added

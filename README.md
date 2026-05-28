@@ -270,11 +270,11 @@ gilt note --account BANK2_BIZ \
              --note "Account maintenance" \
              --write
 
-# Batch mode with auto-confirm (skip prompts)
+# Batch mode (`--write` persists non-interactively; `--yes` is a no-op
+# kept for backwards compatibility with older scripts)
 gilt note --account MYBANK_CC \
              --desc-prefix "AMAZON" \
              --note "Online purchases" \
-             --yes \
              --write
 ```
 
@@ -959,13 +959,13 @@ gilt note --account <ACCOUNT_ID> --txid <TXID> --note "Your note" --write
 #### Batch Annotation for Recurring Expenses
 ```bash
 # Add notes to all Spotify charges
-gilt note --account MYBANK_CC --desc-prefix "SPOTIFY" --note "Music subscription" --yes --write
+gilt note --account MYBANK_CC --desc-prefix "SPOTIFY" --note "Music subscription" --write
 
 # Mark all gym membership fees
-gilt note --account MYBANK_CHQ --description "GoodLife Fitness" --note "Gym membership" --yes --write
+gilt note --account MYBANK_CHQ --description "GoodLife Fitness" --note "Gym membership" --write
 
 # Annotate transfer payments
-gilt note --account MYBANK_CHQ --desc-prefix "TRANSFER FROM" --note "Inter-account transfer" --yes --write
+gilt note --account MYBANK_CHQ --desc-prefix "TRANSFER FROM" --note "Inter-account transfer" --write
 ```
 
 ### Monthly Budget Review

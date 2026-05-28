@@ -106,12 +106,15 @@ Process multiple transactions at once:
 gilt categorize --desc-prefix "SPOTIFY" \
   --category "Entertainment:Music" --yes --write
 
-# Add notes to all gym payments
+# Add notes to all gym payments (`--write` persists directly; no prompt)
 gilt note --desc-prefix "GOODLIFE" \
-  --note "Gym membership" --yes --write
+  --note "Gym membership" --write
 ```
 
-The `--yes` flag skips confirmation prompts (use carefully).
+The `--yes` flag skips confirmation prompts for batch categorization
+(use carefully). For `gilt note`, `--write` alone is sufficient — the command
+no longer prompts interactively, and `--yes` is accepted as a no-op for
+backwards compatibility.
 
 ### Filtering
 

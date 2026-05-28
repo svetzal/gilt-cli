@@ -333,10 +333,7 @@ class CategoryManagementService:
                 return AdditionResult(
                     success=False,
                     already_exists=False,
-                    errors=[
-                        f"Parent category '{category}' does not exist",
-                        "Create parent category first",
-                    ],
+                    errors=[f"Parent category '{category}' does not exist"],
                 )
             return self._add_subcategory_to_category(existing_cat, category, subcategory, description)
 

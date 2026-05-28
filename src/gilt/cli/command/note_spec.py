@@ -100,6 +100,50 @@ def it_should_update_note_with_write_and_be_dry_run_by_default(tmp_path: Path):
     assert notes2[0] == "new-note"
 
 
+def it_should_persist_note_with_write_without_yes_non_interactively(tmp_path: Path):
+    """`--write` alone should persist the note. No prompt should be issued
+    even when `assume_yes` is False, so the command works in non-interactive shells."""
+    acc = "NOPROMPT"
+    data_dir = tmp_path / "data" / "accounts"
+    data_dir.mkdir(parents=True)
+    workspace = Workspace(root=tmp_path)
+    ledger_path = data_dir / f"{acc}.csv"
+
+    tid = "cafebabecafebabe"
+    _write_simple_ledger(
+        ledger_path,
+        [
+            {
+                "transaction_id": tid,
+                "date": "2025-01-01",
+                "description": "Sample",
+                "amount": -5.0,
+                "currency": "CAD",
+                "account_id": acc,
+                "counterparty": "",
+                "category": "",
+                "subcategory": "",
+                "notes": "",
+                "source_file": "x.csv",
+            },
+        ],
+    )
+
+    # No assume_yes, no monkeypatch on input() — if a prompt were issued this
+    # would either hang or read EOF and abort. Either way the note would not
+    # be persisted.
+    rc = run(
+        account=acc,
+        txid=tid[:8],
+        note_text="written-without-yes",
+        workspace=workspace,
+        write=True,
+        assume_yes=False,
+    )
+    assert rc == 0
+    assert _read_ledger_notes(ledger_path)[0] == "written-without-yes"
+
+
 def it_should_complain_on_short_or_ambiguous_prefix(tmp_path: Path):
     acc = "AMBIG"
     data_dir = tmp_path / "data" / "accounts"

@@ -448,9 +448,9 @@ class DescribeAddCategory:
         # Assert
         assert result.success is False
         assert result.already_exists is False
-        assert len(result.errors) == 2
+        assert len(result.errors) == 1
+        assert "NonExistent" in result.errors[0]
         assert "does not exist" in result.errors[0]
-        assert "Create parent category first" in result.errors[1]
 
     def it_should_reject_empty_category_name(self, sample_category_config):
         """Should reject adding category with empty name."""

@@ -165,7 +165,12 @@ def run(
     workspace: Workspace,
     write: bool = False,
 ) -> int:
-    """Attach or update notes on transactions in the account ledger."""
+    """Attach or update notes on transactions in the account ledger.
+
+    ``--write`` alone is sufficient to persist changes; the command no longer
+    prompts for confirmation interactively. ``assume_yes`` (``--yes``) is
+    accepted as a no-op so existing scripts keep working.
+    """
     ledger_repo = LedgerRepository(workspace.ledger_data_dir)
 
     if not ledger_repo.exists(account):
@@ -205,13 +210,6 @@ def run(
     if not write:
         print_dry_run_message()
         return 0
-
-    if not assume_yes:
-        console.print("\n[yellow]Warning:[/yellow] This will update notes in the ledger CSV.")
-        response = input("Proceed? (y/N): ").strip().lower()
-        if response != "y":
-            console.print("[dim]Aborted.[/]")
-            return 0
 
     count = _apply_and_write_notes(service, groups, groups_to_update, note_text, ledger_repo, account)
     console.print(f"[green]Saved notes to ledger successfully.[/] Applied to {count} transaction(s).")

@@ -81,7 +81,7 @@ class DescribeCategoryAdd:
             assert len(config.categories[0].subcategories) == 1
             assert config.categories[0].subcategories[0].name == "Utilities"
 
-    def it_should_error_when_adding_subcategory_without_parent(self):
+    def it_should_error_when_adding_subcategory_without_parent(self, capsys):
         with TemporaryDirectory() as tmpdir:
             config_dir = Path(tmpdir) / "config"
             config_dir.mkdir()
@@ -98,6 +98,18 @@ class DescribeCategoryAdd:
                 write=True,
             )
             assert rc == 1
+
+            # The error must name the missing parent and tell the user how to
+            # create it, so the failure is actionable rather than silent.
+            output = capsys.readouterr().out
+            assert "Housing" in output
+            assert "does not exist" in output
+            assert "gilt category --add 'Housing' --write" in output
+
+            # Critically, the config must not have been written with an orphan
+            # subcategory entry.
+            config = load_categories_config(config_path)
+            assert config.categories == []
 
     def it_should_skip_when_category_already_exists(self):
         with TemporaryDirectory() as tmpdir:
