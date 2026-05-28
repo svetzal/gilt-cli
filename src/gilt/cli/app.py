@@ -586,6 +586,48 @@ def show(
 
 
 @app.command()
+def history(
+    ctx: typer.Context,
+    pattern: str = typer.Argument(..., help="Substring to search in transaction descriptions"),
+    account: str | None = typer.Option(None, "--account", "-a", help="Restrict to this account ID"),
+    include_uncategorized: bool = typer.Option(
+        False, "--include-uncategorized", help="Include uncategorized transactions"
+    ),
+    limit: int = typer.Option(10, "--limit", "-n", help="Maximum result rows (default 10)"),
+    date_from: str | None = typer.Option(
+        None, "--date-from", help="Start date (YYYY-MM-DD, inclusive)"
+    ),
+    date_to: str | None = typer.Option(None, "--date-to", help="End date (YYYY-MM-DD, inclusive)"),
+):
+    """Show categorization history for transactions matching a description pattern.
+
+    Groups matching transactions by category/subcategory and displays counts,
+    sums, min/max amounts, and the latest date seen. Useful for deciding how to
+    categorize a new transaction based on how similar ones were handled before.
+
+    Read-only — no --write flag needed.
+
+    Examples:
+      gilt history "EXAMPLE PHARMACY"
+      gilt history "ACME" --account MYBANK_CHQ
+      gilt history "UTILITY" --include-uncategorized --limit 10
+      gilt history "SAMPLE STORE" --date-from 2025-01-01 --date-to 2025-12-31
+    """
+    from gilt.cli.command import history as cmd_history
+
+    code = cmd_history.run(
+        pattern=pattern,
+        account=account,
+        include_uncategorized=include_uncategorized,
+        limit=limit,
+        date_from=date_from,
+        date_to=date_to,
+        workspace=_ws(ctx),
+    )
+    raise typer.Exit(code=code)
+
+
+@app.command()
 def ingest(
     ctx: typer.Context,
     write: bool = typer.Option(False, "--write", help=HELP_WRITE),

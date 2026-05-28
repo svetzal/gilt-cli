@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from dataclasses import dataclass
 from pathlib import Path
 
 from gilt.model.events import (
@@ -30,6 +31,19 @@ from gilt.model.events import (
     TransactionImported,
 )
 from gilt.storage.event_store import EventStore
+
+
+@dataclass
+class CategoryHistoryRow:
+    """Aggregated categorization history for a description pattern."""
+
+    category: str | None
+    subcategory: str | None
+    count: int
+    total: float
+    min_amount: float
+    max_amount: float
+    latest_date: str
 
 
 def _resolve_root_primary(
@@ -767,5 +781,85 @@ class ProjectionBuilder:
         finally:
             conn.close()
 
+    def find_category_history(
+        self,
+        pattern: str,
+        *,
+        account_id: str | None = None,
+        include_uncategorized: bool = False,
+        limit: int = 10,
+        date_from: str | None = None,
+        date_to: str | None = None,
+    ) -> list[CategoryHistoryRow]:
+        """Aggregate categorization history for transactions matching a description pattern.
 
-__all__ = ["ProjectionBuilder"]
+        Performs a case-insensitive LIKE match on canonical_description, groups by
+        category/subcategory, and returns rows ordered by count descending.
+
+        Args:
+            pattern: Substring to search for (wrapped in % wildcards).
+            account_id: If set, restrict to transactions for this account.
+            include_uncategorized: If True, include transactions with no category.
+            limit: Maximum number of result rows to return.
+            date_from: ISO date string (YYYY-MM-DD) for lower bound (inclusive).
+            date_to: ISO date string (YYYY-MM-DD) for upper bound (inclusive).
+
+        Returns:
+            List of CategoryHistoryRow ordered by count descending.
+        """
+        conn = sqlite3.connect(self.db_path)
+        try:
+            sql_parts = [
+                "SELECT category, subcategory,",
+                "       COUNT(*) AS cnt,",
+                "       SUM(amount) AS total,",
+                "       MIN(amount) AS min_amt,",
+                "       MAX(amount) AS max_amt,",
+                "       MAX(transaction_date) AS latest",
+                "FROM transaction_projections",
+                "WHERE is_duplicate = 0",
+                "  AND canonical_description LIKE ? COLLATE NOCASE",
+            ]
+            params: list = [f"%{pattern}%"]
+
+            if account_id is not None:
+                sql_parts.append("  AND account_id = ?")
+                params.append(account_id)
+
+            if not include_uncategorized:
+                sql_parts.append("  AND category IS NOT NULL")
+
+            if date_from is not None:
+                sql_parts.append("  AND transaction_date >= ?")
+                params.append(date_from)
+
+            if date_to is not None:
+                sql_parts.append("  AND transaction_date <= ?")
+                params.append(date_to)
+
+            sql_parts.append("GROUP BY category, subcategory")
+            sql_parts.append("ORDER BY cnt DESC")
+
+            sql_parts.append("LIMIT ?")
+            params.append(limit)
+
+            sql = "\n".join(sql_parts)
+            cursor = conn.execute(sql, params)
+            rows = cursor.fetchall()
+            return [
+                CategoryHistoryRow(
+                    category=row[0],
+                    subcategory=row[1],
+                    count=row[2],
+                    total=row[3],
+                    min_amount=row[4],
+                    max_amount=row[5],
+                    latest_date=row[6],
+                )
+                for row in rows
+            ]
+        finally:
+            conn.close()
+
+
+__all__ = ["CategoryHistoryRow", "ProjectionBuilder"]

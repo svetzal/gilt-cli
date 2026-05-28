@@ -233,6 +233,31 @@ uv run gilt ingest --write
 
 ---
 
+## history
+
+Look up how similar transactions have been categorized in the past. Performs a case-insensitive substring match on transaction descriptions, groups results by category/subcategory, and displays counts, sums, min/max amounts, and the latest date.
+
+Read-only — no `--write` flag needed.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `PATTERN` | String | **required** | Substring to search in transaction descriptions |
+| `--account`, `-a` | String | None | Restrict to this account ID |
+| `--include-uncategorized` | Bool | `False` | Include transactions with no category |
+| `--limit`, `-n` | Int | None | Maximum result rows (ordered by count descending) |
+| `--date-from` | String | None | Start date (YYYY-MM-DD, inclusive) |
+| `--date-to` | String | None | End date (YYYY-MM-DD, inclusive) |
+
+```bash
+uv run gilt history "EXAMPLE PHARMACY"
+uv run gilt history "ACME CORP" --account MYBANK_CHQ
+uv run gilt history "SAMPLE STORE" --include-uncategorized
+uv run gilt history "EXAMPLE UTILITY" --date-from 2025-01-01 --date-to 2025-12-31
+uv run gilt history "EXAMPLE" --limit 5
+```
+
+---
+
 ## mark-duplicate
 
 Manually mark a specific pair of transactions as duplicates.

@@ -255,6 +255,41 @@ Read-only — no `--write` flag needed.
 
 ---
 
+### `history` - Categorization Hint Lookup
+
+Look up how similar transactions have been categorized in the past. Groups matching transactions by category/subcategory and shows counts, sums, min/max amounts, and the latest date.
+
+```bash
+# Show categorization history for a description substring
+gilt history "EXAMPLE PHARMACY"
+
+# Restrict to a specific account
+gilt history "ACME CORP" --account MYBANK_CHQ
+
+# Include transactions that have not been categorized yet
+gilt history "SAMPLE STORE" --include-uncategorized
+
+# Filter to a date window
+gilt history "EXAMPLE UTILITY" --date-from 2025-01-01 --date-to 2025-12-31
+
+# Limit to top 5 category groups
+gilt history "EXAMPLE" --limit 5
+```
+
+**Options:**
+- `--account, -a ACCOUNT`: Restrict to transactions for this account ID
+- `--include-uncategorized`: Include transactions with no category (hidden by default)
+- `--limit, -n N`: Maximum number of result rows (ordered by count descending)
+- `--date-from DATE`: Start date (YYYY-MM-DD, inclusive)
+- `--date-to DATE`: End date (YYYY-MM-DD, inclusive)
+
+**Output:**
+A table with columns: Category, Subcategory, Count, Sum, Min, Max, Latest date.
+
+Read-only — no `--write` flag needed.
+
+---
+
 ### `note` - Annotate Transactions
 
 Attach or update notes on one or more transactions. Supports both single-transaction and batch modes.
