@@ -370,7 +370,12 @@ def uncategorized(
     account: str | None = typer.Option(
         None, "--account", "-a", help="Account ID to filter (omit for all accounts)"
     ),
-    year: int | None = typer.Option(None, "--year", "-y", help="Year to filter"),
+    year: int | None = typer.Option(None, "--year", "-y", help="Calendar year to filter"),
+    fy: str | None = typer.Option(
+        None,
+        "--fy",
+        help="Fiscal year to filter (Nov 1 – Oct 31). Accepts FY25, fy25, FY2025.",
+    ),
     limit: int | None = typer.Option(
         None, "--limit", "-n", min=1, help="Max number of transactions to show"
     ),
@@ -380,21 +385,42 @@ def uncategorized(
 ):
     """Display transactions without categories.
 
-    Shows uncategorized transactions sorted by description (for grouping similar ones), then date.
-    Helps identify which transactions still need categorization.
+    Shows uncategorized transactions sorted by account, then date.
+    Defaults to all accounts; use --account to narrow to one.
+    Includes a per-account count summary below the main table.
 
     Examples:
       gilt uncategorized
       gilt uncategorized --account MYBANK_CHQ --year 2025
+      gilt uncategorized --fy FY25
       gilt uncategorized --min-amount 100 --limit 50
     """
     from gilt.cli.command import uncategorized as cmd_uncategorized
+    from gilt.util.fy import fiscal_year_range
+
+    if fy is not None and year is not None:
+        from gilt.cli.command.util import console
+
+        console.print("[red]Error:[/] --fy and --year cannot be used together. Use one or the other.")
+        raise typer.Exit(code=1)
+
+    fy_range = None
+    if fy is not None:
+        try:
+            fy_range = fiscal_year_range(fy)
+        except ValueError as exc:
+            from gilt.cli.command.util import console
+
+            console.print(f"[red]Error:[/] {exc}")
+            raise typer.Exit(code=1) from exc
 
     code = cmd_uncategorized.run(
         account=account,
         year=year,
         limit=limit,
         min_amount=min_amount,
+        fy_range=fy_range,
+        fy_label=fy,
         workspace=_ws(ctx),
     )
     raise typer.Exit(code=code)

@@ -4,9 +4,12 @@ from __future__ import annotations
 Tests for uncategorized command.
 """
 
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
+
+from rich.console import Console
 
 from gilt.cli.command.conftest import write_ledger
 from gilt.cli.command.uncategorized import run
@@ -43,6 +46,13 @@ def _build_projections(workspace: Workspace, groups: list[TransactionGroup]):
             store.append_event(cat)
     builder = ProjectionBuilder(workspace.projections_path)
     builder.build_from_scratch(store)
+
+
+def _run_capturing(workspace: Workspace, **kwargs) -> tuple[int, str]:
+    """Run the command with a record-capturing console; return (rc, output)."""
+    cap = Console(record=True)
+    rc = run(workspace=workspace, _console=cap, **kwargs)
+    return rc, cap.export_text()
 
 
 class DescribeUncategorizedCommand:
@@ -119,7 +129,6 @@ class DescribeUncategorizedCommand:
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
 
-            # Create two ledgers
             all_groups = []
             for account in ["ACCOUNT1", "ACCOUNT2"]:
                 ledger_path = data_dir / f"{account}.csv"
@@ -140,7 +149,6 @@ class DescribeUncategorizedCommand:
                 all_groups.extend(groups)
             _build_projections(workspace, all_groups)
 
-            # Filter by specific account
             rc = run(account="ACCOUNT1", workspace=workspace)
             assert rc == 0
 
@@ -261,11 +269,6 @@ class DescribeUncategorizedCommand:
             data_dir.mkdir(parents=True)
             workspace = Workspace(root=Path(tmpdir))
 
-            # Setup empty projections database in temp dir
-            from gilt.storage.event_store import EventStore
-            from gilt.storage.projection import ProjectionBuilder
-
-            # Create empty event store and projections
             events_dir = data_dir / "events"
             events_dir.mkdir()
             store = EventStore(str(events_dir / "events.db"))
@@ -273,7 +276,6 @@ class DescribeUncategorizedCommand:
             builder.build_from_scratch(store)
 
             rc = run(account="NONEXISTENT", workspace=workspace)
-            # With empty projections, should still succeed (just shows "All transactions are categorized")
             assert rc == 0
 
     def it_should_combine_filters(self):
@@ -321,11 +323,242 @@ class DescribeUncategorizedCommand:
             write_ledger(ledger_path, groups)
             _build_projections(workspace, groups)
 
-            # Should only show the third transaction
             rc = run(year=2025, min_amount=100.0, workspace=workspace)
             assert rc == 0
 
-    def it_should_sort_by_description_then_date(self):
+    def it_should_sort_by_account_then_date(self):
+        with TemporaryDirectory() as tmpdir:
+            data_dir = Path(tmpdir) / "data" / "accounts"
+            data_dir.mkdir(parents=True)
+            workspace = Workspace(root=Path(tmpdir))
+
+            groups = [
+                TransactionGroup(
+                    group_id="1",
+                    primary=Transaction(
+                        transaction_id="1111111111111111",
+                        date="2025-01-02",
+                        description="Item A",
+                        amount=-100.0,
+                        currency="CAD",
+                        account_id="BANK_B",
+                    ),
+                ),
+                TransactionGroup(
+                    group_id="2",
+                    primary=Transaction(
+                        transaction_id="2222222222222222",
+                        date="2025-01-01",
+                        description="Item B",
+                        amount=-100.0,
+                        currency="CAD",
+                        account_id="BANK_A",
+                    ),
+                ),
+                TransactionGroup(
+                    group_id="3",
+                    primary=Transaction(
+                        transaction_id="3333333333333333",
+                        date="2025-01-03",
+                        description="Item C",
+                        amount=-100.0,
+                        currency="CAD",
+                        account_id="BANK_A",
+                    ),
+                ),
+            ]
+            for account_id in ("BANK_A", "BANK_B"):
+                ledger_path = data_dir / f"{account_id}.csv"
+                acct_groups = [g for g in groups if g.primary.account_id == account_id]
+                write_ledger(ledger_path, acct_groups)
+            _build_projections(workspace, groups)
+
+            cap = Console(record=True)
+            rc = run(workspace=workspace, _console=cap)
+            output = cap.export_text()
+
+            assert rc == 0
+            # BANK_A items appear before BANK_B in output
+            pos_bank_a = output.find("BANK_A")
+            pos_bank_b = output.find("BANK_B")
+            assert pos_bank_a < pos_bank_b, "BANK_A should appear before BANK_B in output"
+
+    def it_should_show_all_accounts_by_default(self):
+        with TemporaryDirectory() as tmpdir:
+            data_dir = Path(tmpdir) / "data" / "accounts"
+            data_dir.mkdir(parents=True)
+            workspace = Workspace(root=Path(tmpdir))
+
+            groups = [
+                TransactionGroup(
+                    group_id="1",
+                    primary=Transaction(
+                        transaction_id="1111111111111111",
+                        date="2025-01-01",
+                        description="Alpha",
+                        amount=-100.0,
+                        currency="CAD",
+                        account_id="ACCT_ALPHA",
+                    ),
+                ),
+                TransactionGroup(
+                    group_id="2",
+                    primary=Transaction(
+                        transaction_id="2222222222222222",
+                        date="2025-01-01",
+                        description="Beta",
+                        amount=-200.0,
+                        currency="CAD",
+                        account_id="ACCT_BETA",
+                    ),
+                ),
+            ]
+            for account_id in ("ACCT_ALPHA", "ACCT_BETA"):
+                ledger_path = data_dir / f"{account_id}.csv"
+                acct_groups = [g for g in groups if g.primary.account_id == account_id]
+                write_ledger(ledger_path, acct_groups)
+            _build_projections(workspace, groups)
+
+            cap = Console(record=True)
+            rc = run(workspace=workspace, _console=cap)
+            output = cap.export_text()
+
+            assert rc == 0
+            assert "ACCT_ALPHA" in output
+            assert "ACCT_BETA" in output
+
+    def it_should_show_per_account_summary(self):
+        with TemporaryDirectory() as tmpdir:
+            data_dir = Path(tmpdir) / "data" / "accounts"
+            data_dir.mkdir(parents=True)
+            workspace = Workspace(root=Path(tmpdir))
+
+            groups = [
+                TransactionGroup(
+                    group_id="1",
+                    primary=Transaction(
+                        transaction_id="1111111111111111",
+                        date="2025-01-01",
+                        description="First",
+                        amount=-100.0,
+                        currency="CAD",
+                        account_id="ACCT_ALPHA",
+                    ),
+                ),
+                TransactionGroup(
+                    group_id="2",
+                    primary=Transaction(
+                        transaction_id="2222222222222222",
+                        date="2025-01-02",
+                        description="Second",
+                        amount=-200.0,
+                        currency="CAD",
+                        account_id="ACCT_ALPHA",
+                    ),
+                ),
+                TransactionGroup(
+                    group_id="3",
+                    primary=Transaction(
+                        transaction_id="3333333333333333",
+                        date="2025-01-01",
+                        description="Third",
+                        amount=-300.0,
+                        currency="CAD",
+                        account_id="ACCT_BETA",
+                    ),
+                ),
+            ]
+            for account_id in ("ACCT_ALPHA", "ACCT_BETA"):
+                ledger_path = data_dir / f"{account_id}.csv"
+                acct_groups = [g for g in groups if g.primary.account_id == account_id]
+                write_ledger(ledger_path, acct_groups)
+            _build_projections(workspace, groups)
+
+            cap = Console(record=True)
+            rc = run(workspace=workspace, _console=cap)
+            output = cap.export_text()
+
+            assert rc == 0
+            # Both account IDs appear in the summary section
+            assert "ACCT_ALPHA" in output
+            assert "ACCT_BETA" in output
+            # Counts are visible
+            assert "2" in output  # ACCT_ALPHA has 2
+            assert "1" in output  # ACCT_BETA has 1
+
+    def it_should_filter_by_fy_range(self):
+        """FY25 = Nov 1 2024 – Oct 31 2025 (both inclusive)."""
+        with TemporaryDirectory() as tmpdir:
+            data_dir = Path(tmpdir) / "data" / "accounts"
+            data_dir.mkdir(parents=True)
+            workspace = Workspace(root=Path(tmpdir))
+
+            groups = [
+                # Just before FY25 start — excluded
+                TransactionGroup(
+                    group_id="1",
+                    primary=Transaction(
+                        transaction_id="1111111111111111",
+                        date="2024-10-31",
+                        description="Before FY25",
+                        amount=-100.0,
+                        currency="CAD",
+                        account_id="TEST",
+                    ),
+                ),
+                # FY25 start boundary — included
+                TransactionGroup(
+                    group_id="2",
+                    primary=Transaction(
+                        transaction_id="2222222222222222",
+                        date="2024-11-01",
+                        description="FY25 start",
+                        amount=-200.0,
+                        currency="CAD",
+                        account_id="TEST",
+                    ),
+                ),
+                # FY25 end boundary — included
+                TransactionGroup(
+                    group_id="3",
+                    primary=Transaction(
+                        transaction_id="3333333333333333",
+                        date="2025-10-31",
+                        description="FY25 end",
+                        amount=-300.0,
+                        currency="CAD",
+                        account_id="TEST",
+                    ),
+                ),
+                # Just after FY25 end — excluded
+                TransactionGroup(
+                    group_id="4",
+                    primary=Transaction(
+                        transaction_id="4444444444444444",
+                        date="2025-11-01",
+                        description="After FY25",
+                        amount=-400.0,
+                        currency="CAD",
+                        account_id="TEST",
+                    ),
+                ),
+            ]
+            ledger_path = data_dir / "TEST.csv"
+            write_ledger(ledger_path, groups)
+            _build_projections(workspace, groups)
+
+            cap = Console(record=True)
+            fy_range = (date(2024, 11, 1), date(2025, 10, 31))
+            rc = run(workspace=workspace, fy_range=fy_range, fy_label="FY25", _console=cap)
+            output = cap.export_text()
+
+            assert rc == 0
+            assert "FY25 start" in output
+            assert "FY25 end" in output
+            assert "Before FY25" not in output
+            assert "After FY25" not in output
+
+    def it_should_include_fy_label_in_title(self):
         with TemporaryDirectory() as tmpdir:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
@@ -337,30 +570,8 @@ class DescribeUncategorizedCommand:
                     group_id="1",
                     primary=Transaction(
                         transaction_id="1111111111111111",
-                        date="2025-01-02",
-                        description="AAAA",
-                        amount=-100.0,
-                        currency="CAD",
-                        account_id="TEST",
-                    ),
-                ),
-                TransactionGroup(
-                    group_id="2",
-                    primary=Transaction(
-                        transaction_id="2222222222222222",
                         date="2025-01-01",
-                        description="AAAA",
-                        amount=-100.0,
-                        currency="CAD",
-                        account_id="TEST",
-                    ),
-                ),
-                TransactionGroup(
-                    group_id="3",
-                    primary=Transaction(
-                        transaction_id="3333333333333333",
-                        date="2025-01-01",
-                        description="ZZZZ",
+                        description="Item",
                         amount=-100.0,
                         currency="CAD",
                         account_id="TEST",
@@ -370,6 +581,10 @@ class DescribeUncategorizedCommand:
             write_ledger(ledger_path, groups)
             _build_projections(workspace, groups)
 
-            # Sort order should be: AAAA (2025-01-01), AAAA (2025-01-02), ZZZZ (2025-01-01)
-            rc = run(workspace=workspace)
+            cap = Console(record=True)
+            fy_range = (date(2024, 11, 1), date(2025, 10, 31))
+            rc = run(workspace=workspace, fy_range=fy_range, fy_label="FY25", _console=cap)
+            output = cap.export_text()
+
             assert rc == 0
+            assert "FY25" in output

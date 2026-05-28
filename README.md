@@ -603,17 +603,21 @@ gilt diagnose-categories
 
 ### `uncategorized` - Find Uncategorized Transactions
 
-Display transactions that haven't been categorized yet.
+Display transactions that haven't been categorized yet. Defaults to all accounts, with a per-account count summary below the main table.
 
 ```bash
-# Show all uncategorized transactions
+# Show all uncategorized transactions across all accounts
 gilt uncategorized
+
+# Filter by fiscal year (Mojility: Nov 1 – Oct 31)
+gilt uncategorized --fy FY25
+gilt uncategorized --fy fy2025   # case-insensitive, 2- or 4-digit year
+
+# Filter by calendar year
+gilt uncategorized --year 2025
 
 # Filter by account
 gilt uncategorized --account MYBANK_CHQ
-
-# Filter by year
-gilt uncategorized --year 2025
 
 # Show only large transactions
 gilt uncategorized --min-amount 100
@@ -624,13 +628,13 @@ gilt uncategorized --limit 50
 
 **Options:**
 - `--account, -a ACCOUNT`: Account ID to filter (omit for all accounts)
-- `--year, -y YEAR`: Year to filter
+- `--fy FY_YEAR`: Fiscal year to filter — Nov 1 to Oct 31 (e.g. `FY25`, `fy25`, `FY2025`). Cannot be combined with `--year`.
+- `--year, -y YEAR`: Calendar year to filter. Cannot be combined with `--fy`.
 - `--limit, -n N`: Max number of transactions to show
 - `--min-amount AMOUNT`: Minimum absolute amount to include
-- `--data-dir PATH`: Directory containing ledgers (default: `data/accounts`)
 
 **Output:**
-Transactions are sorted by description (to group similar ones), then date. This makes it easy to identify patterns and batch categorize recurring expenses.
+Transactions are sorted by account, then date. A per-account count summary table appears below the main table, followed by the total count.
 
 ---
 
@@ -952,8 +956,11 @@ CSV Exports → Events (Immutable) → Projections (Derived) → Views (Queries)
 
 #### Find What Needs Categorizing
 ```bash
-# Show all uncategorized transactions
+# Show all uncategorized transactions across all accounts (with per-account summary)
 gilt uncategorized
+
+# Filter by fiscal year (Nov 1 – Oct 31)
+gilt uncategorized --fy FY25
 
 # Filter by account
 gilt uncategorized --account MYBANK_CHQ
@@ -1043,8 +1050,8 @@ gilt note --account MYBANK_CHQ --desc-prefix "TRANSFER FROM" --note "Inter-accou
 
 2. **Check categorization status**
    ```bash
-   # How many need categorization?
-   gilt uncategorized | head
+   # How many need categorization? (all accounts, with per-account summary)
+   gilt uncategorized --fy FY25
    ```
 
 3. **Categorize uncategorized spending**

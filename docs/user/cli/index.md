@@ -126,7 +126,10 @@ Most commands support filtering:
 # By account
 gilt ytd --account MYBANK_CHQ
 
-# By year
+# By fiscal year (Nov 1 – Oct 31; accepts FY25, fy25, FY2025)
+gilt uncategorized --fy FY25
+
+# By calendar year
 gilt uncategorized --year 2025
 
 # By amount
@@ -145,8 +148,9 @@ Some commands work across all accounts:
 gilt categorize --desc-prefix "NETFLIX" \
   --category "Entertainment:Video" --yes --write
 
-# Find uncategorized in all accounts
+# Find uncategorized across all accounts (with per-account summary)
 gilt uncategorized
+gilt uncategorized --fy FY25   # fiscal year filter (Nov 1 – Oct 31)
 
 # Budget across all accounts
 gilt budget --year 2025 --month 10
