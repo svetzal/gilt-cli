@@ -4,8 +4,33 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-29
+
 ### Added
+- `gilt show` — full transaction inspection by transaction ID prefix
+- `gilt history` — vendor categorization lookup by description pattern
+- `gilt status` — per-account freshness and ledger health dashboard
+- `gilt receipts` — receipt attachment coverage reporting by subcategory or account
+- `gilt diagnose-duplicates` — duplicate metadata diagnostics and orphan detection
 - `gilt summary` — category/subcategory spending aggregation command with `--category`, `--year`, `--fy`, `--account`, and `--include-uncategorized` flags
+- Shared CLI presentation helpers and test fixture builders for cleaner command tests
+
+### Changed
+- `gilt uncategorized` now defaults to all accounts and supports fiscal-year filtering
+- `gilt categorize` now supports file-batch mode with `--txid-file` and `--from-stdin`
+- `gilt recategorize` now supports transaction filtering and selection-mode flags
+- `gilt category --add` now auto-creates the parent category when needed
+- Decomposed the transaction GUI view into focused controllers, workers, and widgets
+- Extracted ingestion orchestration, duplicate diagnostics, receipts reporting, and summary services
+- Standardized helper naming across CLI, services, GUI, transfer, and storage modules
+- Updated dependencies to latest compatible versions
+
+### Fixed
+- Prevent orphaned duplicate metadata and add diagnostics to find existing issues
+- Improve CLI reliability and user experience across categorization, duplicate handling, reingest, receipts, and status workflows
+
+### Tests
+- Expanded command, service, projection, transfer, GUI controller, and widget coverage for the new CLI and refactoring work
 
 ### Documentation
 - Audit packaged skill (`src/gilt/skills/gilt/`) against batch `gilt-improvement-20260528`: updated `SKILL.md` and `references/command-reference.md` to cover new commands (`show`, `history`, `status`, `receipts`, `diagnose-duplicates`, `summary`, `reingest`, `ingest-receipts`, `infer-rules`), changed behaviour for `uncategorized` (all-accounts default, `--fy` flag), `categorize` (`--txid-file`/`--from-stdin` file-batch mode), `recategorize` (selection-mode flags), and `category --add` (auto-creates parent category if absent)

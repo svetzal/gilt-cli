@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gilt-cli"
-version = "0.5.3"
+version = "0.6.0"
 description = "Local-only, privacy-first personal finance CLI"
 requires-python = ">=3.13"
 readme = "README.md"
@@ -77,6 +77,7 @@ line-length = 100
 # Exclude generated/output data
 exclude = [
   ".venv",
+  ".claude",
   "venv",
   "data",
   "ingest",
