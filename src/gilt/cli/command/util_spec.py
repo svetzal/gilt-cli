@@ -13,6 +13,7 @@ from gilt.cli.command.util import (
     find_by_account,
     find_by_id_prefix,
     find_uncategorized,
+    fmt_colored_amount,
     print_error,
     print_error_list,
     print_transaction_table,
@@ -36,6 +37,43 @@ from gilt.services.transaction_operations_service import (
 from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
+
+
+class DescribeFmtColoredAmount:
+    def it_should_return_red_markup_for_negative_amounts(self):
+        result = fmt_colored_amount(-42.50)
+
+        assert result == "[red]$-42.50[/]"
+
+    def it_should_return_green_markup_for_positive_amounts(self):
+        result = fmt_colored_amount(100.00)
+
+        assert result == "[green]$100.00[/]"
+
+    def it_should_return_plain_string_for_zero(self):
+        result = fmt_colored_amount(0.0)
+
+        assert result == "$0.00"
+
+    def it_should_add_bold_to_red_markup_when_bold_is_true(self):
+        result = fmt_colored_amount(-42.50, bold=True)
+
+        assert result == "[red bold]$-42.50[/]"
+
+    def it_should_add_bold_to_green_markup_when_bold_is_true(self):
+        result = fmt_colored_amount(100.00, bold=True)
+
+        assert result == "[green bold]$100.00[/]"
+
+    def it_should_wrap_zero_in_bold_markup_when_bold_is_true(self):
+        result = fmt_colored_amount(0.0, bold=True)
+
+        assert result == "[bold]$0.00[/]"
+
+    def it_should_respect_custom_prefix(self):
+        result = fmt_colored_amount(-10.0, prefix="")
+
+        assert result == "[red]-10.00[/]"
 
 
 class DescribeFilterUncategorized:

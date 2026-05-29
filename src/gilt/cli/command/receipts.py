@@ -21,7 +21,7 @@ from gilt.services.receipts_service import (
 from gilt.workspace import Workspace
 
 from .util import console as _default_console
-from .util import fmt_amount_str, require_projections
+from .util import fmt_amount_str, fmt_colored_amount, require_projections
 
 
 def run(
@@ -140,11 +140,7 @@ def _add_summary_row(table: Table, row: CoverageRow, *, by_account: bool) -> Non
         else:
             pct_str = f"[red]{pct_str}[/]"
 
-    net_str = fmt_amount_str(row.net_amount)
-    if row.net_amount < 0:
-        net_str = f"[red]{net_str}[/]"
-    elif row.net_amount > 0:
-        net_str = f"[green]{net_str}[/]"
+    net_str = fmt_colored_amount(row.net_amount)
 
     table.add_row(
         row.category,
@@ -180,11 +176,7 @@ def _render_missing(result: ReceiptCoverageResult, con: Console) -> None:
 
 def _add_missing_row(table: Table, row: MissingReceiptRow) -> None:
     """Add one row to the missing-receipts table."""
-    amt_str = fmt_amount_str(row.amount)
-    if row.amount < 0:
-        amt_str = f"[red]{amt_str}[/]"
-    elif row.amount > 0:
-        amt_str = f"[green]{amt_str}[/]"
+    amt_str = fmt_colored_amount(row.amount)
 
     table.add_row(
         row.transaction_id[:8],

@@ -14,7 +14,7 @@ from gilt.services.summary_service import build_category_summary, build_subcateg
 from gilt.workspace import Workspace
 
 from .util import console as _default_console
-from .util import find_by_account, fmt_amount_str, require_projections
+from .util import find_by_account, fmt_colored_amount, require_projections
 
 _DASH = "—"  # em-dash for None subcategory display
 
@@ -65,13 +65,7 @@ def _display_category_table(
 
     for row in rows:
         label = row.category if row.category else f"[dim]{_DASH} uncategorized[/]"
-        amt = row.net
-        if amt < 0:
-            net_str = f"[red]{fmt_amount_str(amt)}[/]"
-        elif amt > 0:
-            net_str = f"[green]{fmt_amount_str(amt)}[/]"
-        else:
-            net_str = fmt_amount_str(amt)
+        net_str = fmt_colored_amount(row.net)
         table.add_row(label, str(row.count), net_str)
 
     con.print(table)
@@ -101,27 +95,14 @@ def _display_subcategory_table(
 
     for row in rows:
         label = row.subcategory if row.subcategory else f"[dim]{_DASH}[/]"
-        amt = row.net
-        if amt < 0:
-            net_str = f"[red]{fmt_amount_str(amt)}[/]"
-        elif amt > 0:
-            net_str = f"[green]{fmt_amount_str(amt)}[/]"
-        else:
-            net_str = fmt_amount_str(amt)
+        net_str = fmt_colored_amount(row.net)
         pct_str = f"{row.pct_of_category:.1f}%"
         table.add_row(label, str(row.count), net_str, pct_str)
 
     con.print(table)
 
     # Footer: category total
-    total_str: str
-    if category_total < 0:
-        total_str = f"[bold red]{fmt_amount_str(category_total)}[/]"
-    elif category_total > 0:
-        total_str = f"[bold green]{fmt_amount_str(category_total)}[/]"
-    else:
-        total_str = f"[bold]{fmt_amount_str(category_total)}[/]"
-
+    total_str = fmt_colored_amount(category_total, bold=True)
     con.print(f"\n[bold]Category total ({category}):[/] {total_str}")
 
 

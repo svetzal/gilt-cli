@@ -97,6 +97,17 @@ def fmt_amount_str(amt: float, *, prefix: str = "$") -> str:
     return f"{prefix}{amt:,.2f}"
 
 
+def fmt_colored_amount(amt: float, *, prefix: str = "$", bold: bool = False) -> str:
+    """Format an amount as a Rich markup string with sign-based color (red/green)."""
+    s = fmt_amount_str(amt, prefix=prefix)
+    weight = " bold" if bold else ""
+    if amt < 0:
+        return f"[red{weight}]{s}[/]"
+    elif amt > 0:
+        return f"[green{weight}]{s}[/]"
+    return f"[bold]{s}[/]" if bold else s
+
+
 def print_dry_run_message(*, detail: str | None = None) -> None:
     """Print the standard dry-run warning. Call when write=False."""
     if detail:
