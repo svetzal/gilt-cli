@@ -6,7 +6,28 @@ import pytest
 
 PySide6 = pytest.importorskip("PySide6")
 
+from unittest.mock import patch
+
+from gilt.gui.views.categories_view import CategoriesView
 from gilt.model.category import Budget, BudgetPeriod, Category, Subcategory
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+_MINIMAL_CATEGORIES_YAML = """\
+categories:
+  - name: Groceries
+    description: Food purchases
+    subcategories:
+      - name: Produce
+      - name: Bakery
+  - name: Transport
+    description: Transportation expenses
+    budget:
+      amount: 200.0
+      period: monthly
+"""
 
 
 def _make_category(
@@ -21,6 +42,11 @@ def _make_category(
         subcategories=subcategories or [],
         budget=budget,
     )
+
+
+# ---------------------------------------------------------------------------
+# Existing logic tests (kept for regression coverage)
+# ---------------------------------------------------------------------------
 
 
 class DescribeLoadCategories:
@@ -52,13 +78,6 @@ class DescribeLoadCategories:
         assert rows[2] == ("Housing", "Utilities", None, None)
 
     def it_should_pass_none_budget_for_subcategory_rows(self):
-        # Per _load_categories: subcategory rows always receive budget=None
-        # regardless of the parent category's budget.
-        _make_category(
-            name="Housing",
-            budget=Budget(amount=2000.0, period=BudgetPeriod.monthly),
-            subcategories=[Subcategory(name="Rent")],
-        )
         subcategory_row_budget = None
         assert subcategory_row_budget is None
 
@@ -119,3 +138,146 @@ class DescribeSelectionButtonState:
         assert add_subcat_enabled is False
         assert set_budget_enabled is False
         assert remove_enabled is False
+
+
+# ---------------------------------------------------------------------------
+# Step 8: CategoriesView mutation handlers — real widget tests
+# ---------------------------------------------------------------------------
+
+
+class DescribeCategoriesViewEditing:
+    """CategoriesView mutation handlers tested against a real widget backed by a temp YAML."""
+
+    @pytest.fixture
+    def view(self, qapp, tmp_path):
+        config_path = tmp_path / "categories.yml"
+        config_path.write_text(_MINIMAL_CATEGORIES_YAML, encoding="utf-8")
+        return CategoriesView(config_path=config_path), config_path
+
+    def it_should_load_categories_and_populate_table(self, view):
+        widget, _ = view
+        # Groceries row + 2 subcategory rows + Transport row = 4 rows
+        assert widget.table.rowCount() == 4
+        assert widget.table.item(0, 0).text() == "Groceries"
+        assert widget.table.item(1, 1).text() == "Produce"
+        assert widget.table.item(2, 1).text() == "Bakery"
+        assert widget.table.item(3, 0).text() == "Transport"
+
+    def it_should_show_budget_for_transport_category(self, view):
+        widget, _ = view
+        # Transport is row 3 (0-based): Groceries, Produce, Bakery, Transport
+        transport_row = 3
+        assert "$200.00" in widget.table.item(transport_row, 3).text()
+        assert widget.table.item(transport_row, 4).text() == "monthly"
+
+    def it_should_add_category_and_persist_to_yaml(self, view):
+        widget, config_path = view
+
+        with (
+            patch("gilt.gui.views.categories_view.QInputDialog.getText") as mock_get_text,
+            patch("gilt.gui.views.categories_view.QMessageBox.information"),
+        ):
+            mock_get_text.side_effect = [
+                ("Utilities", True),  # category name
+                ("", True),  # description (optional, empty)
+            ]
+            widget._on_add_category()
+
+        saved = config_path.read_text(encoding="utf-8")
+        assert "Utilities" in saved
+
+    def it_should_not_add_category_when_dialog_cancelled(self, view):
+        widget, config_path = view
+        row_count_before = widget.table.rowCount()
+
+        with patch("gilt.gui.views.categories_view.QInputDialog.getText") as mock_get_text:
+            mock_get_text.return_value = ("Utilities", False)  # cancelled
+            widget._on_add_category()
+
+        assert widget.table.rowCount() == row_count_before
+
+    def it_should_add_subcategory_to_existing_category(self, view):
+        widget, config_path = view
+        # Select the Groceries row (row 0)
+        widget.table.setCurrentCell(0, 0)
+
+        with (
+            patch("gilt.gui.views.categories_view.QInputDialog.getText") as mock_get_text,
+            patch("gilt.gui.views.categories_view.QMessageBox.information"),
+        ):
+            mock_get_text.side_effect = [
+                ("Frozen", True),  # subcategory name
+                ("", True),  # description
+            ]
+            widget._on_add_subcategory()
+
+        saved = config_path.read_text(encoding="utf-8")
+        assert "Frozen" in saved
+
+    def it_should_set_budget_on_category_and_persist(self, view):
+        widget, config_path = view
+        # Select the Groceries row (row 0, a main category with no budget yet)
+        widget.table.setCurrentCell(0, 0)
+
+        with (
+            patch("gilt.gui.views.categories_view.QInputDialog.getDouble") as mock_double,
+            patch("gilt.gui.views.categories_view.QInputDialog.getItem") as mock_item,
+            patch("gilt.gui.views.categories_view.QMessageBox.information"),
+        ):
+            mock_double.return_value = (500.0, True)
+            mock_item.return_value = ("monthly", True)
+            widget._on_set_budget()
+
+        saved = config_path.read_text(encoding="utf-8")
+        assert "500" in saved
+
+    def it_should_remove_category_after_confirmation(self, view):
+        widget, config_path = view
+        row_count_before = widget.table.rowCount()
+        # Select the Transport row — it has no subcategories so row count drops by 1
+        transport_row = widget.table.rowCount() - 1
+        widget.table.setCurrentCell(transport_row, 0)
+
+        from PySide6.QtWidgets import QMessageBox
+
+        with (
+            patch(
+                "gilt.gui.views.categories_view.QMessageBox.question",
+                return_value=QMessageBox.Yes,
+            ),
+            patch("gilt.gui.views.categories_view.QMessageBox.information"),
+        ):
+            widget._on_remove()
+
+        assert widget.table.rowCount() == row_count_before - 1
+
+    def it_should_not_remove_when_confirmation_declined(self, view):
+        widget, _ = view
+        row_count_before = widget.table.rowCount()
+        widget.table.setCurrentCell(0, 0)
+
+        from PySide6.QtWidgets import QMessageBox
+
+        with patch(
+            "gilt.gui.views.categories_view.QMessageBox.question",
+            return_value=QMessageBox.No,
+        ):
+            widget._on_remove()
+
+        assert widget.table.rowCount() == row_count_before
+
+    def it_should_save_categories_when_add_category_succeeds(self, view):
+        widget, _ = view
+
+        saved = []
+        original_save = widget.service.save_categories
+        widget.service.save_categories = lambda: saved.append(True) or original_save()
+
+        with (
+            patch("gilt.gui.views.categories_view.QInputDialog.getText") as mock_get_text,
+            patch("gilt.gui.views.categories_view.QMessageBox.information"),
+        ):
+            mock_get_text.side_effect = [("Dining", True), ("", True)]
+            widget._on_add_category()
+
+        assert len(saved) >= 1

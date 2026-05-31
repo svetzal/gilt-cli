@@ -1,11 +1,10 @@
 import logging
 from datetime import date
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 pytest.importorskip("PySide6")
-
-from unittest.mock import MagicMock
 
 from gilt.gui.views.transactions_view import TransactionsView
 
@@ -18,6 +17,33 @@ class DescribeLoadEnrichment:
 
         with caplog.at_level(logging.WARNING, logger="gilt.gui.views.transactions_view"):
             TransactionsView._load_enrichment(view)
+
+        assert view.enrichment_service is None
+        assert "Enrichment data unavailable" in caplog.text
+
+
+class DescribeTransactionsViewEnrichmentWithRealView:
+    """_load_enrichment verified on a real TransactionsView instantiated with stubs."""
+
+    def it_should_set_enrichment_service_to_none_when_event_store_raises(
+        self, qapp, tmp_path, caplog
+    ):
+        data_dir = tmp_path / "accounts"
+        data_dir.mkdir()
+        categories_yml = tmp_path / "categories.yml"
+        categories_yml.write_text("categories: []\n", encoding="utf-8")
+
+        event_store = MagicMock()
+        event_store.get_events_by_type.side_effect = ValueError("corrupt event store")
+
+        with (
+            patch(
+                "gilt.gui.dialogs.settings_dialog.SettingsDialog.get_categories_config",
+                return_value=categories_yml,
+            ),
+            caplog.at_level(logging.WARNING, logger="gilt.gui.views.transactions_view"),
+        ):
+            view = TransactionsView(data_dir=data_dir, event_store=event_store)
 
         assert view.enrichment_service is None
         assert "Enrichment data unavailable" in caplog.text

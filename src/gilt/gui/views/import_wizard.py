@@ -49,6 +49,11 @@ PAGE_OPTIONS = 5
 PAGE_EXECUTE = 6
 
 
+def compute_file_progress_window(i: int, total: int) -> tuple[int, int]:
+    """Return (start_pct, end_pct) for file i of total, for progress bar allocation."""
+    return int((i / total) * 100), int(((i + 1) / total) * 100)
+
+
 class ImportWorker(QThread):
     """Worker thread for import operations."""
 
@@ -83,8 +88,9 @@ class ImportWorker(QThread):
                     continue
 
                 # Progress: allocate equal portions to each file
-                file_progress_start = int((i / len(self.mappings)) * 100)
-                file_progress_end = int(((i + 1) / len(self.mappings)) * 100)
+                file_progress_start, file_progress_end = compute_file_progress_window(
+                    i, len(self.mappings)
+                )
 
                 def progress_callback(pct, _start=file_progress_start, _end=file_progress_end):
                     overall = _start + int((pct / 100) * (_end - _start))
