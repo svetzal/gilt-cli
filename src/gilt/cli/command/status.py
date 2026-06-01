@@ -29,14 +29,14 @@ class StatusRow:
     mojility_receipt_pct: int | str  # int or "—"
 
 
-def _is_in_fy(txn_date_str: str, fy_range: tuple[date, date] | None) -> bool:
-    """Return True if the transaction date falls within fy_range (or no range set)."""
+def _passes_fy_filter(txn_date: date, fy_range: tuple[date, date] | None) -> bool:
+    """Return True if txn_date is within fy_range (inclusive), or no range is set.
+
+    Uses the same inclusive boundary semantics as TransactionFilter.fy_range.
+    """
     if fy_range is None:
         return True
-    with contextlib.suppress(ValueError):
-        txn_date = date.fromisoformat(txn_date_str)
-        return fy_range[0] <= txn_date <= fy_range[1]
-    return False
+    return fy_range[0] <= txn_date <= fy_range[1]
 
 
 def _build_account_buckets(rows: list[dict], fy_range: tuple[date, date] | None) -> dict:
@@ -56,9 +56,11 @@ def _build_account_buckets(rows: list[dict], fy_range: tuple[date, date] | None)
 
         bucket = accounts[account_id]
         txn_date_str = row.get("transaction_date") or ""
+        txn_date: date | None = None
         with contextlib.suppress(ValueError):
             if txn_date_str:
-                bucket["dates"].append(date.fromisoformat(txn_date_str))
+                txn_date = date.fromisoformat(txn_date_str)
+                bucket["dates"].append(txn_date)
 
         bucket["total_txns"] += 1
 
@@ -66,7 +68,7 @@ def _build_account_buckets(rows: list[dict], fy_range: tuple[date, date] | None)
         if not category:
             bucket["uncategorized"] += 1
 
-        if category == "Mojility" and _is_in_fy(txn_date_str, fy_range):
+        if category == "Mojility" and txn_date is not None and _passes_fy_filter(txn_date, fy_range):
             bucket["mojility_txns"] += 1
             if bool(row.get("receipt_file")):
                 bucket["mojility_w_receipt"] += 1

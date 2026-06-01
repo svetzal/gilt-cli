@@ -9,6 +9,7 @@ no UI imports (rich, typer, PySide6).
 
 import logging
 from dataclasses import dataclass
+from datetime import date
 
 from gilt.model.account import Transaction
 from gilt.transfer import (
@@ -20,6 +21,36 @@ from gilt.transfer import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class TransactionFilter:
+    """Criteria for filtering a list of Transaction objects.
+
+    All fields are optional; only non-None values are applied.
+    Multiple non-None fields are combined with AND semantics.
+
+    Fields:
+        account_id: Exact match on transaction account_id.
+        year: Calendar year of transaction date (transaction.date.year == year).
+        fy_range: Inclusive date range (start, end); overrides year when both supplied.
+        amount_eq: Exact signed amount within 0.01 tolerance.
+        amount_min: Signed lower bound (inclusive).
+        amount_max: Signed upper bound (inclusive).
+        min_abs_amount: Absolute-value lower bound; matches |amount| >= min_abs_amount.
+        category: Case-insensitive category match.
+        subcategory: Case-insensitive subcategory match.
+    """
+
+    account_id: str | None = None
+    year: int | None = None
+    fy_range: tuple[date, date] | None = None
+    amount_eq: float | None = None
+    amount_min: float | None = None
+    amount_max: float | None = None
+    min_abs_amount: float | None = None
+    category: str | None = None
+    subcategory: str | None = None
 
 
 @dataclass
@@ -37,6 +68,50 @@ class TransactionQueryService:
     All methods accept Transaction objects directly and return plain data.
     No I/O, no UI imports.
     """
+
+    def find_matching(
+        self,
+        transactions: list[Transaction],
+        criteria: TransactionFilter,
+    ) -> list[Transaction]:
+        """Filter transactions by all non-None criteria (AND semantics).
+
+        Each active criterion must be satisfied for a transaction to be included.
+
+        Args:
+            transactions: All transactions to filter from.
+            criteria: Filter criteria; only non-None fields are applied.
+
+        Returns:
+            Subset of transactions matching all active criteria.
+        """
+        result: list[Transaction] = []
+        for t in transactions:
+            if criteria.account_id is not None and t.account_id != criteria.account_id:
+                continue
+            if criteria.fy_range is not None:
+                if not (criteria.fy_range[0] <= t.date <= criteria.fy_range[1]):
+                    continue
+            elif criteria.year is not None and t.date.year != criteria.year:
+                continue
+            if criteria.amount_eq is not None and abs(t.amount - criteria.amount_eq) > 0.01:
+                continue
+            if criteria.amount_min is not None and t.amount < criteria.amount_min:
+                continue
+            if criteria.amount_max is not None and t.amount > criteria.amount_max:
+                continue
+            if criteria.min_abs_amount is not None and abs(t.amount) < criteria.min_abs_amount:
+                continue
+            if criteria.category is not None and (
+                t.category or ""
+            ).lower() != criteria.category.lower():
+                continue
+            if criteria.subcategory is not None and (
+                t.subcategory or ""
+            ).lower() != criteria.subcategory.lower():
+                continue
+            result.append(t)
+        return result
 
     def find_transactions(
         self,
@@ -60,11 +135,8 @@ class TransactionQueryService:
         Returns:
             Sorted and optionally limited list of matching transactions.
         """
-        result = [
-            t
-            for t in transactions
-            if t.account_id == account_id and (year is None or t.date.year == year)
-        ]
+        criteria = TransactionFilter(account_id=account_id, year=year)
+        result = self.find_matching(transactions, criteria)
         result.sort(key=lambda t: (t.date, t.transaction_id))
         if limit is not None:
             result = result[:limit]
@@ -129,4 +201,4 @@ class TransactionQueryService:
         return " | ".join(note_parts) if note_parts else ""
 
 
-__all__ = ["TransactionQueryService", "TransactionTotals"]
+__all__ = ["TransactionFilter", "TransactionQueryService", "TransactionTotals"]

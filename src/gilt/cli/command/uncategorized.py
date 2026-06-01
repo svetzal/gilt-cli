@@ -11,6 +11,7 @@ from rich.console import Console
 from rich.table import Table
 
 from gilt.model.account import Transaction
+from gilt.services.transaction_query_service import TransactionFilter, TransactionQueryService
 from gilt.workspace import Workspace
 
 from .util import (
@@ -23,26 +24,6 @@ from .util import (
 from .util import (
     console as _default_console,
 )
-
-
-def _filter_transactions(
-    filtered_rows: list,
-    year: int | None,
-    min_amount: float | None,
-    fy_range: tuple[date, date] | None = None,
-) -> list[Transaction]:
-    """Apply year, fy_range, and min_amount filters and convert rows to Transaction objects."""
-    result: list[Transaction] = []
-    for row in filtered_rows:
-        txn = Transaction.from_projection_row(row)
-        if year is not None and txn.date.year != year:
-            continue
-        if fy_range is not None and not (fy_range[0] <= txn.date <= fy_range[1]):
-            continue
-        if min_amount is not None and abs(txn.amount) < min_amount:
-            continue
-        result.append(txn)
-    return result
 
 
 def _display_uncategorized_table(
@@ -138,9 +119,11 @@ def run(
         return 1
 
     # Filter
-    all_transactions = projection_builder.get_all_transactions(include_duplicates=False)
-    filtered_rows = find_by_account(find_uncategorized(all_transactions), account)
-    uncategorized = _filter_transactions(filtered_rows, year, min_amount, fy_range)
+    all_rows = projection_builder.get_all_transactions(include_duplicates=False)
+    uncategorized_rows = find_by_account(find_uncategorized(all_rows), account)
+    candidates = [Transaction.from_projection_row(row) for row in uncategorized_rows]
+    criteria = TransactionFilter(year=year, fy_range=fy_range, min_abs_amount=min_amount)
+    uncategorized = TransactionQueryService().find_matching(candidates, criteria)
 
     if not uncategorized:
         con.print("[green]All transactions are categorized![/]")

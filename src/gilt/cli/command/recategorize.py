@@ -19,12 +19,13 @@ from datetime import date  # noqa: E402 — needed before typer import
 
 import typer
 
-from gilt.model.account import TransactionGroup
+from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.category_io import build_category_from_path
 from gilt.services.transaction_operations_service import (
     SearchCriteria,
     TransactionOperationsService,
 )
+from gilt.services.transaction_query_service import TransactionFilter, TransactionQueryService
 from gilt.workspace import Workspace
 
 from .util import (
@@ -32,7 +33,6 @@ from .util import (
     display_transaction_matches,
     find_matches_by_criteria,
     fmt_amount_str,
-    group_by_account,
     print_dry_run_message,
     print_error,
     require_event_sourcing,
@@ -72,53 +72,11 @@ def _validate_selection_flags(
 
 
 # ---------------------------------------------------------------------------
-# Row filtering (works on projection dicts before converting to TransactionGroup)
+# Transaction filtering (works on Transaction objects via TransactionQueryService)
 # ---------------------------------------------------------------------------
 
 
-def _row_passes_date_filter(
-    row: dict,
-    effective_start: date | None,
-    effective_end: date | None,
-) -> bool:
-    """Return False if the row's date falls outside [effective_start, effective_end]."""
-    if effective_start is None and effective_end is None:
-        return True
-    row_date_raw = row.get("transaction_date")
-    if row_date_raw is None:
-        return True
-    if isinstance(row_date_raw, str):
-        try:
-            row_date = date.fromisoformat(row_date_raw)
-        except ValueError:
-            return False
-    else:
-        row_date = row_date_raw
-    if effective_start is not None and row_date < effective_start:
-        return False
-    return not (effective_end is not None and row_date > effective_end)
-
-
-def _row_passes_amount_filter(
-    row: dict,
-    amount_eq: float | None,
-    amount_min: float | None,
-    amount_max: float | None,
-) -> bool:
-    """Return False if the row's amount fails any active amount filter."""
-    row_amount = row.get("amount")
-    if row_amount is None:
-        return True
-    val = float(row_amount)
-    if amount_eq is not None and abs(val - amount_eq) >= 0.01:
-        return False
-    if amount_min is not None and val < amount_min:
-        return False
-    return not (amount_max is not None and val > amount_max)
-
-
-def _apply_row_filters(
-    rows: list[dict],
+def _build_transaction_filter(
     account: str | None,
     date_from: date | None,
     date_to: date | None,
@@ -128,29 +86,30 @@ def _apply_row_filters(
     amount_max: float | None,
     from_cat: str | None,
     from_subcat: str | None,
-) -> list[dict]:
-    """Filter projection rows by the supplied criteria.
+) -> TransactionFilter:
+    """Build a TransactionFilter from the supplied selection criteria.
 
-    Each filter is applied only when its value is not None.
-    Returns the subset of rows that pass every active filter.
+    fy_range takes precedence over date_from/date_to when both are supplied.
     """
-    effective_start, effective_end = fy_range if fy_range is not None else (date_from, date_to)
+    if fy_range is not None:
+        effective_fy_range = fy_range
+    elif date_from is not None or date_to is not None:
+        effective_fy_range = (
+            date_from or date.min,
+            date_to or date.max,
+        )
+    else:
+        effective_fy_range = None
 
-    result = []
-    for row in rows:
-        if account is not None and row.get("account_id") != account:
-            continue
-        if not _row_passes_date_filter(row, effective_start, effective_end):
-            continue
-        if not _row_passes_amount_filter(row, amount_eq, amount_min, amount_max):
-            continue
-        if from_cat is not None:
-            if row.get("category") != from_cat:
-                continue
-            if from_subcat is not None and row.get("subcategory") != from_subcat:
-                continue
-        result.append(row)
-    return result
+    return TransactionFilter(
+        account_id=account,
+        fy_range=effective_fy_range,
+        amount_eq=amount_eq,
+        amount_min=amount_min,
+        amount_max=amount_max,
+        category=from_cat,
+        subcategory=from_subcat,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -353,7 +312,7 @@ def _run_rename_mode(
 
 
 def _build_text_matches(
-    filtered_rows: list[dict],
+    filtered_transactions: list[Transaction],
     desc_prefix: str | None,
     pattern: str | None,
     service: TransactionOperationsService | None,
@@ -362,7 +321,11 @@ def _build_text_matches(
     if service is None:
         service = TransactionOperationsService()
     criteria = SearchCriteria(desc_prefix=desc_prefix, pattern=pattern)
-    groups_by_account = group_by_account(filtered_rows)
+    groups_by_account: dict[str, list[TransactionGroup]] = {}
+    for t in filtered_transactions:
+        groups_by_account.setdefault(t.account_id, []).append(
+            TransactionGroup(group_id=t.transaction_id, primary=t)
+        )
     return find_matches_by_criteria(groups_by_account, criteria, service)
 
 
@@ -403,13 +366,12 @@ def _run_selection_mode(
     if projection_builder is None:
         return 1
 
-    all_transactions = projection_builder.get_all_transactions(include_duplicates=False)
-    if not all_transactions:
+    all_rows = projection_builder.get_all_transactions(include_duplicates=False)
+    if not all_rows:
         console.print("[yellow]No transactions found in projections database[/]")
         return 0
 
-    filtered_rows = _apply_row_filters(
-        all_transactions,
+    criteria = _build_transaction_filter(
         account=account,
         date_from=date_from,
         date_to=date_to,
@@ -420,18 +382,21 @@ def _run_selection_mode(
         from_cat=from_cat,
         from_subcat=from_subcat,
     )
+    all_candidates = [Transaction.from_projection_row(row) for row in all_rows]
+    filtered_transactions = TransactionQueryService().find_matching(all_candidates, criteria)
 
-    if not filtered_rows:
+    if not filtered_transactions:
         console.print("[yellow]No transactions match the given filters[/]")
         return 0
 
     if desc_prefix is not None or pattern is not None:
-        all_matches = _build_text_matches(filtered_rows, desc_prefix, pattern, service)
+        all_matches = _build_text_matches(filtered_transactions, desc_prefix, pattern, service)
         if all_matches is None:
             return 1
     else:
         all_matches = [
-            (row["account_id"], TransactionGroup.from_projection_row(row)) for row in filtered_rows
+            (t.account_id, TransactionGroup(group_id=t.transaction_id, primary=t))
+            for t in filtered_transactions
         ]
 
     if not all_matches:

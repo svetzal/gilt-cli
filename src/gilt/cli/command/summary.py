@@ -11,29 +11,13 @@ from rich.table import Table
 
 from gilt.model.account import Transaction
 from gilt.services.summary_service import build_category_summary, build_subcategory_summary
+from gilt.services.transaction_query_service import TransactionFilter, TransactionQueryService
 from gilt.workspace import Workspace
 
 from .util import console as _default_console
 from .util import find_by_account, fmt_colored_amount, require_projections
 
 _DASH = "—"  # em-dash for None subcategory display
-
-
-def _filter_by_date_window(
-    rows: list[dict],
-    year: int | None,
-    fy_range: tuple[date, date] | None,
-) -> list[Transaction]:
-    """Convert projection rows to Transactions, applying date-window filter."""
-    result: list[Transaction] = []
-    for row in rows:
-        txn = Transaction.from_projection_row(row)
-        if year is not None and txn.date.year != year:
-            continue
-        if fy_range is not None and not (fy_range[0] <= txn.date <= fy_range[1]):
-            continue
-        result.append(txn)
-    return result
 
 
 def _build_title(base: str, year: int | None, fy_label: str | None) -> str:
@@ -145,7 +129,9 @@ def run(
 
     all_rows = projection_builder.get_all_transactions(include_duplicates=False)
     account_rows = find_by_account(all_rows, account)
-    transactions = _filter_by_date_window(account_rows, effective_year, fy_range)
+    candidates = [Transaction.from_projection_row(row) for row in account_rows]
+    criteria = TransactionFilter(year=effective_year, fy_range=fy_range)
+    transactions = TransactionQueryService().find_matching(candidates, criteria)
 
     if category is not None:
         _display_subcategory_table(con, transactions, category, effective_year, fy_label)

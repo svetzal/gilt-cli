@@ -9,7 +9,7 @@ from rich.table import Table
 from rich.text import Text
 
 from gilt.cli.presentation import build_transaction_table
-from gilt.model.account import TransactionGroup
+from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.ledger_repository import LedgerRepository
 from gilt.services.categorization_persistence_service import CategorizationPersistenceService
 from gilt.services.event_sourcing_service import EventSourcingReadyResult, EventSourcingService
@@ -18,6 +18,7 @@ from gilt.services.transaction_operations_service import (
     SearchCriteria,
     TransactionOperationsService,
 )
+from gilt.services.transaction_query_service import TransactionFilter, TransactionQueryService
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
@@ -232,6 +233,33 @@ def require_projections(workspace: Workspace) -> ProjectionBuilder | None:
         )
         return None
     return ProjectionBuilder(workspace.projections_path)
+
+
+def load_filtered_transactions(
+    workspace: Workspace,
+    criteria: TransactionFilter,
+    *,
+    include_duplicates: bool = False,
+) -> list[Transaction] | None:
+    """Load all transactions from projections and filter by the given criteria.
+
+    Returns None when the projections database is missing or unavailable.
+    Returns an empty list when there are no matching transactions.
+
+    Args:
+        workspace: Workspace providing the projections database path.
+        criteria: Filter criteria applied via TransactionQueryService.find_matching.
+        include_duplicates: When True, duplicate transactions are included in the load.
+
+    Returns:
+        Filtered Transaction list, or None if projections are unavailable.
+    """
+    projection_builder = require_projections(workspace)
+    if projection_builder is None:
+        return None
+    rows = projection_builder.get_all_transactions(include_duplicates=include_duplicates)
+    transactions = [Transaction.from_projection_row(row) for row in rows]
+    return TransactionQueryService().find_matching(transactions, criteria)
 
 
 def validate_single_vs_batch_mode(

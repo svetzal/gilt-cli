@@ -7,6 +7,7 @@ All tests use Transaction objects directly — no projections DB, no file I/O.
 """
 
 from gilt.services.transaction_query_service import (
+    TransactionFilter,
     TransactionQueryService,
     TransactionTotals,
 )
@@ -178,3 +179,190 @@ class DescribeBuildDisplayNotes:
         txn = make_transaction(category=None, notes=None)
         notes = service.build_display_notes(txn)
         assert notes == ""
+
+
+class DescribeFindMatching:
+    """Specs for TransactionQueryService.find_matching — pure predicate filtering."""
+
+    def it_should_return_all_transactions_when_no_criteria(self):
+        service = TransactionQueryService()
+        transactions = [
+            make_transaction(transaction_id="t1", account_id="MYBANK_CHQ"),
+            make_transaction(transaction_id="t2", account_id="MYBANK_CC"),
+        ]
+
+        result = service.find_matching(transactions, TransactionFilter())
+
+        assert len(result) == 2
+
+    def it_should_filter_by_account_id(self):
+        service = TransactionQueryService()
+        transactions = [
+            make_transaction(transaction_id="t1", account_id="MYBANK_CHQ"),
+            make_transaction(transaction_id="t2", account_id="MYBANK_CC"),
+            make_transaction(transaction_id="t3", account_id="MYBANK_CHQ"),
+        ]
+
+        result = service.find_matching(transactions, TransactionFilter(account_id="MYBANK_CHQ"))
+
+        assert len(result) == 2
+        assert all(t.account_id == "MYBANK_CHQ" for t in result)
+
+    def it_should_filter_by_exact_year(self):
+        service = TransactionQueryService()
+        transactions = [
+            make_transaction(transaction_id="t1", date="2025-03-15"),
+            make_transaction(transaction_id="t2", date="2024-06-10"),
+            make_transaction(transaction_id="t3", date="2025-11-01"),
+        ]
+
+        result = service.find_matching(transactions, TransactionFilter(year=2025))
+
+        assert len(result) == 2
+        assert all(t.date.year == 2025 for t in result)
+
+    def it_should_include_fy_range_boundary_start(self):
+        from datetime import date as d
+
+        service = TransactionQueryService()
+        boundary_start = make_transaction(transaction_id="t1", date="2024-11-01")
+        before_start = make_transaction(transaction_id="t2", date="2024-10-31")
+        fy_range = (d(2024, 11, 1), d(2025, 10, 31))
+
+        result = service.find_matching(transactions=[boundary_start, before_start],
+                                       criteria=TransactionFilter(fy_range=fy_range))
+
+        assert len(result) == 1
+        assert result[0].transaction_id == "t1"
+
+    def it_should_include_fy_range_boundary_end(self):
+        from datetime import date as d
+
+        service = TransactionQueryService()
+        boundary_end = make_transaction(transaction_id="t1", date="2025-10-31")
+        after_end = make_transaction(transaction_id="t2", date="2025-11-01")
+        fy_range = (d(2024, 11, 1), d(2025, 10, 31))
+
+        result = service.find_matching(transactions=[boundary_end, after_end],
+                                       criteria=TransactionFilter(fy_range=fy_range))
+
+        assert len(result) == 1
+        assert result[0].transaction_id == "t1"
+
+    def it_should_match_amount_eq_within_tolerance(self):
+        service = TransactionQueryService()
+        transactions = [
+            make_transaction(transaction_id="t1", amount=-100.00),
+            make_transaction(transaction_id="t2", amount=-100.009),  # within 0.01
+            make_transaction(transaction_id="t3", amount=-100.02),   # outside 0.01
+            make_transaction(transaction_id="t4", amount=-50.00),
+        ]
+
+        result = service.find_matching(transactions, TransactionFilter(amount_eq=-100.00))
+
+        ids = {t.transaction_id for t in result}
+        assert "t1" in ids
+        assert "t2" in ids
+        assert "t3" not in ids
+        assert "t4" not in ids
+
+    def it_should_apply_amount_min_signed_bound(self):
+        service = TransactionQueryService()
+        transactions = [
+            make_transaction(transaction_id="t1", amount=-50.00),
+            make_transaction(transaction_id="t2", amount=-200.00),
+            make_transaction(transaction_id="t3", amount=100.00),
+        ]
+
+        result = service.find_matching(transactions, TransactionFilter(amount_min=-100.00))
+
+        ids = {t.transaction_id for t in result}
+        assert "t1" in ids   # -50 >= -100
+        assert "t3" in ids   # 100 >= -100
+        assert "t2" not in ids  # -200 < -100
+
+    def it_should_apply_amount_max_signed_bound(self):
+        service = TransactionQueryService()
+        transactions = [
+            make_transaction(transaction_id="t1", amount=-50.00),
+            make_transaction(transaction_id="t2", amount=200.00),
+            make_transaction(transaction_id="t3", amount=100.00),
+        ]
+
+        result = service.find_matching(transactions, TransactionFilter(amount_max=100.00))
+
+        ids = {t.transaction_id for t in result}
+        assert "t1" in ids    # -50 <= 100
+        assert "t3" in ids    # 100 <= 100
+        assert "t2" not in ids   # 200 > 100
+
+    def it_should_apply_min_abs_amount_filter(self):
+        service = TransactionQueryService()
+        transactions = [
+            make_transaction(transaction_id="t1", amount=-10.00),
+            make_transaction(transaction_id="t2", amount=-500.00),
+            make_transaction(transaction_id="t3", amount=250.00),
+        ]
+
+        result = service.find_matching(transactions, TransactionFilter(min_abs_amount=100.00))
+
+        ids = {t.transaction_id for t in result}
+        assert "t2" in ids   # abs(-500) = 500 >= 100
+        assert "t3" in ids   # abs(250) = 250 >= 100
+        assert "t1" not in ids  # abs(-10) = 10 < 100
+
+    def it_should_filter_by_category_case_insensitive(self):
+        service = TransactionQueryService()
+        transactions = [
+            make_transaction(transaction_id="t1", category="Groceries"),
+            make_transaction(transaction_id="t2", category="utilities"),
+            make_transaction(transaction_id="t3", category="Groceries"),
+            make_transaction(transaction_id="t4", category=None),
+        ]
+
+        result = service.find_matching(transactions, TransactionFilter(category="groceries"))
+
+        ids = {t.transaction_id for t in result}
+        assert "t1" in ids
+        assert "t3" in ids
+        assert "t2" not in ids
+        assert "t4" not in ids
+
+    def it_should_filter_by_subcategory_case_insensitive(self):
+        service = TransactionQueryService()
+        transactions = [
+            make_transaction(transaction_id="t1", category="Housing", subcategory="Rent"),
+            make_transaction(transaction_id="t2", category="Housing", subcategory="Utilities"),
+            make_transaction(transaction_id="t3", category="Housing", subcategory=None),
+        ]
+
+        result = service.find_matching(transactions, TransactionFilter(subcategory="rent"))
+
+        assert len(result) == 1
+        assert result[0].transaction_id == "t1"
+
+    def it_should_apply_multiple_criteria_as_and(self):
+        service = TransactionQueryService()
+        transactions = [
+            make_transaction(
+                transaction_id="t1", account_id="MYBANK_CHQ", date="2025-06-01", amount=-150.00
+            ),
+            make_transaction(
+                transaction_id="t2", account_id="MYBANK_CC", date="2025-06-01", amount=-150.00
+            ),
+            make_transaction(
+                transaction_id="t3", account_id="MYBANK_CHQ", date="2024-06-01", amount=-150.00
+            ),
+            make_transaction(
+                transaction_id="t4", account_id="MYBANK_CHQ", date="2025-06-01", amount=-50.00
+            ),
+        ]
+
+        result = service.find_matching(
+            transactions,
+            TransactionFilter(account_id="MYBANK_CHQ", year=2025, amount_min=-200.00,
+                              amount_max=-100.00),
+        )
+
+        assert len(result) == 1
+        assert result[0].transaction_id == "t1"

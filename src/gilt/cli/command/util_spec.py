@@ -15,6 +15,7 @@ from gilt.cli.command.util import (
     find_matches_by_criteria,
     find_uncategorized,
     fmt_colored_amount,
+    load_filtered_transactions,
     print_error,
     print_error_list,
     print_transaction_table,
@@ -35,6 +36,7 @@ from gilt.services.transaction_operations_service import (
     SearchCriteria,
     TransactionOperationsService,
 )
+from gilt.services.transaction_query_service import TransactionFilter
 from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
@@ -669,3 +671,59 @@ class DescribeFindMatchesByCriteria:
             pattern=None,
             amount=None,
         )
+
+
+class DescribeLoadFilteredTransactions:
+    def it_should_return_none_when_projections_missing(self, tmp_path):
+        workspace = Workspace(root=tmp_path)
+
+        result = load_filtered_transactions(workspace, TransactionFilter())
+
+        assert result is None
+
+    def it_should_return_filtered_transactions_from_projections(self, tmp_path):
+        from decimal import Decimal
+
+        from gilt.model.events import TransactionImported
+        from gilt.services.transaction_query_service import TransactionFilter
+        from gilt.storage.event_store import EventStore
+        from gilt.storage.projection import ProjectionBuilder
+
+        workspace = Workspace(root=tmp_path)
+        workspace.event_store_path.parent.mkdir(parents=True, exist_ok=True)
+        store = EventStore(str(workspace.event_store_path))
+        store.append_event(
+            TransactionImported(
+                transaction_id="aaaa0001aaaa0001",
+                transaction_date="2025-03-10",
+                source_file="test.csv",
+                source_account="MYBANK_CHQ",
+                raw_description="EXAMPLE UTILITY",
+                amount=Decimal("-75.00"),
+                currency="CAD",
+                raw_data={},
+            )
+        )
+        store.append_event(
+            TransactionImported(
+                transaction_id="bbbb0002bbbb0002",
+                transaction_date="2025-04-15",
+                source_file="test.csv",
+                source_account="MYBANK_CC",
+                raw_description="SAMPLE STORE",
+                amount=Decimal("-30.00"),
+                currency="CAD",
+                raw_data={},
+            )
+        )
+        builder = ProjectionBuilder(workspace.projections_path)
+        builder.build_from_scratch(store)
+
+        result = load_filtered_transactions(
+            workspace, TransactionFilter(account_id="MYBANK_CHQ")
+        )
+
+        assert result is not None
+        assert len(result) == 1
+        assert result[0].transaction_id == "aaaa0001aaaa0001"
+        assert result[0].account_id == "MYBANK_CHQ"
