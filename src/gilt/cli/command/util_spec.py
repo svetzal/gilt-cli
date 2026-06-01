@@ -12,6 +12,7 @@ from gilt.cli.command.util import (
     display_transaction_matches,
     find_by_account,
     find_by_id_prefix,
+    find_matches_by_criteria,
     find_uncategorized,
     fmt_colored_amount,
     print_error,
@@ -608,3 +609,63 @@ class DescribeSearchByCriteria:
 
         assert result is preview
         mock_console.print.assert_not_called()
+
+
+class DescribeFindMatchesByCriteria:
+    def it_should_accumulate_pairs_across_multiple_accounts(self, mocker):
+        mocker.patch("gilt.cli.command.util.console")
+        g1 = _make_group("aaaa0001aaaa0001", description="SAMPLE STORE")
+        g2 = _make_group("bbbb0002bbbb0002", description="ACME CORP")
+        groups_by_account = {"ACC1": [g1], "ACC2": [g2]}
+        criteria = SearchCriteria(description="SAMPLE STORE")
+        service = Mock(spec=TransactionOperationsService)
+        service.find_transaction_targets.side_effect = [[g1], [g2]]
+
+        result = find_matches_by_criteria(groups_by_account, criteria, service)
+
+        assert result == [("ACC1", g1), ("ACC2", g2)]
+
+    def it_should_return_none_and_print_error_when_service_returns_nonempty_string(self, mocker):
+        mock_console = mocker.patch("gilt.cli.command.util.console")
+        g1 = _make_group("aaaa0001aaaa0001")
+        groups_by_account = {"ACC1": [g1]}
+        criteria = SearchCriteria(description="SAMPLE STORE")
+        service = Mock(spec=TransactionOperationsService)
+        service.find_transaction_targets.return_value = "Invalid regex pattern"
+
+        result = find_matches_by_criteria(groups_by_account, criteria, service)
+
+        assert result is None
+        mock_console.print.assert_called_once()
+
+    def it_should_return_none_silently_when_service_returns_empty_string(self, mocker):
+        mock_console = mocker.patch("gilt.cli.command.util.console")
+        g1 = _make_group("aaaa0001aaaa0001")
+        groups_by_account = {"ACC1": [g1]}
+        criteria = SearchCriteria(description="SAMPLE STORE")
+        service = Mock(spec=TransactionOperationsService)
+        service.find_transaction_targets.return_value = ""
+
+        result = find_matches_by_criteria(groups_by_account, criteria, service)
+
+        assert result is None
+        mock_console.print.assert_not_called()
+
+    def it_should_forward_txid_to_service(self, mocker):
+        mocker.patch("gilt.cli.command.util.console")
+        g1 = _make_group("aaaa0001aaaa0001")
+        groups_by_account = {"ACC1": [g1]}
+        criteria = SearchCriteria()
+        service = Mock(spec=TransactionOperationsService)
+        service.find_transaction_targets.return_value = [g1]
+
+        find_matches_by_criteria(groups_by_account, criteria, service, txid="aaaa0001")
+
+        service.find_transaction_targets.assert_called_once_with(
+            [g1],
+            txid="aaaa0001",
+            description=None,
+            desc_prefix=None,
+            pattern=None,
+            amount=None,
+        )

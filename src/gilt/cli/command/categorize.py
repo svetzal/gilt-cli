@@ -23,6 +23,7 @@ from .util import (
     console,
     display_transaction_matches,
     find_by_account,
+    find_matches_by_criteria,
     fmt_amount_str,
     group_by_account,
     print_dry_run_message,
@@ -86,36 +87,6 @@ def _load_and_filter_transactions(
     return all_transactions
 
 
-def _find_matches(
-    groups_by_account: dict[str, list[TransactionGroup]],
-    single_mode: bool,
-    txid: str | None,
-    criteria: SearchCriteria,
-    pattern: str | None,
-    service: TransactionOperationsService,
-) -> list[tuple[str, TransactionGroup]] | None:
-    """Find matching transactions. Returns None on error (invalid pattern or ambiguous)."""
-    all_matches: list[tuple[str, TransactionGroup]] = []
-
-    for account_id, groups in groups_by_account.items():
-        result = service.find_transaction_targets(
-            groups,
-            txid=txid if single_mode else None,
-            description=criteria.description,
-            desc_prefix=criteria.desc_prefix,
-            pattern=criteria.pattern,
-            amount=criteria.amount,
-        )
-        if isinstance(result, str):
-            if result:
-                print_error(result)
-            return None
-        for match in result:
-            all_matches.append((account_id, match))
-
-    return all_matches
-
-
 def _resolve_targets(
     all_transactions: list[dict],
     single_mode: bool,
@@ -137,7 +108,9 @@ def _resolve_targets(
         amount=amount,
     )
     groups_by_account = group_by_account(all_transactions)
-    return _find_matches(groups_by_account, single_mode, txid, criteria, pattern, service)
+    return find_matches_by_criteria(
+        groups_by_account, criteria, service, txid=txid if single_mode else None
+    )
 
 
 def _confirm_batch(total_matched: int, single_mode: bool, assume_yes: bool, write: bool) -> bool:

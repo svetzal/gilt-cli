@@ -299,6 +299,32 @@ def find_by_id_prefix(
     return [result.transaction] if result.transaction else []
 
 
+def find_matches_by_criteria(
+    groups_by_account: dict[str, list[TransactionGroup]],
+    criteria: SearchCriteria,
+    service: TransactionOperationsService,
+    *,
+    txid: str | None = None,
+) -> list[tuple[str, TransactionGroup]] | None:
+    all_matches: list[tuple[str, TransactionGroup]] = []
+    for account_id, groups in groups_by_account.items():
+        result = service.find_transaction_targets(
+            groups,
+            txid=txid,
+            description=criteria.description,
+            desc_prefix=criteria.desc_prefix,
+            pattern=criteria.pattern,
+            amount=criteria.amount,
+        )
+        if isinstance(result, str):
+            if result:
+                print_error(result)
+            return None
+        for match in result:
+            all_matches.append((account_id, match))
+    return all_matches
+
+
 def search_by_criteria(
     service: TransactionOperationsService,
     criteria: SearchCriteria,

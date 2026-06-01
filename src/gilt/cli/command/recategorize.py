@@ -30,6 +30,7 @@ from gilt.workspace import Workspace
 from .util import (
     console,
     display_transaction_matches,
+    find_matches_by_criteria,
     fmt_amount_str,
     group_by_account,
     print_dry_run_message,
@@ -172,32 +173,6 @@ def _find_matching_transactions(
         group = TransactionGroup.from_projection_row(row)
         matches.append((row["account_id"], group))
     return matches
-
-
-def _find_matches_with_selection(
-    groups_by_account: dict[str, list[TransactionGroup]],
-    criteria: SearchCriteria,
-    service: TransactionOperationsService,
-) -> list[tuple[str, TransactionGroup]] | None:
-    """Find matches via desc_prefix/pattern using the service layer.
-
-    Returns None on error (invalid pattern).  An empty list means no matches.
-    """
-    all_matches: list[tuple[str, TransactionGroup]] = []
-    for account_id, groups in groups_by_account.items():
-        result = service.find_transaction_targets(
-            groups,
-            desc_prefix=criteria.desc_prefix,
-            pattern=criteria.pattern,
-            amount=criteria.amount,
-        )
-        if isinstance(result, str):
-            if result:
-                print_error(result)
-            return None
-        for match in result:
-            all_matches.append((account_id, match))
-    return all_matches
 
 
 # ---------------------------------------------------------------------------
@@ -388,7 +363,7 @@ def _build_text_matches(
         service = TransactionOperationsService()
     criteria = SearchCriteria(desc_prefix=desc_prefix, pattern=pattern)
     groups_by_account = group_by_account(filtered_rows)
-    return _find_matches_with_selection(groups_by_account, criteria, service)
+    return find_matches_by_criteria(groups_by_account, criteria, service)
 
 
 def _run_selection_mode(
