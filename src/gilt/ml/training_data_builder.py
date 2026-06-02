@@ -43,7 +43,7 @@ class TrainingDataBuilder:
         # Process confirmed duplicates (positive examples)
         for event in confirmed_events:
             if isinstance(event, DuplicateConfirmed):
-                pair = self._confirmed_event_to_pair(event, suggestions_by_id)
+                pair = self._event_to_pair(event, suggestions_by_id)
                 if pair:
                     pairs.append(pair)
                     labels.append(True)
@@ -51,34 +51,32 @@ class TrainingDataBuilder:
         # Process rejected duplicates (negative examples)
         for event in rejected_events:
             if isinstance(event, DuplicateRejected):
-                pair = self._rejected_event_to_pair(event, suggestions_by_id)
+                pair = self._event_to_pair(event, suggestions_by_id)
                 if pair:
                     pairs.append(pair)
                     labels.append(False)
 
         return pairs, labels
 
-    def _confirmed_event_to_pair(
+    def _event_to_pair(
         self,
-        event: DuplicateConfirmed,
+        event: DuplicateConfirmed | DuplicateRejected,
         suggestions_by_id: dict,
     ) -> TransactionPair | None:
-        """Reconstruct TransactionPair from DuplicateConfirmed event.
+        """Reconstruct TransactionPair from a duplicate-feedback event.
 
         Args:
-            event: DuplicateConfirmed event
+            event: DuplicateConfirmed or DuplicateRejected event
             suggestions_by_id: Index of DuplicateSuggested events
 
         Returns:
             TransactionPair or None if reconstruction fails
         """
         try:
-            # Get the original suggestion
             suggestion = suggestions_by_id.get(event.suggestion_event_id)
             if not suggestion or "assessment" not in suggestion.__dict__:
                 return None
 
-            # Extract pair data from assessment
             assessment = suggestion.assessment
             if "pair" not in assessment:
                 return None
@@ -87,39 +85,6 @@ class TrainingDataBuilder:
             return TransactionPair(**pair_data)
 
         except (ValueError, AttributeError, TypeError, KeyError):
-            # Log error but continue processing
-            return None
-
-    def _rejected_event_to_pair(
-        self,
-        event: DuplicateRejected,
-        suggestions_by_id: dict,
-    ) -> TransactionPair | None:
-        """Reconstruct TransactionPair from DuplicateRejected event.
-
-        Args:
-            event: DuplicateRejected event
-            suggestions_by_id: Index of DuplicateSuggested events
-
-        Returns:
-            TransactionPair or None if reconstruction fails
-        """
-        try:
-            # Get the original suggestion
-            suggestion = suggestions_by_id.get(event.suggestion_event_id)
-            if not suggestion or "assessment" not in suggestion.__dict__:
-                return None
-
-            # Extract pair data from assessment
-            assessment = suggestion.assessment
-            if "pair" not in assessment:
-                return None
-
-            pair_data = assessment["pair"]
-            return TransactionPair(**pair_data)
-
-        except (ValueError, AttributeError, TypeError, KeyError):
-            # Log error but continue processing
             return None
 
     def get_statistics(self) -> dict:
