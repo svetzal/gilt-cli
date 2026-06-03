@@ -28,7 +28,13 @@ from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.storage.budget_projection import BudgetProjectionBuilder
 from gilt.workspace import Workspace
 
-from .util import build_effective_paths, console, print_error, print_error_list
+from .util import (
+    build_effective_paths,
+    build_event_sourcing_service,
+    console,
+    print_error,
+    print_error_list,
+)
 
 
 def _display_dry_run_plan(ledger_files: list[Path], has_categories: bool) -> None:
@@ -277,10 +283,8 @@ def run(
     console.print("[bold cyan]Migrating to Event Sourcing Architecture[/]")
     console.print()
 
-    es_service = EventSourcingService(
-        event_store_path=effective_event_store_path,
-        projections_path=effective_projections_db_path,
-        workspace=workspace,
+    es_service = build_event_sourcing_service(
+        workspace, effective_event_store_path, effective_projections_db_path
     )
 
     console.print("[bold]Step 1: Checking preconditions[/]")
@@ -305,19 +309,37 @@ def run(
         _display_dry_run_plan(ledger_files, has_categories)
         return 0
 
-    # Backfill
-    console.print("[bold]Step 2: Backfilling events from CSV files[/]")
-    transaction_events, budget_events, errors = _backfill_events(
+    return _run_migration(
+        es_service,
+        data_dir,
+        categories_config,
         ledger_files,
         has_categories,
-        categories_config,
-        es_service,
+        effective_event_store_path,
+        effective_projections_db_path,
+        effective_budget_projections_db_path,
+    )
+
+
+def _run_migration(
+    es_service: EventSourcingService,
+    data_dir: Path,
+    categories_config: Path,
+    ledger_files: list[Path],
+    has_categories: bool,
+    effective_event_store_path: Path,
+    effective_projections_db_path: Path,
+    effective_budget_projections_db_path: Path,
+) -> int:
+    """Execute backfill → build projections → validate → summary."""
+    console.print("[bold]Step 2: Backfilling events from CSV files[/]")
+    transaction_events, budget_events, errors = _backfill_events(
+        ledger_files, has_categories, categories_config, es_service,
     )
     console.print(f"[green]✓[/green] Created {transaction_events} transaction event(s)")
     if has_categories:
         console.print(f"[green]✓[/green] Created {budget_events} budget event(s)")
 
-    # Build projections
     console.print("\n[bold]Step 3: Building projections from events[/]")
     projections_result = _build_projections(
         es_service, has_categories, effective_budget_projections_db_path
@@ -331,16 +353,10 @@ def run(
             f"[green]✓[/green] Built budget projections ({budget_count} events processed)"
         )
 
-    # Validate
     console.print("\n[bold]Step 4: Validating migration[/]")
     try:
         validation_result = _validate_migration(
-            es_service,
-            data_dir,
-            has_categories,
-            categories_config,
-            tx_builder,
-            budget_builder,
+            es_service, data_dir, has_categories, categories_config, tx_builder, budget_builder,
         )
     except (OSError, ValueError) as e:
         print_error(f"Validation failed: {e}")
@@ -349,7 +365,6 @@ def run(
     if validation_exit != 0:
         return validation_exit
 
-    # Display summary
     _display_completion_summary(
         effective_event_store_path,
         effective_projections_db_path,
@@ -357,7 +372,6 @@ def run(
         budget_events,
         errors,
     )
-
     return 0
 
 

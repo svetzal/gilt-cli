@@ -56,11 +56,10 @@ from gilt.services.duplicate_review_service import (
     DuplicateReviewService,
     UserDecision,
 )
-from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.transfer.duplicate_detector import DuplicateDetector
 from gilt.workspace import Workspace
 
-from .util import console, require_event_sourcing
+from .util import build_event_sourcing_service, console, require_event_sourcing
 
 
 @dataclass
@@ -392,7 +391,7 @@ def run(
         return 1
     event_store = ready.event_store
     projection_builder = ready.projection_builder
-    es_service = EventSourcingService(workspace=workspace)
+    es_service = build_event_sourcing_service(workspace)
 
     review_service = DuplicateReviewService(event_store=event_store)
 
@@ -442,6 +441,23 @@ def run(
         event_store=event_store,
     )
 
+    return _run_detection_session(
+        review_ctx, filtered_matches, review_service, detector, model, interactive,
+        skipped_count, use_llm,
+    )
+
+
+def _run_detection_session(
+    review_ctx: ReviewContext,
+    filtered_matches: list,
+    review_service,
+    detector,
+    model: str,
+    interactive: bool,
+    skipped_count: int,
+    use_llm: bool,
+) -> int:
+    """Run review loop over matched pairs, display results, and finalize session."""
     _run_review_loop(review_ctx, filtered_matches, review_service, detector, model, interactive)
 
     if not interactive:

@@ -125,7 +125,11 @@ def run(
         _display_rules(rules)
         return 0
 
-    # Apply mode: find uncategorized transactions matching rules
+    return _run_apply_mode(workspace, service, rules, write)
+
+
+def _run_apply_mode(workspace: Workspace, service: RuleInferenceService, rules, write: bool) -> int:
+    """Find uncategorized transactions matching rules, display, and optionally persist."""
     all_txns = ProjectionBuilder(workspace.projections_path).get_all_transactions(
         include_duplicates=False
     )
@@ -141,7 +145,6 @@ def run(
         print_dry_run_message(detail=f"{len(matches)} transaction(s)")
         return 0
 
-    # Write mode
     ready = require_event_sourcing(workspace)
     if ready is None:
         return 1

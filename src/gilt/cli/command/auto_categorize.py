@@ -261,6 +261,18 @@ def run(
         console.print("  - Categorizing more transactions to improve training")
         return 0
 
+    return _review_and_persist(all_predictions, category_config, workspace, ready, write, interactive)
+
+
+def _review_and_persist(
+    all_predictions: list,
+    category_config,
+    workspace: Workspace,
+    ready,
+    write: bool,
+    interactive: bool,
+) -> int:
+    """Run interactive or batch review, then persist approved categorizations."""
     if interactive:
         approved = _interactive_review(all_predictions, category_config)
     else:

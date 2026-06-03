@@ -137,6 +137,19 @@ def build_effective_paths(
     )
 
 
+def build_event_sourcing_service(
+    workspace: Workspace,
+    event_store_path: Path | None = None,
+    projections_path: Path | None = None,
+) -> EventSourcingService:
+    """Construct an EventSourcingService with optional path overrides."""
+    return EventSourcingService(
+        event_store_path=event_store_path,
+        projections_path=projections_path,
+        workspace=workspace,
+    )
+
+
 def require_event_sourcing(
     workspace: Workspace,
     *,
@@ -154,11 +167,7 @@ def require_event_sourcing(
         projections_path: Override the projections DB path. Defaults to workspace path.
     """
     data_dir = workspace.ledger_data_dir
-    es_service = EventSourcingService(
-        workspace=workspace,
-        event_store_path=event_store_path,
-        projections_path=projections_path,
-    )
+    es_service = build_event_sourcing_service(workspace, event_store_path, projections_path)
     result = es_service.ensure_ready(data_dir=data_dir if data_dir.exists() else None)
 
     if not result.ready:
@@ -241,7 +250,7 @@ def apply_categorization_updates(
 def load_event_store(workspace: Workspace) -> EventStore | None:
     """Return the event store if it exists, else None (read-only access)."""
     if workspace.event_store_path.exists():
-        return EventSourcingService(workspace=workspace).get_event_store()
+        return build_event_sourcing_service(workspace).get_event_store()
     return None
 
 

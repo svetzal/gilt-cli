@@ -408,6 +408,15 @@ def _run_selection_mode(
 # ---------------------------------------------------------------------------
 
 
+def _parse_to_category(to_category: str) -> tuple[str, str | None] | int:
+    """Parse and validate to_category. Returns (to_cat, to_subcat) or exit code on empty."""
+    to_cat, to_subcat, _ = parse_category_path(to_category)
+    if not to_cat:
+        print_error("--to category cannot be empty")
+        return 1
+    return to_cat, to_subcat
+
+
 def run(
     *,
     to_category: str,
@@ -462,10 +471,10 @@ def run(
     Returns:
         Exit code (0 success, 1 error)
     """
-    to_cat, to_subcat, _ = parse_category_path(to_category)
-    if not to_cat:
-        print_error("--to category cannot be empty")
-        return 1
+    parsed = _parse_to_category(to_category)
+    if isinstance(parsed, int):
+        return parsed
+    to_cat, to_subcat = parsed
 
     selection_mode = any(
         x is not None

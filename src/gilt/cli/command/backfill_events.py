@@ -24,11 +24,16 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from gilt.model.category_io import load_categories_config
 from gilt.model.ledger_repository import LEDGER_IO_ERRORS, LedgerRepository
 from gilt.services.event_migration_service import EventMigrationService, MigrationStats
-from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.storage.budget_projection import BudgetProjectionBuilder
 from gilt.workspace import Workspace
 
-from .util import build_effective_paths, console, print_error, print_error_list
+from .util import (
+    build_effective_paths,
+    build_event_sourcing_service,
+    console,
+    print_error,
+    print_error_list,
+)
 
 
 def _init_event_sourcing(
@@ -37,11 +42,7 @@ def _init_event_sourcing(
     projections_path: Path,
 ) -> tuple:
     """Initialize event sourcing service and return (es_service, service, event_store)."""
-    es_service = EventSourcingService(
-        event_store_path=event_store_path,
-        projections_path=projections_path,
-        workspace=workspace,
-    )
+    es_service = build_event_sourcing_service(workspace, event_store_path, projections_path)
     service = EventMigrationService()
     event_store = es_service.get_event_store()
     return es_service, service, event_store
@@ -113,10 +114,26 @@ def run(
         console.print("[yellow]DRY RUN MODE[/] - No events will be written")
         console.print("Use --write to actually create events\n")
 
-    # Init
     _, service, event_store = _init_event_sourcing(
         workspace, effective_event_store_path, effective_projections_db_path
     )
+    return _run_backfill(
+        data_dir, categories_config, event_store, service, dry_run,
+        effective_event_store_path, effective_projections_db_path, effective_budget_projections_db_path,
+    )
+
+
+def _run_backfill(
+    data_dir: Path,
+    categories_config: Path,
+    event_store,
+    service: EventMigrationService,
+    dry_run: bool,
+    effective_event_store_path: Path,
+    effective_projections_db_path: Path,
+    effective_budget_projections_db_path: Path,
+) -> int:
+    """Backfill transactions and budgets, display summary, and validate if writing."""
     stats = MigrationStats(
         transaction_imported=0,
         transaction_categorized=0,
@@ -124,13 +141,11 @@ def run(
         errors=0,
     )
 
-    # Backfill transactions
     console.print("[bold]Step 1: Backfilling transaction events[/]")
     ledger_count = _backfill_transactions(data_dir, event_store, service, stats, dry_run)
     if ledger_count == 0:
         console.print("[yellow]No ledger files found[/]")
 
-    # Backfill budgets
     console.print("\n[bold]Step 2: Backfilling budget events[/]")
     budget_lines = _backfill_budgets(categories_config, event_store, service, stats, dry_run)
     for line in budget_lines:
@@ -138,18 +153,12 @@ def run(
     if stats.budget_created == 0:
         console.print("[yellow]No budgets found in configuration[/]")
 
-    # Display summary
     _display_summary(stats, dry_run, effective_event_store_path)
 
-    # Validate (write mode only)
     if not dry_run:
         return _validate_and_report(
-            data_dir,
-            categories_config,
-            event_store,
-            service,
-            effective_projections_db_path,
-            effective_budget_projections_db_path,
+            data_dir, categories_config, event_store, service,
+            effective_projections_db_path, effective_budget_projections_db_path,
         )
 
     return 0

@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 
 from gilt.ingest import load_accounts_config, normalize_file
 from gilt.model.ledger_repository import LEDGER_IO_ERRORS, LedgerRepository
-from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.services.ingestion_orchestration_service import IngestionOrchestrationService
 from gilt.services.ingestion_service import IngestionService
 from gilt.workspace import Workspace
@@ -14,7 +13,7 @@ from gilt.workspace import Workspace
 if TYPE_CHECKING:
     from gilt.storage.event_store import EventStore
 
-from .util import console, print_error
+from .util import build_event_sourcing_service, console, print_error
 
 
 def _print_plan(plan: Iterable[tuple[Path, str | None]], total_files: int) -> None:
@@ -110,7 +109,7 @@ def run(
         return 0
 
     output_dir = workspace.ledger_data_dir
-    es_service = EventSourcingService(workspace=workspace)
+    es_service = build_event_sourcing_service(workspace)
     event_store = es_service.get_event_store()
     console.print(f"[dim]Event store: {es_service.event_store_path}[/]")
 

@@ -137,11 +137,27 @@ def run(
         print_dry_run_message()
         return 0
 
-    # Delete ledger
+    return _execute_reingest(
+        ledger_path, reingest_svc, purge_plan, account_files,
+        ingestion_service, account, output_dir, event_store, projection_builder,
+    )
+
+
+def _execute_reingest(
+    ledger_path: Path,
+    reingest_svc,
+    purge_plan,
+    account_files: list[tuple],
+    ingestion_service,
+    account: str,
+    output_dir: Path,
+    event_store,
+    projection_builder,
+) -> int:
+    """Delete ledger, purge events/projections, re-ingest files, rebuild projections."""
     if _delete_existing_ledger(ledger_path):
         console.print(f"[green][ok][/] Removed ledger: {ledger_path.name}")
 
-    # Run purge
     purge_result = reingest_svc.run_purge(purge_plan)
     console.print(f"[green][ok][/] Purged {purge_result.events_purged} events")
     console.print(f"[green][ok][/] Purged {purge_result.projections_purged} projections")
@@ -149,14 +165,12 @@ def run(
         f"[green][ok][/] Purged {purge_result.cache_entries_purged} cached intelligence entries"
     )
 
-    # Reingest files
     written, _, written_paths = _reingest_source_files(
         account_files, ingestion_service, account, output_dir, event_store
     )
     for out_path in written_paths:
         console.print(f"[green][ok][/] Wrote {out_path}")
 
-    # Finalize
     console.print("[bold]Rebuilding projections[/]")
     modified_transfers, events_processed = _finalize_reingest(
         output_dir, projection_builder, event_store
@@ -166,6 +180,5 @@ def run(
             f"[green][ok][/] Updated {modified_transfers} ledger file(s) with transfer metadata"
         )
     console.print(f"[green][ok][/] Rebuilt projections from {events_processed} events")
-
     console.print(f"\nDone. Re-ingested {written} file(s) for account {account}.")
     return 0

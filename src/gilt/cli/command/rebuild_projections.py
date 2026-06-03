@@ -18,10 +18,9 @@ from pathlib import Path
 
 from rich.table import Table
 
-from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.workspace import Workspace
 
-from .util import console, print_error
+from .util import build_event_sourcing_service, console, print_error
 
 
 def run(
@@ -39,12 +38,7 @@ def run(
     This demonstrates a key benefit of event sourcing: the current state
     can be reconstructed at any time by replaying the immutable event log.
     """
-    # Initialize event sourcing service with optional custom paths
-    es_service = EventSourcingService(
-        event_store_path=events_db,
-        projections_path=projections_db,
-        workspace=workspace,
-    )
+    es_service = build_event_sourcing_service(workspace, events_db, projections_db)
 
     # Check if event store exists
     event_store_status = es_service.check_event_store_status()
@@ -73,7 +67,11 @@ def run(
         console.print("[yellow]Warning:[/yellow] Event store is empty")
         return 0
 
-    # Rebuild projections
+    return _rebuild_and_report(from_scratch, projection_builder, event_store, total_events)
+
+
+def _rebuild_and_report(from_scratch: bool, projection_builder, event_store, total_events: int) -> int:
+    """Rebuild projections (from scratch or incremental) and display summary."""
     try:
         if from_scratch:
             console.print(f"[dim]Processing {total_events} events...[/dim]")
@@ -86,7 +84,6 @@ def run(
 
         console.print(f"[green]✓[/green] Processed {processed} events")
 
-        # Display summary
         transactions = projection_builder.get_all_transactions(include_duplicates=False)
         duplicates = projection_builder.get_all_transactions(include_duplicates=True)
         _display_rebuild_summary(transactions, duplicates)

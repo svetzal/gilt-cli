@@ -462,7 +462,7 @@ class DescribeDuplicatesRun:
                 patch("gilt.cli.command.duplicates._filter_matches", return_value=([match], 0)),
                 patch("gilt.cli.command.duplicates._run_review_loop"),
                 patch("gilt.cli.command.duplicates._display_summary"),
-                patch("gilt.cli.command.duplicates.EventSourcingService"),
+                patch("gilt.cli.command.duplicates.build_event_sourcing_service"),
                 patch("gilt.cli.command.duplicates.DuplicateReviewService"),
                 patch("gilt.cli.command.duplicates._init_detector") as mock_init,
                 patch("gilt.cli.command.duplicates._print_detection_info"),

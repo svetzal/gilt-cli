@@ -60,6 +60,12 @@ def run(
         console.print(f"[yellow]No matching transactions for pattern '{pattern}'[/]")
         return 0
 
+    _display_history_table(rows, pattern, account, date_from, date_to)
+    return 0
+
+
+def _display_history_table(rows, pattern: str, account: str | None, date_from: str | None, date_to: str | None) -> None:
+    """Build and print the category history table."""
     title = f"History for '{pattern}'"
     if account:
         title += f" — account {account}"
@@ -90,4 +96,3 @@ def run(
         )
 
     console.print(table)
-    return 0

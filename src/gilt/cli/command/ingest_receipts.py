@@ -242,30 +242,35 @@ def run(
     skipped_already_ingested = batch.skipped_already_ingested
     skipped_parse_errors = batch.skipped_parse_errors
 
-    # Display results
     _display_results_table(matched + ambiguous + unmatched)
+    return _finalize_receipts(
+        matched, ambiguous, unmatched, skipped_already_ingested, skipped_parse_errors,
+        store, write, interactive,
+    )
 
-    # Resolve ambiguous interactively
+
+def _finalize_receipts(
+    matched: list,
+    ambiguous: list,
+    unmatched: list,
+    skipped_already_ingested: int,
+    skipped_parse_errors: int,
+    store,
+    write: bool,
+    interactive: bool,
+) -> int:
+    """Resolve ambiguous matches interactively, emit enrichment events, and display summary."""
     if interactive and ambiguous:
         resolved = _resolve_ambiguous_interactively(ambiguous)
         matched.extend(resolved)
         ambiguous = [r for r in ambiguous if r not in resolved]
 
-    # Emit events
     written = 0
     if write and matched:
         written = _emit_enrichment_events(matched, store)
 
-    # Display summary
     _display_summary(
-        console,
-        matched,
-        ambiguous,
-        unmatched,
-        skipped_already_ingested,
-        skipped_parse_errors,
-        write,
-        written,
+        console, matched, ambiguous, unmatched, skipped_already_ingested, skipped_parse_errors,
+        write, written,
     )
-
     return 0

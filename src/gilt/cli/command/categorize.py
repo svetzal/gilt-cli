@@ -299,7 +299,16 @@ def _run_file_batch(
             print_error(err)
         return 1
 
-    # Build (account_id, TransactionGroup) preview pairs from resolved entries
+    return _persist_file_batch(resolved, all_transactions, workspace, write)
+
+
+def _persist_file_batch(
+    resolved: list[tuple[str, str, str, str | None]],
+    all_transactions: list[dict],
+    workspace: Workspace,
+    write: bool,
+) -> int:
+    """Build preview, display, confirm, and persist file-batch categorizations."""
     txn_by_id = {row["transaction_id"]: row for row in all_transactions}
     preview_matches: list[tuple[str, TransactionGroup]] = []
     for txn_id, acct_id, cat, subcat in resolved:
@@ -307,7 +316,6 @@ def _run_file_batch(
         if row is None:
             continue
         group = TransactionGroup.from_projection_row(row)
-        # Temporarily set target category on the group for display
         updated_txn = group.primary.model_copy(update={"category": cat, "subcategory": subcat})
         updated_group = TransactionGroup(
             group_id=group.group_id,
@@ -374,6 +382,68 @@ def _display_batch_preview(
     )
 
 
+def _run_single_batch(
+    *,
+    workspace: Workspace,
+    account: str | None,
+    txid: str | None,
+    description: str | None,
+    desc_prefix: str | None,
+    pattern: str | None,
+    amount: float | None,
+    category: str,
+    subcategory: str | None,
+    assume_yes: bool,
+    write: bool,
+    service: TransactionOperationsService | None,
+    categorization_service: CategorizationService | None,
+) -> int:
+    """Validate inputs, resolve matching transactions, confirm, and apply categorization."""
+    inputs = _validate_inputs(
+        workspace, service, categorization_service, category, subcategory,
+        txid, description, desc_prefix, pattern,
+    )
+    if isinstance(inputs, int):
+        return inputs
+    service, categorization_service, category, subcategory, single_mode = inputs
+
+    all_transactions = load_account_transactions(workspace, account)
+    if all_transactions is None:
+        return 1
+
+    all_matches = _resolve_targets(
+        all_transactions, single_mode, txid, description, desc_prefix, pattern, amount, service
+    )
+    if all_matches is None:
+        return 1
+
+    if len(all_matches) == 0:
+        console.print("[yellow]No matching transactions found[/]")
+        return 0
+
+    if single_mode and len(all_matches) > 1:
+        console.print(
+            f"[yellow]Ambiguous --txid '{txid}':[/] matches {len(all_matches)} transactions"
+        )
+        console.print("Refine with more characters or specify --account")
+        return 1
+
+    recategorized_count = sum(
+        1 for _, g in all_matches if g.primary.category is not None and g.primary.category != ""
+    )
+    if not single_mode and len(all_matches) > 1 and not assume_yes and not write:
+        console.print(
+            f"[yellow]Batch mode:[/] {len(all_matches)} transactions would be categorized. "
+            f"Use --yes to auto-confirm (dry-run)"
+        )
+
+    result = _confirm_and_apply(
+        all_matches, category, subcategory, single_mode, assume_yes, write, workspace,
+        categorization_service,
+    )
+    return _report_categorization_result(all_matches, result, recategorized_count, write)
+
+
 def run(
     *,
     account: str | None = None,
@@ -436,69 +506,27 @@ def run(
             categorization_service=categorization_service,
         )
 
-    # Standard single/batch mode — category is required
     if category is None:
         print_error(
             "--category is required (or use --txid-file / --from-stdin for file batch mode)"
         )
         return 1
 
-    inputs = _validate_inputs(
-        workspace,
-        service,
-        categorization_service,
-        category,
-        subcategory,
-        txid,
-        description,
-        desc_prefix,
-        pattern,
+    return _run_single_batch(
+        workspace=workspace,
+        account=account,
+        txid=txid,
+        description=description,
+        desc_prefix=desc_prefix,
+        pattern=pattern,
+        amount=amount,
+        category=category,
+        subcategory=subcategory,
+        assume_yes=assume_yes,
+        write=write,
+        service=service,
+        categorization_service=categorization_service,
     )
-    if isinstance(inputs, int):
-        return inputs
-    service, categorization_service, category, subcategory, single_mode = inputs
-
-    all_transactions = load_account_transactions(workspace, account)
-    if all_transactions is None:
-        return 1
-
-    all_matches = _resolve_targets(
-        all_transactions, single_mode, txid, description, desc_prefix, pattern, amount, service
-    )
-    if all_matches is None:
-        return 1
-
-    if len(all_matches) == 0:
-        console.print("[yellow]No matching transactions found[/]")
-        return 0
-
-    if single_mode and len(all_matches) > 1:
-        console.print(
-            f"[yellow]Ambiguous --txid '{txid}':[/] matches {len(all_matches)} transactions"
-        )
-        console.print("Refine with more characters or specify --account")
-        return 1
-
-    recategorized_count = sum(
-        1 for _, g in all_matches if g.primary.category is not None and g.primary.category != ""
-    )
-    if not single_mode and len(all_matches) > 1 and not assume_yes and not write:
-        console.print(
-            f"[yellow]Batch mode:[/] {len(all_matches)} transactions would be categorized. "
-            f"Use --yes to auto-confirm (dry-run)"
-        )
-
-    result = _confirm_and_apply(
-        all_matches,
-        category,
-        subcategory,
-        single_mode,
-        assume_yes,
-        write,
-        workspace,
-        categorization_service,
-    )
-    return _report_categorization_result(all_matches, result, recategorized_count, write)
 
 
 def _validate_inputs(
