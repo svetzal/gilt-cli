@@ -24,15 +24,14 @@ from gilt.services.rule_inference_service import RuleInferenceService
 from gilt.workspace import Workspace
 
 from .util import (
+    apply_categorization_updates,
     console,
-    find_by_account,
     find_uncategorized,
     fmt_amount_str,
+    load_account_transactions,
     print_dry_run_message,
     print_error,
     require_event_sourcing,
-    require_persistence_service,
-    require_projections,
 )
 
 
@@ -72,12 +71,13 @@ def _train_classifier(workspace, min_samples) -> _TrainResult:
 
 def _load_uncategorized(workspace, account, limit) -> _LoadResult:
     """Load uncategorized transactions. Returns a _LoadResult with exit_code=None on success."""
-    projection_builder = require_projections(workspace)
-    if projection_builder is None:
+    all_rows = load_account_transactions(workspace, None)
+    if all_rows is None:
         return _LoadResult(exit_code=1)
 
-    all_transactions = projection_builder.get_all_transactions(include_duplicates=False)
-    uncategorized_rows = find_by_account(find_uncategorized(all_transactions), account)
+    uncategorized_rows = find_uncategorized(all_rows)
+    if account:
+        uncategorized_rows = [r for r in uncategorized_rows if r.get("account_id") == account]
 
     if not uncategorized_rows:
         return _LoadResult(exit_code=0)
@@ -90,7 +90,7 @@ def _load_uncategorized(workspace, account, limit) -> _LoadResult:
     uncategorized_txns = [Transaction.from_projection_row(row) for row in uncategorized_rows]
     return _LoadResult(
         exit_code=None,
-        projection_builder=projection_builder,
+        projection_builder=None,
         uncategorized_txns=uncategorized_txns,
         limited_to=limited_to,
     )
@@ -98,7 +98,6 @@ def _load_uncategorized(workspace, account, limit) -> _LoadResult:
 
 def _write_categorizations(approved, ready, workspace) -> int:
     """Apply categorizations: emit events, update CSVs, rebuild projections. Returns updated count."""
-    persistence_svc = require_persistence_service(ready, workspace)
     updates = []
     for account_id, txn_id, _, category_path, confidence in approved:
         cat_name, subcat_name = build_category_from_path(category_path)
@@ -113,7 +112,7 @@ def _write_categorizations(approved, ready, workspace) -> int:
             )
         )
 
-    result = persistence_svc.persist_categorizations(updates)
+    result = apply_categorization_updates(ready, workspace, updates)
     return result.transactions_updated
 
 

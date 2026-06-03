@@ -10,8 +10,12 @@ from rich.text import Text
 
 from gilt.cli.presentation import build_transaction_table
 from gilt.model.account import Transaction, TransactionGroup
+from gilt.model.category_io import build_category_from_path
 from gilt.model.ledger_repository import LedgerRepository
-from gilt.services.categorization_persistence_service import CategorizationPersistenceService
+from gilt.services.categorization_persistence_service import (
+    CategorizationPersistenceResult,
+    CategorizationPersistenceService,
+)
 from gilt.services.event_sourcing_service import EventSourcingReadyResult, EventSourcingService
 from gilt.services.transaction_operations_service import (
     BatchPreview,
@@ -19,6 +23,7 @@ from gilt.services.transaction_operations_service import (
     TransactionOperationsService,
 )
 from gilt.services.transaction_query_service import TransactionFilter, TransactionQueryService
+from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
@@ -198,6 +203,73 @@ def require_persistence_service(
         projection_builder=ready.projection_builder,
         ledger_repo=LedgerRepository(workspace.ledger_data_dir),
     )
+
+
+def load_account_transactions(workspace: Workspace, account: str | None) -> list[dict] | None:
+    """require_projections → get_all_transactions(include_duplicates=False) → find_by_account.
+
+    Prints an error and returns None when projections are missing or when no transactions
+    exist for the requested account.
+    """
+    projection_builder = require_projections(workspace)
+    if projection_builder is None:
+        return None
+
+    all_transactions = projection_builder.get_all_transactions(include_duplicates=False)
+    all_transactions = find_by_account(all_transactions, account)
+
+    if account and not all_transactions:
+        print_error(f"No transactions found for account '{account}'")
+        return None
+
+    if not all_transactions:
+        print_error("No transactions found in projections database")
+        return None
+
+    return all_transactions
+
+
+def apply_categorization_updates(
+    ready: EventSourcingReadyResult,
+    workspace: Workspace,
+    updates: list,
+) -> CategorizationPersistenceResult:
+    """Construct persistence service and forward updates to persist_categorizations."""
+    return require_persistence_service(ready, workspace).persist_categorizations(updates)
+
+
+def load_event_store(workspace: Workspace) -> EventStore | None:
+    """Return the event store if it exists, else None (read-only access)."""
+    if workspace.event_store_path.exists():
+        return EventSourcingService(workspace=workspace).get_event_store()
+    return None
+
+
+def parse_category_path(
+    category: str,
+    subcategory: str | None = None,
+) -> tuple[str, str | None, str | None]:
+    """Split 'Category:Subcategory' syntax and resolve --subcategory conflicts.
+
+    Returns (cat_name, subcat_name, warning).
+    cat_name is empty string when the input has no valid category part.
+    warning is a non-None string when --subcategory conflicts with the ':' syntax.
+    """
+    cat_name, subcat_from_path = build_category_from_path(category)
+    if not cat_name:
+        return "", None, None
+
+    if ":" in category and subcategory and subcategory != subcat_from_path:
+        warning = (
+            f"Both --category contains ':' and --subcategory specified. "
+            f"Using category='{cat_name}', subcategory='{subcat_from_path}'"
+        )
+        return cat_name, subcat_from_path, warning
+
+    if ":" in category:
+        return cat_name, subcat_from_path, None
+
+    return cat_name, subcategory, None
 
 
 def display_transaction_matches(

@@ -8,6 +8,7 @@ from unittest.mock import Mock
 from rich.table import Table
 
 from gilt.cli.command.util import (
+    apply_categorization_updates,
     build_transaction_table,
     display_transaction_matches,
     find_by_account,
@@ -15,7 +16,10 @@ from gilt.cli.command.util import (
     find_matches_by_criteria,
     find_uncategorized,
     fmt_colored_amount,
+    load_account_transactions,
+    load_event_store,
     load_filtered_transactions,
+    parse_category_path,
     print_error,
     print_error_list,
     print_transaction_table,
@@ -28,7 +32,11 @@ from gilt.cli.command.util import (
 )
 from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.events import TransactionImported
-from gilt.services.categorization_persistence_service import CategorizationPersistenceService
+from gilt.services.categorization_persistence_service import (
+    CategorizationPersistenceResult,
+    CategorizationPersistenceService,
+    CategorizationUpdate,
+)
 from gilt.services.event_sourcing_service import EventSourcingReadyResult
 from gilt.services.transaction_operations_service import (
     BatchPreview,
@@ -671,6 +679,178 @@ class DescribeFindMatchesByCriteria:
             pattern=None,
             amount=None,
         )
+
+
+class DescribeLoadAccountTransactions:
+    def it_should_return_none_when_projections_missing(self, tmp_path):
+        workspace = Workspace(root=tmp_path)
+
+        result = load_account_transactions(workspace, None)
+
+        assert result is None
+
+    def it_should_return_none_and_print_error_when_no_transactions_for_account(
+        self, tmp_path, mocker
+    ):
+        from decimal import Decimal
+
+        from gilt.model.events import TransactionImported
+        from gilt.storage.event_store import EventStore
+        from gilt.storage.projection import ProjectionBuilder
+
+        workspace = Workspace(root=tmp_path)
+        workspace.event_store_path.parent.mkdir(parents=True, exist_ok=True)
+        store = EventStore(str(workspace.event_store_path))
+        store.append_event(
+            TransactionImported(
+                transaction_id="aaaa0001aaaa0001",
+                transaction_date="2025-01-10",
+                source_file="test.csv",
+                source_account="MYBANK_CHQ",
+                raw_description="EXAMPLE UTILITY",
+                amount=Decimal("-50.00"),
+                currency="CAD",
+                raw_data={},
+            )
+        )
+        ProjectionBuilder(workspace.projections_path).build_from_scratch(store)
+        mock_console = mocker.patch("gilt.cli.command.util.console")
+
+        result = load_account_transactions(workspace, "NONEXISTENT_ACCT")
+
+        assert result is None
+        mock_console.print.assert_called()
+        args = mock_console.print.call_args[0][0]
+        assert "NONEXISTENT_ACCT" in args
+
+    def it_should_return_filtered_rows_on_happy_path(self, tmp_path):
+        from decimal import Decimal
+
+        from gilt.model.events import TransactionImported
+        from gilt.storage.event_store import EventStore
+        from gilt.storage.projection import ProjectionBuilder
+
+        workspace = Workspace(root=tmp_path)
+        workspace.event_store_path.parent.mkdir(parents=True, exist_ok=True)
+        store = EventStore(str(workspace.event_store_path))
+        store.append_event(
+            TransactionImported(
+                transaction_id="aaaa0001aaaa0001",
+                transaction_date="2025-01-10",
+                source_file="test.csv",
+                source_account="MYBANK_CHQ",
+                raw_description="EXAMPLE UTILITY",
+                amount=Decimal("-50.00"),
+                currency="CAD",
+                raw_data={},
+            )
+        )
+        store.append_event(
+            TransactionImported(
+                transaction_id="bbbb0002bbbb0002",
+                transaction_date="2025-01-11",
+                source_file="test.csv",
+                source_account="MYBANK_CC",
+                raw_description="SAMPLE STORE",
+                amount=Decimal("-20.00"),
+                currency="CAD",
+                raw_data={},
+            )
+        )
+        ProjectionBuilder(workspace.projections_path).build_from_scratch(store)
+
+        result = load_account_transactions(workspace, "MYBANK_CHQ")
+
+        assert result is not None
+        assert len(result) == 1
+        assert result[0]["account_id"] == "MYBANK_CHQ"
+
+
+class DescribeApplyCategorizationUpdates:
+    def it_should_call_persist_categorizations_with_updates(self, tmp_path, mocker):
+        ready = Mock(spec=EventSourcingReadyResult)
+        workspace = Workspace(root=tmp_path)
+        updates = [
+            CategorizationUpdate(
+                transaction_id="aaaa0001aaaa0001",
+                account_id="MYBANK_CHQ",
+                category="Food",
+                subcategory=None,
+                source="user",
+                confidence=1.0,
+            )
+        ]
+        expected_result = CategorizationPersistenceResult(transactions_updated=1, events_emitted=1)
+        mock_svc = mocker.patch("gilt.cli.command.util.require_persistence_service")
+        mock_svc.return_value.persist_categorizations.return_value = expected_result
+
+        result = apply_categorization_updates(ready, workspace, updates)
+
+        mock_svc.return_value.persist_categorizations.assert_called_once_with(updates)
+        assert result is expected_result
+
+
+class DescribeLoadEventStore:
+    def it_should_return_none_when_event_store_missing(self, tmp_path):
+        workspace = Workspace(root=tmp_path)
+
+        result = load_event_store(workspace)
+
+        assert result is None
+
+    def it_should_return_event_store_when_it_exists(self, tmp_path):
+        from gilt.storage.event_store import EventStore
+
+        workspace = Workspace(root=tmp_path)
+        workspace.event_store_path.parent.mkdir(parents=True, exist_ok=True)
+        EventStore(str(workspace.event_store_path))
+
+        result = load_event_store(workspace)
+
+        assert result is not None
+
+
+class DescribeParseCategoryPath:
+    def it_should_split_colon_syntax_into_category_and_subcategory(self):
+        cat, subcat, warning = parse_category_path("Food:Groceries")
+
+        assert cat == "Food"
+        assert subcat == "Groceries"
+        assert warning is None
+
+    def it_should_return_empty_cat_for_empty_input(self):
+        cat, subcat, warning = parse_category_path("")
+
+        assert cat == ""
+        assert subcat is None
+        assert warning is None
+
+    def it_should_return_warning_when_subcategory_conflicts_with_colon_syntax(self):
+        cat, subcat, warning = parse_category_path("Food:Groceries", subcategory="Dining")
+
+        assert cat == "Food"
+        assert subcat == "Groceries"
+        assert warning is not None
+        assert "--subcategory" in warning or "subcategory" in warning.lower()
+
+    def it_should_prefer_colon_subcat_over_separate_subcategory_arg(self):
+        cat, subcat, warning = parse_category_path("Food:Groceries", subcategory="Dining")
+
+        assert subcat == "Groceries"
+
+    def it_should_accept_subcategory_when_no_colon_in_category(self):
+        cat, subcat, warning = parse_category_path("Food", subcategory="Groceries")
+
+        assert cat == "Food"
+        assert subcat == "Groceries"
+        assert warning is None
+
+    def it_should_return_category_only_when_no_colon_and_no_subcategory(self):
+        cat, subcat, warning = parse_category_path("Food")
+
+        assert cat == "Food"
+        assert subcat is None
+        assert warning is None
 
 
 class DescribeLoadFilteredTransactions:

@@ -20,7 +20,6 @@ from datetime import date  # noqa: E402 — needed before typer import
 import typer
 
 from gilt.model.account import Transaction, TransactionGroup
-from gilt.model.category_io import build_category_from_path
 from gilt.services.transaction_operations_service import (
     SearchCriteria,
     TransactionOperationsService,
@@ -29,15 +28,17 @@ from gilt.services.transaction_query_service import TransactionFilter, Transacti
 from gilt.workspace import Workspace
 
 from .util import (
+    apply_categorization_updates,
     console,
     display_transaction_matches,
     find_matches_by_criteria,
     fmt_amount_str,
+    load_account_transactions,
+    parse_category_path,
     print_dry_run_message,
     print_error,
     require_event_sourcing,
     require_persistence_service,
-    require_projections,
 )
 
 # ---------------------------------------------------------------------------
@@ -248,7 +249,6 @@ def _apply_categorization(
 
     from gilt.services.categorization_persistence_service import CategorizationUpdate
 
-    persistence_svc = require_persistence_service(ready, workspace)
     updates = [
         CategorizationUpdate(
             transaction_id=group.primary.transaction_id,
@@ -260,7 +260,7 @@ def _apply_categorization(
         )
         for account_id, group in all_matches
     ]
-    persistence_svc.persist_categorizations(updates)
+    apply_categorization_updates(ready, workspace, updates)
     console.print(f"[green]✓[/] Recategorized {total_matched} transaction(s)")
     return 0
 
@@ -280,19 +280,14 @@ def _run_rename_mode(
     write: bool,
 ) -> int:
     """Handle rename mode: find by category and rename to to_category."""
-    from_cat, from_subcat = build_category_from_path(from_category)
+    from_cat, from_subcat, _ = parse_category_path(from_category)
     if not from_cat:
         print_error("--from category cannot be empty")
         return 1
 
-    projection_builder = require_projections(workspace)
-    if projection_builder is None:
+    all_transactions = load_account_transactions(workspace, None)
+    if all_transactions is None:
         return 1
-
-    all_transactions = projection_builder.get_all_transactions(include_duplicates=False)
-    if not all_transactions:
-        console.print("[yellow]No transactions found in projections database[/]")
-        return 0
 
     all_matches = _find_matching_transactions(all_transactions, from_cat, from_subcat)
     total_matched = len(all_matches)
@@ -357,19 +352,14 @@ def _run_selection_mode(
     from_cat: str | None = None
     from_subcat: str | None = None
     if from_category:
-        from_cat, from_subcat = build_category_from_path(from_category)
+        from_cat, from_subcat, _ = parse_category_path(from_category)
         if not from_cat:
             print_error("--from category cannot be empty")
             return 1
 
-    projection_builder = require_projections(workspace)
-    if projection_builder is None:
+    all_rows = load_account_transactions(workspace, None)
+    if all_rows is None:
         return 1
-
-    all_rows = projection_builder.get_all_transactions(include_duplicates=False)
-    if not all_rows:
-        console.print("[yellow]No transactions found in projections database[/]")
-        return 0
 
     criteria = _build_transaction_filter(
         account=account,
@@ -472,7 +462,7 @@ def run(
     Returns:
         Exit code (0 success, 1 error)
     """
-    to_cat, to_subcat = build_category_from_path(to_category)
+    to_cat, to_subcat, _ = parse_category_path(to_category)
     if not to_cat:
         print_error("--to category cannot be empty")
         return 1

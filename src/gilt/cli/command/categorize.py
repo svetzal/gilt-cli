@@ -9,10 +9,9 @@ from pathlib import Path
 import typer
 
 from gilt.model.account import TransactionGroup
-from gilt.model.category_io import build_category_from_path, load_categories_config
+from gilt.model.category_io import load_categories_config
 from gilt.model.ledger_repository import LedgerRepository
 from gilt.services.categorization_service import CategorizationService
-from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.services.transaction_operations_service import (
     SearchCriteria,
     TransactionOperationsService,
@@ -20,17 +19,18 @@ from gilt.services.transaction_operations_service import (
 from gilt.workspace import Workspace
 
 from .util import (
+    apply_categorization_updates,
     console,
     display_transaction_matches,
-    find_by_account,
     find_matches_by_criteria,
     fmt_amount_str,
     group_by_account,
+    load_account_transactions,
+    load_event_store,
+    parse_category_path,
     print_dry_run_message,
     print_error,
     require_event_sourcing,
-    require_persistence_service,
-    require_projections,
     validate_single_vs_batch_mode,
 )
 
@@ -48,43 +48,6 @@ def _find_account_ledgers(data_dir: Path, account: str | None) -> list[Path]:
         return repo.ledger_paths()
 
 
-def _parse_and_validate_category(
-    category: str, subcategory: str | None
-) -> tuple[str, str | None, str | None]:
-    """Parse 'Category:Subcategory' syntax and resolve conflicts. Returns (cat, subcat, warning)."""
-    if ":" in category:
-        cat_name, subcat_from_path = build_category_from_path(category)
-        warning = None
-        if subcategory and subcategory != subcat_from_path:
-            warning = (
-                f"Both --category contains ':' and --subcategory specified. "
-                f"Using category='{cat_name}', subcategory='{subcat_from_path}'"
-            )
-        return cat_name, subcat_from_path, warning
-    return category, subcategory, None
-
-
-def _load_and_filter_transactions(
-    workspace: Workspace,
-    account: str | None,
-) -> list[dict] | None:
-    """Load transactions from projections, filter by account. Returns None on error."""
-    projection_builder = require_projections(workspace)
-    if projection_builder is None:
-        return None
-
-    all_transactions = projection_builder.get_all_transactions(include_duplicates=False)
-
-    all_transactions = find_by_account(all_transactions, account)
-    if account and not all_transactions:
-        print_error(f"No transactions found for account '{account}'")
-        return None
-
-    if not all_transactions:
-        print_error("No transactions found in projections database")
-        return None
-
-    return all_transactions
 
 
 def _resolve_targets(
@@ -182,7 +145,6 @@ def _persist_categorizations(
     """Emit events, update CSVs, and rebuild projections for categorized transactions."""
     from gilt.services.categorization_persistence_service import CategorizationUpdate
 
-    persistence_svc = require_persistence_service(ready, workspace)
     updates = [
         CategorizationUpdate(
             transaction_id=group.primary.transaction_id,
@@ -194,7 +156,7 @@ def _persist_categorizations(
         )
         for account_id, group in updated_pairs
     ]
-    persistence_svc.persist_categorizations(updates)
+    apply_categorization_updates(ready, workspace, updates)
 
 
 def _init_services(
@@ -208,9 +170,7 @@ def _init_services(
 
     category_config = load_categories_config(workspace.categories_config)
 
-    event_store = None
-    if workspace.event_store_path.exists():
-        event_store = EventSourcingService(workspace=workspace).get_event_store()
+    event_store = load_event_store(workspace)
 
     if categorization_service is None:
         categorization_service = CategorizationService(
@@ -276,7 +236,7 @@ def _resolve_batch_entries(
 
     for line_no, txid_prefix, category_path in entries:
         # Validate category first
-        cat_name, subcat_name = build_category_from_path(category_path)
+        cat_name, subcat_name, _ = parse_category_path(category_path)
         validation = categorization_service.validate_category(cat_name, subcat_name)
         if not validation.is_valid:
             errors.append(f"Line {line_no}: {'; '.join(validation.errors)}")
@@ -325,7 +285,7 @@ def _run_file_batch(
         console.print("[yellow]No entries found in batch input[/]")
         return 0
 
-    all_transactions = _load_and_filter_transactions(workspace, account)
+    all_transactions = load_account_transactions(workspace, account)
     if all_transactions is None:
         return 1
 
@@ -368,7 +328,6 @@ def _run_file_batch(
 
     from gilt.services.categorization_persistence_service import CategorizationUpdate
 
-    persistence_svc = require_persistence_service(ready, workspace)
     updates = [
         CategorizationUpdate(
             transaction_id=txn_id,
@@ -380,7 +339,7 @@ def _run_file_batch(
         )
         for txn_id, acct_id, cat, subcat in resolved
     ]
-    persistence_svc.persist_categorizations(updates)
+    apply_categorization_updates(ready, workspace, updates)
     console.print(f"[green]✓[/] Categorized {len(updates)} transaction(s)")
     return 0
 
@@ -499,7 +458,7 @@ def run(
         return inputs
     service, categorization_service, category, subcategory, single_mode = inputs
 
-    all_transactions = _load_and_filter_transactions(workspace, account)
+    all_transactions = load_account_transactions(workspace, account)
     if all_transactions is None:
         return 1
 
@@ -555,7 +514,7 @@ def _validate_inputs(
 ) -> tuple[TransactionOperationsService, CategorizationService, str, str | None, bool] | int:
     """Initialize services and validate inputs. Returns initialized tuple or exit code."""
     service, categorization_service = _init_services(workspace, service, categorization_service)
-    category, subcategory, cat_warning = _parse_and_validate_category(category, subcategory)
+    category, subcategory, cat_warning = parse_category_path(category, subcategory)
     if cat_warning:
         console.print(f"[yellow]Warning:[/] {cat_warning}")
 
