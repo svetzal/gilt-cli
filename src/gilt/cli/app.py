@@ -361,50 +361,14 @@ def recategorize(
 
     Safety: dry-run by default. Use --write to persist changes.
     """
-    from datetime import date as date_type
-
     from gilt.cli.command import recategorize as cmd_recategorize
-    from gilt.util.fy import fiscal_year_range
+    from gilt.cli.command.util import console as _console
 
-    if fy is not None and (date_from_str is not None or date_to_str is not None):
-        from gilt.cli.command.util import console as _console
-
-        _console.print("[red]Error:[/] --fy and --date-from/--date-to cannot be used together")
+    date_selection = cmd_recategorize.build_date_selection(date_from_str, date_to_str, fy)
+    if isinstance(date_selection, str):
+        _console.print(f"[red]Error:[/] {date_selection}")
         raise typer.Exit(code=1)
-
-    date_from = None
-    if date_from_str is not None:
-        try:
-            date_from = date_type.fromisoformat(date_from_str)
-        except ValueError as exc:
-            from gilt.cli.command.util import console as _console
-
-            _console.print(
-                f"[red]Error:[/] Invalid --date-from value: {date_from_str!r}. Expected YYYY-MM-DD"
-            )
-            raise typer.Exit(code=1) from exc
-
-    date_to = None
-    if date_to_str is not None:
-        try:
-            date_to = date_type.fromisoformat(date_to_str)
-        except ValueError as exc:
-            from gilt.cli.command.util import console as _console
-
-            _console.print(
-                f"[red]Error:[/] Invalid --date-to value: {date_to_str!r}. Expected YYYY-MM-DD"
-            )
-            raise typer.Exit(code=1) from exc
-
-    fy_range = None
-    if fy is not None:
-        try:
-            fy_range = fiscal_year_range(fy)
-        except ValueError as exc:
-            from gilt.cli.command.util import console as _console
-
-            _console.print(f"[red]Error:[/] {exc}")
-            raise typer.Exit(code=1) from exc
+    date_from, date_to, fy_range = date_selection
 
     code = cmd_recategorize.run(
         from_category=from_cat,

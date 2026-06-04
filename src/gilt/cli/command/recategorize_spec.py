@@ -11,7 +11,7 @@ from tempfile import TemporaryDirectory
 from typer.testing import CliRunner
 
 from gilt.cli.command.conftest import build_projections_from_csvs, write_ledger
-from gilt.cli.command.recategorize import run
+from gilt.cli.command.recategorize import build_date_selection, run
 from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.ledger_io import load_ledger_csv
 from gilt.workspace import Workspace
@@ -56,6 +56,74 @@ def _setup_workspace(tmpdir: str, groups_by_account: dict[str, list[TransactionG
         write_ledger(ledger_path, groups)
     build_projections_from_csvs(data_dir, workspace.projections_path)
     return workspace, data_dir
+
+
+# ---------------------------------------------------------------------------
+# build_date_selection helper tests
+# ---------------------------------------------------------------------------
+
+
+class DescribeBuildDateSelection:
+    """Tests for the build_date_selection pure helper."""
+
+    def it_should_return_all_none_when_no_args_given(self):
+        result = build_date_selection(None, None, None)
+        assert result == (None, None, None)
+
+    def it_should_parse_valid_date_from(self):
+        result = build_date_selection("2025-01-15", None, None)
+        assert isinstance(result, tuple)
+        date_from, date_to, fy_range = result
+        assert date_from == date(2025, 1, 15)
+        assert date_to is None
+        assert fy_range is None
+
+    def it_should_parse_valid_date_to(self):
+        result = build_date_selection(None, "2025-12-31", None)
+        assert isinstance(result, tuple)
+        date_from, date_to, fy_range = result
+        assert date_from is None
+        assert date_to == date(2025, 12, 31)
+
+    def it_should_parse_valid_fy(self):
+        result = build_date_selection(None, None, "FY25")
+        assert isinstance(result, tuple)
+        date_from, date_to, fy_range = result
+        assert date_from is None
+        assert date_to is None
+        assert fy_range == (date(2024, 11, 1), date(2025, 10, 31))
+
+    def it_should_return_error_string_for_invalid_date_from(self):
+        result = build_date_selection("not-a-date", None, None)
+        assert isinstance(result, str)
+        assert "date-from" in result
+
+    def it_should_return_error_string_for_invalid_date_to(self):
+        result = build_date_selection(None, "99-99-99", None)
+        assert isinstance(result, str)
+        assert "date-to" in result
+
+    def it_should_return_error_string_for_invalid_fy(self):
+        result = build_date_selection(None, None, "INVALID")
+        assert isinstance(result, str)
+
+    def it_should_return_error_when_fy_and_date_from_both_set(self):
+        result = build_date_selection("2025-01-01", None, "FY25")
+        assert isinstance(result, str)
+        assert "--fy" in result
+
+    def it_should_return_error_when_fy_and_date_to_both_set(self):
+        result = build_date_selection(None, "2025-12-31", "FY25")
+        assert isinstance(result, str)
+        assert "--fy" in result
+
+    def it_should_parse_both_date_from_and_date_to(self):
+        result = build_date_selection("2025-03-01", "2025-09-30", None)
+        assert isinstance(result, tuple)
+        date_from, date_to, fy_range = result
+        assert date_from == date(2025, 3, 1)
+        assert date_to == date(2025, 9, 30)
+        assert fy_range is None
 
 
 # ---------------------------------------------------------------------------

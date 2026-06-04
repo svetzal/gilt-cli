@@ -523,4 +523,48 @@ def run(
     )
 
 
-__all__ = ["run"]
+def build_date_selection(
+    date_from_str: str | None,
+    date_to_str: str | None,
+    fy: str | None,
+) -> tuple[date | None, date | None, tuple[date, date] | None] | str:
+    """Parse and validate date/fiscal-year CLI inputs.
+
+    Returns a ``(date_from, date_to, fy_range)`` triple on success, or a plain
+    ``str`` error message when the inputs are invalid.
+
+    Rules:
+    - ``--fy`` and ``--date-from``/``--date-to`` are mutually exclusive.
+    - Date strings must be in ISO-8601 format (``YYYY-MM-DD``).
+    - The fiscal year string must match the ``FY25`` / ``FY2025`` pattern.
+    """
+    from gilt.util.fy import fiscal_year_range
+
+    if fy is not None and (date_from_str is not None or date_to_str is not None):
+        return "--fy and --date-from/--date-to cannot be used together"
+
+    date_from: date | None = None
+    if date_from_str is not None:
+        try:
+            date_from = date.fromisoformat(date_from_str)
+        except ValueError:
+            return f"Invalid --date-from value: {date_from_str!r}. Expected YYYY-MM-DD"
+
+    date_to: date | None = None
+    if date_to_str is not None:
+        try:
+            date_to = date.fromisoformat(date_to_str)
+        except ValueError:
+            return f"Invalid --date-to value: {date_to_str!r}. Expected YYYY-MM-DD"
+
+    fy_range: tuple[date, date] | None = None
+    if fy is not None:
+        try:
+            fy_range = fiscal_year_range(fy)
+        except ValueError as exc:
+            return str(exc)
+
+    return date_from, date_to, fy_range
+
+
+__all__ = ["build_date_selection", "run"]
