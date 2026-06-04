@@ -18,13 +18,13 @@ from gilt.model.category_io import (
     format_category_path,
     load_categories_config,
 )
-from gilt.services.categorization_persistence_service import CategorizationUpdate
 from gilt.services.event_sourcing_service import EventSourcingReadyResult
 from gilt.services.rule_inference_service import RuleInferenceService
 from gilt.workspace import Workspace
 
 from .util import (
     apply_categorization_updates,
+    build_categorization_updates,
     console,
     find_uncategorized,
     fmt_amount_str,
@@ -98,20 +98,13 @@ def _load_uncategorized(workspace, account, limit) -> _LoadResult:
 
 def _write_categorizations(approved, ready, workspace) -> int:
     """Apply categorizations: emit events, update CSVs, rebuild projections. Returns updated count."""
-    updates = []
-    for account_id, txn_id, _, category_path, confidence in approved:
-        cat_name, subcat_name = build_category_from_path(category_path)
-        updates.append(
-            CategorizationUpdate(
-                transaction_id=txn_id,
-                account_id=account_id,
-                category=cat_name,
-                subcategory=subcat_name,
-                source="llm",
-                confidence=confidence,
-            )
-        )
-
+    updates = build_categorization_updates(
+        (
+            (txn_id, account_id) + build_category_from_path(path) + (conf,)
+            for account_id, txn_id, _, path, conf in approved
+        ),
+        source="llm",
+    )
     result = apply_categorization_updates(ready, workspace, updates)
     return result.transactions_updated
 

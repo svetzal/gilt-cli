@@ -9,6 +9,7 @@ from rich.table import Table
 
 from gilt.cli.command.util import (
     apply_categorization_updates,
+    build_categorization_updates,
     build_transaction_table,
     display_transaction_matches,
     find_by_account,
@@ -851,6 +852,50 @@ class DescribeParseCategoryPath:
         assert cat == "Food"
         assert subcat is None
         assert warning is None
+
+
+class DescribeBuildCategorizationUpdates:
+    def it_should_map_each_row_to_a_categorization_update(self):
+        rows = [
+            ("aaaa0001aaaa0001", "MYBANK_CHQ", "Food", "Groceries", 1.0),
+            ("bbbb0002bbbb0002", "MYBANK_CC", "Bills", None, 0.8),
+        ]
+
+        result = build_categorization_updates(rows, source="user")
+
+        assert len(result) == 2
+        assert result[0].transaction_id == "aaaa0001aaaa0001"
+        assert result[0].account_id == "MYBANK_CHQ"
+        assert result[0].category == "Food"
+        assert result[0].subcategory == "Groceries"
+        assert result[0].source == "user"
+        assert result[0].confidence == 1.0
+
+    def it_should_propagate_source_to_all_updates(self):
+        rows = [
+            ("aaaa0001aaaa0001", "MYBANK_CHQ", "Food", None, 0.9),
+            ("bbbb0002bbbb0002", "MYBANK_CC", "Bills", None, 0.7),
+        ]
+
+        result = build_categorization_updates(rows, source="llm")
+
+        assert all(u.source == "llm" for u in result)
+
+    def it_should_propagate_per_row_confidence(self):
+        rows = [
+            ("aaaa0001aaaa0001", "MYBANK_CHQ", "Food", None, 0.95),
+            ("bbbb0002bbbb0002", "MYBANK_CC", "Bills", None, 0.75),
+        ]
+
+        result = build_categorization_updates(rows, source="llm")
+
+        assert result[0].confidence == 0.95
+        assert result[1].confidence == 0.75
+
+    def it_should_return_empty_list_for_empty_input(self):
+        result = build_categorization_updates([], source="user")
+
+        assert result == []
 
 
 class DescribeLoadFilteredTransactions:

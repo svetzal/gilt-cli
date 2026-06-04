@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +15,7 @@ from gilt.model.ledger_repository import LedgerRepository
 from gilt.services.categorization_persistence_service import (
     CategorizationPersistenceResult,
     CategorizationPersistenceService,
+    CategorizationUpdate,
 )
 from gilt.services.event_sourcing_service import EventSourcingReadyResult, EventSourcingService
 from gilt.services.transaction_operations_service import (
@@ -245,6 +246,25 @@ def apply_categorization_updates(
 ) -> CategorizationPersistenceResult:
     """Construct persistence service and forward updates to persist_categorizations."""
     return require_persistence_service(ready, workspace).persist_categorizations(updates)
+
+
+def build_categorization_updates(
+    rows: Iterable[tuple[str, str, str, str | None, float]],
+    *,
+    source: str,
+) -> list[CategorizationUpdate]:
+    """Build CategorizationUpdate objects from (transaction_id, account_id, category, subcategory, confidence) tuples."""
+    return [
+        CategorizationUpdate(
+            transaction_id=transaction_id,
+            account_id=account_id,
+            category=category,
+            subcategory=subcategory,
+            source=source,
+            confidence=confidence,
+        )
+        for transaction_id, account_id, category, subcategory, confidence in rows
+    ]
 
 
 def load_event_store(workspace: Workspace) -> EventStore | None:

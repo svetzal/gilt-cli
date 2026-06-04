@@ -20,6 +20,7 @@ from gilt.workspace import Workspace
 
 from .util import (
     apply_categorization_updates,
+    build_categorization_updates,
     console,
     display_transaction_matches,
     find_matches_by_criteria,
@@ -143,19 +144,13 @@ def _persist_categorizations(
     workspace: Workspace,
 ) -> None:
     """Emit events, update CSVs, and rebuild projections for categorized transactions."""
-    from gilt.services.categorization_persistence_service import CategorizationUpdate
-
-    updates = [
-        CategorizationUpdate(
-            transaction_id=group.primary.transaction_id,
-            account_id=account_id,
-            category=group.primary.category or "",
-            subcategory=group.primary.subcategory,
-            source="user",
-            confidence=1.0,
-        )
-        for account_id, group in updated_pairs
-    ]
+    updates = build_categorization_updates(
+        (
+            (g.primary.transaction_id, acct, g.primary.category or "", g.primary.subcategory, 1.0)
+            for acct, g in updated_pairs
+        ),
+        source="user",
+    )
     apply_categorization_updates(ready, workspace, updates)
 
 
@@ -334,19 +329,10 @@ def _persist_file_batch(
     if ready is None:
         return 1
 
-    from gilt.services.categorization_persistence_service import CategorizationUpdate
-
-    updates = [
-        CategorizationUpdate(
-            transaction_id=txn_id,
-            account_id=acct_id,
-            category=cat,
-            subcategory=subcat,
-            source="user",
-            confidence=1.0,
-        )
-        for txn_id, acct_id, cat, subcat in resolved
-    ]
+    updates = build_categorization_updates(
+        ((txn_id, acct_id, cat, subcat, 1.0) for txn_id, acct_id, cat, subcat in resolved),
+        source="user",
+    )
     apply_categorization_updates(ready, workspace, updates)
     console.print(f"[green]✓[/] Categorized {len(updates)} transaction(s)")
     return 0

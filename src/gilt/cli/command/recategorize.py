@@ -29,6 +29,7 @@ from gilt.workspace import Workspace
 
 from .util import (
     apply_categorization_updates,
+    build_categorization_updates,
     console,
     display_transaction_matches,
     find_matches_by_criteria,
@@ -247,19 +248,13 @@ def _apply_categorization(
         console.print("Cancelled")
         return 0
 
-    from gilt.services.categorization_persistence_service import CategorizationUpdate
-
-    updates = [
-        CategorizationUpdate(
-            transaction_id=group.primary.transaction_id,
-            account_id=account_id,
-            category=to_cat,
-            subcategory=to_subcat,
-            source="user",
-            confidence=1.0,
-        )
-        for account_id, group in all_matches
-    ]
+    updates = build_categorization_updates(
+        (
+            (g.primary.transaction_id, acct, to_cat, to_subcat, 1.0)
+            for acct, g in all_matches
+        ),
+        source="user",
+    )
     apply_categorization_updates(ready, workspace, updates)
     console.print(f"[green]✓[/] Recategorized {total_matched} transaction(s)")
     return 0
