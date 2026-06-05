@@ -245,11 +245,8 @@ class ImportService:
             total_rows = len(df)
 
             # Get existing transaction IDs
-            ledger_path = self.data_dir / f"{account_id}.csv"
-            existing_ids = set()
-            if ledger_path.exists():
-                existing_df = pd.read_csv(ledger_path)
-                existing_ids = set(existing_df["transaction_id"].astype(str))  # noqa: F841
+            groups = LedgerRepository(self.data_dir).load(account_id)
+            existing_ids = {g.primary.transaction_id for g in groups}  # noqa: F841
 
             # For now, return rough estimate
             # In a full implementation, we'd compute transaction IDs for preview

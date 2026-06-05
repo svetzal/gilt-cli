@@ -33,9 +33,9 @@ try:
 except ImportError:  # pragma: no cover
     yaml = None
 
-from gilt.model.account import Account
+from gilt.model.account import Account, Transaction, TransactionGroup
 from gilt.model.ledger_io import STANDARD_FIELDS
-from gilt.model.ledger_repository import LEDGER_IO_ERRORS
+from gilt.model.ledger_repository import LEDGER_IO_ERRORS, LedgerRepository
 from gilt.model.raw_csv import load_raw_csv
 
 if TYPE_CHECKING:
@@ -494,6 +494,64 @@ def _emit_transaction_events(
         )
 
 
+def _opt_str(v) -> str | None:
+    """Return None for NaN/None/empty values, otherwise return stripped string."""
+    if v is None:
+        return None
+    try:
+        if pd.isna(v):
+            return None
+    except (TypeError, ValueError):
+        pass
+    s = str(v).strip()
+    return s if s else None
+
+
+def _groups_to_dataframe(groups: list[TransactionGroup]) -> pd.DataFrame:
+    """Convert TransactionGroups to a STANDARD_FIELDS DataFrame (primary rows only)."""
+    if not groups:
+        return pd.DataFrame(columns=STANDARD_FIELDS)
+    rows = [
+        {
+            "transaction_id": g.primary.transaction_id,
+            "date": str(g.primary.date),
+            "description": g.primary.description or "",
+            "amount": g.primary.amount,
+            "currency": g.primary.currency or "CAD",
+            "account_id": g.primary.account_id,
+            "counterparty": g.primary.counterparty,
+            "category": g.primary.category,
+            "subcategory": g.primary.subcategory,
+            "notes": g.primary.notes,
+            "source_file": g.primary.source_file or "",
+        }
+        for g in groups
+    ]
+    return pd.DataFrame(rows, columns=STANDARD_FIELDS)
+
+
+def _dataframe_to_groups(df: pd.DataFrame) -> list[TransactionGroup]:
+    """Convert a STANDARD_FIELDS DataFrame to single-primary TransactionGroups."""
+    groups = []
+    for _, row in df.iterrows():
+        t = Transaction(
+            transaction_id=str(row["transaction_id"]),
+            date=str(row["date"]),
+            description=str(row["description"] or ""),
+            amount=float(row["amount"]) if pd.notna(row["amount"]) else 0.0,
+            currency=str(row["currency"] or "CAD"),
+            account_id=str(row["account_id"]),
+            counterparty=_opt_str(row["counterparty"]),
+            category=_opt_str(row["category"]),
+            subcategory=_opt_str(row["subcategory"]),
+            notes=_opt_str(row["notes"]),
+            source_file=str(row["source_file"] or ""),
+            metadata={},
+        )
+        groups.append(TransactionGroup(group_id=t.transaction_id, primary=t))
+    return groups
+
+
 def _merge_with_existing_ledger(
     new_df: pd.DataFrame,
     ledger_path: Path,
@@ -508,9 +566,10 @@ def _merge_with_existing_ledger(
     - existing_df: original ledger rows (needed by _emit_transaction_events)
     """
     try:
-        existing = pd.read_csv(ledger_path) if ledger_path.exists() else pd.DataFrame(columns=new_df.columns)
+        existing_groups = LedgerRepository(ledger_path.parent).load(ledger_path.stem)
+        existing = _groups_to_dataframe(existing_groups)
     except LEDGER_IO_ERRORS:
-        existing = pd.DataFrame(columns=new_df.columns)
+        existing = pd.DataFrame(columns=STANDARD_FIELDS)
 
     if len(existing) == 0:
         combined = new_df.copy()
@@ -562,7 +621,7 @@ def normalize_file(
     if event_store is not None:
         _emit_transaction_events(out, existing, event_store, input_path, account_id)
 
-    combined.to_csv(ledger_path, index=False)
+    LedgerRepository(output_dir).save(account_id, _dataframe_to_groups(combined))
     return ledger_path
 
 

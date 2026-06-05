@@ -13,8 +13,6 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import pandas as pd
-
 from gilt.model.ledger_repository import LEDGER_IO_ERRORS, LedgerRepository
 
 # Tokens and keywords used to assess transfer-like transactions
@@ -67,46 +65,31 @@ class Match:
 
 
 def load_normalized(processed_dir: Path) -> list[Txn]:
-    """Load per-account ledger CSVs from processed_dir into Txn list.
-
-    This expects the standardized processed schema columns to be present.
-    """
+    """Load per-account ledger CSVs from processed_dir into Txn list."""
     txns: list[Txn] = []
-    files = LedgerRepository(processed_dir).ledger_paths()
-    for f in files:
+    repo = LedgerRepository(processed_dir)
+    for account_id in repo.available_account_ids():
         try:
-            df = pd.read_csv(f)
+            groups = repo.load(account_id)
         except LEDGER_IO_ERRORS:  # pragma: no cover
             continue
-        required = {
-            "transaction_id",
-            "date",
-            "description",
-            "amount",
-            "currency",
-            "account_id",
-            "source_file",
-        }
-        missing = required - set(df.columns)
-        if missing:
-            continue
-        for _i, row in df.iterrows():
+        for g in groups:
+            t = g.primary
             try:
-                dt = datetime.strptime(str(row["date"]), "%Y-%m-%d")
-                amt = float(row["amount"])
+                dt = datetime.strptime(str(t.date), "%Y-%m-%d")
                 txns.append(
                     Txn(
                         idx=len(txns),
-                        transaction_id=str(row["transaction_id"]),
+                        transaction_id=t.transaction_id,
                         date=dt,
-                        amount=amt,
-                        currency=str(row["currency"]),
-                        account_id=str(row["account_id"]),
-                        description=str(row["description"] or ""),
-                        source_file=str(row["source_file"]),
+                        amount=float(t.amount),
+                        currency=t.currency or "CAD",
+                        account_id=t.account_id,
+                        description=t.description or "",
+                        source_file=t.source_file or "",
                     )
                 )
-            except (ValueError, TypeError, KeyError):  # pragma: no cover
+            except (ValueError, TypeError):  # pragma: no cover
                 continue
     return txns
 
