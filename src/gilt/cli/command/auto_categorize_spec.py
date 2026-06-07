@@ -414,7 +414,7 @@ class DescribeInteractiveReview:
             currency="CAD",
             account_id="MYBANK_CHQ",
         )
-        return ("MYBANK_CHQ", txn_id, txn, "Groceries", 0.85)
+        return ("MYBANK_CHQ", txn_id, txn, "Groceries", 0.85, "ml")
 
     def it_should_approve_transaction_and_include_in_results(self):
         from gilt.model.category import Category, CategoryConfig

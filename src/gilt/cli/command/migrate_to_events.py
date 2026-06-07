@@ -334,7 +334,10 @@ def _run_migration(
     """Execute backfill → build projections → validate → summary."""
     console.print("[bold]Step 2: Backfilling events from CSV files[/]")
     transaction_events, budget_events, errors = _backfill_events(
-        ledger_files, has_categories, categories_config, es_service,
+        ledger_files,
+        has_categories,
+        categories_config,
+        es_service,
     )
     console.print(f"[green]✓[/green] Created {transaction_events} transaction event(s)")
     if has_categories:
@@ -356,7 +359,12 @@ def _run_migration(
     console.print("\n[bold]Step 4: Validating migration[/]")
     try:
         validation_result = _validate_migration(
-            es_service, data_dir, has_categories, categories_config, tx_builder, budget_builder,
+            es_service,
+            data_dir,
+            has_categories,
+            categories_config,
+            tx_builder,
+            budget_builder,
         )
     except (OSError, ValueError) as e:
         print_error(f"Validation failed: {e}")

@@ -49,8 +49,6 @@ def _find_account_ledgers(data_dir: Path, account: str | None) -> list[Path]:
         return repo.ledger_paths()
 
 
-
-
 def _resolve_targets(
     all_transactions: list[dict],
     single_mode: bool,
@@ -386,8 +384,15 @@ def _run_single_batch(
 ) -> int:
     """Validate inputs, resolve matching transactions, confirm, and apply categorization."""
     inputs = _validate_inputs(
-        workspace, service, categorization_service, category, subcategory,
-        txid, description, desc_prefix, pattern,
+        workspace,
+        service,
+        categorization_service,
+        category,
+        subcategory,
+        txid,
+        description,
+        desc_prefix,
+        pattern,
     )
     if isinstance(inputs, int):
         return inputs
@@ -424,7 +429,13 @@ def _run_single_batch(
         )
 
     result = _confirm_and_apply(
-        all_matches, category, subcategory, single_mode, assume_yes, write, workspace,
+        all_matches,
+        category,
+        subcategory,
+        single_mode,
+        assume_yes,
+        write,
+        workspace,
         categorization_service,
     )
     return _report_categorization_result(all_matches, result, recategorized_count, write)

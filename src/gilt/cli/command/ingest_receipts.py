@@ -244,8 +244,14 @@ def run(
 
     _display_results_table(matched + ambiguous + unmatched)
     return _finalize_receipts(
-        matched, ambiguous, unmatched, skipped_already_ingested, skipped_parse_errors,
-        store, write, interactive,
+        matched,
+        ambiguous,
+        unmatched,
+        skipped_already_ingested,
+        skipped_parse_errors,
+        store,
+        write,
+        interactive,
     )
 
 
@@ -270,7 +276,13 @@ def _finalize_receipts(
         written = _emit_enrichment_events(matched, store)
 
     _display_summary(
-        console, matched, ambiguous, unmatched, skipped_already_ingested, skipped_parse_errors,
-        write, written,
+        console,
+        matched,
+        ambiguous,
+        unmatched,
+        skipped_already_ingested,
+        skipped_parse_errors,
+        write,
+        written,
     )
     return 0

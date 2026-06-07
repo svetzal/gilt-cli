@@ -95,9 +95,7 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
             None, "--description", help="Description for new category"
         ),
         amount: float | None = typer.Option(None, "--amount", help="Budget amount"),
-        period: str = typer.Option(
-            "monthly", "--period", help="Budget period (monthly or yearly)"
-        ),
+        period: str = typer.Option("monthly", "--period", help="Budget period (monthly or yearly)"),
         force: bool = typer.Option(
             False, "--force", help="Skip confirmations when removing used categories"
         ),

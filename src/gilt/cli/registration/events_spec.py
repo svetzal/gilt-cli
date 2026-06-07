@@ -46,9 +46,7 @@ class DescribeRebuildProjections:
 
         with (
             patch("gilt.cli.app.Workspace.resolve", return_value=ws),
-            patch(
-                "gilt.cli.command.rebuild_projections.run", return_value=0
-            ) as mock_run,
+            patch("gilt.cli.command.rebuild_projections.run", return_value=0) as mock_run,
         ):
             result = runner.invoke(app, ["rebuild-projections", "--from-scratch"])
 
@@ -65,9 +63,7 @@ class DescribeRebuildProjections:
 
         with (
             patch("gilt.cli.app.Workspace.resolve", return_value=ws),
-            patch(
-                "gilt.cli.command.rebuild_projections.run", return_value=0
-            ) as mock_run,
+            patch("gilt.cli.command.rebuild_projections.run", return_value=0) as mock_run,
         ):
             result = runner.invoke(
                 app,
@@ -93,9 +89,7 @@ class DescribeMigrateToEvents:
 
         with (
             patch("gilt.cli.app.Workspace.resolve", return_value=ws),
-            patch(
-                "gilt.cli.command.migrate_to_events.run", return_value=0
-            ) as mock_run,
+            patch("gilt.cli.command.migrate_to_events.run", return_value=0) as mock_run,
         ):
             result = runner.invoke(app, ["migrate-to-events", "--write", "--force"])
 

@@ -229,8 +229,10 @@ class DescribeFindMatching:
         before_start = make_transaction(transaction_id="t2", date="2024-10-31")
         fy_range = (d(2024, 11, 1), d(2025, 10, 31))
 
-        result = service.find_matching(transactions=[boundary_start, before_start],
-                                       criteria=TransactionFilter(fy_range=fy_range))
+        result = service.find_matching(
+            transactions=[boundary_start, before_start],
+            criteria=TransactionFilter(fy_range=fy_range),
+        )
 
         assert len(result) == 1
         assert result[0].transaction_id == "t1"
@@ -243,8 +245,9 @@ class DescribeFindMatching:
         after_end = make_transaction(transaction_id="t2", date="2025-11-01")
         fy_range = (d(2024, 11, 1), d(2025, 10, 31))
 
-        result = service.find_matching(transactions=[boundary_end, after_end],
-                                       criteria=TransactionFilter(fy_range=fy_range))
+        result = service.find_matching(
+            transactions=[boundary_end, after_end], criteria=TransactionFilter(fy_range=fy_range)
+        )
 
         assert len(result) == 1
         assert result[0].transaction_id == "t1"
@@ -254,7 +257,7 @@ class DescribeFindMatching:
         transactions = [
             make_transaction(transaction_id="t1", amount=-100.00),
             make_transaction(transaction_id="t2", amount=-100.009),  # within 0.01
-            make_transaction(transaction_id="t3", amount=-100.02),   # outside 0.01
+            make_transaction(transaction_id="t3", amount=-100.02),  # outside 0.01
             make_transaction(transaction_id="t4", amount=-50.00),
         ]
 
@@ -277,8 +280,8 @@ class DescribeFindMatching:
         result = service.find_matching(transactions, TransactionFilter(amount_min=-100.00))
 
         ids = {t.transaction_id for t in result}
-        assert "t1" in ids   # -50 >= -100
-        assert "t3" in ids   # 100 >= -100
+        assert "t1" in ids  # -50 >= -100
+        assert "t3" in ids  # 100 >= -100
         assert "t2" not in ids  # -200 < -100
 
     def it_should_apply_amount_max_signed_bound(self):
@@ -292,9 +295,9 @@ class DescribeFindMatching:
         result = service.find_matching(transactions, TransactionFilter(amount_max=100.00))
 
         ids = {t.transaction_id for t in result}
-        assert "t1" in ids    # -50 <= 100
-        assert "t3" in ids    # 100 <= 100
-        assert "t2" not in ids   # 200 > 100
+        assert "t1" in ids  # -50 <= 100
+        assert "t3" in ids  # 100 <= 100
+        assert "t2" not in ids  # 200 > 100
 
     def it_should_apply_min_abs_amount_filter(self):
         service = TransactionQueryService()
@@ -307,8 +310,8 @@ class DescribeFindMatching:
         result = service.find_matching(transactions, TransactionFilter(min_abs_amount=100.00))
 
         ids = {t.transaction_id for t in result}
-        assert "t2" in ids   # abs(-500) = 500 >= 100
-        assert "t3" in ids   # abs(250) = 250 >= 100
+        assert "t2" in ids  # abs(-500) = 500 >= 100
+        assert "t3" in ids  # abs(250) = 250 >= 100
         assert "t1" not in ids  # abs(-10) = 10 < 100
 
     def it_should_filter_by_category_case_insensitive(self):
@@ -360,8 +363,9 @@ class DescribeFindMatching:
 
         result = service.find_matching(
             transactions,
-            TransactionFilter(account_id="MYBANK_CHQ", year=2025, amount_min=-200.00,
-                              amount_max=-100.00),
+            TransactionFilter(
+                account_id="MYBANK_CHQ", year=2025, amount_min=-200.00, amount_max=-100.00
+            ),
         )
 
         assert len(result) == 1

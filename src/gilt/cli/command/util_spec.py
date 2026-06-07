@@ -944,9 +944,7 @@ class DescribeLoadFilteredTransactions:
         builder = ProjectionBuilder(workspace.projections_path)
         builder.build_from_scratch(store)
 
-        result = load_filtered_transactions(
-            workspace, TransactionFilter(account_id="MYBANK_CHQ")
-        )
+        result = load_filtered_transactions(workspace, TransactionFilter(account_id="MYBANK_CHQ"))
 
         assert result is not None
         assert len(result) == 1

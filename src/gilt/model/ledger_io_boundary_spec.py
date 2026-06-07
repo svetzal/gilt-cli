@@ -7,11 +7,13 @@ from pathlib import Path
 class DescribeLedgerIoBoundary:
     """Guard: no raw pandas ledger I/O outside approved modules."""
 
-    _ALLOWED_SUFFIXES = frozenset({
-        "model/raw_csv.py",         # raw bank export reads (not ledger I/O)
-        "model/ledger_io.py",       # pure serialisation, no disk I/O
-        "model/ledger_repository.py",  # gateway (uses read_text/write_text, not pandas)
-    })
+    _ALLOWED_SUFFIXES = frozenset(
+        {
+            "model/raw_csv.py",  # raw bank export reads (not ledger I/O)
+            "model/ledger_io.py",  # pure serialisation, no disk I/O
+            "model/ledger_repository.py",  # gateway (uses read_text/write_text, not pandas)
+        }
+    )
     _PATTERNS = [re.compile(r"pd\.read_csv"), re.compile(r"\.to_csv\(")]
 
     def it_should_have_no_raw_pandas_ledger_access_outside_approved_modules(self):

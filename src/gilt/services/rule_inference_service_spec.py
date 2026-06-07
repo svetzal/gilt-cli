@@ -28,7 +28,7 @@ class DescribeRuleInferenceService:
 
         rules = service.infer_rules(min_evidence=3, min_confidence=0.9)
         assert len(rules) == 1
-        assert rules[0].description == "EXAMPLE UTILITY"
+        assert rules[0].description == "example utility"  # normalized to lowercase canonical key
         assert rules[0].category == "Housing"
         assert rules[0].subcategory == "Utilities"
         assert rules[0].evidence_count == 3
@@ -63,7 +63,7 @@ class DescribeRuleInferenceService:
     def it_should_match_uncategorized_transactions_to_rules(self):
         rules = [
             InferredRule(
-                description="EXAMPLE UTILITY",
+                description="example utility",  # normalized key as stored by infer_rules
                 category="Housing",
                 subcategory="Utilities",
                 evidence_count=10,
@@ -117,8 +117,8 @@ class DescribeRuleInferenceService:
 
         rules = service.infer_rules(min_evidence=3, min_confidence=0.9)
         assert len(rules) == 2
-        assert rules[0].description == "HIGH EVIDENCE"
-        assert rules[1].description == "LOW EVIDENCE"
+        assert rules[0].description == "high evidence"  # normalized canonical key
+        assert rules[1].description == "low evidence"
 
     def it_should_handle_subcategory_none_consistently(self):
         txns = [

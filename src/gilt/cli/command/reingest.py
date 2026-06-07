@@ -138,8 +138,15 @@ def run(
         return 0
 
     return _execute_reingest(
-        ledger_path, reingest_svc, purge_plan, account_files,
-        ingestion_service, account, output_dir, event_store, projection_builder,
+        ledger_path,
+        reingest_svc,
+        purge_plan,
+        account_files,
+        ingestion_service,
+        account,
+        output_dir,
+        event_store,
+        projection_builder,
     )
 
 

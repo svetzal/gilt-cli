@@ -68,7 +68,11 @@ def _build_account_buckets(rows: list[dict], fy_range: tuple[date, date] | None)
         if not category:
             bucket["uncategorized"] += 1
 
-        if category == "Mojility" and txn_date is not None and _passes_fy_filter(txn_date, fy_range):
+        if (
+            category == "Mojility"
+            and txn_date is not None
+            and _passes_fy_filter(txn_date, fy_range)
+        ):
             bucket["mojility_txns"] += 1
             if bool(row.get("receipt_file")):
                 bucket["mojility_w_receipt"] += 1

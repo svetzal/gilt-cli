@@ -98,9 +98,7 @@ class DescribeRecategorize:
             ),
             patch("gilt.cli.command.recategorize.run", return_value=0) as mock_run,
         ):
-            result = runner.invoke(
-                app, ["recategorize", "--from", "Business", "--to", "Work"]
-            )
+            result = runner.invoke(app, ["recategorize", "--from", "Business", "--to", "Work"])
 
         assert result.exit_code == 0
         call_kwargs = mock_run.call_args.kwargs
@@ -161,9 +159,7 @@ class DescribeDiagnoseCategories:
 
         with (
             patch("gilt.cli.app.Workspace.resolve", return_value=ws),
-            patch(
-                "gilt.cli.command.diagnose_categories.run", return_value=0
-            ) as mock_run,
+            patch("gilt.cli.command.diagnose_categories.run", return_value=0) as mock_run,
         ):
             result = runner.invoke(app, ["diagnose-categories"])
 

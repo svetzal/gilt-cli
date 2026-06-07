@@ -128,9 +128,7 @@ def _register_aggregates(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-
             "--fy",
             help="Fiscal year (Nov 1 – Oct 31). Accepts FY25, fy25, FY2025.",
         ),
-        account: str | None = typer.Option(
-            None, "--account", "-a", help="Account ID to filter"
-        ),
+        account: str | None = typer.Option(None, "--account", "-a", help="Account ID to filter"),
         include_uncategorized: bool = typer.Option(
             False, "--include-uncategorized", help="Include rows where category is null"
         ),
@@ -264,9 +262,7 @@ def _register_transaction(app: typer.Typer, ws_fn) -> None:  # type: ignore[type
     @app.command()
     def show(
         ctx: typer.Context,
-        txid: str = typer.Option(
-            ..., "--txid", "-t", help="Transaction ID prefix (8+ characters)"
-        ),
+        txid: str = typer.Option(..., "--txid", "-t", help="Transaction ID prefix (8+ characters)"),
     ):
         """Show all stored fields for a single transaction.
 
@@ -286,9 +282,7 @@ def _register_transaction(app: typer.Typer, ws_fn) -> None:  # type: ignore[type
     @app.command()
     def history(
         ctx: typer.Context,
-        pattern: str = typer.Argument(
-            ..., help="Substring to search in transaction descriptions"
-        ),
+        pattern: str = typer.Argument(..., help="Substring to search in transaction descriptions"),
         account: str | None = typer.Option(
             None, "--account", "-a", help="Restrict to this account ID"
         ),

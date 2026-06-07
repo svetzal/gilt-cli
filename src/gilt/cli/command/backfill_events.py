@@ -118,8 +118,14 @@ def run(
         workspace, effective_event_store_path, effective_projections_db_path
     )
     return _run_backfill(
-        data_dir, categories_config, event_store, service, dry_run,
-        effective_event_store_path, effective_projections_db_path, effective_budget_projections_db_path,
+        data_dir,
+        categories_config,
+        event_store,
+        service,
+        dry_run,
+        effective_event_store_path,
+        effective_projections_db_path,
+        effective_budget_projections_db_path,
     )
 
 
@@ -157,8 +163,12 @@ def _run_backfill(
 
     if not dry_run:
         return _validate_and_report(
-            data_dir, categories_config, event_store, service,
-            effective_projections_db_path, effective_budget_projections_db_path,
+            data_dir,
+            categories_config,
+            event_store,
+            service,
+            effective_projections_db_path,
+            effective_budget_projections_db_path,
         )
 
     return 0

@@ -102,13 +102,15 @@ class TransactionQueryService:
                 continue
             if criteria.min_abs_amount is not None and abs(t.amount) < criteria.min_abs_amount:
                 continue
-            if criteria.category is not None and (
-                t.category or ""
-            ).lower() != criteria.category.lower():
+            if (
+                criteria.category is not None
+                and (t.category or "").lower() != criteria.category.lower()
+            ):
                 continue
-            if criteria.subcategory is not None and (
-                t.subcategory or ""
-            ).lower() != criteria.subcategory.lower():
+            if (
+                criteria.subcategory is not None
+                and (t.subcategory or "").lower() != criteria.subcategory.lower()
+            ):
                 continue
             result.append(t)
         return result

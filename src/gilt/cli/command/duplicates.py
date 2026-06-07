@@ -442,8 +442,14 @@ def run(
     )
 
     return _run_detection_session(
-        review_ctx, filtered_matches, review_service, detector, model, interactive,
-        skipped_count, use_llm,
+        review_ctx,
+        filtered_matches,
+        review_service,
+        detector,
+        model,
+        interactive,
+        skipped_count,
+        use_llm,
     )
 
 

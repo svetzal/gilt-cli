@@ -153,7 +153,15 @@ def run(
     return 0
 
 
-def _display_ytd_table(primaries, account: str, the_year: int, acct_nature: str, compare: bool, raw: bool, query_service) -> None:
+def _display_ytd_table(
+    primaries,
+    account: str,
+    the_year: int,
+    acct_nature: str,
+    compare: bool,
+    raw: bool,
+    query_service,
+) -> None:
     """Build and print the YTD transaction table with totals footer."""
     nature_label = "Asset" if acct_nature == "asset" else "Liability"
     title_suffix = " — Enrichment Compare" if compare else ""

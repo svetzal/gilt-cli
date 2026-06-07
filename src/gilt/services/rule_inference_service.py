@@ -18,6 +18,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from gilt.ml.merchant_normalizer import normalize_merchant
 from gilt.storage.projection import ProjectionBuilder
 
 
@@ -73,13 +74,17 @@ class RuleInferenceService:
         """
         all_txns = self._projection_builder.get_all_transactions(include_duplicates=False)
 
-        # Group categorized transactions by description
+        # Group categorized transactions by normalized merchant key.
+        # normalize_merchant() collapses variants of the same merchant
+        # (different store numbers, cities, ref codes) to a single key.
         desc_categories: dict[str, list[tuple[str, str | None]]] = {}
         for txn in all_txns:
             cat = txn.get("category")
             desc = txn.get("canonical_description")
             if cat and desc:
-                desc_categories.setdefault(desc, []).append((cat, txn.get("subcategory")))
+                key = normalize_merchant(desc)
+                if key:
+                    desc_categories.setdefault(key, []).append((cat, txn.get("subcategory")))
 
         rules: list[InferredRule] = []
         for desc, cat_list in desc_categories.items():
@@ -119,7 +124,8 @@ class RuleInferenceService:
         """Match uncategorized transactions against inferred rules.
 
         Only matches transactions that have no category assigned. Matches
-        by exact canonical_description.
+        by normalized merchant key (see normalize_merchant), so store-number,
+        city, and reference-code variants of the same merchant all resolve.
 
         Args:
             transactions: Transaction dicts (from projections)
@@ -135,8 +141,10 @@ class RuleInferenceService:
             if txn.get("category"):
                 continue
             desc = txn.get("canonical_description")
-            if desc and desc in rule_lookup:
-                matches.append(RuleMatch(transaction=txn, rule=rule_lookup[desc]))
+            if desc:
+                key = normalize_merchant(desc)
+                if key and key in rule_lookup:
+                    matches.append(RuleMatch(transaction=txn, rule=rule_lookup[key]))
 
         return matches
 

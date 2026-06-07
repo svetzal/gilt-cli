@@ -64,7 +64,9 @@ def run(
     return 0
 
 
-def _display_history_table(rows, pattern: str, account: str | None, date_from: str | None, date_to: str | None) -> None:
+def _display_history_table(
+    rows, pattern: str, account: str | None, date_from: str | None, date_to: str | None
+) -> None:
     """Build and print the category history table."""
     title = f"History for '{pattern}'"
     if account:

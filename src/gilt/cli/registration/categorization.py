@@ -210,18 +210,23 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         limit: int | None = typer.Option(
             None, "--limit", "-n", min=1, help="Max number of transactions to auto-categorize"
         ),
+        explain: bool = typer.Option(
+            False, "--explain", help="Print top-3 category candidates with calibrated confidences"
+        ),
         write: bool = typer.Option(False, "--write", help=HELP_WRITE),
     ):
         """Auto-categorize transactions using ML classifier.
 
         Trains a classifier from your categorization history and predicts
-        categories for uncategorized transactions.
+        categories for uncategorized transactions. Rules inferred from history
+        are applied first (deterministic); ML is used as a fallback.
 
         Examples:
           gilt auto-categorize
           gilt auto-categorize --confidence 0.8 --write
           gilt auto-categorize --interactive --write
           gilt auto-categorize --account MYBANK_CHQ --confidence 0.6 --write
+          gilt auto-categorize --explain
 
         Safety: dry-run by default. Use --write to persist changes.
         """
@@ -233,6 +238,7 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
             min_samples=min_samples,
             interactive=interactive,
             limit=limit,
+            explain=explain,
             workspace=ws_fn(ctx),
             write=write,
         )

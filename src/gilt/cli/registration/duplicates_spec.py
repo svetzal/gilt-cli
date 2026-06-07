@@ -83,9 +83,7 @@ class DescribeDiagnoseDuplicates:
 
         with (
             patch("gilt.cli.app.Workspace.resolve", return_value=ws),
-            patch(
-                "gilt.cli.command.diagnose_duplicates.run", return_value=0
-            ) as mock_run,
+            patch("gilt.cli.command.diagnose_duplicates.run", return_value=0) as mock_run,
         ):
             result = runner.invoke(app, ["diagnose-duplicates"])
 

@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.preprocessing import OneHotEncoder
 
+from gilt.ml.merchant_normalizer import normalize_merchant
 from gilt.model.category_io import format_category_path
 from gilt.model.events import TransactionCategorized, TransactionImported
 from gilt.storage.event_store import EventStore
@@ -35,6 +37,7 @@ class CategorizationTrainingBuilder:
             max_features=1000,
             min_df=1,  # Include even rare terms (changed from 2)
         )
+        self._account_encoder = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
         self._is_fitted = False
 
     def load_from_events(self, source_filter: str = "user") -> tuple[list[dict], list[str]]:
@@ -96,9 +99,10 @@ class CategorizationTrainingBuilder:
         """Build feature vectors from transaction data.
 
         Features include:
-        - TF-IDF vectors from description text
-        - Amount (normalized)
-        - Account (one-hot encoded)
+        - TF-IDF vectors built over normalize_merchant(description)
+        - Account one-hot encoded (fitted on first call, applied thereafter)
+        - Log-scaled signed amount
+        - Amount direction: +1 for inflow, -1 for outflow (sign of amount)
 
         Args:
             transaction_data: List of transaction dicts with description, amount, account
@@ -106,30 +110,44 @@ class CategorizationTrainingBuilder:
         Returns:
             Feature matrix (n_transactions x n_features)
         """
+        from scipy.sparse import hstack as sp_hstack
+
         if not transaction_data:
             return np.array([])
 
-        # Extract descriptions for TF-IDF
-        descriptions = [txn["description"] for txn in transaction_data]
+        # Normalize descriptions via merchant normalizer before TF-IDF
+        descriptions = [normalize_merchant(txn["description"]) for txn in transaction_data]
 
         # Fit or transform TF-IDF
         if not self._is_fitted:
             text_features = self.vectorizer.fit_transform(descriptions)
-            self._is_fitted = True
         else:
             text_features = self.vectorizer.transform(descriptions)
 
-        # Extract numeric features
-        amounts = np.array([txn["amount"] for txn in transaction_data]).reshape(-1, 1)
+        # Account one-hot encoding
+        accounts = np.array([txn.get("account", "") for txn in transaction_data]).reshape(-1, 1)
+        if not self._is_fitted:
+            account_features = self._account_encoder.fit_transform(accounts)
+            self._is_fitted = True
+        else:
+            account_features = self._account_encoder.transform(accounts)
 
-        # Normalize amounts (log transform for better distribution)
-        amounts_normalized = np.sign(amounts) * np.log1p(np.abs(amounts))
+        # Amount features: log-scaled magnitude and direction (+1/-1)
+        amounts = np.array([txn["amount"] for txn in transaction_data], dtype=float)
+        log_amount = (np.sign(amounts) * np.log1p(np.abs(amounts))).reshape(-1, 1)
+        direction = np.sign(amounts).reshape(-1, 1)
 
-        # Combine text and numeric features
-        text_array = text_features.toarray()  # type: ignore[attr-defined]
-        features = np.hstack([text_array, amounts_normalized])
+        # Stack all features: TF-IDF sparse + account dense + amount scalars
+        features = sp_hstack(
+            [
+                text_features,
+                account_features,
+                log_amount,
+                direction,
+            ]
+        )
 
-        return features
+        return features.toarray()  # type: ignore[union-attr]
 
     def get_training_data(
         self,

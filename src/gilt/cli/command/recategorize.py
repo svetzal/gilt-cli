@@ -249,10 +249,7 @@ def _apply_categorization(
         return 0
 
     updates = build_categorization_updates(
-        (
-            (g.primary.transaction_id, acct, to_cat, to_subcat, 1.0)
-            for acct, g in all_matches
-        ),
+        ((g.primary.transaction_id, acct, to_cat, to_subcat, 1.0) for acct, g in all_matches),
         source="user",
     )
     apply_categorization_updates(ready, workspace, updates)
