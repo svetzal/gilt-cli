@@ -47,7 +47,7 @@ def _ws(ctx: typer.Context) -> Workspace:
 # Per-domain command registration
 # ---------------------------------------------------------------------------
 
-from gilt.cli.commands import (  # noqa: E402
+from gilt.cli.registration import (  # noqa: E402
     categorization,
     duplicates,
     events,
