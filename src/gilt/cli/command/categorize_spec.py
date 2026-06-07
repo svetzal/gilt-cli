@@ -212,6 +212,164 @@ class DescribeCategorizeSingleMode:
             assert groups[0].primary.category == "Housing"
             assert groups[0].primary.subcategory == "Rent"
 
+    def it_should_categorize_single_txid_globally_when_account_omitted(self):
+        """Regression: --txid without --account must resolve across all accounts.
+
+        The bug caused the per-account loop to abort when the first account did not
+        contain the target transaction, so only single-account workspaces worked.
+        """
+        with TemporaryDirectory() as tmpdir:
+            config_dir = Path(tmpdir) / "config"
+            config_dir.mkdir()
+            config_path = config_dir / "categories.yml"
+            data_dir = Path(tmpdir) / "data" / "accounts"
+            data_dir.mkdir(parents=True)
+            workspace = Workspace(root=Path(tmpdir))
+
+            config = CategoryConfig(categories=[Category(name="Shopping")])
+            save_categories_config(config_path, config)
+
+            # AACCT sorts before ZACCT alphabetically, so without the fix the
+            # loop would hit AACCT first, fail to find the target txid there, and
+            # abort before ever reaching ZACCT.
+            decoy_txid = "dddddddddddddddd"
+            target_txid = "zzzzzzzzzzzzzzzz"
+
+            write_ledger(
+                data_dir / "AACCT.csv",
+                [
+                    TransactionGroup(
+                        group_id="1",
+                        primary=Transaction(
+                            transaction_id=decoy_txid,
+                            date="2025-01-01",
+                            description="DECOY STORE",
+                            amount=-10.0,
+                            currency="CAD",
+                            account_id="AACCT",
+                        ),
+                    )
+                ],
+            )
+            write_ledger(
+                data_dir / "ZACCT.csv",
+                [
+                    TransactionGroup(
+                        group_id="1",
+                        primary=Transaction(
+                            transaction_id=target_txid,
+                            date="2025-01-02",
+                            description="TARGET STORE",
+                            amount=-20.0,
+                            currency="CAD",
+                            account_id="ZACCT",
+                        ),
+                    )
+                ],
+            )
+            build_projections_from_csvs(data_dir, workspace.projections_path)
+
+            rc = run(
+                txid=target_txid[:8],  # no account= — must resolve globally
+                category="Shopping",
+                workspace=workspace,
+                write=True,
+                assume_yes=True,
+            )
+            assert rc == 0
+
+            # Target transaction categorized
+            target_groups = load_ledger_csv(
+                (data_dir / "ZACCT.csv").read_text(), default_currency="CAD"
+            )
+            assert target_groups[0].primary.category == "Shopping"
+
+            # Decoy transaction untouched
+            decoy_groups = load_ledger_csv(
+                (data_dir / "AACCT.csv").read_text(), default_currency="CAD"
+            )
+            assert decoy_groups[0].primary.category is None
+
+    def it_should_match_txid_file_path_for_same_prefix(self):
+        """Parity: single --txid and --txid-file (one entry) categorize identically."""
+        target_txid = "zzzzzzzzzzzzzzzz"
+        decoy_txid = "dddddddddddddddd"
+
+        def _build_two_account_workspace(tmpdir: str) -> tuple[Path, Path, Workspace]:
+            config_dir = Path(tmpdir) / "config"
+            config_dir.mkdir()
+            config_path = config_dir / "categories.yml"
+            data_dir = Path(tmpdir) / "data" / "accounts"
+            data_dir.mkdir(parents=True)
+            ws = Workspace(root=Path(tmpdir))
+            config = CategoryConfig(categories=[Category(name="Shopping")])
+            save_categories_config(config_path, config)
+            write_ledger(
+                data_dir / "AACCT.csv",
+                [
+                    TransactionGroup(
+                        group_id="1",
+                        primary=Transaction(
+                            transaction_id=decoy_txid,
+                            date="2025-01-01",
+                            description="DECOY STORE",
+                            amount=-10.0,
+                            currency="CAD",
+                            account_id="AACCT",
+                        ),
+                    )
+                ],
+            )
+            write_ledger(
+                data_dir / "ZACCT.csv",
+                [
+                    TransactionGroup(
+                        group_id="1",
+                        primary=Transaction(
+                            transaction_id=target_txid,
+                            date="2025-01-02",
+                            description="TARGET STORE",
+                            amount=-20.0,
+                            currency="CAD",
+                            account_id="ZACCT",
+                        ),
+                    )
+                ],
+            )
+            build_projections_from_csvs(data_dir, ws.projections_path)
+            return config_path, data_dir, ws
+
+        with TemporaryDirectory() as tmpdir_a_str, TemporaryDirectory() as tmpdir_b_str:
+            _config_a, data_dir_a, workspace_a = _build_two_account_workspace(tmpdir_a_str)
+            _config_b, data_dir_b, workspace_b = _build_two_account_workspace(tmpdir_b_str)
+
+            # Path A: single --txid
+            rc_a = run(
+                txid=target_txid[:8],
+                category="Shopping",
+                workspace=workspace_a,
+                write=True,
+                assume_yes=True,
+            )
+            assert rc_a == 0
+
+            # Path B: --txid-file with one entry
+            batch_file = Path(tmpdir_b_str) / "batch.txt"
+            batch_file.write_text(f"{target_txid[:8]} Shopping\n")
+            rc_b = run(workspace=workspace_b, txid_file=batch_file, write=True)
+            assert rc_b == 0
+
+            # Both paths must produce identical ledger contents
+            for ledger_name in ("AACCT.csv", "ZACCT.csv"):
+                groups_a = load_ledger_csv(
+                    (data_dir_a / ledger_name).read_text(), default_currency="CAD"
+                )
+                groups_b = load_ledger_csv(
+                    (data_dir_b / ledger_name).read_text(), default_currency="CAD"
+                )
+                assert groups_a[0].primary.category == groups_b[0].primary.category
+                assert groups_a[0].primary.subcategory == groups_b[0].primary.subcategory
+
     def it_should_error_on_ambiguous_txid(self):
         with TemporaryDirectory() as tmpdir:
             config_dir = Path(tmpdir) / "config"

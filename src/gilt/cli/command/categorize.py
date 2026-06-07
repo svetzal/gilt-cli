@@ -49,6 +49,35 @@ def _find_account_ledgers(data_dir: Path, account: str | None) -> list[Path]:
         return repo.ledger_paths()
 
 
+def _resolve_single_txid(
+    all_transactions: list[dict],
+    txid: str,
+    service: TransactionOperationsService,
+) -> list[tuple[str, TransactionGroup]] | None:
+    """Resolve a single txid prefix globally across all transactions.
+
+    Uses the projection-based prefix resolver — the same one used by ``gilt show``
+    and the ``--txid-file`` batch path — so all three paths behave identically.
+    Returns None on any error (prefix too short, not found, ambiguous).
+    """
+    normalized = (txid or "").strip().lower()
+    result = service.find_projection_by_prefix(normalized, all_transactions)
+    if result.error is not None:
+        if result.error == "prefix_too_short":
+            print_error(f"Transaction ID prefix must be at least 8 characters: '{normalized}'")
+        elif result.error == "not_found":
+            print_error(f"No transaction found matching ID prefix '{normalized}'")
+        else:
+            sample = ", ".join(result.ambiguous_matches or [])
+            print_error(
+                f"Ambiguous prefix '{normalized}': matches multiple transactions ({sample})"
+            )
+        return None
+    row = result.transaction
+    group = TransactionGroup.from_projection_row(row)
+    return [(row["account_id"], group)]
+
+
 def _resolve_targets(
     all_transactions: list[dict],
     single_mode: bool,
@@ -63,6 +92,9 @@ def _resolve_targets(
 
     Returns None on error (invalid pattern, ambiguous ID, etc.).
     """
+    if single_mode and txid is not None:
+        return _resolve_single_txid(all_transactions, txid, service)
+
     criteria = SearchCriteria(
         description=description,
         desc_prefix=desc_prefix,
@@ -70,9 +102,7 @@ def _resolve_targets(
         amount=amount,
     )
     groups_by_account = group_by_account(all_transactions)
-    return find_matches_by_criteria(
-        groups_by_account, criteria, service, txid=txid if single_mode else None
-    )
+    return find_matches_by_criteria(groups_by_account, criteria, service, txid=None)
 
 
 def _confirm_batch(total_matched: int, single_mode: bool, assume_yes: bool, write: bool) -> bool:
@@ -411,13 +441,6 @@ def _run_single_batch(
     if len(all_matches) == 0:
         console.print("[yellow]No matching transactions found[/]")
         return 0
-
-    if single_mode and len(all_matches) > 1:
-        console.print(
-            f"[yellow]Ambiguous --txid '{txid}':[/] matches {len(all_matches)} transactions"
-        )
-        console.print("Refine with more characters or specify --account")
-        return 1
 
     recategorized_count = sum(
         1 for _, g in all_matches if g.primary.category is not None and g.primary.category != ""
