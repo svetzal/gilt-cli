@@ -48,7 +48,7 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
           gilt duplicates --llm
           gilt duplicates --interactive
           gilt duplicates -i --min-confidence 0.7
-          gilt duplicates --llm --model qwen3.5:27b
+          gilt duplicates --llm --model qwen3.6:35b-a3b-coding-nvfp4
 
         Note: LLM mode requires Ollama with specified model installed locally.
         """

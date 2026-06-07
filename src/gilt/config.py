@@ -10,4 +10,4 @@ See gilt.workspace for details on how paths are resolved:
   3. Current working directory
 """
 
-DEFAULT_OLLAMA_MODEL = "qwen3.5:27b"
+DEFAULT_OLLAMA_MODEL = "qwen3.6:35b-a3b-coding-nvfp4"
