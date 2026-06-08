@@ -9,7 +9,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from rich.prompt import Prompt
-from rich.table import Table
 
 from gilt.ml.categorization_classifier import CategorizationClassifier
 from gilt.model.account import Transaction
@@ -24,8 +23,10 @@ from gilt.workspace import Workspace
 
 from .util import (
     apply_categorization_updates,
+    base_match_row,
     build_categorization_updates,
     console,
+    display_transaction_matches,
     find_uncategorized,
     fmt_amount_str,
     load_account_transactions,
@@ -334,28 +335,22 @@ def _display_predictions(predictions: list[tuple[str, str, dict, str, float, str
     Args:
         predictions: List of (account_id, transaction_id, txn, category, confidence, source)
     """
-    table = Table(title="Auto-Categorization Predictions", show_lines=False)
-    table.add_column("Account", style="cyan", no_wrap=True)
-    table.add_column("Date", style="dim")
-    table.add_column("Description", style="white")
-    table.add_column("Amount", style="yellow", justify="right")
-    table.add_column("→ Category", style="green")
-    table.add_column("Confidence", style="blue", justify="right")
-    table.add_column("Source", style="dim")
 
-    for account_id, _, txn, category, conf, source in predictions:
-        table.add_row(
-            account_id,
-            str(txn.date),
-            txn.description[:50],
-            fmt_amount_str(txn.amount),
-            category,
-            f"{conf:.1%}",
-            source,
-        )
+    def row_fn(item: tuple) -> tuple:
+        account_id, _, txn, category, conf, source = item
+        return base_match_row(account_id, txn) + (category, f"{conf:.1%}", source)
 
     console.print("\n")
-    console.print(table)
+    display_transaction_matches(
+        "Auto-Categorization Predictions",
+        [
+            ("→ Category", {"style": "green"}),
+            ("Confidence", {"style": "blue", "justify": "right"}),
+            ("Source", {"style": "dim"}),
+        ],
+        predictions,
+        row_fn,
+    )
 
 
 def _handle_modify_choice(category_config, default_category: str) -> str | None:

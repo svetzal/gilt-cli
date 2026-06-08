@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import sys
 from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 from typing import Any
 
+import typer
 from rich.console import Console
 from rich.table import Table
 from rich.text import Text
@@ -21,6 +23,7 @@ from gilt.services.event_sourcing_service import EventSourcingReadyResult, Event
 from gilt.services.transaction_operations_service import (
     BatchPreview,
     SearchCriteria,
+    TransactionLookupResult,
     TransactionOperationsService,
 )
 from gilt.services.transaction_query_service import TransactionFilter, TransactionQueryService
@@ -113,6 +116,56 @@ def fmt_colored_amount(amt: float, *, prefix: str = "$", bold: bool = False) -> 
     elif amt > 0:
         return f"[green{weight}]{s}[/]"
     return f"[bold]{s}[/]" if bold else s
+
+
+def format_prefix_lookup_error(result: TransactionLookupResult, prefix: str) -> str:
+    """Format a TransactionLookupResult error into a human-readable message."""
+    if result.error == "prefix_too_short":
+        return f"Transaction ID prefix must be at least 8 characters: '{prefix}'"
+    elif result.error == "not_found":
+        return f"No transaction found matching ID prefix '{prefix}'"
+    else:
+        sample = ", ".join(result.ambiguous_matches or [])
+        return f"Ambiguous prefix '{prefix}': matches multiple transactions ({sample})"
+
+
+def confirm_interactively(prompt: str) -> bool:
+    """Return True when stdin is non-interactive (auto-proceed) or when the user confirms."""
+    if not sys.stdin.isatty():
+        return True
+    return typer.confirm(prompt)
+
+
+def persist_categorization_matches(
+    matches: list[tuple[str, TransactionGroup]],
+    category: str,
+    subcategory: str | None,
+    ready: EventSourcingReadyResult,
+    workspace: Workspace,
+    *,
+    source: str,
+) -> int:
+    """Build and apply categorization updates for a list of (account_id, group) matches."""
+    updates = build_categorization_updates(
+        (
+            (g.primary.transaction_id, acct, category, subcategory, 1.0)
+            for acct, g in matches
+        ),
+        source=source,
+    )
+    result = apply_categorization_updates(ready, workspace, updates)
+    return result.transactions_updated
+
+
+def base_match_row(account_id: str, t: Transaction) -> tuple:
+    """Build the 5-column base row used by match-display functions."""
+    return (
+        account_id,
+        t.transaction_id[:8],
+        str(t.date),
+        (t.description or "")[:40],
+        fmt_amount_str(t.amount),
+    )
 
 
 def print_dry_run_message(*, detail: str | None = None) -> None:

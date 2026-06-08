@@ -28,14 +28,14 @@ from gilt.services.transaction_query_service import TransactionFilter, Transacti
 from gilt.workspace import Workspace
 
 from .util import (
-    apply_categorization_updates,
-    build_categorization_updates,
+    base_match_row,
+    confirm_interactively,
     console,
     display_transaction_matches,
     find_matches_by_criteria,
-    fmt_amount_str,
     load_account_transactions,
     parse_category_path,
+    persist_categorization_matches,
     print_dry_run_message,
     print_error,
     require_event_sourcing,
@@ -162,15 +162,7 @@ def _display_matches(
             if t.subcategory:
                 current += f":{t.subcategory}"
             from_col = current
-        return (
-            account_id,
-            t.transaction_id[:8],
-            str(t.date),
-            (t.description or "")[:40],
-            fmt_amount_str(t.amount),
-            from_col,
-            to_category,
-        )
+        return base_match_row(account_id, t) + (from_col, to_category)
 
     display_transaction_matches(
         "Transactions to Recategorize",
@@ -238,21 +230,16 @@ def _apply_categorization(
     if ready is None:
         return 1
 
-    import sys
-
-    if sys.stdin.isatty() and not typer.confirm(
+    prompt = (
         f"Recategorize {total_matched} transaction(s) to '{to_cat}"
         + (f":{to_subcat}" if to_subcat else "")
         + "'?"
-    ):
+    )
+    if not confirm_interactively(prompt):
         console.print("Cancelled")
         return 0
 
-    updates = build_categorization_updates(
-        ((g.primary.transaction_id, acct, to_cat, to_subcat, 1.0) for acct, g in all_matches),
-        source="user",
-    )
-    apply_categorization_updates(ready, workspace, updates)
+    persist_categorization_matches(all_matches, to_cat, to_subcat, ready, workspace, source="user")
     console.print(f"[green]✓[/] Recategorized {total_matched} transaction(s)")
     return 0
 

@@ -6,8 +6,6 @@ import logging
 import sys
 from pathlib import Path
 
-import typer
-
 from gilt.model.account import TransactionGroup
 from gilt.model.category_io import load_categories_config
 from gilt.model.ledger_repository import LedgerRepository
@@ -20,11 +18,13 @@ from gilt.workspace import Workspace
 
 from .util import (
     apply_categorization_updates,
+    base_match_row,
     build_categorization_updates,
+    confirm_interactively,
     console,
     display_transaction_matches,
     find_matches_by_criteria,
-    fmt_amount_str,
+    format_prefix_lookup_error,
     group_by_account,
     load_account_transactions,
     load_event_store,
@@ -63,15 +63,7 @@ def _resolve_single_txid(
     normalized = (txid or "").strip().lower()
     result = service.find_projection_by_prefix(normalized, all_transactions)
     if result.error is not None:
-        if result.error == "prefix_too_short":
-            print_error(f"Transaction ID prefix must be at least 8 characters: '{normalized}'")
-        elif result.error == "not_found":
-            print_error(f"No transaction found matching ID prefix '{normalized}'")
-        else:
-            sample = ", ".join(result.ambiguous_matches or [])
-            print_error(
-                f"Ambiguous prefix '{normalized}': matches multiple transactions ({sample})"
-            )
+        print_error(format_prefix_lookup_error(result, normalized))
         return None
     row = result.transaction
     group = TransactionGroup.from_projection_row(row)
@@ -111,9 +103,7 @@ def _confirm_batch(total_matched: int, single_mode: bool, assume_yes: bool, writ
         return True
     if not write:
         return True
-    import sys
-
-    if sys.stdin.isatty() and not typer.confirm(f"Categorize {total_matched} transaction(s)?"):
+    if not confirm_interactively(f"Categorize {total_matched} transaction(s)?"):
         console.print("Cancelled")
         return False
     return True
@@ -268,14 +258,7 @@ def _resolve_batch_entries(
         # Resolve txid prefix
         result = service.find_projection_by_prefix(txid_prefix, all_transactions)
         if result.error is not None:
-            if result.error == "prefix_too_short":
-                msg = f"Transaction ID prefix must be at least 8 characters: '{txid_prefix}'"
-            elif result.error == "not_found":
-                msg = f"No transaction found for prefix '{txid_prefix}'"
-            else:
-                sample = ", ".join(result.ambiguous_matches or [])
-                msg = f"Ambiguous prefix '{txid_prefix}' — matches multiple transactions ({sample})"
-            errors.append(f"Line {line_no}: {msg}")
+            errors.append(f"Line {line_no}: {format_prefix_lookup_error(result, txid_prefix)}")
             continue
 
         txn = result.transaction
@@ -379,14 +362,7 @@ def _display_batch_preview(
         t = group.primary
         cat, subcat = cat_by_txn.get(t.transaction_id, (t.category or "", t.subcategory))
         new_cat = cat + (f":{subcat}" if subcat else "")
-        return (
-            account_id,
-            t.transaction_id[:8],
-            str(t.date),
-            (t.description or "")[:40],
-            fmt_amount_str(t.amount),
-            new_cat,
-        )
+        return base_match_row(account_id, t) + (new_cat,)
 
     display_transaction_matches(
         "Batch Categorization Preview",
@@ -614,15 +590,7 @@ def _display_matches(
             current_cat = t.category
             if t.subcategory:
                 current_cat += f":{t.subcategory}"
-        return (
-            account_id,
-            t.transaction_id[:8],
-            str(t.date),
-            (t.description or "")[:40],
-            fmt_amount_str(t.amount),
-            current_cat or "—",
-            new_cat,
-        )
+        return base_match_row(account_id, t) + (current_cat or "—", new_cat)
 
     display_transaction_matches(
         "Matched Transactions",

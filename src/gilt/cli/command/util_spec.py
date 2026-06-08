@@ -9,18 +9,22 @@ from rich.table import Table
 
 from gilt.cli.command.util import (
     apply_categorization_updates,
+    base_match_row,
     build_categorization_updates,
     build_transaction_table,
+    confirm_interactively,
     display_transaction_matches,
     find_by_account,
     find_by_id_prefix,
     find_matches_by_criteria,
     find_uncategorized,
     fmt_colored_amount,
+    format_prefix_lookup_error,
     load_account_transactions,
     load_event_store,
     load_filtered_transactions,
     parse_category_path,
+    persist_categorization_matches,
     print_error,
     print_error_list,
     print_transaction_table,
@@ -43,6 +47,7 @@ from gilt.services.transaction_operations_service import (
     BatchPreview,
     MatchResult,
     SearchCriteria,
+    TransactionLookupResult,
     TransactionOperationsService,
 )
 from gilt.services.transaction_query_service import TransactionFilter
@@ -950,3 +955,171 @@ class DescribeLoadFilteredTransactions:
         assert len(result) == 1
         assert result[0].transaction_id == "aaaa0001aaaa0001"
         assert result[0].account_id == "MYBANK_CHQ"
+
+
+class DescribeFormatPrefixLookupError:
+    def it_should_return_prefix_too_short_message(self):
+        result = TransactionLookupResult(transaction=None, error="prefix_too_short")
+
+        msg = format_prefix_lookup_error(result, "abc")
+
+        assert "8 characters" in msg
+        assert "'abc'" in msg
+
+    def it_should_return_not_found_message(self):
+        result = TransactionLookupResult(transaction=None, error="not_found")
+
+        msg = format_prefix_lookup_error(result, "abcd1234")
+
+        assert "No transaction" in msg
+        assert "'abcd1234'" in msg
+
+    def it_should_return_ambiguous_message_with_sample_ids(self):
+        result = TransactionLookupResult(
+            transaction=None,
+            error="ambiguous",
+            ambiguous_matches=["abcd1234abcd0001", "abcd1234abcd0002"],
+        )
+
+        msg = format_prefix_lookup_error(result, "abcd1234")
+
+        assert "Ambiguous" in msg
+        assert "abcd1234abcd0001" in msg
+        assert "abcd1234abcd0002" in msg
+
+    def it_should_handle_empty_ambiguous_matches(self):
+        result = TransactionLookupResult(transaction=None, error="ambiguous", ambiguous_matches=[])
+
+        msg = format_prefix_lookup_error(result, "abcd1234")
+
+        assert "Ambiguous" in msg
+        assert "'abcd1234'" in msg
+
+
+class DescribeConfirmInteractively:
+    def it_should_return_true_when_stdin_is_not_a_tty(self, mocker):
+        mocker.patch("gilt.cli.command.util.sys.stdin.isatty", return_value=False)
+
+        result = confirm_interactively("Continue?")
+
+        assert result is True
+
+    def it_should_delegate_to_typer_confirm_when_stdin_is_a_tty(self, mocker):
+        mocker.patch("gilt.cli.command.util.sys.stdin.isatty", return_value=True)
+        mock_confirm = mocker.patch("gilt.cli.command.util.typer.confirm", return_value=True)
+
+        result = confirm_interactively("Continue?")
+
+        assert result is True
+        mock_confirm.assert_called_once_with("Continue?")
+
+    def it_should_return_false_when_user_declines(self, mocker):
+        mocker.patch("gilt.cli.command.util.sys.stdin.isatty", return_value=True)
+        mocker.patch("gilt.cli.command.util.typer.confirm", return_value=False)
+
+        result = confirm_interactively("Continue?")
+
+        assert result is False
+
+
+class DescribePersistCategorizationMatches:
+    def it_should_build_and_apply_updates_returning_count(self, mocker):
+        g = _make_group("aaaa0001aaaa0001")
+        matches = [("MYBANK_CHQ", g)]
+        ready = Mock(spec=EventSourcingReadyResult)
+        workspace = Mock(spec=Workspace)
+        mock_build = mocker.patch("gilt.cli.command.util.build_categorization_updates")
+        mock_apply = mocker.patch("gilt.cli.command.util.apply_categorization_updates")
+        mock_apply.return_value = CategorizationPersistenceResult(
+            transactions_updated=1, events_emitted=1
+        )
+
+        count = persist_categorization_matches(
+            matches, "Food", "Groceries", ready, workspace, source="user"
+        )
+
+        assert count == 1
+        mock_build.assert_called_once()
+        mock_apply.assert_called_once()
+
+    def it_should_pass_source_to_build_categorization_updates(self, mocker):
+        g = _make_group("aaaa0001aaaa0001")
+        matches = [("MYBANK_CHQ", g)]
+        ready = Mock(spec=EventSourcingReadyResult)
+        workspace = Mock(spec=Workspace)
+        mock_build = mocker.patch("gilt.cli.command.util.build_categorization_updates")
+        mock_apply = mocker.patch("gilt.cli.command.util.apply_categorization_updates")
+        mock_apply.return_value = CategorizationPersistenceResult(
+            transactions_updated=1, events_emitted=1
+        )
+
+        persist_categorization_matches(
+            matches, "Food", None, ready, workspace, source="llm"
+        )
+
+        _, kwargs = mock_build.call_args
+        assert kwargs.get("source") == "llm"
+
+
+class DescribeBaseMatchRow:
+    def it_should_return_five_element_tuple(self):
+        t = Transaction(
+            transaction_id="abcd1234abcd1234",
+            date=date(2025, 1, 15),
+            description="EXAMPLE UTILITY PAYMENT",
+            amount=-42.50,
+            currency="CAD",
+            account_id="MYBANK_CHQ",
+        )
+
+        result = base_match_row("MYBANK_CHQ", t)
+
+        assert result == (
+            "MYBANK_CHQ",
+            "abcd1234",
+            "2025-01-15",
+            "EXAMPLE UTILITY PAYMENT",
+            "$-42.50",
+        )
+
+    def it_should_truncate_transaction_id_to_eight_chars(self):
+        t = Transaction(
+            transaction_id="abcd1234efgh5678",
+            date=date(2025, 1, 1),
+            description="Test",
+            amount=-10.0,
+            currency="CAD",
+            account_id="ACC",
+        )
+
+        result = base_match_row("ACC", t)
+
+        assert result[1] == "abcd1234"
+
+    def it_should_truncate_description_to_forty_chars(self):
+        t = Transaction(
+            transaction_id="abcd1234abcd1234",
+            date=date(2025, 1, 1),
+            description="A" * 50,
+            amount=-10.0,
+            currency="CAD",
+            account_id="ACC",
+        )
+
+        result = base_match_row("ACC", t)
+
+        assert result[3] == "A" * 40
+
+    def it_should_handle_empty_description(self):
+        t = Transaction(
+            transaction_id="abcd1234abcd1234",
+            date=date(2025, 1, 1),
+            description="",
+            amount=-10.0,
+            currency="CAD",
+            account_id="ACC",
+        )
+
+        result = base_match_row("ACC", t)
+
+        assert result[3] == ""
