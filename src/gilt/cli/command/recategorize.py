@@ -20,6 +20,7 @@ from datetime import date  # noqa: E402 — needed before typer import
 import typer
 
 from gilt.model.account import Transaction, TransactionGroup
+from gilt.model.category_io import format_category_path
 from gilt.services.transaction_operations_service import (
     SearchCriteria,
     TransactionOperationsService,
@@ -28,10 +29,9 @@ from gilt.services.transaction_query_service import TransactionFilter, Transacti
 from gilt.workspace import Workspace
 
 from .util import (
-    base_match_row,
     confirm_interactively,
     console,
-    display_transaction_matches,
+    display_category_change_matches,
     find_matches_by_criteria,
     load_account_transactions,
     parse_category_path,
@@ -151,24 +151,13 @@ def _display_matches(
     When ``from_label`` is None (selection mode without explicit --from),
     the "From" column shows the transaction's current category.
     """
-
-    def row_fn(item: tuple[str, TransactionGroup]) -> tuple:
-        account_id, group = item
-        t = group.primary
-        if from_label is not None:
-            from_col = from_label
-        else:
-            current = t.category or "—"
-            if t.subcategory:
-                current += f":{t.subcategory}"
-            from_col = current
-        return base_match_row(account_id, t) + (from_col, to_category)
-
-    display_transaction_matches(
+    display_category_change_matches(
         "Transactions to Recategorize",
-        [("From", {"style": "red"}), ("→ To", {"style": "green"})],
+        "From",
+        "→ To",
         matches,
-        row_fn,
+        to_category,
+        from_label=from_label,
     )
 
 
@@ -230,11 +219,7 @@ def _apply_categorization(
     if ready is None:
         return 1
 
-    prompt = (
-        f"Recategorize {total_matched} transaction(s) to '{to_cat}"
-        + (f":{to_subcat}" if to_subcat else "")
-        + "'?"
-    )
+    prompt = f"Recategorize {total_matched} transaction(s) to '{format_category_path(to_cat, to_subcat)}'?"
     if not confirm_interactively(prompt):
         console.print("Cancelled")
         return 0

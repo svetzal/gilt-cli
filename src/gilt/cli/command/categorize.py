@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 from gilt.model.account import TransactionGroup
-from gilt.model.category_io import load_categories_config
+from gilt.model.category_io import format_category_path, load_categories_config
 from gilt.model.ledger_repository import LedgerRepository
 from gilt.services.categorization_service import CategorizationService
 from gilt.services.transaction_operations_service import (
@@ -22,6 +22,7 @@ from .util import (
     build_categorization_updates,
     confirm_interactively,
     console,
+    display_category_change_matches,
     display_transaction_matches,
     find_matches_by_criteria,
     format_prefix_lookup_error,
@@ -361,8 +362,7 @@ def _display_batch_preview(
         account_id, group = item
         t = group.primary
         cat, subcat = cat_by_txn.get(t.transaction_id, (t.category or "", t.subcategory))
-        new_cat = cat + (f":{subcat}" if subcat else "")
-        return base_match_row(account_id, t) + (new_cat,)
+        return base_match_row(account_id, t) + (format_category_path(cat, subcat),)
 
     display_transaction_matches(
         "Batch Categorization Preview",
@@ -580,23 +580,12 @@ def _display_matches(
     subcategory: str | None,
 ) -> None:
     """Display matched transactions in a table."""
-    new_cat = category + (f":{subcategory}" if subcategory else "")
-
-    def row_fn(item: tuple[str, TransactionGroup]) -> tuple:
-        account_id, group = item
-        t = group.primary
-        current_cat = ""
-        if t.category:
-            current_cat = t.category
-            if t.subcategory:
-                current_cat += f":{t.subcategory}"
-        return base_match_row(account_id, t) + (current_cat or "—", new_cat)
-
-    display_transaction_matches(
+    display_category_change_matches(
         "Matched Transactions",
-        [("Current Cat", {"style": "dim"}), ("→ New Cat", {"style": "green"})],
+        "Current Cat",
+        "→ New Cat",
         matches,
-        row_fn,
+        format_category_path(category, subcategory),
     )
 
 

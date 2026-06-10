@@ -13,6 +13,7 @@ from gilt.cli.command.util import (
     build_categorization_updates,
     build_transaction_table,
     confirm_interactively,
+    display_category_change_matches,
     display_transaction_matches,
     find_by_account,
     find_by_id_prefix,
@@ -1123,3 +1124,74 @@ class DescribeBaseMatchRow:
         result = base_match_row("ACC", t)
 
         assert result[3] == ""
+
+
+class DescribeDisplayCategoryChangeMatches:
+    def _make_match(self, category=None, subcategory=None):
+        t = Transaction(
+            transaction_id="abcd1234abcd1234",
+            date=date(2025, 3, 1),
+            description="EXAMPLE UTILITY",
+            amount=-50.0,
+            currency="CAD",
+            account_id="MYBANK_CHQ",
+            category=category,
+            subcategory=subcategory,
+        )
+        group = TransactionGroup(group_id=t.transaction_id, primary=t)
+        return ("MYBANK_CHQ", group)
+
+    def it_should_render_from_and_to_category_columns_with_fixed_from_label(self, mocker):
+        mock_display = mocker.patch("gilt.cli.command.util.display_transaction_matches")
+        match = self._make_match(category="Food", subcategory="Groceries")
+
+        display_category_change_matches(
+            "Test Table",
+            "From",
+            "→ To",
+            [match],
+            "Utilities:Electric",
+            from_label="Food:Groceries",
+        )
+
+        call_kwargs = mock_display.call_args
+        title, extra_columns, matches, row_fn = call_kwargs[0]
+        assert title == "Test Table"
+        assert extra_columns[0][0] == "From"
+        assert extra_columns[1][0] == "→ To"
+        row = row_fn(match)
+        assert row[-2] == "Food:Groceries"
+        assert row[-1] == "Utilities:Electric"
+
+    def it_should_show_per_row_current_category_when_from_label_is_none(self, mocker):
+        mock_display = mocker.patch("gilt.cli.command.util.display_transaction_matches")
+        match = self._make_match(category="Food", subcategory="Groceries")
+
+        display_category_change_matches(
+            "Test Table",
+            "Current Cat",
+            "→ New Cat",
+            [match],
+            "Utilities:Electric",
+        )
+
+        _title, _cols, _matches, row_fn = mock_display.call_args[0]
+        row = row_fn(match)
+        assert row[-2] == "Food:Groceries"
+        assert row[-1] == "Utilities:Electric"
+
+    def it_should_show_dash_when_transaction_has_no_category(self, mocker):
+        mock_display = mocker.patch("gilt.cli.command.util.display_transaction_matches")
+        match = self._make_match()
+
+        display_category_change_matches(
+            "Test Table",
+            "Current Cat",
+            "→ New Cat",
+            [match],
+            "Utilities",
+        )
+
+        _title, _cols, _matches, row_fn = mock_display.call_args[0]
+        row = row_fn(match)
+        assert row[-2] == "—"

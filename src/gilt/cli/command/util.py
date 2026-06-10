@@ -12,7 +12,7 @@ from rich.text import Text
 
 from gilt.cli.presentation import build_transaction_table
 from gilt.model.account import Transaction, TransactionGroup
-from gilt.model.category_io import build_category_from_path
+from gilt.model.category_io import build_category_from_path, format_category_path
 from gilt.model.ledger_repository import LedgerRepository
 from gilt.services.categorization_persistence_service import (
     CategorizationPersistenceResult,
@@ -376,6 +376,48 @@ def display_transaction_matches(
     for item in matches[:display_limit]:
         table.add_row(*row_fn(item))
     print_transaction_table(table, len(matches), display_limit=display_limit)
+
+
+def display_category_change_matches(
+    title: str,
+    from_header: str,
+    to_header: str,
+    matches: Sequence[tuple[str, TransactionGroup]],
+    to_label: str,
+    *,
+    from_label: str | None = None,
+) -> None:
+    """Create and print a category-change transaction table.
+
+    Each row shows the standard transaction columns plus a from-category column
+    and a to-category column.  When ``from_label`` is supplied every row shows
+    that fixed label in the from column; when it is ``None`` each row shows the
+    transaction's current ``category:subcategory`` (or ``"—"`` when empty).
+
+    Args:
+        title: Table title.
+        from_header: Column header for the "from" category column.
+        to_header: Column header for the "to" category column.
+        matches: Sequence of ``(account_id, TransactionGroup)`` pairs.
+        to_label: Fixed label shown in the to column for every row.
+        from_label: When supplied, shown as-is in the from column for every row.
+    """
+
+    def row_fn(item: tuple[str, TransactionGroup]) -> tuple:
+        account_id, group = item
+        t = group.primary
+        if from_label is not None:
+            from_col = from_label
+        else:
+            from_col = format_category_path(t.category or "", t.subcategory) or "—"
+        return base_match_row(account_id, t) + (from_col, to_label)
+
+    display_transaction_matches(
+        title,
+        [(from_header, {"style": "dim"}), (to_header, {"style": "green"})],
+        matches,
+        row_fn,
+    )
 
 
 def require_projections(workspace: Workspace) -> ProjectionBuilder | None:
