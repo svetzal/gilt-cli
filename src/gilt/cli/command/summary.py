@@ -15,7 +15,7 @@ from gilt.services.transaction_query_service import TransactionFilter, Transacti
 from gilt.workspace import Workspace
 
 from .util import console as _default_console
-from .util import find_by_account, fmt_colored_amount, require_projections
+from .util import fmt_colored_amount, load_account_transactions
 
 _DASH = "—"  # em-dash for None subcategory display
 
@@ -123,12 +123,10 @@ def run(
     if fy_range is None and year is None:
         effective_year = date.today().year
 
-    projection_builder = require_projections(workspace)
-    if projection_builder is None:
+    account_rows = load_account_transactions(workspace, account)
+    if account_rows is None:
         return 1
 
-    all_rows = projection_builder.get_all_transactions(include_duplicates=False)
-    account_rows = find_by_account(all_rows, account)
     candidates = [Transaction.from_projection_row(row) for row in account_rows]
     criteria = TransactionFilter(year=effective_year, fy_range=fy_range)
     transactions = TransactionQueryService().find_matching(candidates, criteria)

@@ -17,9 +17,9 @@ from gilt.services.transaction_operations_service import (
 from gilt.workspace import Workspace
 
 from .util import (
-    apply_categorization_updates,
     base_match_row,
     build_categorization_updates,
+    build_category_path,
     confirm_interactively,
     console,
     display_category_change_matches,
@@ -29,10 +29,10 @@ from .util import (
     group_by_account,
     load_account_transactions,
     load_event_store,
-    parse_category_path,
     print_dry_run_message,
     print_error,
     require_event_sourcing,
+    run_categorization_updates,
     validate_single_vs_batch_mode,
 )
 
@@ -170,7 +170,7 @@ def _persist_categorizations(
         ),
         source="user",
     )
-    apply_categorization_updates(ready, workspace, updates)
+    run_categorization_updates(ready, workspace, updates)
 
 
 def _init_services(
@@ -250,7 +250,7 @@ def _resolve_batch_entries(
 
     for line_no, txid_prefix, category_path in entries:
         # Validate category first
-        cat_name, subcat_name, _ = parse_category_path(category_path)
+        cat_name, subcat_name, _ = build_category_path(category_path)
         validation = categorization_service.validate_category(cat_name, subcat_name)
         if not validation.is_valid:
             errors.append(f"Line {line_no}: {'; '.join(validation.errors)}")
@@ -345,7 +345,7 @@ def _persist_file_batch(
         ((txn_id, acct_id, cat, subcat, 1.0) for txn_id, acct_id, cat, subcat in resolved),
         source="user",
     )
-    apply_categorization_updates(ready, workspace, updates)
+    run_categorization_updates(ready, workspace, updates)
     console.print(f"[green]✓[/] Categorized {len(updates)} transaction(s)")
     return 0
 
@@ -538,7 +538,7 @@ def _validate_inputs(
 ) -> tuple[TransactionOperationsService, CategorizationService, str, str | None, bool] | int:
     """Initialize services and validate inputs. Returns initialized tuple or exit code."""
     service, categorization_service = _init_services(workspace, service, categorization_service)
-    category, subcategory, cat_warning = parse_category_path(category, subcategory)
+    category, subcategory, cat_warning = build_category_path(category, subcategory)
     if cat_warning:
         console.print(f"[yellow]Warning:[/] {cat_warning}")
 

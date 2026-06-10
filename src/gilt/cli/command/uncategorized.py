@@ -16,10 +16,9 @@ from gilt.workspace import Workspace
 
 from .util import (
     build_transaction_table,
-    find_by_account,
     find_uncategorized,
     fmt_amount_str,
-    require_projections,
+    load_account_transactions,
 )
 from .util import (
     console as _default_console,
@@ -113,14 +112,11 @@ def run(
     """
     con = _console if _console is not None else _default_console
 
-    # Load projections
-    projection_builder = require_projections(workspace)
-    if projection_builder is None:
+    all_rows = load_account_transactions(workspace, account)
+    if all_rows is None:
         return 1
 
-    # Filter
-    all_rows = projection_builder.get_all_transactions(include_duplicates=False)
-    uncategorized_rows = find_by_account(find_uncategorized(all_rows), account)
+    uncategorized_rows = find_uncategorized(all_rows)
     candidates = [Transaction.from_projection_row(row) for row in uncategorized_rows]
     criteria = TransactionFilter(year=year, fy_range=fy_range, min_abs_amount=min_amount)
     uncategorized = TransactionQueryService().find_matching(candidates, criteria)

@@ -8,9 +8,9 @@ from unittest.mock import Mock
 from rich.table import Table
 
 from gilt.cli.command.util import (
-    apply_categorization_updates,
     base_match_row,
     build_categorization_updates,
+    build_category_path,
     build_transaction_table,
     confirm_interactively,
     display_category_change_matches,
@@ -22,9 +22,9 @@ from gilt.cli.command.util import (
     fmt_colored_amount,
     format_prefix_lookup_error,
     load_account_transactions,
+    load_all_transactions,
     load_event_store,
     load_filtered_transactions,
-    parse_category_path,
     persist_categorization_matches,
     print_error,
     print_error_list,
@@ -33,6 +33,7 @@ from gilt.cli.command.util import (
     require_event_sourcing,
     require_persistence_service,
     require_projections,
+    run_categorization_updates,
     search_by_criteria,
     validate_single_vs_batch_mode,
 )
@@ -791,7 +792,7 @@ class DescribeApplyCategorizationUpdates:
         mock_svc = mocker.patch("gilt.cli.command.util.require_persistence_service")
         mock_svc.return_value.persist_categorizations.return_value = expected_result
 
-        result = apply_categorization_updates(ready, workspace, updates)
+        result = run_categorization_updates(ready, workspace, updates)
 
         mock_svc.return_value.persist_categorizations.assert_called_once_with(updates)
         assert result is expected_result
@@ -817,23 +818,60 @@ class DescribeLoadEventStore:
         assert result is not None
 
 
-class DescribeParseCategoryPath:
+class DescribeLoadAllTransactions:
+    def it_should_return_none_when_projections_missing(self, tmp_path):
+        workspace = Workspace(root=tmp_path)
+
+        result = load_all_transactions(workspace, include_duplicates=False)
+
+        assert result is None
+
+    def it_should_return_transaction_list_when_projections_exist(self, tmp_path):
+        from decimal import Decimal
+
+        from gilt.model.events import TransactionImported
+        from gilt.storage.event_store import EventStore
+        from gilt.storage.projection import ProjectionBuilder
+
+        workspace = Workspace(root=tmp_path)
+        store = EventStore(str(workspace.event_store_path))
+        store.append_event(TransactionImported(
+            transaction_id="aabbccdd11223344",
+            transaction_date="2025-01-01",
+            source_file="test.csv",
+            source_account="TEST",
+            raw_description="Test Transaction",
+            amount=Decimal("-100.00"),
+            currency="CAD",
+            raw_data={},
+        ))
+        builder = ProjectionBuilder(workspace.projections_path)
+        builder.build_from_scratch(store)
+
+        result = load_all_transactions(workspace, include_duplicates=False)
+
+        assert result is not None
+        assert len(result) == 1
+        assert result[0].transaction_id == "aabbccdd11223344"
+
+
+class DescribeBuildCategoryPath:
     def it_should_split_colon_syntax_into_category_and_subcategory(self):
-        cat, subcat, warning = parse_category_path("Food:Groceries")
+        cat, subcat, warning = build_category_path("Food:Groceries")
 
         assert cat == "Food"
         assert subcat == "Groceries"
         assert warning is None
 
     def it_should_return_empty_cat_for_empty_input(self):
-        cat, subcat, warning = parse_category_path("")
+        cat, subcat, warning = build_category_path("")
 
         assert cat == ""
         assert subcat is None
         assert warning is None
 
     def it_should_return_warning_when_subcategory_conflicts_with_colon_syntax(self):
-        cat, subcat, warning = parse_category_path("Food:Groceries", subcategory="Dining")
+        cat, subcat, warning = build_category_path("Food:Groceries", subcategory="Dining")
 
         assert cat == "Food"
         assert subcat == "Groceries"
@@ -841,19 +879,19 @@ class DescribeParseCategoryPath:
         assert "--subcategory" in warning or "subcategory" in warning.lower()
 
     def it_should_prefer_colon_subcat_over_separate_subcategory_arg(self):
-        cat, subcat, warning = parse_category_path("Food:Groceries", subcategory="Dining")
+        cat, subcat, warning = build_category_path("Food:Groceries", subcategory="Dining")
 
         assert subcat == "Groceries"
 
     def it_should_accept_subcategory_when_no_colon_in_category(self):
-        cat, subcat, warning = parse_category_path("Food", subcategory="Groceries")
+        cat, subcat, warning = build_category_path("Food", subcategory="Groceries")
 
         assert cat == "Food"
         assert subcat == "Groceries"
         assert warning is None
 
     def it_should_return_category_only_when_no_colon_and_no_subcategory(self):
-        cat, subcat, warning = parse_category_path("Food")
+        cat, subcat, warning = build_category_path("Food")
 
         assert cat == "Food"
         assert subcat is None
@@ -1030,7 +1068,7 @@ class DescribePersistCategorizationMatches:
         ready = Mock(spec=EventSourcingReadyResult)
         workspace = Mock(spec=Workspace)
         mock_build = mocker.patch("gilt.cli.command.util.build_categorization_updates")
-        mock_apply = mocker.patch("gilt.cli.command.util.apply_categorization_updates")
+        mock_apply = mocker.patch("gilt.cli.command.util.run_categorization_updates")
         mock_apply.return_value = CategorizationPersistenceResult(
             transactions_updated=1, events_emitted=1
         )
@@ -1049,7 +1087,7 @@ class DescribePersistCategorizationMatches:
         ready = Mock(spec=EventSourcingReadyResult)
         workspace = Mock(spec=Workspace)
         mock_build = mocker.patch("gilt.cli.command.util.build_categorization_updates")
-        mock_apply = mocker.patch("gilt.cli.command.util.apply_categorization_updates")
+        mock_apply = mocker.patch("gilt.cli.command.util.run_categorization_updates")
         mock_apply.return_value = CategorizationPersistenceResult(
             transactions_updated=1, events_emitted=1
         )

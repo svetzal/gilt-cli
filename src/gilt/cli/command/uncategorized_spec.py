@@ -253,7 +253,7 @@ class DescribeUncategorizedCommand:
             rc = run(limit=5, workspace=workspace)
             assert rc == 0
 
-    def it_should_handle_empty_data_directory(self):
+    def it_should_error_when_no_transactions_exist(self):
         with TemporaryDirectory() as tmpdir:
             data_dir = Path(tmpdir) / "data" / "accounts"
             data_dir.mkdir(parents=True)
@@ -261,7 +261,7 @@ class DescribeUncategorizedCommand:
             _build_projections(workspace, [])
 
             rc = run(workspace=workspace)
-            assert rc == 0
+            assert rc == 1
 
     def it_should_error_on_nonexistent_account(self):
         with TemporaryDirectory() as tmpdir:
@@ -276,7 +276,7 @@ class DescribeUncategorizedCommand:
             builder.build_from_scratch(store)
 
             rc = run(account="NONEXISTENT", workspace=workspace)
-            assert rc == 0
+            assert rc == 1
 
     def it_should_combine_filters(self):
         with TemporaryDirectory() as tmpdir:

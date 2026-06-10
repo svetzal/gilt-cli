@@ -11,22 +11,10 @@ from gilt.model.account import Transaction
 from gilt.services.transaction_query_service import TransactionQueryService
 from gilt.workspace import Workspace
 
-from .util import console, fmt_amount, require_projections
+from .util import console, fmt_amount, load_all_transactions
 
 logger = logging.getLogger(__name__)
 
-
-def _load_all_transactions(
-    workspace: Workspace,
-    include_duplicates: bool,
-) -> list[Transaction] | int:
-    """Load all transactions from the projections database. Returns list or exit code."""
-    projection_builder = require_projections(workspace)
-    if projection_builder is None:
-        return 1
-
-    rows = projection_builder.get_all_transactions(include_duplicates=include_duplicates)
-    return [Transaction.from_projection_row(row) for row in rows]
 
 
 def _build_display_notes(t: Transaction) -> str:
@@ -130,9 +118,9 @@ def run(
     except OSError:
         logger.debug("Could not determine account nature, defaulting to asset", exc_info=True)
 
-    load_result = _load_all_transactions(workspace, include_duplicates)
-    if isinstance(load_result, int):
-        return load_result
+    load_result = load_all_transactions(workspace, include_duplicates=include_duplicates)
+    if load_result is None:
+        return 1
 
     query_service = TransactionQueryService()
     primaries = query_service.find_transactions(

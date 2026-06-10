@@ -29,12 +29,12 @@ from gilt.services.transaction_query_service import TransactionFilter, Transacti
 from gilt.workspace import Workspace
 
 from .util import (
+    build_category_path,
     confirm_interactively,
     console,
     display_category_change_matches,
     find_matches_by_criteria,
     load_account_transactions,
-    parse_category_path,
     persist_categorization_matches,
     print_dry_run_message,
     print_error,
@@ -244,7 +244,7 @@ def _run_rename_mode(
     write: bool,
 ) -> int:
     """Handle rename mode: find by category and rename to to_category."""
-    from_cat, from_subcat, _ = parse_category_path(from_category)
+    from_cat, from_subcat, _ = build_category_path(from_category)
     if not from_cat:
         print_error("--from category cannot be empty")
         return 1
@@ -316,7 +316,7 @@ def _run_selection_mode(
     from_cat: str | None = None
     from_subcat: str | None = None
     if from_category:
-        from_cat, from_subcat, _ = parse_category_path(from_category)
+        from_cat, from_subcat, _ = build_category_path(from_category)
         if not from_cat:
             print_error("--from category cannot be empty")
             return 1
@@ -374,7 +374,7 @@ def _run_selection_mode(
 
 def _parse_to_category(to_category: str) -> tuple[str, str | None] | int:
     """Parse and validate to_category. Returns (to_cat, to_subcat) or exit code on empty."""
-    to_cat, to_subcat, _ = parse_category_path(to_category)
+    to_cat, to_subcat, _ = build_category_path(to_category)
     if not to_cat:
         print_error("--to category cannot be empty")
         return 1

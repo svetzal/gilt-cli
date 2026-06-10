@@ -22,7 +22,6 @@ from gilt.services.rule_inference_service import RuleInferenceService
 from gilt.workspace import Workspace
 
 from .util import (
-    apply_categorization_updates,
     base_match_row,
     build_categorization_updates,
     console,
@@ -33,6 +32,7 @@ from .util import (
     print_dry_run_message,
     print_error,
     require_event_sourcing,
+    run_categorization_updates,
 )
 
 
@@ -106,7 +106,7 @@ def _write_categorizations(approved, ready, workspace) -> int:
         ),
         source="llm",
     )
-    result = apply_categorization_updates(ready, workspace, updates)
+    result = run_categorization_updates(ready, workspace, updates)
     return result.transactions_updated
 
 

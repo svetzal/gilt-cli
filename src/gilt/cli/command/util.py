@@ -153,7 +153,7 @@ def persist_categorization_matches(
         ),
         source=source,
     )
-    result = apply_categorization_updates(ready, workspace, updates)
+    result = run_categorization_updates(ready, workspace, updates)
     return result.transactions_updated
 
 
@@ -292,7 +292,24 @@ def load_account_transactions(workspace: Workspace, account: str | None) -> list
     return all_transactions
 
 
-def apply_categorization_updates(
+def load_all_transactions(
+    workspace: Workspace,
+    *,
+    include_duplicates: bool,
+) -> list[Transaction] | None:
+    """require_projections → get_all_transactions → convert to Transaction objects.
+
+    Returns None when projections are missing.
+    """
+    projection_builder = require_projections(workspace)
+    if projection_builder is None:
+        return None
+
+    rows = projection_builder.get_all_transactions(include_duplicates=include_duplicates)
+    return [Transaction.from_projection_row(row) for row in rows]
+
+
+def run_categorization_updates(
     ready: EventSourcingReadyResult,
     workspace: Workspace,
     updates: list,
@@ -327,7 +344,7 @@ def load_event_store(workspace: Workspace) -> EventStore | None:
     return None
 
 
-def parse_category_path(
+def build_category_path(
     category: str,
     subcategory: str | None = None,
 ) -> tuple[str, str | None, str | None]:
