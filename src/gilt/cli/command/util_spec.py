@@ -34,6 +34,7 @@ from gilt.cli.command.util import (
     require_persistence_service,
     require_projections,
     run_categorization_updates,
+    run_confirmed_mutation,
     search_by_criteria,
     validate_single_vs_batch_mode,
 )
@@ -1233,3 +1234,89 @@ class DescribeDisplayCategoryChangeMatches:
         _title, _cols, _matches, row_fn = mock_display.call_args[0]
         row = row_fn(match)
         assert row[-2] == "—"
+
+
+class DescribeRunConfirmedMutation:
+    def it_should_call_display_and_apply_when_write_is_true_and_assume_yes(self, mocker):
+        mocker.patch("gilt.cli.command.util.sys.stdin.isatty", return_value=True)
+        display = Mock()
+        apply = Mock(return_value=0)
+
+        result = run_confirmed_mutation(
+            matches=[],
+            display=display,
+            confirm_prompt="Proceed?",
+            assume_yes=True,
+            write=True,
+            apply=apply,
+        )
+
+        display.assert_called_once()
+        apply.assert_called_once()
+        assert result == 0
+
+    def it_should_return_apply_result_when_write_and_assume_yes(self, mocker):
+        mocker.patch("gilt.cli.command.util.sys.stdin.isatty", return_value=True)
+
+        result = run_confirmed_mutation(
+            matches=[],
+            display=Mock(),
+            confirm_prompt="Proceed?",
+            assume_yes=True,
+            write=True,
+            apply=Mock(return_value=7),
+        )
+
+        assert result == 7
+
+    def it_should_print_dry_run_and_not_apply_when_not_write(self, mocker):
+        mocker.patch("gilt.cli.command.util.sys.stdin.isatty", return_value=True)
+        mock_console = mocker.patch("gilt.cli.command.util.console")
+        apply = Mock()
+
+        result = run_confirmed_mutation(
+            matches=[],
+            display=Mock(),
+            confirm_prompt="Proceed?",
+            assume_yes=True,
+            write=False,
+            apply=apply,
+        )
+
+        apply.assert_not_called()
+        assert result == 0
+        printed = " ".join(str(c) for c in mock_console.print.call_args_list)
+        assert "Dry-run" in printed or "dry-run" in printed
+
+    def it_should_return_zero_and_not_apply_when_confirm_declines(self, mocker):
+        mocker.patch("gilt.cli.command.util.sys.stdin.isatty", return_value=True)
+        mocker.patch("gilt.cli.command.util.typer.confirm", return_value=False)
+        apply = Mock()
+
+        result = run_confirmed_mutation(
+            matches=[],
+            display=Mock(),
+            confirm_prompt="Proceed?",
+            assume_yes=False,
+            write=True,
+            apply=apply,
+        )
+
+        apply.assert_not_called()
+        assert result == 0
+
+    def it_should_auto_confirm_when_stdin_is_not_a_tty(self, mocker):
+        mocker.patch("gilt.cli.command.util.sys.stdin.isatty", return_value=False)
+        apply = Mock(return_value=0)
+
+        result = run_confirmed_mutation(
+            matches=[],
+            display=Mock(),
+            confirm_prompt="Proceed?",
+            assume_yes=False,
+            write=True,
+            apply=apply,
+        )
+
+        apply.assert_called_once()
+        assert result == 0

@@ -11,8 +11,8 @@ from .util import (
     console,
     display_transaction_matches,
     fmt_amount_str,
-    print_dry_run_message,
     print_error,
+    run_confirmed_mutation,
     validate_single_vs_batch_mode,
 )
 
@@ -167,12 +167,7 @@ def run(
     workspace: Workspace,
     write: bool = False,
 ) -> int:
-    """Attach or update notes on transactions in the account ledger.
-
-    ``--write`` alone is sufficient to persist changes; the command no longer
-    prompts for confirmation interactively. ``assume_yes`` (``--yes``) is
-    accepted as a no-op so existing scripts keep working.
-    """
+    """Attach or update notes on transactions in the account ledger."""
     ledger_repo = LedgerRepository(workspace.ledger_data_dir)
 
     if not ledger_repo.exists(account):
@@ -207,18 +202,26 @@ def run(
     _print_note_target_summary(
         groups_to_update, account, txid, description, desc_prefix, pattern, amount
     )
-    _display_matches(
-        account, groups_to_update, note_text, desc_prefix=desc_prefix if desc_prefix else None
-    )
 
-    if not write:
-        print_dry_run_message()
+    def display() -> None:
+        _display_matches(
+            account, groups_to_update, note_text, desc_prefix=desc_prefix if desc_prefix else None
+        )
+
+    def apply() -> int:
+        count = _apply_and_write_notes(
+            service, groups, groups_to_update, note_text, ledger_repo, account
+        )
+        console.print(
+            f"[green]Saved notes to ledger successfully.[/] Applied to {count} transaction(s)."
+        )
         return 0
 
-    count = _apply_and_write_notes(
-        service, groups, groups_to_update, note_text, ledger_repo, account
+    return run_confirmed_mutation(
+        matches=groups_to_update,
+        display=display,
+        confirm_prompt=f"Add note to {len(groups_to_update)} transaction(s)?",
+        assume_yes=assume_yes,
+        write=write,
+        apply=apply,
     )
-    console.print(
-        f"[green]Saved notes to ledger successfully.[/] Applied to {count} transaction(s)."
-    )
-    return 0

@@ -20,7 +20,6 @@ from .util import (
     base_match_row,
     build_categorization_updates,
     build_category_path,
-    confirm_interactively,
     console,
     display_category_change_matches,
     display_transaction_matches,
@@ -33,6 +32,7 @@ from .util import (
     print_error,
     require_event_sourcing,
     run_categorization_updates,
+    run_confirmed_mutation,
     validate_single_vs_batch_mode,
 )
 
@@ -98,18 +98,6 @@ def _resolve_targets(
     return find_matches_by_criteria(groups_by_account, criteria, service, txid=None)
 
 
-def _confirm_batch(total_matched: int, single_mode: bool, assume_yes: bool, write: bool) -> bool:
-    """Returns True if processing should proceed, False if the user cancelled."""
-    if single_mode or total_matched <= 1 or assume_yes:
-        return True
-    if not write:
-        return True
-    if not confirm_interactively(f"Categorize {total_matched} transaction(s)?"):
-        console.print("Cancelled")
-        return False
-    return True
-
-
 def _confirm_and_apply(
     all_matches: list[tuple[str, TransactionGroup]],
     category: str,
@@ -122,39 +110,33 @@ def _confirm_and_apply(
 ) -> int:
     """Display matches, confirm, apply categorization, and write back. Returns exit code."""
     total_matched = len(all_matches)
+    auto_yes = single_mode or total_matched <= 1 or assume_yes
 
-    _display_matches(all_matches, category, subcategory)
-
-    if not _confirm_batch(total_matched, single_mode, assume_yes, write):
+    def apply() -> int:
+        ready = require_event_sourcing(workspace)
+        if ready is None:
+            return 1
+        result = categorization_service.run_categorization(
+            [group for _, group in all_matches],
+            category,
+            subcategory,
+        )
+        account_by_txn_id = {group.primary.transaction_id: acct for acct, group in all_matches}
+        updated_pairs = [
+            (account_by_txn_id.get(group.primary.transaction_id, ""), group)
+            for group in result.updated_transactions
+        ]
+        _persist_categorizations(updated_pairs, ready, workspace)
         return 0
 
-    if not write:
-        print_dry_run_message()
-        return 0
-
-    ready = require_event_sourcing(workspace)
-    if ready is None:
-        return 1
-
-    result = categorization_service.run_categorization(
-        [group for _, group in all_matches],
-        category,
-        subcategory,
+    return run_confirmed_mutation(
+        matches=all_matches,
+        display=lambda: _display_matches(all_matches, category, subcategory),
+        confirm_prompt=f"Categorize {total_matched} transaction(s)?",
+        assume_yes=auto_yes,
+        write=write,
+        apply=apply,
     )
-
-    account_by_txn_id = {group.primary.transaction_id: acct for acct, group in all_matches}
-    updated_pairs = [
-        (account_by_txn_id.get(group.primary.transaction_id, ""), group)
-        for group in result.updated_transactions
-    ]
-
-    _persist_categorizations(
-        updated_pairs,
-        ready,
-        workspace,
-    )
-
-    return 0
 
 
 def _persist_categorizations(

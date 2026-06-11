@@ -566,6 +566,26 @@ def find_matches_by_criteria(
     return all_matches
 
 
+def run_confirmed_mutation(
+    *,
+    matches: Sequence,
+    display: Callable[[], None],
+    confirm_prompt: str,
+    assume_yes: bool,
+    write: bool,
+    apply: Callable[[], int],
+) -> int:
+    """Orchestrate the confirm → dry-run gate → apply mutation sequence."""
+    display()
+    if not assume_yes and not confirm_interactively(confirm_prompt):
+        console.print("Cancelled")
+        return 0
+    if not write:
+        print_dry_run_message()
+        return 0
+    return apply()
+
+
 def search_by_criteria(
     service: TransactionOperationsService,
     criteria: SearchCriteria,
