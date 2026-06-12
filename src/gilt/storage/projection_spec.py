@@ -19,7 +19,13 @@ from gilt.model.events import (
     TransactionImported,
 )
 from gilt.storage.event_store import EventStore
-from gilt.storage.projection import ProjectionBuilder
+from gilt.storage.projection import (
+    DuplicateCorrection,
+    DuplicateGroupState,
+    ProjectionBuilder,
+    find_root_primary,
+    plan_duplicate_corrections,
+)
 
 
 class DescribeProjectionBuilder:
@@ -949,3 +955,121 @@ class DescribeProjectionBuilder:
         assert len(primaries) == 1
         assert len(duplicates) == 1
         assert duplicates[0]["primary_transaction_id"] == primaries[0]["transaction_id"]
+
+
+class DescribePlanDuplicateCorrections:
+    """Pure-function tests for plan_duplicate_corrections — no DB required."""
+
+    def it_should_return_empty_list_for_empty_state(self):
+        state = DuplicateGroupState(dup_rows=[], non_dup_ids=set())
+        assert plan_duplicate_corrections(state) == []
+
+    def it_should_return_empty_list_when_no_duplicate_members_in_any_component(self):
+        # Two non-dup ids, no dup_rows — nothing to fix
+        state = DuplicateGroupState(dup_rows=[], non_dup_ids={"aaa", "bbb"})
+        assert plan_duplicate_corrections(state) == []
+
+    def it_should_repoint_stale_chain_to_lexicographically_smallest_non_dup_root(self):
+        # aaa is non-dup, bbb is dup pointing at aaa — already correct but still emits repoint
+        state = DuplicateGroupState(
+            dup_rows=[("bbb", "aaa")],
+            non_dup_ids={"aaa"},
+        )
+        corrections = plan_duplicate_corrections(state)
+        assert len(corrections) == 1
+        assert corrections[0] == DuplicateCorrection(kind="repoint", txn_id="bbb", primary_id="aaa")
+
+    def it_should_repoint_stale_chain_to_smallest_non_dup_when_multiple_non_dups_in_component(self):
+        # ccc is dup pointing at bbb (non-dup), but aaa is also non-dup in same component
+        state = DuplicateGroupState(
+            dup_rows=[("ccc", "bbb")],
+            non_dup_ids={"aaa", "bbb"},
+        )
+        # aaa and bbb are unconnected non-dups — different components; only bbb+ccc are linked
+        corrections = plan_duplicate_corrections(state)
+        assert any(c.kind == "repoint" and c.txn_id == "ccc" and c.primary_id == "bbb" for c in corrections)
+
+    def it_should_elect_min_id_and_demote_others_for_orphan_cycle(self):
+        # Both t2 and t1 are duplicates with no non-dup member — orphan cycle
+        state = DuplicateGroupState(
+            dup_rows=[("t2", "t1"), ("t1", "t2")],
+            non_dup_ids=set(),
+        )
+        corrections = plan_duplicate_corrections(state)
+        kinds = {c.kind for c in corrections}
+        assert "elect_primary" in kinds
+        assert "demote" in kinds
+
+        elected = next(c for c in corrections if c.kind == "elect_primary")
+        demoted = [c for c in corrections if c.kind == "demote"]
+
+        assert elected.txn_id == min("t1", "t2")
+        assert all(c.primary_id == elected.txn_id for c in demoted)
+        assert all(c.txn_id != elected.txn_id for c in demoted)
+
+    def it_should_handle_three_member_orphan_cycle(self):
+        state = DuplicateGroupState(
+            dup_rows=[("t2", "t1"), ("t3", "t1"), ("t1", "t3")],
+            non_dup_ids=set(),
+        )
+        corrections = plan_duplicate_corrections(state)
+        elected = next(c for c in corrections if c.kind == "elect_primary")
+        demotions = [c for c in corrections if c.kind == "demote"]
+        assert elected.txn_id == "t1"  # lexicographically smallest
+        assert len(demotions) == 2
+        assert {c.txn_id for c in demotions} == {"t2", "t3"}
+
+
+class DescribeFindRootPrimary:
+    """Pure-function tests for find_root_primary — no DB required."""
+
+    def _make_lookup(self, rows: dict[str, tuple[bool, str | None]]):
+        """Build a dict-backed lookup callable."""
+        def lookup(txn_id: str) -> tuple[bool, str | None] | None:
+            return rows.get(txn_id)
+        return lookup
+
+    def it_should_return_txn_id_when_it_is_not_a_duplicate(self):
+        lookup = self._make_lookup({"aaa": (False, None)})
+        root, visited = find_root_primary(lookup, "aaa")
+        assert root == "aaa"
+        assert "aaa" in visited
+
+    def it_should_follow_chain_to_non_duplicate_root(self):
+        lookup = self._make_lookup({
+            "dup1": (True, "dup2"),
+            "dup2": (True, "root"),
+            "root": (False, None),
+        })
+        root, visited = find_root_primary(lookup, "dup1")
+        assert root == "root"
+        assert visited == ["dup1", "dup2", "root"]
+
+    def it_should_return_none_when_row_not_found(self):
+        lookup = self._make_lookup({})
+        root, _ = find_root_primary(lookup, "missing")
+        assert root is None
+
+    def it_should_return_none_on_cycle_detection(self):
+        lookup = self._make_lookup({
+            "t1": (True, "t2"),
+            "t2": (True, "t1"),
+        })
+        root, visited = find_root_primary(lookup, "t1")
+        assert root is None
+
+    def it_should_return_none_on_dead_end(self):
+        # is_duplicate=True but no primary_id
+        lookup = self._make_lookup({"t1": (True, None)})
+        root, _ = find_root_primary(lookup, "t1")
+        assert root is None
+
+    def it_should_return_none_when_max_hops_exceeded(self):
+        # Build a long chain longer than default max_hops=8
+        rows = {}
+        for i in range(10):
+            rows[f"t{i}"] = (True, f"t{i + 1}")
+        rows["t10"] = (False, None)
+        lookup = self._make_lookup(rows)
+        root, _ = find_root_primary(lookup, "t0", max_hops=8)
+        assert root is None  # chain is 11 hops, exceeds limit

@@ -331,6 +331,32 @@ def _build_transaction_dataframe(
     return out
 
 
+def find_missing_columns(column_map: dict, overrides: dict) -> list[str]:
+    """Return names of required logical column roles absent from column_map and overrides.
+
+    Pure function: checks whether "date", "description", and "amount" roles can be
+    resolved from the given column_map dict and RBC-override dict. Returns a list of
+    the missing role names (empty list means all required columns are present).
+    """
+    missing: list[str] = []
+    if column_map.get("date") is None and "date_series" not in overrides:
+        missing.append("date")
+    if (
+        column_map.get("desc1") is None
+        and column_map.get("desc2") is None
+        and "desc1_series" not in overrides
+        and "desc2_series" not in overrides
+    ):
+        missing.append("description")
+    if (
+        column_map.get("amount") is None
+        and column_map.get("usd") is None
+        and "amount_series" not in overrides
+    ):
+        missing.append("amount")
+    return missing
+
+
 def load_file(
     input_path: Path, account_id: str, amount_sign: str = "expenses_negative"
 ) -> pd.DataFrame:
@@ -347,19 +373,7 @@ def load_file(
     column_map = _detect_columns(cols)
     overrides = _detect_rbc_overrides(df, cols)
 
-    # Validate presence of core columns
-    missing = []
-    if column_map["date"] is None and "date_series" not in overrides:
-        missing.append("date")
-    if (
-        column_map["desc1"] is None
-        and column_map["desc2"] is None
-        and "desc1_series" not in overrides
-        and "desc2_series" not in overrides
-    ):
-        missing.append("description")
-    if column_map["amount"] is None and column_map["usd"] is None and "amount_series" not in overrides:
-        missing.append("amount")
+    missing = find_missing_columns(column_map, overrides)
     if missing:
         raise ValueError(
             f"Missing required columns in {input_path.name}: {', '.join(missing)}"
@@ -630,6 +644,7 @@ __all__ = [
     "load_accounts_config",
     "infer_account_for_file",
     "build_normalization_plan",
+    "find_missing_columns",
     "normalize_file",
     "build_transaction_id",
     "HASH_ALGO_SPEC",

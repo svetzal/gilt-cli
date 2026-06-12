@@ -13,6 +13,7 @@ from gilt.ingest import (
     _detect_rbc_overrides,
     build_transaction_id,
     build_normalization_plan,
+    find_missing_columns,
     infer_account_for_file,
     load_accounts_config,
     load_file,
@@ -452,3 +453,47 @@ class DescribeDetectRbcOverrides:
         assert result["desc1_series"].iloc[0] == "REF1234ABCD"
         assert result["desc2_series"].iloc[0] == "SAMPLE STORE"
         assert result["amount_series"].iloc[0] == "-42.50"
+
+
+class DescribeFindMissingColumns:
+    """Pure-function tests for find_missing_columns — no DataFrame required."""
+
+    def it_should_return_empty_list_when_all_required_columns_present(self):
+        column_map = {"date": "Date", "desc1": "Description", "desc2": None, "amount": "CAD$", "usd": None}
+        assert find_missing_columns(column_map, {}) == []
+
+    def it_should_flag_missing_date_when_no_override(self):
+        column_map = {"date": None, "desc1": "Description", "desc2": None, "amount": "CAD$", "usd": None}
+        missing = find_missing_columns(column_map, {})
+        assert "date" in missing
+
+    def it_should_not_flag_date_when_date_series_override_present(self):
+        column_map = {"date": None, "desc1": "Description", "desc2": None, "amount": "CAD$", "usd": None}
+        import pandas as pd
+        missing = find_missing_columns(column_map, {"date_series": pd.Series(["2025-01-01"])})
+        assert "date" not in missing
+
+    def it_should_flag_missing_description_when_no_desc_columns_or_overrides(self):
+        column_map = {"date": "Date", "desc1": None, "desc2": None, "amount": "CAD$", "usd": None}
+        missing = find_missing_columns(column_map, {})
+        assert "description" in missing
+
+    def it_should_not_flag_description_when_desc2_is_present(self):
+        column_map = {"date": "Date", "desc1": None, "desc2": "Description 2", "amount": "CAD$", "usd": None}
+        missing = find_missing_columns(column_map, {})
+        assert "description" not in missing
+
+    def it_should_flag_missing_amount_when_no_amount_usd_or_override(self):
+        column_map = {"date": "Date", "desc1": "Description", "desc2": None, "amount": None, "usd": None}
+        missing = find_missing_columns(column_map, {})
+        assert "amount" in missing
+
+    def it_should_not_flag_amount_when_usd_column_present(self):
+        column_map = {"date": "Date", "desc1": "Description", "desc2": None, "amount": None, "usd": "USD$"}
+        missing = find_missing_columns(column_map, {})
+        assert "amount" not in missing
+
+    def it_should_flag_all_three_when_all_are_missing(self):
+        column_map = {"date": None, "desc1": None, "desc2": None, "amount": None, "usd": None}
+        missing = find_missing_columns(column_map, {})
+        assert set(missing) == {"date", "description", "amount"}
