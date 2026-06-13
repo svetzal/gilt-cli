@@ -11,9 +11,7 @@ HELP_ACCOUNT_DISPLAY = "Account ID to display (e.g., MYBANK_CHQ)"
 HELP_ACCOUNT_WITH_TX = "Account ID containing the transaction (e.g., MYBANK_CHQ)"
 
 
-def _register_aggregates(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
-    """Register aggregate/summary reporting commands: ytd, status, summary, budget, report."""
-
+def register_ytd(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command()
     def ytd(
         ctx: typer.Context,
@@ -69,6 +67,8 @@ def _register_aggregates(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-
         )
         raise typer.Exit(code=code)
 
+
+def register_status(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command()
     def status(
         ctx: typer.Context,
@@ -114,6 +114,8 @@ def _register_aggregates(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-
         )
         raise typer.Exit(code=code)
 
+
+def register_summary(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command()
     def summary(
         ctx: typer.Context,
@@ -179,6 +181,8 @@ def _register_aggregates(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-
         )
         raise typer.Exit(code=code)
 
+
+def register_budget(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command()
     def budget(
         ctx: typer.Context,
@@ -213,6 +217,8 @@ def _register_aggregates(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-
         )
         raise typer.Exit(code=code)
 
+
+def register_report(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command()
     def report(
         ctx: typer.Context,
@@ -256,9 +262,7 @@ def _register_aggregates(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-
         raise typer.Exit(code=code)
 
 
-def _register_transaction(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
-    """Register transaction-level commands: show, history, note."""
-
+def register_show(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command()
     def show(
         ctx: typer.Context,
@@ -279,6 +283,8 @@ def _register_transaction(app: typer.Typer, ws_fn) -> None:  # type: ignore[type
         code = cmd_show.run(txid=txid, workspace=ws_fn(ctx))
         raise typer.Exit(code=code)
 
+
+def register_history(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command()
     def history(
         ctx: typer.Context,
@@ -324,6 +330,8 @@ def _register_transaction(app: typer.Typer, ws_fn) -> None:  # type: ignore[type
         )
         raise typer.Exit(code=code)
 
+
+def register_note(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command()
     def note(
         ctx: typer.Context,
@@ -383,5 +391,11 @@ def _register_transaction(app: typer.Typer, ws_fn) -> None:  # type: ignore[type
 
 def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     """Register all reporting commands on *app*."""
-    _register_aggregates(app, ws_fn)
-    _register_transaction(app, ws_fn)
+    register_ytd(app, ws_fn)
+    register_status(app, ws_fn)
+    register_summary(app, ws_fn)
+    register_budget(app, ws_fn)
+    register_report(app, ws_fn)
+    register_show(app, ws_fn)
+    register_history(app, ws_fn)
+    register_note(app, ws_fn)

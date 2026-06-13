@@ -9,9 +9,7 @@ import typer
 HELP_WRITE = "Persist changes (default: dry-run)"
 
 
-def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
-    """Register ingest commands on *app*."""
-
+def register_ingest(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command()
     def ingest(
         ctx: typer.Context,
@@ -29,6 +27,8 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         )
         raise typer.Exit(code=code)
 
+
+def register_reingest(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command()
     def reingest(
         ctx: typer.Context,
@@ -59,6 +59,8 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         )
         raise typer.Exit(code=code)
 
+
+def register_ingest_receipts(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command(name="ingest-receipts")
     def ingest_receipts(
         ctx: typer.Context,
@@ -103,6 +105,8 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         )
         raise typer.Exit(code=code)
 
+
+def register_receipts(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command()
     def receipts(
         ctx: typer.Context,
@@ -162,3 +166,11 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
             workspace=ws_fn(ctx),
         )
         raise typer.Exit(code=code)
+
+
+def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
+    """Register ingest commands on *app*."""
+    register_ingest(app, ws_fn)
+    register_reingest(app, ws_fn)
+    register_ingest_receipts(app, ws_fn)
+    register_receipts(app, ws_fn)

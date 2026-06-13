@@ -10,9 +10,7 @@ from gilt.config import DEFAULT_OLLAMA_MODEL
 HELP_WRITE = "Persist changes (default: dry-run)"
 
 
-def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
-    """Register duplicate-management commands on *app*."""
-
+def register_duplicates(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command()
     def duplicates(
         ctx: typer.Context,
@@ -65,6 +63,8 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         )
         raise typer.Exit(code=code)
 
+
+def register_mark_duplicate(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command(name="mark-duplicate")
     def mark_duplicate(
         ctx: typer.Context,
@@ -106,6 +106,8 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         )
         raise typer.Exit(code=code)
 
+
+def register_diagnose_duplicates(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command(name="diagnose-duplicates")
     def diagnose_duplicates(ctx: typer.Context):
         """Diagnose duplicate-projection issues.
@@ -121,6 +123,8 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         code = cmd_diagnose_duplicates.run(workspace=ws_fn(ctx))
         raise typer.Exit(code=code)
 
+
+def register_audit_ml(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command(name="audit-ml")
     def audit_ml(
         ctx: typer.Context,
@@ -160,6 +164,8 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         )
         raise typer.Exit(code=code)
 
+
+def register_prompt_stats(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command(name="prompt-stats")
     def prompt_stats(
         ctx: typer.Context,
@@ -185,3 +191,12 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
             generate_update=generate_update,
         )
         raise typer.Exit(code=code)
+
+
+def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
+    """Register duplicate-management commands on *app*."""
+    register_duplicates(app, ws_fn)
+    register_mark_duplicate(app, ws_fn)
+    register_diagnose_duplicates(app, ws_fn)
+    register_audit_ml(app, ws_fn)
+    register_prompt_stats(app, ws_fn)

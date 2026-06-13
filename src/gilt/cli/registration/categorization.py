@@ -10,9 +10,7 @@ import typer
 HELP_WRITE = "Persist changes (default: dry-run)"
 
 
-def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
-    """Register categorization commands on *app*."""
-
+def register_categorize(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command()
     def categorize(
         ctx: typer.Context,
@@ -105,6 +103,8 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         )
         raise typer.Exit(code=code)
 
+
+def register_recategorize(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command()
     def recategorize(
         ctx: typer.Context,
@@ -187,6 +187,8 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         )
         raise typer.Exit(code=code)
 
+
+def register_auto_categorize(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command(name="auto-categorize")
     def auto_categorize(
         ctx: typer.Context,
@@ -244,6 +246,8 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         )
         raise typer.Exit(code=code)
 
+
+def register_uncategorized(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command()
     def uncategorized(
         ctx: typer.Context,
@@ -304,6 +308,8 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         )
         raise typer.Exit(code=code)
 
+
+def register_diagnose_categories(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command()
     def diagnose_categories(ctx: typer.Context):
         """Diagnose category issues by finding categories in transactions not in config.
@@ -320,6 +326,8 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         code = cmd_diagnose_categories.run(workspace=ws_fn(ctx))
         raise typer.Exit(code=code)
 
+
+def register_infer_rules(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command(name="infer-rules")
     def infer_rules(
         ctx: typer.Context,
@@ -364,3 +372,13 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
             export=export,
         )
         raise typer.Exit(code=code)
+
+
+def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
+    """Register categorization commands on *app*."""
+    register_categorize(app, ws_fn)
+    register_recategorize(app, ws_fn)
+    register_auto_categorize(app, ws_fn)
+    register_uncategorized(app, ws_fn)
+    register_diagnose_categories(app, ws_fn)
+    register_infer_rules(app, ws_fn)
