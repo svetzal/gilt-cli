@@ -85,7 +85,7 @@ def _uf_union(parent: dict[str, str], a: str, b: str) -> None:
         parent[ra] = rb
 
 
-def plan_duplicate_corrections(state: DuplicateGroupState) -> list[DuplicateCorrection]:
+def build_duplicate_corrections(state: DuplicateGroupState) -> list[DuplicateCorrection]:
     """Pure: compute which duplicate-group repairs are needed given current projection state.
 
     Identifies two problem patterns and returns correction records for each:
@@ -197,7 +197,7 @@ def _resolve_root_primary(
 def _normalize_duplicate_groups(conn: sqlite3.Connection) -> None:
     """Thin shell: load duplicate state, compute corrections, apply UPDATEs.
 
-    All decision logic lives in plan_duplicate_corrections.
+    All decision logic lives in build_duplicate_corrections.
     """
     cursor = conn.execute(
         "SELECT transaction_id, primary_transaction_id FROM transaction_projections "
@@ -211,7 +211,7 @@ def _normalize_duplicate_groups(conn: sqlite3.Connection) -> None:
     non_dup_ids: set[str] = {row[0] for row in cursor.fetchall()}
 
     state = DuplicateGroupState(dup_rows=dup_rows, non_dup_ids=non_dup_ids)
-    corrections = plan_duplicate_corrections(state)
+    corrections = build_duplicate_corrections(state)
 
     for c in corrections:
         if c.kind == "repoint":
@@ -928,5 +928,5 @@ __all__ = [
     "DuplicateGroupState",
     "ProjectionBuilder",
     "find_root_primary",
-    "plan_duplicate_corrections",
+    "build_duplicate_corrections",
 ]

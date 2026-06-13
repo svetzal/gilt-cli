@@ -23,8 +23,8 @@ from gilt.storage.projection import (
     DuplicateCorrection,
     DuplicateGroupState,
     ProjectionBuilder,
+    build_duplicate_corrections,
     find_root_primary,
-    plan_duplicate_corrections,
 )
 
 
@@ -958,16 +958,16 @@ class DescribeProjectionBuilder:
 
 
 class DescribePlanDuplicateCorrections:
-    """Pure-function tests for plan_duplicate_corrections — no DB required."""
+    """Pure-function tests for build_duplicate_corrections — no DB required."""
 
     def it_should_return_empty_list_for_empty_state(self):
         state = DuplicateGroupState(dup_rows=[], non_dup_ids=set())
-        assert plan_duplicate_corrections(state) == []
+        assert build_duplicate_corrections(state) == []
 
     def it_should_return_empty_list_when_no_duplicate_members_in_any_component(self):
         # Two non-dup ids, no dup_rows — nothing to fix
         state = DuplicateGroupState(dup_rows=[], non_dup_ids={"aaa", "bbb"})
-        assert plan_duplicate_corrections(state) == []
+        assert build_duplicate_corrections(state) == []
 
     def it_should_repoint_stale_chain_to_lexicographically_smallest_non_dup_root(self):
         # aaa is non-dup, bbb is dup pointing at aaa — already correct but still emits repoint
@@ -975,7 +975,7 @@ class DescribePlanDuplicateCorrections:
             dup_rows=[("bbb", "aaa")],
             non_dup_ids={"aaa"},
         )
-        corrections = plan_duplicate_corrections(state)
+        corrections = build_duplicate_corrections(state)
         assert len(corrections) == 1
         assert corrections[0] == DuplicateCorrection(kind="repoint", txn_id="bbb", primary_id="aaa")
 
@@ -986,7 +986,7 @@ class DescribePlanDuplicateCorrections:
             non_dup_ids={"aaa", "bbb"},
         )
         # aaa and bbb are unconnected non-dups — different components; only bbb+ccc are linked
-        corrections = plan_duplicate_corrections(state)
+        corrections = build_duplicate_corrections(state)
         assert any(c.kind == "repoint" and c.txn_id == "ccc" and c.primary_id == "bbb" for c in corrections)
 
     def it_should_elect_min_id_and_demote_others_for_orphan_cycle(self):
@@ -995,7 +995,7 @@ class DescribePlanDuplicateCorrections:
             dup_rows=[("t2", "t1"), ("t1", "t2")],
             non_dup_ids=set(),
         )
-        corrections = plan_duplicate_corrections(state)
+        corrections = build_duplicate_corrections(state)
         kinds = {c.kind for c in corrections}
         assert "elect_primary" in kinds
         assert "demote" in kinds
@@ -1012,7 +1012,7 @@ class DescribePlanDuplicateCorrections:
             dup_rows=[("t2", "t1"), ("t3", "t1"), ("t1", "t3")],
             non_dup_ids=set(),
         )
-        corrections = plan_duplicate_corrections(state)
+        corrections = build_duplicate_corrections(state)
         elected = next(c for c in corrections if c.kind == "elect_primary")
         demotions = [c for c in corrections if c.kind == "demote"]
         assert elected.txn_id == "t1"  # lexicographically smallest
