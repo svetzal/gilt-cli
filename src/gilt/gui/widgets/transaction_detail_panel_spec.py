@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import pytest
+
+pytest.importorskip("PySide6")
+
 from decimal import Decimal
 from unittest.mock import MagicMock
 
