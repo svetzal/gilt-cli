@@ -125,7 +125,9 @@ def build_duplicate_corrections(state: DuplicateGroupState) -> list[DuplicateCor
         if non_dup_members:
             root = min(non_dup_members)
             for dup_id in dup_members:
-                corrections.append(DuplicateCorrection(kind="repoint", txn_id=dup_id, primary_id=root))
+                corrections.append(
+                    DuplicateCorrection(kind="repoint", txn_id=dup_id, primary_id=root)
+                )
         else:
             elected = min(members)
             corrections.append(DuplicateCorrection(kind="elect_primary", txn_id=elected))

@@ -18,7 +18,6 @@ from ..loaders import load_all_transactions
 logger = logging.getLogger(__name__)
 
 
-
 def _build_display_notes(t: Transaction) -> str:
     """Build Rich-markup notes string from category, transfer, and user notes."""
     service = TransactionQueryService()

@@ -326,7 +326,9 @@ def _run_selection_mode(
         ready = require_event_sourcing(workspace)
         if ready is None:
             return 1
-        persist_categorization_matches(all_matches, to_cat, to_subcat, ready, workspace, source="user")
+        persist_categorization_matches(
+            all_matches, to_cat, to_subcat, ready, workspace, source="user"
+        )
         console.print(f"[green]✓[/] Recategorized {total_matched} transaction(s)")
         return 0
 

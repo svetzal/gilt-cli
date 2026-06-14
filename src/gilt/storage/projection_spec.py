@@ -987,7 +987,9 @@ class DescribePlanDuplicateCorrections:
         )
         # aaa and bbb are unconnected non-dups — different components; only bbb+ccc are linked
         corrections = build_duplicate_corrections(state)
-        assert any(c.kind == "repoint" and c.txn_id == "ccc" and c.primary_id == "bbb" for c in corrections)
+        assert any(
+            c.kind == "repoint" and c.txn_id == "ccc" and c.primary_id == "bbb" for c in corrections
+        )
 
     def it_should_elect_min_id_and_demote_others_for_orphan_cycle(self):
         # Both t2 and t1 are duplicates with no non-dup member — orphan cycle
@@ -1025,8 +1027,10 @@ class DescribeFindRootPrimary:
 
     def _make_lookup(self, rows: dict[str, tuple[bool, str | None]]):
         """Build a dict-backed lookup callable."""
+
         def lookup(txn_id: str) -> tuple[bool, str | None] | None:
             return rows.get(txn_id)
+
         return lookup
 
     def it_should_return_txn_id_when_it_is_not_a_duplicate(self):
@@ -1036,11 +1040,13 @@ class DescribeFindRootPrimary:
         assert "aaa" in visited
 
     def it_should_follow_chain_to_non_duplicate_root(self):
-        lookup = self._make_lookup({
-            "dup1": (True, "dup2"),
-            "dup2": (True, "root"),
-            "root": (False, None),
-        })
+        lookup = self._make_lookup(
+            {
+                "dup1": (True, "dup2"),
+                "dup2": (True, "root"),
+                "root": (False, None),
+            }
+        )
         root, visited = find_root_primary(lookup, "dup1")
         assert root == "root"
         assert visited == ["dup1", "dup2", "root"]
@@ -1051,10 +1057,12 @@ class DescribeFindRootPrimary:
         assert root is None
 
     def it_should_return_none_on_cycle_detection(self):
-        lookup = self._make_lookup({
-            "t1": (True, "t2"),
-            "t2": (True, "t1"),
-        })
+        lookup = self._make_lookup(
+            {
+                "t1": (True, "t2"),
+                "t2": (True, "t1"),
+            }
+        )
         root, visited = find_root_primary(lookup, "t1")
         assert root is None
 
