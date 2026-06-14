@@ -20,7 +20,8 @@ from rich.table import Table
 
 from gilt.workspace import Workspace
 
-from .util import build_event_sourcing_service, console, print_error
+from ..console import console, print_error
+from ..event_sourcing_bootstrap import build_event_sourcing_service
 
 
 def run(

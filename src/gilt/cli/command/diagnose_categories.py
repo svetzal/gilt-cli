@@ -11,7 +11,7 @@ from gilt.model.ledger_repository import LedgerRepository
 from gilt.services.category_diagnostics_service import CategoryDiagnosticsService
 from gilt.workspace import Workspace
 
-from .util import console
+from ..console import console
 
 
 def _load_transactions_from_ledgers(data_dir) -> list[dict]:

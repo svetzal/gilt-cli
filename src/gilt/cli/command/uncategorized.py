@@ -14,15 +14,11 @@ from gilt.model.account import Transaction
 from gilt.services.transaction_query_service import TransactionFilter, TransactionQueryService
 from gilt.workspace import Workspace
 
-from .util import (
-    build_transaction_table,
-    find_uncategorized,
-    fmt_amount_str,
-    load_account_transactions,
-)
-from .util import (
-    console as _default_console,
-)
+from ..console import console as _default_console
+from ..filtering import find_uncategorized
+from ..formatting import fmt_amount_str
+from ..loaders import load_account_transactions
+from ..presentation import build_transaction_table
 
 
 def _display_uncategorized_table(

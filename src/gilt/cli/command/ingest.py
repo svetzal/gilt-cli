@@ -13,7 +13,8 @@ from gilt.workspace import Workspace
 if TYPE_CHECKING:
     from gilt.storage.event_store import EventStore
 
-from .util import build_event_sourcing_service, console, print_error
+from ..console import console, print_error
+from ..event_sourcing_bootstrap import build_event_sourcing_service
 
 
 def _print_plan(plan: Iterable[tuple[Path, str | None]], total_files: int) -> None:

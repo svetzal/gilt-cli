@@ -14,15 +14,13 @@ from gilt.services.rule_inference_service import RuleInferenceService
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
-from .util import (
-    console,
-    display_transaction_matches,
-    fmt_amount_str,
-    print_dry_run_message,
+from ..console import console, display_transaction_matches, print_dry_run_message
+from ..event_sourcing_bootstrap import (
     require_event_sourcing,
     require_persistence_service,
     require_projections,
 )
+from ..formatting import fmt_amount_str
 
 
 def _display_rules(rules):

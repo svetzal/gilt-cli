@@ -14,8 +14,9 @@ from gilt.services.summary_service import build_category_summary, build_subcateg
 from gilt.services.transaction_query_service import TransactionFilter, TransactionQueryService
 from gilt.workspace import Workspace
 
-from .util import console as _default_console
-from .util import fmt_colored_amount, load_account_transactions
+from ..console import console as _default_console
+from ..formatting import fmt_colored_amount
+from ..loaders import load_account_transactions
 
 _DASH = "—"  # em-dash for None subcategory display
 

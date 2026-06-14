@@ -18,7 +18,8 @@ from gilt.services.duplicate_review_service import DuplicateReviewService
 from gilt.services.transaction_operations_service import TransactionOperationsService
 from gilt.workspace import Workspace
 
-from .util import console, print_error, require_event_sourcing, require_projections
+from ..console import console, print_error
+from ..event_sourcing_bootstrap import require_event_sourcing, require_projections
 
 
 def _display_validation_results(validation, write: bool) -> None:

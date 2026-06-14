@@ -13,8 +13,8 @@ from rich.table import Table
 
 from gilt.workspace import Workspace
 
-from .util import console as _default_console
-from .util import require_projections
+from ..console import console as _default_console
+from ..event_sourcing_bootstrap import require_projections
 
 
 @dataclass

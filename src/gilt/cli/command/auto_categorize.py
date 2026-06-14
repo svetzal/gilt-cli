@@ -21,19 +21,12 @@ from gilt.services.event_sourcing_service import EventSourcingReadyResult
 from gilt.services.rule_inference_service import RuleInferenceService
 from gilt.workspace import Workspace
 
-from .util import (
-    base_match_row,
-    build_categorization_updates,
-    console,
-    display_transaction_matches,
-    find_uncategorized,
-    fmt_amount_str,
-    load_account_transactions,
-    print_dry_run_message,
-    print_error,
-    require_event_sourcing,
-    run_categorization_updates,
-)
+from ..console import console, display_transaction_matches, print_dry_run_message, print_error
+from ..event_sourcing_bootstrap import require_event_sourcing
+from ..filtering import find_uncategorized
+from ..formatting import base_match_row, fmt_amount_str
+from ..loaders import load_account_transactions
+from ..mutations import build_categorization_updates, run_categorization_updates
 
 
 @dataclass

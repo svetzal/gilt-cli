@@ -9,7 +9,7 @@ from gilt.ingest import load_accounts_config
 from gilt.model.ledger_repository import LedgerRepository
 from gilt.workspace import Workspace
 
-from .util import console
+from ..console import console
 
 logger = logging.getLogger(__name__)
 

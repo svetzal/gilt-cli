@@ -9,7 +9,8 @@ from rich.table import Table
 from gilt.services.duplicate_diagnostics_service import DuplicateDiagnosticsService, DuplicateIssue
 from gilt.workspace import Workspace
 
-from .util import console, require_projections
+from ..console import console
+from ..event_sourcing_bootstrap import require_projections
 
 
 def run(

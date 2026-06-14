@@ -20,8 +20,9 @@ from gilt.services.receipts_service import (
 )
 from gilt.workspace import Workspace
 
-from .util import console as _default_console
-from .util import fmt_amount_str, fmt_colored_amount, require_projections
+from ..console import console as _default_console
+from ..event_sourcing_bootstrap import require_projections
+from ..formatting import fmt_amount_str, fmt_colored_amount
 
 
 def run(

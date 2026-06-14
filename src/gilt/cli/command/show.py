@@ -11,7 +11,9 @@ from gilt.cli.presentation import build_transaction_table
 from gilt.services.transaction_operations_service import TransactionOperationsService
 from gilt.workspace import Workspace
 
-from .util import console, fmt_amount, fmt_amount_str, require_projections
+from ..console import console
+from ..event_sourcing_bootstrap import require_projections
+from ..formatting import fmt_amount, fmt_amount_str
 
 _PLACEHOLDER = "—"
 

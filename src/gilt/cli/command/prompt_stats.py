@@ -25,7 +25,8 @@ from gilt.model.events import PromptUpdated
 from gilt.transfer.prompt_learning import PromptLearningService
 from gilt.workspace import Workspace
 
-from .util import console, require_event_sourcing
+from ..console import console
+from ..event_sourcing_bootstrap import require_event_sourcing
 
 
 def _display_accuracy_metrics(console: Console, metrics) -> None:

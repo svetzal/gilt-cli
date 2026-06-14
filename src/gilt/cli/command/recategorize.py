@@ -26,16 +26,13 @@ from gilt.services.transaction_operations_service import (
 from gilt.services.transaction_query_service import TransactionFilter, TransactionQueryService
 from gilt.workspace import Workspace
 
-from .util import (
-    build_category_path,
-    console,
-    display_category_change_matches,
+from ..console import console, display_category_change_matches, print_error
+from ..event_sourcing_bootstrap import require_event_sourcing, require_persistence_service
+from ..formatting import build_category_path
+from ..loaders import load_account_transactions
+from ..mutations import (
     find_matches_by_criteria,
-    load_account_transactions,
     persist_categorization_matches,
-    print_error,
-    require_event_sourcing,
-    require_persistence_service,
     run_confirmed_mutation,
 )
 

@@ -16,7 +16,8 @@ from gilt.services.reingestion_service import ReingestionService
 from gilt.transfer.linker import link_transfers
 from gilt.workspace import Workspace
 
-from .util import console, print_dry_run_message, print_error, require_event_sourcing
+from ..console import console, print_dry_run_message, print_error
+from ..event_sourcing_bootstrap import require_event_sourcing
 
 
 def _delete_existing_ledger(ledger_path: Path) -> bool:

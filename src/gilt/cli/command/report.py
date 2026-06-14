@@ -17,7 +17,7 @@ from gilt.services.budget_reporting_service import BudgetReportingService
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
-from .util import console, print_dry_run_message, print_error
+from ..console import console, print_dry_run_message, print_error
 
 
 def _check_pandoc() -> bool:

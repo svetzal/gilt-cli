@@ -13,7 +13,8 @@ from gilt.model.category_io import load_categories_config
 from gilt.model.ledger_repository import LedgerRepository
 from gilt.workspace import Workspace
 
-from .util import console, fmt_amount_str
+from ..console import console
+from ..formatting import fmt_amount_str
 
 
 def _add_category_with_subcategories(table: Table, cat, usage: dict) -> None:

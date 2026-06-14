@@ -147,14 +147,14 @@ class DescribeFilterByAccount:
 
 class DescribePrintError:
     def it_should_print_error_with_red_prefix(self, mocker):
-        mock_console = mocker.patch("gilt.cli.command.util.console")
+        mock_console = mocker.patch("gilt.cli.console.console")
 
         print_error("something went wrong")
 
         mock_console.print.assert_called_once_with("[red]Error:[/] something went wrong")
 
     def it_should_include_the_message_verbatim(self, mocker):
-        mock_console = mocker.patch("gilt.cli.command.util.console")
+        mock_console = mocker.patch("gilt.cli.console.console")
 
         print_error("file not found: /data/foo.csv")
 
@@ -164,14 +164,14 @@ class DescribePrintError:
 
 class DescribePrintWarning:
     def it_should_print_warning_with_yellow_prefix(self, mocker):
-        mock_console = mocker.patch("gilt.cli.command.util.console")
+        mock_console = mocker.patch("gilt.cli.console.console")
 
         print_warning("deprecated feature used")
 
         mock_console.print.assert_called_once_with("[yellow]Warning:[/] deprecated feature used")
 
     def it_should_include_the_message_verbatim(self, mocker):
-        mock_console = mocker.patch("gilt.cli.command.util.console")
+        mock_console = mocker.patch("gilt.cli.console.console")
 
         print_warning("only 3 items found")
 
@@ -181,7 +181,7 @@ class DescribePrintWarning:
 
 class DescribePrintErrorList:
     def it_should_print_heading_and_bullets(self, mocker):
-        mock_console = mocker.patch("gilt.cli.command.util.console")
+        mock_console = mocker.patch("gilt.cli.console.console")
 
         print_error_list("Validation errors", ["field required", "value out of range"])
 
@@ -191,7 +191,7 @@ class DescribePrintErrorList:
         assert calls[2] == "  • value out of range"
 
     def it_should_print_nothing_for_empty_list(self, mocker):
-        mock_console = mocker.patch("gilt.cli.command.util.console")
+        mock_console = mocker.patch("gilt.cli.console.console")
 
         print_error_list("No errors", [])
 
@@ -239,7 +239,7 @@ class DescribeCreateTransactionTable:
 
 class DescribePrintTransactionTable:
     def it_should_print_overflow_message_when_exceeding_limit(self, mocker):
-        mock_console = mocker.patch("gilt.cli.command.util.console")
+        mock_console = mocker.patch("gilt.cli.console.console")
         table = Table()
         for _ in range(55):
             table.add_row("a")
@@ -250,7 +250,7 @@ class DescribePrintTransactionTable:
         assert "5 more" in str(overflow_call)
 
     def it_should_not_print_overflow_message_when_at_limit(self, mocker):
-        mock_console = mocker.patch("gilt.cli.command.util.console")
+        mock_console = mocker.patch("gilt.cli.console.console")
         table = Table()
         for _ in range(50):
             table.add_row("a")
@@ -261,7 +261,7 @@ class DescribePrintTransactionTable:
         assert not any("more" in c for c in calls)
 
     def it_should_not_print_overflow_message_when_below_limit(self, mocker):
-        mock_console = mocker.patch("gilt.cli.command.util.console")
+        mock_console = mocker.patch("gilt.cli.console.console")
         table = Table()
         for _ in range(10):
             table.add_row("a")
@@ -274,7 +274,7 @@ class DescribePrintTransactionTable:
 
 class DescribeDisplayTransactionMatches:
     def it_should_create_and_print_a_table_with_all_matches(self, mocker):
-        mock_console = mocker.patch("gilt.cli.command.util.console")
+        mock_console = mocker.patch("gilt.cli.console.console")
         matches = [
             ("ACC1", "aaaa0001", "2025-01-01", "SAMPLE STORE", "-42.50", "Food"),
             ("ACC2", "bbbb0002", "2025-01-02", "ACME CORP", "-10.00", "Bills"),
@@ -293,7 +293,7 @@ class DescribeDisplayTransactionMatches:
         assert mock_console.print.called
 
     def it_should_limit_rendered_rows_to_display_limit(self, mocker):
-        mocker.patch("gilt.cli.command.util.console")
+        mocker.patch("gilt.cli.console.console")
         rendered_rows = []
         matches = list(range(60))
 
@@ -312,8 +312,8 @@ class DescribeDisplayTransactionMatches:
         assert len(rendered_rows) == 50
 
     def it_should_pass_total_count_to_print_transaction_table(self, mocker):
-        mock_print_table = mocker.patch("gilt.cli.command.util.print_transaction_table")
-        mocker.patch("gilt.cli.command.util.build_transaction_table")
+        mock_print_table = mocker.patch("gilt.cli.console.print_transaction_table")
+        mocker.patch("gilt.cli.console.build_transaction_table")
         matches = list(range(55))
 
         display_transaction_matches(
@@ -330,7 +330,7 @@ class DescribeDisplayTransactionMatches:
         assert positional[1] == 55
 
     def it_should_render_empty_table_when_matches_is_empty(self, mocker):
-        mock_console = mocker.patch("gilt.cli.command.util.console")
+        mock_console = mocker.patch("gilt.cli.console.console")
 
         display_transaction_matches("Test", [], [], lambda item: (str(item),))
 
@@ -397,7 +397,7 @@ class DescribeRequireEventSourcing:
     def it_should_return_none_when_event_store_missing_with_csv_files(self, tmp_path, mocker):
         ws = Workspace(root=tmp_path)
         not_ready = EventSourcingReadyResult(ready=False, error="no_event_store", csv_files_count=2)
-        mock_svc = mocker.patch("gilt.cli.command.util.EventSourcingService")
+        mock_svc = mocker.patch("gilt.cli.event_sourcing_bootstrap.EventSourcingService")
         mock_svc.return_value.ensure_ready.return_value = not_ready
 
         result = require_event_sourcing(ws)
@@ -407,7 +407,7 @@ class DescribeRequireEventSourcing:
     def it_should_return_none_when_no_data_exists(self, tmp_path, mocker):
         ws = Workspace(root=tmp_path)
         not_ready = EventSourcingReadyResult(ready=False, error="no_data")
-        mock_svc = mocker.patch("gilt.cli.command.util.EventSourcingService")
+        mock_svc = mocker.patch("gilt.cli.event_sourcing_bootstrap.EventSourcingService")
         mock_svc.return_value.ensure_ready.return_value = not_ready
 
         result = require_event_sourcing(ws)
@@ -443,35 +443,35 @@ def _make_group(
 
 class DescribeValidateSingleVsBatchMode:
     def it_should_return_true_for_single_mode(self, mocker):
-        mocker.patch("gilt.cli.command.util.console")
+        mocker.patch("gilt.cli.console.console")
 
         result = validate_single_vs_batch_mode("abcd1234", None, None, None)
 
         assert result is True
 
     def it_should_return_false_for_batch_mode_with_description(self, mocker):
-        mocker.patch("gilt.cli.command.util.console")
+        mocker.patch("gilt.cli.console.console")
 
         result = validate_single_vs_batch_mode(None, "SAMPLE STORE", None, None)
 
         assert result is False
 
     def it_should_return_false_for_batch_mode_with_desc_prefix(self, mocker):
-        mocker.patch("gilt.cli.command.util.console")
+        mocker.patch("gilt.cli.console.console")
 
         result = validate_single_vs_batch_mode(None, None, "SAMPLE", None)
 
         assert result is False
 
     def it_should_return_false_for_batch_mode_with_pattern(self, mocker):
-        mocker.patch("gilt.cli.command.util.console")
+        mocker.patch("gilt.cli.console.console")
 
         result = validate_single_vs_batch_mode(None, None, None, r"\d+")
 
         assert result is False
 
     def it_should_return_none_when_no_mode_specified(self, mocker):
-        mock_console = mocker.patch("gilt.cli.command.util.console")
+        mock_console = mocker.patch("gilt.cli.console.console")
 
         result = validate_single_vs_batch_mode(None, None, None, None)
 
@@ -479,7 +479,7 @@ class DescribeValidateSingleVsBatchMode:
         mock_console.print.assert_called_once()
 
     def it_should_return_none_when_multiple_modes_specified(self, mocker):
-        mock_console = mocker.patch("gilt.cli.command.util.console")
+        mock_console = mocker.patch("gilt.cli.console.console")
 
         result = validate_single_vs_batch_mode("abcd1234", "SAMPLE STORE", None, None)
 
@@ -487,7 +487,7 @@ class DescribeValidateSingleVsBatchMode:
         mock_console.print.assert_called_once()
 
     def it_should_print_error_message_on_failure(self, mocker):
-        mock_console = mocker.patch("gilt.cli.command.util.console")
+        mock_console = mocker.patch("gilt.cli.console.console")
 
         validate_single_vs_batch_mode(None, None, None, None)
 
@@ -557,7 +557,7 @@ class DescribeResolveIdPrefix:
 
 class DescribeSearchByCriteria:
     def it_should_return_preview_on_valid_search(self, mocker):
-        mocker.patch("gilt.cli.command.util.console")
+        mocker.patch("gilt.cli.mutations.console")
         group = _make_group("abcd1234abcd1234", description="SAMPLE STORE")
         criteria = SearchCriteria(description="SAMPLE STORE")
         preview = BatchPreview(
@@ -573,7 +573,7 @@ class DescribeSearchByCriteria:
         assert result is preview
 
     def it_should_return_none_on_invalid_pattern(self, mocker):
-        mock_console = mocker.patch("gilt.cli.command.util.console")
+        mock_console = mocker.patch("gilt.cli.console.console")
         criteria = SearchCriteria(pattern=r"[invalid")
         preview = BatchPreview(
             matched_groups=[],
@@ -592,7 +592,7 @@ class DescribeSearchByCriteria:
         assert "Invalid regex pattern" in args
 
     def it_should_print_sign_insensitive_note_when_applicable(self, mocker):
-        mock_console = mocker.patch("gilt.cli.command.util.console")
+        mock_console = mocker.patch("gilt.cli.mutations.console")
         group = _make_group("abcd1234abcd1234", description="SAMPLE STORE", amount=-10.0)
         criteria = SearchCriteria(description="SAMPLE STORE", amount=10.0)
         preview = BatchPreview(
@@ -612,7 +612,7 @@ class DescribeSearchByCriteria:
         assert "absolute amount" in args
 
     def it_should_not_print_note_when_sign_sensitive_match(self, mocker):
-        mock_console = mocker.patch("gilt.cli.command.util.console")
+        mock_console = mocker.patch("gilt.cli.mutations.console")
         group = _make_group("abcd1234abcd1234", description="SAMPLE STORE", amount=-10.0)
         criteria = SearchCriteria(description="SAMPLE STORE", amount=-10.0)
         preview = BatchPreview(
@@ -632,7 +632,7 @@ class DescribeSearchByCriteria:
 
 class DescribeFindMatchesByCriteria:
     def it_should_accumulate_pairs_across_multiple_accounts(self, mocker):
-        mocker.patch("gilt.cli.command.util.console")
+        mocker.patch("gilt.cli.console.console")
         g1 = _make_group("aaaa0001aaaa0001", description="SAMPLE STORE")
         g2 = _make_group("bbbb0002bbbb0002", description="ACME CORP")
         groups_by_account = {"ACC1": [g1], "ACC2": [g2]}
@@ -645,7 +645,7 @@ class DescribeFindMatchesByCriteria:
         assert result == [("ACC1", g1), ("ACC2", g2)]
 
     def it_should_return_none_and_print_error_when_service_returns_nonempty_string(self, mocker):
-        mock_console = mocker.patch("gilt.cli.command.util.console")
+        mock_console = mocker.patch("gilt.cli.console.console")
         g1 = _make_group("aaaa0001aaaa0001")
         groups_by_account = {"ACC1": [g1]}
         criteria = SearchCriteria(description="SAMPLE STORE")
@@ -658,7 +658,7 @@ class DescribeFindMatchesByCriteria:
         mock_console.print.assert_called_once()
 
     def it_should_return_none_silently_when_service_returns_empty_string(self, mocker):
-        mock_console = mocker.patch("gilt.cli.command.util.console")
+        mock_console = mocker.patch("gilt.cli.console.console")
         g1 = _make_group("aaaa0001aaaa0001")
         groups_by_account = {"ACC1": [g1]}
         criteria = SearchCriteria(description="SAMPLE STORE")
@@ -671,7 +671,7 @@ class DescribeFindMatchesByCriteria:
         mock_console.print.assert_not_called()
 
     def it_should_forward_txid_to_service(self, mocker):
-        mocker.patch("gilt.cli.command.util.console")
+        mocker.patch("gilt.cli.console.console")
         g1 = _make_group("aaaa0001aaaa0001")
         groups_by_account = {"ACC1": [g1]}
         criteria = SearchCriteria()
@@ -723,7 +723,7 @@ class DescribeLoadAccountTransactions:
             )
         )
         ProjectionBuilder(workspace.projections_path).build_from_scratch(store)
-        mock_console = mocker.patch("gilt.cli.command.util.console")
+        mock_console = mocker.patch("gilt.cli.console.console")
 
         result = load_account_transactions(workspace, "NONEXISTENT_ACCT")
 
@@ -790,7 +790,7 @@ class DescribeApplyCategorizationUpdates:
             )
         ]
         expected_result = CategorizationPersistenceResult(transactions_updated=1, events_emitted=1)
-        mock_svc = mocker.patch("gilt.cli.command.util.require_persistence_service")
+        mock_svc = mocker.patch("gilt.cli.mutations.require_persistence_service")
         mock_svc.return_value.persist_categorizations.return_value = expected_result
 
         result = run_categorization_updates(ready, workspace, updates)
@@ -1038,15 +1038,15 @@ class DescribeFormatPrefixLookupError:
 
 class DescribeConfirmInteractively:
     def it_should_return_true_when_stdin_is_not_a_tty(self, mocker):
-        mocker.patch("gilt.cli.command.util.sys.stdin.isatty", return_value=False)
+        mocker.patch("gilt.cli.console.sys.stdin.isatty", return_value=False)
 
         result = confirm_interactively("Continue?")
 
         assert result is True
 
     def it_should_delegate_to_typer_confirm_when_stdin_is_a_tty(self, mocker):
-        mocker.patch("gilt.cli.command.util.sys.stdin.isatty", return_value=True)
-        mock_confirm = mocker.patch("gilt.cli.command.util.typer.confirm", return_value=True)
+        mocker.patch("gilt.cli.console.sys.stdin.isatty", return_value=True)
+        mock_confirm = mocker.patch("gilt.cli.console.typer.confirm", return_value=True)
 
         result = confirm_interactively("Continue?")
 
@@ -1054,8 +1054,8 @@ class DescribeConfirmInteractively:
         mock_confirm.assert_called_once_with("Continue?")
 
     def it_should_return_false_when_user_declines(self, mocker):
-        mocker.patch("gilt.cli.command.util.sys.stdin.isatty", return_value=True)
-        mocker.patch("gilt.cli.command.util.typer.confirm", return_value=False)
+        mocker.patch("gilt.cli.console.sys.stdin.isatty", return_value=True)
+        mocker.patch("gilt.cli.console.typer.confirm", return_value=False)
 
         result = confirm_interactively("Continue?")
 
@@ -1068,8 +1068,8 @@ class DescribePersistCategorizationMatches:
         matches = [("MYBANK_CHQ", g)]
         ready = Mock(spec=EventSourcingReadyResult)
         workspace = Mock(spec=Workspace)
-        mock_build = mocker.patch("gilt.cli.command.util.build_categorization_updates")
-        mock_apply = mocker.patch("gilt.cli.command.util.run_categorization_updates")
+        mock_build = mocker.patch("gilt.cli.mutations.build_categorization_updates")
+        mock_apply = mocker.patch("gilt.cli.mutations.run_categorization_updates")
         mock_apply.return_value = CategorizationPersistenceResult(
             transactions_updated=1, events_emitted=1
         )
@@ -1087,8 +1087,8 @@ class DescribePersistCategorizationMatches:
         matches = [("MYBANK_CHQ", g)]
         ready = Mock(spec=EventSourcingReadyResult)
         workspace = Mock(spec=Workspace)
-        mock_build = mocker.patch("gilt.cli.command.util.build_categorization_updates")
-        mock_apply = mocker.patch("gilt.cli.command.util.run_categorization_updates")
+        mock_build = mocker.patch("gilt.cli.mutations.build_categorization_updates")
+        mock_apply = mocker.patch("gilt.cli.mutations.run_categorization_updates")
         mock_apply.return_value = CategorizationPersistenceResult(
             transactions_updated=1, events_emitted=1
         )
@@ -1181,7 +1181,7 @@ class DescribeDisplayCategoryChangeMatches:
         return ("MYBANK_CHQ", group)
 
     def it_should_render_from_and_to_category_columns_with_fixed_from_label(self, mocker):
-        mock_display = mocker.patch("gilt.cli.command.util.display_transaction_matches")
+        mock_display = mocker.patch("gilt.cli.console.display_transaction_matches")
         match = self._make_match(category="Food", subcategory="Groceries")
 
         display_category_change_matches(
@@ -1203,7 +1203,7 @@ class DescribeDisplayCategoryChangeMatches:
         assert row[-1] == "Utilities:Electric"
 
     def it_should_show_per_row_current_category_when_from_label_is_none(self, mocker):
-        mock_display = mocker.patch("gilt.cli.command.util.display_transaction_matches")
+        mock_display = mocker.patch("gilt.cli.console.display_transaction_matches")
         match = self._make_match(category="Food", subcategory="Groceries")
 
         display_category_change_matches(
@@ -1220,7 +1220,7 @@ class DescribeDisplayCategoryChangeMatches:
         assert row[-1] == "Utilities:Electric"
 
     def it_should_show_dash_when_transaction_has_no_category(self, mocker):
-        mock_display = mocker.patch("gilt.cli.command.util.display_transaction_matches")
+        mock_display = mocker.patch("gilt.cli.console.display_transaction_matches")
         match = self._make_match()
 
         display_category_change_matches(
@@ -1238,7 +1238,7 @@ class DescribeDisplayCategoryChangeMatches:
 
 class DescribeRunConfirmedMutation:
     def it_should_call_display_and_apply_when_write_is_true_and_assume_yes(self, mocker):
-        mocker.patch("gilt.cli.command.util.sys.stdin.isatty", return_value=True)
+        mocker.patch("gilt.cli.console.sys.stdin.isatty", return_value=True)
         display = Mock()
         apply = Mock(return_value=0)
 
@@ -1256,7 +1256,7 @@ class DescribeRunConfirmedMutation:
         assert result == 0
 
     def it_should_return_apply_result_when_write_and_assume_yes(self, mocker):
-        mocker.patch("gilt.cli.command.util.sys.stdin.isatty", return_value=True)
+        mocker.patch("gilt.cli.console.sys.stdin.isatty", return_value=True)
 
         result = run_confirmed_mutation(
             matches=[],
@@ -1270,8 +1270,8 @@ class DescribeRunConfirmedMutation:
         assert result == 7
 
     def it_should_print_dry_run_and_not_apply_when_not_write(self, mocker):
-        mocker.patch("gilt.cli.command.util.sys.stdin.isatty", return_value=True)
-        mock_console = mocker.patch("gilt.cli.command.util.console")
+        mocker.patch("gilt.cli.console.sys.stdin.isatty", return_value=True)
+        mock_console = mocker.patch("gilt.cli.console.console")
         apply = Mock()
 
         result = run_confirmed_mutation(
@@ -1289,8 +1289,8 @@ class DescribeRunConfirmedMutation:
         assert "Dry-run" in printed or "dry-run" in printed
 
     def it_should_return_zero_and_not_apply_when_confirm_declines(self, mocker):
-        mocker.patch("gilt.cli.command.util.sys.stdin.isatty", return_value=True)
-        mocker.patch("gilt.cli.command.util.typer.confirm", return_value=False)
+        mocker.patch("gilt.cli.console.sys.stdin.isatty", return_value=True)
+        mocker.patch("gilt.cli.console.typer.confirm", return_value=False)
         apply = Mock()
 
         result = run_confirmed_mutation(
@@ -1306,7 +1306,7 @@ class DescribeRunConfirmedMutation:
         assert result == 0
 
     def it_should_auto_confirm_when_stdin_is_not_a_tty(self, mocker):
-        mocker.patch("gilt.cli.command.util.sys.stdin.isatty", return_value=False)
+        mocker.patch("gilt.cli.console.sys.stdin.isatty", return_value=False)
         apply = Mock(return_value=0)
 
         result = run_confirmed_mutation(

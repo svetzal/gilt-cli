@@ -54,7 +54,7 @@ class DescribePromptStatsCommand:
             workspace.ledger_data_dir = data_dir
             workspace.event_store_path = tmp / "events.db"
 
-            with patch("gilt.cli.command.util.EventSourcingService") as mock_es_cls:
+            with patch("gilt.cli.event_sourcing_bootstrap.EventSourcingService") as mock_es_cls:
                 mock_es = MagicMock()
                 mock_es.ensure_ready.return_value = EventSourcingReadyResult(
                     ready=False,
@@ -77,7 +77,7 @@ class DescribePromptStatsCommand:
             workspace.event_store_path = tmp / "events.db"
 
             with (
-                patch("gilt.cli.command.util.EventSourcingService") as mock_es_cls,
+                patch("gilt.cli.event_sourcing_bootstrap.EventSourcingService") as mock_es_cls,
                 patch("gilt.cli.command.prompt_stats.PromptLearningService") as mock_learning_cls,
             ):
                 mock_event_store = MagicMock()
@@ -110,7 +110,7 @@ class DescribePromptStatsCommand:
             workspace.event_store_path = tmp / "events.db"
 
             with (
-                patch("gilt.cli.command.util.EventSourcingService") as mock_es_cls,
+                patch("gilt.cli.event_sourcing_bootstrap.EventSourcingService") as mock_es_cls,
                 patch("gilt.cli.command.prompt_stats.PromptLearningService") as mock_learning_cls,
             ):
                 mock_event_store = MagicMock()
@@ -145,7 +145,7 @@ class DescribePromptStatsCommand:
             workspace.event_store_path = tmp / "events.db"
 
             with (
-                patch("gilt.cli.command.util.EventSourcingService") as mock_es_cls,
+                patch("gilt.cli.event_sourcing_bootstrap.EventSourcingService") as mock_es_cls,
                 patch("gilt.cli.command.prompt_stats.PromptLearningService") as mock_learning_cls,
             ):
                 from datetime import datetime

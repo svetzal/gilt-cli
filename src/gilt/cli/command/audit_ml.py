@@ -19,7 +19,9 @@ from gilt.ml.training_data_builder import TrainingDataBuilder
 from gilt.transfer.duplicate_detector import DuplicateDetector
 from gilt.workspace import Workspace
 
-from .util import console, fmt_amount_str, print_error, require_event_sourcing
+from ..console import console, print_error
+from ..event_sourcing_bootstrap import require_event_sourcing
+from ..formatting import fmt_amount_str
 
 
 def run(

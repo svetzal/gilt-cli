@@ -23,7 +23,7 @@ from gilt.cli.command.duplicates import (
     _run_review_loop,
     run,
 )
-from gilt.cli.command.util import require_event_sourcing
+from gilt.cli.event_sourcing_bootstrap import require_event_sourcing
 from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.duplicate import DuplicateAssessment, DuplicateMatch, TransactionPair
 from gilt.model.events import DuplicateConfirmed, DuplicateRejected, TransactionImported

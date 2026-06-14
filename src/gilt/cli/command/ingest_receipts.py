@@ -26,7 +26,8 @@ from gilt.services.receipt_ingestion_service import (
 )
 from gilt.workspace import Workspace
 
-from .util import console, fmt_amount_str, print_dry_run_message, print_error
+from ..console import console, print_dry_run_message, print_error
+from ..formatting import fmt_amount_str
 
 
 def _emit_enrichment_events(matched: list[MatchResult], store) -> int:

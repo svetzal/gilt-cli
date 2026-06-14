@@ -162,7 +162,7 @@ def register_recategorize(app: typer.Typer, ws_fn) -> None:  # type: ignore[type
         Safety: dry-run by default. Use --write to persist changes.
         """
         from gilt.cli.command import recategorize as cmd_recategorize
-        from gilt.cli.command.util import console as _console
+        from gilt.cli.console import console as _console
 
         date_selection = cmd_recategorize.build_date_selection(date_from_str, date_to_str, fy)
         if isinstance(date_selection, str):
@@ -280,7 +280,7 @@ def register_uncategorized(app: typer.Typer, ws_fn) -> None:  # type: ignore[typ
           gilt uncategorized --min-amount 100 --limit 50
         """
         from gilt.cli.command import uncategorized as cmd_uncategorized
-        from gilt.cli.command.util import console
+        from gilt.cli.console import console
         from gilt.util.fy import fiscal_year_range
 
         if fy is not None and year is not None:

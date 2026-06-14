@@ -95,7 +95,7 @@ def register_status(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
           gilt status --stale-threshold 30
         """
         from gilt.cli.command import status as cmd_status
-        from gilt.cli.command.util import console
+        from gilt.cli.console import console
         from gilt.util.fy import fiscal_year_range
 
         fy_range = None
@@ -153,7 +153,7 @@ def register_summary(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
           gilt summary --include-uncategorized
         """
         from gilt.cli.command import summary as cmd_summary
-        from gilt.cli.command.util import console
+        from gilt.cli.console import console
         from gilt.util.fy import fiscal_year_range
 
         if fy is not None and year is not None:

@@ -7,7 +7,7 @@ import re
 from importlib.metadata import version
 from pathlib import Path
 
-from .util import console, print_error
+from ..console import console, print_error
 
 _SKILL_SOURCE_DIR = Path(__file__).resolve().parent.parent.parent / "skills" / "gilt"
 

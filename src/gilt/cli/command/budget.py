@@ -11,7 +11,8 @@ from rich.table import Table
 from gilt.services.budget_service import BudgetItem, BudgetService
 from gilt.workspace import Workspace
 
-from .util import console, fmt_amount_str, print_error
+from ..console import console, print_error
+from ..formatting import fmt_amount_str
 
 
 def run(

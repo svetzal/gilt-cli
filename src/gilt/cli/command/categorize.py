@@ -16,21 +16,20 @@ from gilt.services.transaction_operations_service import (
 )
 from gilt.workspace import Workspace
 
-from .util import (
-    base_match_row,
-    build_categorization_updates,
-    build_category_path,
+from ..console import (
     console,
     display_category_change_matches,
     display_transaction_matches,
-    find_matches_by_criteria,
-    format_prefix_lookup_error,
-    group_by_account,
-    load_account_transactions,
-    load_event_store,
     print_dry_run_message,
     print_error,
-    require_event_sourcing,
+)
+from ..event_sourcing_bootstrap import load_event_store, require_event_sourcing
+from ..filtering import group_by_account
+from ..formatting import base_match_row, build_category_path, format_prefix_lookup_error
+from ..loaders import load_account_transactions
+from ..mutations import (
+    build_categorization_updates,
+    find_matches_by_criteria,
     run_categorization_updates,
     run_confirmed_mutation,
     validate_single_vs_batch_mode,

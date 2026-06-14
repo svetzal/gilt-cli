@@ -33,7 +33,7 @@ class DescribeAuditMlCommand:
             workspace = MagicMock()
             workspace.event_store_path = event_store_path
 
-            with patch("gilt.cli.command.util.EventSourcingService") as mock_es_cls:
+            with patch("gilt.cli.event_sourcing_bootstrap.EventSourcingService") as mock_es_cls:
                 mock_es = MagicMock()
                 mock_es.ensure_ready.return_value = EventSourcingReadyResult(
                     ready=True,
@@ -56,7 +56,7 @@ class DescribeAuditMlCommand:
             workspace.event_store_path = event_store_path
 
             with (
-                patch("gilt.cli.command.util.EventSourcingService") as mock_es_cls,
+                patch("gilt.cli.event_sourcing_bootstrap.EventSourcingService") as mock_es_cls,
                 patch("gilt.cli.command.audit_ml.TrainingDataBuilder") as mock_builder_cls,
             ):
                 mock_es = MagicMock()
@@ -92,7 +92,7 @@ class DescribeAuditMlCommand:
             workspace.event_store_path = event_store_path
 
             with (
-                patch("gilt.cli.command.util.EventSourcingService") as mock_es_cls,
+                patch("gilt.cli.event_sourcing_bootstrap.EventSourcingService") as mock_es_cls,
                 patch("gilt.cli.command.audit_ml.TrainingDataBuilder") as mock_builder_cls,
             ):
                 mock_es = MagicMock()

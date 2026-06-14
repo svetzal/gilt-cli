@@ -8,7 +8,9 @@ from rich.table import Table
 
 from gilt.workspace import Workspace
 
-from .util import console, fmt_amount, require_projections
+from ..console import console
+from ..event_sourcing_bootstrap import require_projections
+from ..formatting import fmt_amount
 
 
 def run(

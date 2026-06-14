@@ -146,7 +146,7 @@ def register_receipts(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg
           gilt receipts --fy FY25 --missing
         """
         from gilt.cli.command import receipts as cmd_receipts
-        from gilt.cli.command.util import console
+        from gilt.cli.console import console
         from gilt.util.fy import fiscal_year_range
 
         fy_range = None

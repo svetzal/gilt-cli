@@ -27,13 +27,8 @@ from gilt.services.event_migration_service import EventMigrationService, Migrati
 from gilt.storage.budget_projection import BudgetProjectionBuilder
 from gilt.workspace import Workspace
 
-from .util import (
-    build_effective_paths,
-    build_event_sourcing_service,
-    console,
-    print_error,
-    print_error_list,
-)
+from ..console import console, print_error, print_error_list
+from ..event_sourcing_bootstrap import build_effective_paths, build_event_sourcing_service
 
 
 def _init_event_sourcing(

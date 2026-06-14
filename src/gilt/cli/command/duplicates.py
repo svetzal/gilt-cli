@@ -59,7 +59,8 @@ from gilt.services.duplicate_review_service import (
 from gilt.transfer.duplicate_detector import DuplicateDetector
 from gilt.workspace import Workspace
 
-from .util import build_event_sourcing_service, console, require_event_sourcing
+from ..console import console
+from ..event_sourcing_bootstrap import build_event_sourcing_service, require_event_sourcing
 
 
 @dataclass
