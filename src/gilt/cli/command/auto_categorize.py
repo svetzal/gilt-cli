@@ -26,7 +26,7 @@ from ..event_sourcing_bootstrap import require_event_sourcing
 from ..filtering import find_uncategorized
 from ..formatting import base_match_row, fmt_amount_str
 from ..loaders import load_account_transactions
-from ..mutations import build_categorization_updates, run_categorization_updates
+from ..mutations import persist_row_categorizations
 
 
 @dataclass
@@ -92,14 +92,15 @@ def _load_uncategorized(workspace, account, limit) -> _LoadResult:
 
 def _write_categorizations(approved, ready, workspace) -> int:
     """Apply categorizations: emit events, update CSVs, rebuild projections. Returns updated count."""
-    updates = build_categorization_updates(
+    result = persist_row_categorizations(
         (
             (txn_id, account_id) + build_category_from_path(path) + (conf,)
             for account_id, txn_id, _, path, conf, _source in approved
         ),
+        ready,
+        workspace,
         source="llm",
     )
-    result = run_categorization_updates(ready, workspace, updates)
     return result.transactions_updated
 
 

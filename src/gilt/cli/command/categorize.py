@@ -28,9 +28,8 @@ from ..filtering import group_by_account
 from ..formatting import base_match_row, build_category_path, format_prefix_lookup_error
 from ..loaders import load_account_transactions
 from ..mutations import (
-    build_categorization_updates,
     find_matches_by_criteria,
-    run_categorization_updates,
+    persist_row_categorizations,
     run_confirmed_mutation,
     validate_single_vs_batch_mode,
 )
@@ -144,14 +143,15 @@ def _persist_categorizations(
     workspace: Workspace,
 ) -> None:
     """Emit events, update CSVs, and rebuild projections for categorized transactions."""
-    updates = build_categorization_updates(
+    persist_row_categorizations(
         (
             (g.primary.transaction_id, acct, g.primary.category or "", g.primary.subcategory, 1.0)
             for acct, g in updated_pairs
         ),
+        ready,
+        workspace,
         source="user",
     )
-    run_categorization_updates(ready, workspace, updates)
 
 
 def _init_services(
@@ -322,12 +322,13 @@ def _persist_file_batch(
     if ready is None:
         return 1
 
-    updates = build_categorization_updates(
+    persist_row_categorizations(
         ((txn_id, acct_id, cat, subcat, 1.0) for txn_id, acct_id, cat, subcat in resolved),
+        ready,
+        workspace,
         source="user",
     )
-    run_categorization_updates(ready, workspace, updates)
-    console.print(f"[green]✓[/] Categorized {len(updates)} transaction(s)")
+    console.print(f"[green]✓[/] Categorized {len(resolved)} transaction(s)")
     return 0
 
 

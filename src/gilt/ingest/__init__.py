@@ -546,6 +546,11 @@ def _groups_to_dataframe(groups: list[TransactionGroup]) -> pd.DataFrame:
 
 def _dataframe_to_groups(df: pd.DataFrame) -> list[TransactionGroup]:
     """Convert a STANDARD_FIELDS DataFrame to single-primary TransactionGroups."""
+    return build_groups_from_dataframe(df)
+
+
+def build_groups_from_dataframe(df: pd.DataFrame) -> list[TransactionGroup]:
+    """Convert a STANDARD_FIELDS DataFrame to single-primary TransactionGroups."""
     groups = []
     for _, row in df.iterrows():
         t = Transaction(
@@ -564,6 +569,11 @@ def _dataframe_to_groups(df: pd.DataFrame) -> list[TransactionGroup]:
         )
         groups.append(TransactionGroup(group_id=t.transaction_id, primary=t))
     return groups
+
+
+def build_transactions_from_dataframe(df: pd.DataFrame) -> list[Transaction]:
+    """Convert a STANDARD_FIELDS DataFrame to Transaction objects."""
+    return [g.primary for g in build_groups_from_dataframe(df)]
 
 
 def _merge_with_existing_ledger(
@@ -642,10 +652,13 @@ def normalize_file(
 __all__ = [
     "STANDARD_FIELDS",
     "load_accounts_config",
+    "load_file",
     "infer_account_for_file",
     "build_normalization_plan",
     "find_missing_columns",
     "normalize_file",
     "build_transaction_id",
+    "build_groups_from_dataframe",
+    "build_transactions_from_dataframe",
     "HASH_ALGO_SPEC",
 ]

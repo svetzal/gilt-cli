@@ -8,6 +8,7 @@ from gilt.cli.mutations import (
     find_by_id_prefix,
     find_matches_by_criteria,
     persist_categorization_matches,
+    persist_row_categorizations,
     run_categorization_updates,
     run_confirmed_mutation,
     search_by_criteria,
@@ -482,3 +483,44 @@ class DescribeRunConfirmedMutation:
 
         apply.assert_called_once()
         assert result == 0
+
+
+class DescribePersistRowCategorizations:
+    def it_should_forward_source_and_return_persistence_result(self, mocker):
+        ready = Mock(spec=EventSourcingReadyResult)
+        workspace = Mock(spec=Workspace)
+        expected_result = CategorizationPersistenceResult(transactions_updated=2, events_emitted=0)
+
+        mock_persist_service = Mock()
+        mock_persist_service.persist_categorizations.return_value = expected_result
+        mocker.patch(
+            "gilt.cli.mutations.require_persistence_service", return_value=mock_persist_service
+        )
+
+        rows = [
+            ("txn001", "MYBANK_CHQ", "Food", "Groceries", 1.0),
+            ("txn002", "MYBANK_CHQ", "Transport", None, 0.9),
+        ]
+        result = persist_row_categorizations(rows, ready, workspace, source="user")
+
+        assert result.transactions_updated == 2
+        updates = mock_persist_service.persist_categorizations.call_args[0][0]
+        assert all(u.source == "user" for u in updates)
+
+    def it_should_forward_llm_source(self, mocker):
+        ready = Mock(spec=EventSourcingReadyResult)
+        workspace = Mock(spec=Workspace)
+        expected_result = CategorizationPersistenceResult(transactions_updated=1, events_emitted=0)
+
+        mock_persist_service = Mock()
+        mock_persist_service.persist_categorizations.return_value = expected_result
+        mocker.patch(
+            "gilt.cli.mutations.require_persistence_service", return_value=mock_persist_service
+        )
+
+        rows = [("txn003", "MYBANK_CHQ", "Income", None, 0.95)]
+        result = persist_row_categorizations(rows, ready, workspace, source="llm")
+
+        assert result.transactions_updated == 1
+        updates = mock_persist_service.persist_categorizations.call_args[0][0]
+        assert updates[0].source == "llm"

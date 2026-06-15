@@ -64,6 +64,17 @@ def persist_categorization_matches(
     return result.transactions_updated
 
 
+def persist_row_categorizations(
+    rows: Iterable[tuple[str, str, str, str | None, float]],
+    ready: EventSourcingReadyResult,
+    workspace: Workspace,
+    *,
+    source: str,
+) -> CategorizationPersistenceResult:
+    """Build categorization updates from rows and persist them."""
+    return run_categorization_updates(ready, workspace, build_categorization_updates(rows, source=source))
+
+
 def run_confirmed_mutation(
     *,
     matches: Sequence,
@@ -215,6 +226,7 @@ __all__ = [
     "build_categorization_updates",
     "run_categorization_updates",
     "persist_categorization_matches",
+    "persist_row_categorizations",
     "run_confirmed_mutation",
     "find_matches_by_criteria",
     "search_by_criteria",

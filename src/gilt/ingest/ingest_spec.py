@@ -11,8 +11,10 @@ import pandas as pd
 from gilt.ingest import (
     _detect_columns,
     _detect_rbc_overrides,
+    build_groups_from_dataframe,
     build_transaction_id,
     build_normalization_plan,
+    build_transactions_from_dataframe,
     find_missing_columns,
     infer_account_for_file,
     load_accounts_config,
@@ -497,3 +499,58 @@ class DescribeFindMissingColumns:
         column_map = {"date": None, "desc1": None, "desc2": None, "amount": None, "usd": None}
         missing = find_missing_columns(column_map, {})
         assert set(missing) == {"date", "description", "amount"}
+
+
+class DescribeBuildTransactionsFromDataframe:
+    def _make_standard_df(self):
+        return pd.DataFrame(
+            [
+                {
+                    "transaction_id": "abc123def456789a",
+                    "date": "2025-03-15",
+                    "description": "SAMPLE STORE",
+                    "amount": -42.00,
+                    "currency": "CAD",
+                    "account_id": "MYBANK_CHQ",
+                    "counterparty": "SAMPLE STORE",
+                    "category": None,
+                    "subcategory": None,
+                    "notes": None,
+                    "source_file": "mybank_2025.csv",
+                    "metadata": None,
+                }
+            ]
+        )
+
+    def it_should_build_transactions_from_a_standard_fields_dataframe(self):
+        df = self._make_standard_df()
+        transactions = build_transactions_from_dataframe(df)
+        assert len(transactions) == 1
+        t = transactions[0]
+        assert t.transaction_id == "abc123def456789a"
+        assert str(t.date) == "2025-03-15"
+        assert t.description == "SAMPLE STORE"
+        assert t.amount == -42.00
+        assert t.currency == "CAD"
+        assert t.account_id == "MYBANK_CHQ"
+        assert t.source_file == "mybank_2025.csv"
+        assert t.metadata == {}
+
+    def it_should_convert_nan_counterparty_to_none(self):
+        df = self._make_standard_df()
+        df.at[0, "counterparty"] = float("nan")
+        transactions = build_transactions_from_dataframe(df)
+        assert transactions[0].counterparty is None
+
+    def it_should_build_groups_with_matching_group_id(self):
+        df = self._make_standard_df()
+        groups = build_groups_from_dataframe(df)
+        assert len(groups) == 1
+        assert groups[0].group_id == groups[0].primary.transaction_id
+
+    def it_should_return_empty_list_for_empty_dataframe(self):
+        from gilt.model.ledger_io import STANDARD_FIELDS
+
+        df = pd.DataFrame(columns=STANDARD_FIELDS)
+        transactions = build_transactions_from_dataframe(df)
+        assert transactions == []

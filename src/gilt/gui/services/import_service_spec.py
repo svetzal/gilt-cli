@@ -47,7 +47,11 @@ def _make_parse_row(txn_id: str = "txn001", description: str = "SAMPLE STORE") -
                 "currency": "CAD",
                 "account_id": "MYBANK_CHQ",
                 "counterparty": None,
+                "category": None,
+                "subcategory": None,
+                "notes": None,
                 "source_file": "import.csv",
+                "metadata": None,
             }
         ]
     )
@@ -232,7 +236,11 @@ class DescribeImportServiceDuplicateScanning:
                     "currency": "CAD",
                     "account_id": "MYBANK_CHQ",
                     "counterparty": None,
+                    "category": None,
+                    "subcategory": None,
+                    "notes": None,
                     "source_file": "import.csv",
+                    "metadata": None,
                 }
             ]
         )

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +18,7 @@ import pandas as pd
 
 from gilt.ingest import (
     build_normalization_plan,
+    build_transactions_from_dataframe,
     infer_account_for_file,
     load_accounts_config,
     load_file,
@@ -260,26 +261,9 @@ class ImportService:
 
     def _parse_file_to_transactions(self, file_path: Path, account_id: str) -> list[Transaction]:
         """Parse a CSV file and return its rows as Transaction objects."""
-        df = load_file(file_path, account_id, self._amount_sign_for(account_id))
-        transactions: list[Transaction] = []
-        for _, row in df.iterrows():
-            metadata = {"source_file": row["source_file"]}
-            txn = Transaction(
-                transaction_id=str(row["transaction_id"]),
-                date=datetime.strptime(str(row["date"]), "%Y-%m-%d").date(),
-                description=str(row["description"]),
-                amount=float(row["amount"]),
-                currency=str(row["currency"]),
-                account_id=str(row["account_id"]),
-                counterparty=str(row["counterparty"]) if pd.notna(row["counterparty"]) else None,
-                category=None,
-                subcategory=None,
-                notes=None,
-                source_file=str(row["source_file"]),
-                metadata=metadata,
-            )
-            transactions.append(txn)
-        return transactions
+        return build_transactions_from_dataframe(
+            load_file(file_path, account_id, self._amount_sign_for(account_id))
+        )
 
     def _filter_relevant_matches(
         self, matches: list[DuplicateMatch], new_ids: set[str]
@@ -340,29 +324,12 @@ class ImportService:
             _logger.error("Error scanning for duplicates: %s", e)
             return []
 
-    def _build_review_item_from_row(
-        self, row, exclude_set: set[str]
+    def _build_review_item_from_transaction(
+        self, txn: Transaction, exclude_set: set[str]
     ) -> CategorizationReviewItem | None:
-        """Build a CategorizationReviewItem from a single DataFrame row, or None if the row is excluded."""
-        txn_id = str(row["transaction_id"])
-        if txn_id in exclude_set:
+        """Build a CategorizationReviewItem from a Transaction, or None if excluded."""
+        if txn.transaction_id in exclude_set:
             return None
-
-        metadata = {"source_file": row["source_file"]}
-        txn = Transaction(
-            transaction_id=txn_id,
-            date=datetime.strptime(str(row["date"]), "%Y-%m-%d").date(),
-            description=str(row["description"]),
-            amount=float(row["amount"]),
-            currency=str(row["currency"]),
-            account_id=str(row["account_id"]),
-            counterparty=str(row["counterparty"]) if pd.notna(row["counterparty"]) else None,
-            category=None,
-            subcategory=None,
-            notes=None,
-            source_file=str(row["source_file"]),
-            metadata=metadata,
-        )
 
         predicted_cat, confidence = self.smart_category_service.predict_category(
             description=txn.description, amount=txn.amount, account=txn.account_id
@@ -393,12 +360,14 @@ class ImportService:
             return []
 
         try:
-            df = load_file(file_path, account_id, self._amount_sign_for(account_id))
+            transactions = build_transactions_from_dataframe(
+                load_file(file_path, account_id, self._amount_sign_for(account_id))
+            )
             exclude_set = set(exclude_ids) if exclude_ids else set()
 
             items = []
-            for _, row in df.iterrows():
-                item = self._build_review_item_from_row(row, exclude_set)
+            for txn in transactions:
+                item = self._build_review_item_from_transaction(txn, exclude_set)
                 if item is not None:
                     items.append(item)
 
