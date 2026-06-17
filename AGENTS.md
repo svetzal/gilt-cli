@@ -276,6 +276,20 @@ The `find_projection_by_prefix` / `find_by_id_prefix` split in `TransactionOpera
 
 **Remediation history:** Commit `4eab73a` applied `scan_→find_` and `rebuild_→build_` conventions across storage and service layers. A subsequent refactor extended the full convention set (`filter_→find_`, `plan_→build_`, `apply_→run_`, `calculate_→get_`, `generate_→build_`, `resolve_→find_/build_/run_`, `parse_→build_/load_`) to all remaining layers (services, CLI commands, GUI views, transfer, ingest). All old verb prefixes have been eliminated from the codebase.
 
+## Storage Projection Module Layout
+
+The `projection.py` module fused schema, write-side reducer, and read-side queries into one class. It has been split into cohesive units following the **extract-collaborators-behind-facade** pattern:
+
+| Module | Responsibility |
+|---|---|
+| `projection_schema.py` | `ensure_projection_schema` — DDL, migrations |
+| `projection_reducer.py` | `apply_events` and per-event `_apply_*` functions — write side |
+| `projection_queries.py` | `get_transaction`, `get_all_transactions`, etc. — read side |
+| `duplicate_normalization.py` | Pure duplicate-group repair: `build_duplicate_corrections`, `find_root_primary`, `normalize_duplicate_groups` |
+| `projection.py` | `ProjectionBuilder` facade — orchestrates the above; re-exports all public names so existing callers need no changes |
+
+**Rule:** When adding new projection behaviour, place it in the appropriate collaborator module — not back into `projection.py`. Schema changes go to `projection_schema.py`, new event handlers to `projection_reducer.py`, new queries to `projection_queries.py`.
+
 ## Anti-Patterns
 
 - **No real financial data in tracked files** — no real bank names, account IDs, merchant names, employer names, budget amounts, or locations in source, tests, or docs
