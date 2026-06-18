@@ -290,6 +290,23 @@ The `projection.py` module fused schema, write-side reducer, and read-side queri
 
 **Rule:** When adding new projection behaviour, place it in the appropriate collaborator module — not back into `projection.py`. Schema changes go to `projection_schema.py`, new event handlers to `projection_reducer.py`, new queries to `projection_queries.py`.
 
+## Ingest Module Layout
+
+The `ingest/__init__.py` module fused column detection, normalization, model mapping, account matching, config I/O, event emission, and ledger I/O into one file. It has been split into cohesive units following the **extract-collaborators-behind-facade** pattern:
+
+| Module | Responsibility |
+|---|---|
+| `column_mapping.py` | Pure column detection: `_first_match`, `_detect_columns`, `_RBC_REQUIRED_COLS`, `_detect_rbc_overrides`, `find_missing_columns` |
+| `normalization.py` | Pure DataFrame normalization: `build_transaction_id`, `HASH_ALGO_SPEC`, `_resolve_date_series`, `_resolve_description_series`, `_resolve_amount_series`, `_build_transaction_dataframe` |
+| `transaction_mapping.py` | Pure DataFrame ↔ model mapping: `_opt_str`, `_groups_to_dataframe`, `_dataframe_to_groups`, `build_groups_from_dataframe`, `build_transactions_from_dataframe` |
+| `account_matching.py` | Pure account matching: `infer_account_for_file`, `build_normalization_plan` |
+| `config_loader.py` | Config I/O (reads YAML from disk): `load_accounts_config` |
+| `events.py` | Event emission side effects: `_emit_description_observed_event`, `_emit_transaction_imported_event`, `_emit_transaction_events` |
+| `ledger_pipeline.py` | Ledger I/O (reads/merges CSV files): `load_file`, `_merge_with_existing_ledger` |
+| `__init__.py` | Facade — `normalize_file` orchestration; re-exports all public names so existing callers need no changes |
+
+**Rule:** When adding new ingest behaviour, place it in the appropriate collaborator module — not back into `__init__.py`. New pure transforms (no I/O) go in the core modules (`column_mapping.py`, `normalization.py`, `transaction_mapping.py`, `account_matching.py`). New I/O or side-effect logic goes in the shell modules (`config_loader.py`, `events.py`, `ledger_pipeline.py`).
+
 ## Anti-Patterns
 
 - **No real financial data in tracked files** — no real bank names, account IDs, merchant names, employer names, budget amounts, or locations in source, tests, or docs
