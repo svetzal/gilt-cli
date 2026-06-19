@@ -9,7 +9,7 @@ from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from gilt.cli.command.categorize import _parse_batch_lines, run
+from gilt.cli.command.categorize import BatchEntry, _parse_batch_lines, run
 from gilt.cli.command.conftest import build_projections_from_csvs, write_ledger
 from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.category import Category, CategoryConfig, Subcategory
@@ -957,8 +957,8 @@ class DescribeCategorizeBatchFile:
         entries, errors = _parse_batch_lines(text)
         assert errors == []
         assert len(entries) == 2
-        assert entries[0] == (3, "aaaa1111", "Banking:Fees")
-        assert entries[1] == (6, "cccc3333", "Shopping")
+        assert entries[0] == BatchEntry(line_no=3, txid_prefix="aaaa1111", category_path="Banking:Fees")
+        assert entries[1] == BatchEntry(line_no=6, txid_prefix="cccc3333", category_path="Shopping")
 
     def it_should_apply_batch_from_file_on_write(self):
         with TemporaryDirectory() as tmpdir:

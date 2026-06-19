@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 from gilt.model.account import TransactionGroup
@@ -35,6 +36,21 @@ from ..mutations import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class BatchEntry:
+    line_no: int
+    txid_prefix: str
+    category_path: str
+
+
+@dataclass
+class ResolvedEntry:
+    transaction_id: str
+    account_id: str
+    category: str
+    subcategory: str | None
 
 
 def _find_account_ledgers(data_dir: Path, account: str | None) -> list[Path]:
@@ -188,15 +204,14 @@ def _read_batch_input(txid_file: Path | None, from_stdin: bool) -> str | int:
     return sys.stdin.read()
 
 
-def _parse_batch_lines(text: str) -> tuple[list[tuple[int, str, str]], list[str]]:
+def _parse_batch_lines(text: str) -> tuple[list[BatchEntry], list[str]]:
     """Parse batch input text.
 
     Returns (entries, errors).
-    Each entry is (line_no, txid_prefix, category_path).
     Lines starting with '#' or blank after stripping are skipped.
     Errors include the line number for malformed lines (fewer than two tokens).
     """
-    entries: list[tuple[int, str, str]] = []
+    entries: list[BatchEntry] = []
     errors: list[str] = []
     for line_no, raw_line in enumerate(text.splitlines(), start=1):
         line = raw_line.strip()
@@ -209,42 +224,46 @@ def _parse_batch_lines(text: str) -> tuple[list[tuple[int, str, str]], list[str]
             )
             continue
         txid_prefix, category_path = parts[0], parts[1].strip()
-        entries.append((line_no, txid_prefix, category_path))
+        entries.append(BatchEntry(line_no=line_no, txid_prefix=txid_prefix, category_path=category_path))
     return entries, errors
 
 
 def _resolve_batch_entries(
-    entries: list[tuple[int, str, str]],
+    entries: list[BatchEntry],
     all_transactions: list[dict],
     account: str | None,
     categorization_service: CategorizationService,
     service: TransactionOperationsService,
-) -> tuple[list[tuple[str, str, str, str | None]], list[str]]:
+) -> tuple[list[ResolvedEntry], list[str]]:
     """Resolve txid prefixes and validate categories for all batch entries.
 
     Returns (resolved, errors).
-    Each resolved item is (transaction_id, account_id, category, subcategory).
     Errors include line numbers for any problem lines.
     """
-    resolved: list[tuple[str, str, str, str | None]] = []
+    resolved: list[ResolvedEntry] = []
     errors: list[str] = []
 
-    for line_no, txid_prefix, category_path in entries:
+    for entry in entries:
         # Validate category first
-        cat_name, subcat_name, _ = build_category_path(category_path)
+        cat_name, subcat_name, _ = build_category_path(entry.category_path)
         validation = categorization_service.validate_category(cat_name, subcat_name)
         if not validation.is_valid:
-            errors.append(f"Line {line_no}: {'; '.join(validation.errors)}")
+            errors.append(f"Line {entry.line_no}: {'; '.join(validation.errors)}")
             continue
 
         # Resolve txid prefix
-        result = service.find_projection_by_prefix(txid_prefix, all_transactions)
+        result = service.find_projection_by_prefix(entry.txid_prefix, all_transactions)
         if result.error is not None:
-            errors.append(f"Line {line_no}: {format_prefix_lookup_error(result, txid_prefix)}")
+            errors.append(f"Line {entry.line_no}: {format_prefix_lookup_error(result, entry.txid_prefix)}")
             continue
 
         txn = result.transaction
-        resolved.append((txn["transaction_id"], txn["account_id"], cat_name, subcat_name))
+        resolved.append(ResolvedEntry(
+            transaction_id=txn["transaction_id"],
+            account_id=txn["account_id"],
+            category=cat_name,
+            subcategory=subcat_name,
+        ))
 
     return resolved, errors
 
@@ -291,7 +310,7 @@ def _run_file_batch(
 
 
 def _persist_file_batch(
-    resolved: list[tuple[str, str, str, str | None]],
+    resolved: list[ResolvedEntry],
     all_transactions: list[dict],
     workspace: Workspace,
     write: bool,
@@ -299,18 +318,18 @@ def _persist_file_batch(
     """Build preview, display, confirm, and persist file-batch categorizations."""
     txn_by_id = {row["transaction_id"]: row for row in all_transactions}
     preview_matches: list[tuple[str, TransactionGroup]] = []
-    for txn_id, acct_id, cat, subcat in resolved:
-        row = txn_by_id.get(txn_id)
+    for entry in resolved:
+        row = txn_by_id.get(entry.transaction_id)
         if row is None:
             continue
         group = TransactionGroup.from_projection_row(row)
-        updated_txn = group.primary.model_copy(update={"category": cat, "subcategory": subcat})
+        updated_txn = group.primary.model_copy(update={"category": entry.category, "subcategory": entry.subcategory})
         updated_group = TransactionGroup(
             group_id=group.group_id,
             primary=updated_txn,
             splits=group.splits,
         )
-        preview_matches.append((acct_id, updated_group))
+        preview_matches.append((entry.account_id, updated_group))
 
     _display_batch_preview(preview_matches, resolved)
 
@@ -323,7 +342,10 @@ def _persist_file_batch(
         return 1
 
     persist_row_categorizations(
-        ((txn_id, acct_id, cat, subcat, 1.0) for txn_id, acct_id, cat, subcat in resolved),
+        (
+            (e.transaction_id, e.account_id, e.category, e.subcategory, 1.0)
+            for e in resolved
+        ),
         ready,
         workspace,
         source="user",
@@ -334,11 +356,11 @@ def _persist_file_batch(
 
 def _display_batch_preview(
     preview_matches: list[tuple[str, TransactionGroup]],
-    resolved: list[tuple[str, str, str, str | None]],
+    resolved: list[ResolvedEntry],
 ) -> None:
     """Display a preview table for file-batch categorizations."""
     # Build a quick lookup: txn_id → (category, subcategory)
-    cat_by_txn = {txn_id: (cat, subcat) for txn_id, _acct, cat, subcat in resolved}
+    cat_by_txn = {e.transaction_id: (e.category, e.subcategory) for e in resolved}
 
     def row_fn(item: tuple[str, TransactionGroup]) -> tuple:
         account_id, group = item

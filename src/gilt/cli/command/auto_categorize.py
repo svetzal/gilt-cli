@@ -6,7 +6,7 @@ as a fallback for transactions that don't match any inferred rule.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from rich.prompt import Prompt
 
@@ -44,6 +44,16 @@ class _LoadResult:
     projection_builder: object = None
     uncategorized_txns: list = field(default_factory=list)
     limited_to: int | None = None
+
+
+@dataclass
+class Prediction:
+    account_id: str
+    transaction_id: str
+    txn: Transaction
+    category: str
+    confidence: float
+    source: str
 
 
 def _train_classifier(workspace, min_samples) -> _TrainResult:
@@ -90,12 +100,12 @@ def _load_uncategorized(workspace, account, limit) -> _LoadResult:
     )
 
 
-def _write_categorizations(approved, ready, workspace) -> int:
+def _write_categorizations(approved: list[Prediction], ready, workspace) -> int:
     """Apply categorizations: emit events, update CSVs, rebuild projections. Returns updated count."""
     result = persist_row_categorizations(
         (
-            (txn_id, account_id) + build_category_from_path(path) + (conf,)
-            for account_id, txn_id, _, path, conf, _source in approved
+            (p.transaction_id, p.account_id) + build_category_from_path(p.category) + (p.confidence,)
+            for p in approved
         ),
         ready,
         workspace,
@@ -108,8 +118,7 @@ def _apply_rules_first(workspace, uncategorized_txns):
     """Try rule inference on uncategorized transactions.
 
     Returns (rule_approved, remaining_txns) where rule_approved is a list of
-    (account_id, txn_id, txn, category_path, confidence, source) tuples and
-    remaining_txns are transactions not matched by any rule.
+    Prediction objects and remaining_txns are transactions not matched by any rule.
     """
     if not workspace.projections_path.exists():
         return [], uncategorized_txns
@@ -136,13 +145,20 @@ def _apply_rules_first(workspace, uncategorized_txns):
     matches = service.run_rules(txn_dicts, rules)
     matched_ids = {m.transaction["transaction_id"] for m in matches}
 
-    rule_approved: list[tuple[str, str, Transaction, str, float, str]] = []
+    rule_approved: list[Prediction] = []
     txn_by_id = {t.transaction_id: t for t in uncategorized_txns}
     for m in matches:
         txn = txn_by_id[m.transaction["transaction_id"]]
         cat_path = format_category_path(m.rule.category, m.rule.subcategory)
         rule_approved.append(
-            (txn.account_id, txn.transaction_id, txn, cat_path, m.rule.confidence, "rule")
+            Prediction(
+                account_id=txn.account_id,
+                transaction_id=txn.transaction_id,
+                txn=txn,
+                category=cat_path,
+                confidence=m.rule.confidence,
+                source="rule",
+            )
         )
 
     remaining = [t for t in uncategorized_txns if t.transaction_id not in matched_ids]
@@ -154,7 +170,7 @@ def _predict_with_ml(
     classifier: CategorizationClassifier,
     remaining_txns: list[Transaction],
     confidence: float,
-) -> list[tuple]:
+) -> list[Prediction]:
     """Build transaction dicts, run ML classifier, and return predictions above the confidence threshold."""
     transaction_data = [
         {
@@ -169,41 +185,48 @@ def _predict_with_ml(
 
     predictions = classifier.predict(transaction_data, confidence_threshold=confidence)
 
-    result: list[tuple] = []
+    result: list[Prediction] = []
     for txn, (category, conf) in zip(remaining_txns, predictions, strict=False):
         if category:
-            result.append((txn.account_id, txn.transaction_id, txn, category, conf, "ml"))
+            result.append(
+                Prediction(
+                    account_id=txn.account_id,
+                    transaction_id=txn.transaction_id,
+                    txn=txn,
+                    category=category,
+                    confidence=conf,
+                    source="ml",
+                )
+            )
     return result
 
 
 def _print_explain(
     classifier: CategorizationClassifier,
-    all_predictions: list[tuple],
+    all_predictions: list[Prediction],
 ) -> None:
     """Print top-3 category candidates for each prediction when --explain is active."""
     txn_data = [
         {
-            "transaction_id": account_id,
-            "description": txn.description,
-            "amount": txn.amount,
-            "account": account_id,
-            "date": str(txn.date),
+            "transaction_id": p.account_id,
+            "description": p.txn.description,
+            "amount": p.txn.amount,
+            "account": p.account_id,
+            "date": str(p.txn.date),
         }
-        for account_id, _, txn, *_ in all_predictions
+        for p in all_predictions
     ]
 
     topk_results = classifier.predict_topk(txn_data, k=3)
 
     console.print("\n[bold]Top-3 candidates (--explain)[/bold]")
-    for (_account_id, _txn_id, txn, category, _conf, _source), topk in zip(
-        all_predictions, topk_results, strict=False
-    ):
+    for p, topk in zip(all_predictions, topk_results, strict=False):
         console.print(
-            f"\n  [cyan]{txn.description[:45]}[/cyan]  "
-            f"[dim]{str(txn.date)}[/dim]  [yellow]{fmt_amount_str(txn.amount)}[/yellow]"
+            f"\n  [cyan]{p.txn.description[:45]}[/cyan]  "
+            f"[dim]{str(p.txn.date)}[/dim]  [yellow]{fmt_amount_str(p.txn.amount)}[/yellow]"
         )
         for i, (cat, c) in enumerate(topk, 1):
-            marker = "[green]→[/green]" if cat == category else " "
+            marker = "[green]→[/green]" if cat == p.category else " "
             console.print(f"    {marker} {i}. {cat:<40} {c:.1%}")
     console.print()
 
@@ -265,7 +288,7 @@ def run(
         )
 
     # Phase 2: ML predictions for remaining uncategorized
-    ml_predictions: list[tuple] = []
+    ml_predictions: list[Prediction] = []
     if remaining_txns:
         console.print(f"\n[dim]Predicting categories (threshold: {confidence:.1%})...[/dim]")
         ml_predictions = _predict_with_ml(classifier, remaining_txns, confidence)
@@ -290,7 +313,7 @@ def run(
 
 
 def _review_and_persist(
-    all_predictions: list,
+    all_predictions: list[Prediction],
     category_config,
     workspace: Workspace,
     ready,
@@ -323,16 +346,11 @@ def _review_and_persist(
     return 0
 
 
-def _display_predictions(predictions: list[tuple[str, str, dict, str, float, str]]) -> None:
-    """Display predictions in a table.
+def _display_predictions(predictions: list[Prediction]) -> None:
+    """Display predictions in a table."""
 
-    Args:
-        predictions: List of (account_id, transaction_id, txn, category, confidence, source)
-    """
-
-    def row_fn(item: tuple) -> tuple:
-        account_id, _, txn, category, conf, source = item
-        return base_match_row(account_id, txn) + (category, f"{conf:.1%}", source)
+    def row_fn(item: Prediction) -> tuple:
+        return base_match_row(item.account_id, item.txn) + (item.category, f"{item.confidence:.1%}", item.source)
 
     console.print("\n")
     display_transaction_matches(
@@ -396,27 +414,19 @@ def _display_transaction_for_review(
 
 
 def _interactive_review(
-    predictions: list[tuple[str, str, Transaction, str, float, str]],
+    predictions: list[Prediction],
     category_config,
-) -> list[tuple[str, str, Transaction, str, float, str]]:
-    """Interactive review mode - approve, reject, or modify predictions.
-
-    Args:
-        predictions: List of (account_id, transaction_id, Transaction, category, confidence, source)
-        category_config: Category configuration
-
-    Returns:
-        List of approved predictions (may have modified categories)
-    """
+) -> list[Prediction]:
+    """Interactive review mode - approve, reject, or modify predictions."""
     console.print("\n[bold]Interactive Review Mode[/bold]")
     console.print("[dim]For each prediction: (a)pprove, (r)eject, (m)odify, (q)uit[/dim]\n")
 
-    approved: list[tuple[str, str, Transaction, str, float, str]] = []
+    approved: list[Prediction] = []
 
-    for i, (account_id, txn_id, txn, category, conf, source) in enumerate(predictions, 1):
+    for i, p in enumerate(predictions, 1):
         # Display transaction
         _display_transaction_for_review(
-            console, i, len(predictions), account_id, txn, category, conf
+            console, i, len(predictions), p.account_id, p.txn, p.category, p.confidence
         )
 
         # Get user decision
@@ -428,26 +438,23 @@ def _interactive_review(
             ).lower()
 
             if choice == "a":
-                # Approve
-                approved.append((account_id, txn_id, txn, category, conf, source))
+                approved.append(p)
                 console.print("[green]✓ Approved[/green]")
                 break
 
             elif choice == "r":
-                # Reject
                 console.print("[yellow]✗ Rejected[/yellow]")
                 break
 
             elif choice == "m":
-                new_category = _handle_modify_choice(category_config, category)
+                new_category = _handle_modify_choice(category_config, p.category)
                 if new_category is None:
                     continue
-                approved.append((account_id, txn_id, txn, new_category, conf, source))
+                approved.append(replace(p, category=new_category))
                 console.print(f"[green]✓ Modified to {new_category}[/green]")
                 break
 
             elif choice == "q":
-                # Quit
                 console.print("\n[yellow]Review interrupted[/yellow]")
                 return approved
 
@@ -455,4 +462,4 @@ def _interactive_review(
     return approved
 
 
-__all__ = ["run"]
+__all__ = ["run", "Prediction"]

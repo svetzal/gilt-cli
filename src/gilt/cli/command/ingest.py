@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -15,6 +16,13 @@ if TYPE_CHECKING:
 
 from ..console import console, print_error
 from ..event_sourcing_bootstrap import build_event_sourcing_service
+
+
+@dataclass
+class NormalizationResult:
+    name: str
+    status: str
+    out_path: Path | None
 
 
 def _print_plan(plan: Iterable[tuple[Path, str | None]], total_files: int) -> None:
@@ -42,14 +50,14 @@ def _perform_normalization(
     output_dir: Path,
     ingestion_service: IngestionService,
     event_store: EventStore | None = None,
-) -> tuple[list[tuple[str, str, Path | None]], int, int]:
-    """Normalize files. Returns (results, written, skipped) where results are (name, status, out_path)."""
+) -> tuple[list[NormalizationResult], int, int]:
+    """Normalize files. Returns (results, written, skipped)."""
     written = 0
     skipped = 0
-    results: list[tuple[str, str, Path | None]] = []
+    results: list[NormalizationResult] = []
     for p, acct_id in plan:
         if not acct_id:
-            results.append((p.name, "skip", None))
+            results.append(NormalizationResult(name=p.name, status="skip", out_path=None))
             skipped += 1
             continue
         try:
@@ -60,11 +68,11 @@ def _perform_normalization(
                 event_store=event_store,
                 amount_sign=ingestion_service.amount_sign_for(acct_id),
             )
-            results.append((p.name, "ok", out_path))
+            results.append(NormalizationResult(name=p.name, status="ok", out_path=out_path))
             written += 1
         except LEDGER_IO_ERRORS as e:
             print_error(f"Failed to normalize {p.name}: {e}")
-            results.append((p.name, "error", None))
+            results.append(NormalizationResult(name=p.name, status="error", out_path=None))
             skipped += 1
     return results, written, skipped
 
@@ -123,14 +131,14 @@ def run(
     norm_results, written, skipped = _perform_normalization(
         ingestion_plan.files, output_dir, ingestion_service, event_store=event_store
     )
-    for name, status, out_path in norm_results:
-        if status == "skip":
+    for nr in norm_results:
+        if nr.status == "skip":
             console.print(
-                f"[yellow][skip][/yellow] Could not infer account for {name}; "
+                f"[yellow][skip][/yellow] Could not infer account for {nr.name}; "
                 "update config/accounts.yml"
             )
-        elif status == "ok":
-            console.print(f"[green][ok][/green] Wrote {out_path}")
+        elif nr.status == "ok":
+            console.print(f"[green][ok][/green] Wrote {nr.out_path}")
 
     post_counts = _load_ledger_counts(ledger_paths)
     _print_post_counts(post_counts, pre_counts)

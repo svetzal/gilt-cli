@@ -8,7 +8,12 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-from gilt.cli.command.auto_categorize import _handle_modify_choice, _interactive_review, run
+from gilt.cli.command.auto_categorize import (
+    Prediction,
+    _handle_modify_choice,
+    _interactive_review,
+    run,
+)
 from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.category import Category, CategoryConfig
 from gilt.model.category_io import save_categories_config
@@ -405,7 +410,7 @@ class DescribeAutoCategorize:
 class DescribeInteractiveReview:
     """Specs for _interactive_review()."""
 
-    def _make_prediction(self, txn_id: str = "txn001", description: str = "SAMPLE STORE") -> tuple:
+    def _make_prediction(self, txn_id: str = "txn001", description: str = "SAMPLE STORE") -> Prediction:
         txn = Transaction(
             transaction_id=txn_id,
             date=date(2025, 2, 1),
@@ -414,7 +419,14 @@ class DescribeInteractiveReview:
             currency="CAD",
             account_id="MYBANK_CHQ",
         )
-        return ("MYBANK_CHQ", txn_id, txn, "Groceries", 0.85, "ml")
+        return Prediction(
+            account_id="MYBANK_CHQ",
+            transaction_id=txn_id,
+            txn=txn,
+            category="Groceries",
+            confidence=0.85,
+            source="ml",
+        )
 
     def it_should_approve_transaction_and_include_in_results(self):
         from gilt.model.category import Category, CategoryConfig
@@ -426,7 +438,7 @@ class DescribeInteractiveReview:
             approved = _interactive_review(predictions, category_config)
 
         assert len(approved) == 1
-        assert approved[0][1] == "txn001"
+        assert approved[0].transaction_id == "txn001"
 
     def it_should_reject_transaction_and_exclude_from_results(self):
         from gilt.model.category import Category, CategoryConfig
@@ -460,7 +472,7 @@ class DescribeInteractiveReview:
             approved = _interactive_review(predictions, category_config)
 
         assert len(approved) == 1
-        assert approved[0][3] == "Dining Out"
+        assert approved[0].category == "Dining Out"
 
     def it_should_quit_early_when_user_chooses_quit(self):
         from gilt.model.category import Category, CategoryConfig
