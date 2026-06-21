@@ -143,7 +143,7 @@ Every GUI mutation that writes to CSV must follow this three-step sequence in or
 
 Skipping step 2 means the view reloads stale data and the user sees no change until the next restart.
 
-**Reference implementation**: `_apply_categorization` in `src/gilt/gui/views/transactions_view.py`.
+**Reference implementation**: `_apply_categorization` in `src/gilt/gui/controllers/transaction_mutation_controller.py`.
 
 ### QThread Worker Lifecycle
 
@@ -156,7 +156,7 @@ Improper worker lifecycle causes segfaults when a worker emits signals to a widg
 - Never use `except Exception: pass` in worker `run()` methods — emit the `error` signal instead so failures are visible
 - When filtering `_old_workers`, call `w.wait(0)` on stopped workers before discarding to fully join the OS thread
 
-**Reference implementation**: `_start_intelligence_scan` and worker interrupt handling in `src/gilt/gui/views/transactions_view.py`; `cleanupPage` in `src/gilt/gui/views/categorization_review_page.py`; `ImportWizard.reject` in `src/gilt/gui/views/import_wizard.py`.
+**Reference implementation**: worker interrupt handling in `src/gilt/gui/controllers/intelligence_scan_controller.py`; `cleanupPage` in `src/gilt/gui/views/categorization_review_page.py` and `src/gilt/gui/views/import_wizard/pages/execute_page.py`; `ImportWizard.reject` in `src/gilt/gui/views/import_wizard/wizard.py`.
 
 ## Common Tasks
 

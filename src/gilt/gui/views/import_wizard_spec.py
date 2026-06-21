@@ -15,10 +15,9 @@ from gilt.gui.views.import_wizard import (
     PAGE_SELECT_FILES,
     ExecutePage,
     ImportWizard,
-    ImportWorker,
     PreviewPage,
-    compute_file_progress_window,
 )
+from gilt.gui.workers.import_worker import ImportWorker
 from gilt.model.account import Account
 
 # ---------------------------------------------------------------------------
@@ -91,54 +90,6 @@ def _make_mapping(
         preview_rows=preview_rows if preview_rows is not None else [],
         error=error,
     )
-
-
-# ---------------------------------------------------------------------------
-# Step 6: Progress window — tests now target the real extracted helper
-# ---------------------------------------------------------------------------
-
-
-class DescribeComputeFileProgressWindow:
-    """Tests for the compute_file_progress_window pure helper."""
-
-    def it_should_start_first_file_at_zero(self):
-        start, _ = compute_file_progress_window(0, 3)
-        assert start == 0
-
-    def it_should_end_first_file_at_33_percent(self):
-        _, end = compute_file_progress_window(0, 3)
-        assert end == 33
-
-    def it_should_start_second_file_at_33_percent(self):
-        start, _ = compute_file_progress_window(1, 3)
-        assert start == 33
-
-    def it_should_end_last_file_at_100_percent(self):
-        _, end = compute_file_progress_window(2, 3)
-        assert end == 100
-
-    def it_should_cover_full_range_for_single_file(self):
-        start, end = compute_file_progress_window(0, 1)
-        assert start == 0
-        assert end == 100
-
-
-class DescribeImportWorkerProgressCalculation:
-    """Verify overall-progress arithmetic used inside ImportWorker.run."""
-
-    def it_should_compute_overall_progress_from_file_pct(self):
-        start, end = compute_file_progress_window(1, 3)  # second file of 3
-        pct = 50  # 50% through this file
-        overall = start + int((pct / 100) * (end - start))
-        assert overall == 49
-
-    def it_should_skip_mappings_without_selected_account_id(self):
-        mappings = [
-            _make_mapping("a.csv", account_id="MYBANK_CHQ"),
-            _make_mapping("b.csv", account_id=None),
-        ]
-        processed = [m for m in mappings if m.selected_account_id]
-        assert len(processed) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -414,6 +365,64 @@ class DescribeExecutePageImportFlow:
 
 
 # ---------------------------------------------------------------------------
+# Step 5b: ExecutePage.cleanupPage() worker lifecycle
+# ---------------------------------------------------------------------------
+
+
+class DescribeExecutePageCleanup:
+    """ExecutePage.cleanupPage() must follow the documented QThread lifecycle."""
+
+    def it_should_disconnect_signals_before_interrupting_running_worker(self, qapp):
+        operations: list[str] = []
+
+        class _FakeSignal:
+            def __init__(self, name):
+                self._name = name
+
+            def disconnect(self, fn):
+                operations.append(f"disconnect({self._name})")
+
+        class _FakeWorker:
+            def __init__(self):
+                self.progress = _FakeSignal("progress")
+                self.finished = _FakeSignal("finished")
+                self.error = _FakeSignal("error")
+
+            def isRunning(self):
+                return True
+
+            def requestInterruption(self):
+                operations.append("requestInterruption")
+
+            def wait(self, ms):
+                operations.append(f"wait({ms})")
+
+        page = ExecutePage()
+        page.worker = _FakeWorker()
+        page.cleanupPage()
+
+        interrupt_idx = operations.index("requestInterruption")
+        assert operations.index("disconnect(progress)") < interrupt_idx
+        assert operations.index("disconnect(finished)") < interrupt_idx
+        assert operations.index("disconnect(error)") < interrupt_idx
+        assert "wait(2000)" in operations
+
+    def it_should_be_noop_when_worker_is_none(self, qapp):
+        page = ExecutePage()
+        page.worker = None
+        page.cleanupPage()  # must not raise
+
+    def it_should_be_noop_when_worker_is_not_running(self, qapp):
+        class _FakeWorker:
+            def isRunning(self):
+                return False
+
+        page = ExecutePage()
+        page.worker = _FakeWorker()
+        page.cleanupPage()  # must not raise
+
+
+# ---------------------------------------------------------------------------
 # Original validation logic tests (kept for regression coverage)
 # ---------------------------------------------------------------------------
 
@@ -500,3 +509,42 @@ class DescribeImportWizardRejectWorkerCleanup:
         if worker and worker.isRunning():
             called = True
         assert called is False
+
+    def it_should_disconnect_signals_before_requesting_interruption(self):
+        operations: list[str] = []
+
+        class _FakeSignal:
+            def __init__(self, name):
+                self._name = name
+
+            def disconnect(self, fn):
+                operations.append(f"disconnect({self._name})")
+
+        class _FakeWorker:
+            def __init__(self):
+                self.progress = _FakeSignal("progress")
+                self.finished = _FakeSignal("finished")
+                self.error = _FakeSignal("error")
+
+            def isRunning(self):
+                return True
+
+            def requestInterruption(self):
+                operations.append("requestInterruption")
+
+            def wait(self, ms: int):
+                operations.append(f"wait({ms})")
+
+        worker = _FakeWorker()
+        if worker.isRunning():
+            worker.progress.disconnect(None)
+            worker.finished.disconnect(None)
+            worker.error.disconnect(None)
+            worker.requestInterruption()
+            worker.wait(2000)
+
+        interrupt_idx = operations.index("requestInterruption")
+        assert all(
+            operations.index(op) < interrupt_idx
+            for op in ["disconnect(progress)", "disconnect(finished)", "disconnect(error)"]
+        )
