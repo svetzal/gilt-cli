@@ -26,14 +26,14 @@ from gilt.services.transaction_operations_service import (
 from gilt.services.transaction_query_service import TransactionFilter, TransactionQueryService
 from gilt.workspace import Workspace
 
-from ..console import console, display_category_change_matches, print_error
-from ..event_sourcing_bootstrap import require_event_sourcing, require_persistence_service
+from ..console import console, display_category_change_matches, print_error, print_match_total
+from ..event_sourcing_bootstrap import require_persistence_service
 from ..formatting import build_category_path
 from ..loaders import load_account_transactions
 from ..mutations import (
     find_matches_by_criteria,
     persist_categorization_matches,
-    run_confirmed_mutation,
+    run_persisted_mutation,
 )
 
 # ---------------------------------------------------------------------------
@@ -209,23 +209,17 @@ def _run_rename_mode(
 
     def display() -> None:
         _display_matches(all_matches, from_category, to_category)
-        console.print(f"\n[bold]Total:[/] {total_matched} transaction(s)")
+        print_match_total(total_matched)
 
-    def apply() -> int:
-        ready = require_event_sourcing(workspace)
-        if ready is None:
-            return 1
-        _apply_renaming(all_matches, to_cat, to_subcat, ready, workspace)
-        console.print(f"[green]✓[/] Renamed category in {total_matched} transaction(s)")
-        return 0
-
-    return run_confirmed_mutation(
+    return run_persisted_mutation(
         matches=all_matches,
         display=display,
         confirm_prompt=f"Rename category in {total_matched} transaction(s)?",
         assume_yes=False,
         write=write,
-        apply=apply,
+        workspace=workspace,
+        persist=lambda ready: _apply_renaming(all_matches, to_cat, to_subcat, ready, workspace),
+        on_success=lambda: console.print(f"[green]✓[/] Renamed category in {total_matched} transaction(s)"),
     )
 
 
@@ -320,25 +314,19 @@ def _run_selection_mode(
 
     def display() -> None:
         _display_matches(all_matches, from_category or None, to_category)
-        console.print(f"\n[bold]Total:[/] {total_matched} transaction(s)")
+        print_match_total(total_matched)
 
-    def apply() -> int:
-        ready = require_event_sourcing(workspace)
-        if ready is None:
-            return 1
-        persist_categorization_matches(
-            all_matches, to_cat, to_subcat, ready, workspace, source="user"
-        )
-        console.print(f"[green]✓[/] Recategorized {total_matched} transaction(s)")
-        return 0
-
-    return run_confirmed_mutation(
+    return run_persisted_mutation(
         matches=all_matches,
         display=display,
         confirm_prompt=f"Recategorize {total_matched} transaction(s) to '{format_category_path(to_cat, to_subcat)}'?",
         assume_yes=False,
         write=write,
-        apply=apply,
+        workspace=workspace,
+        persist=lambda ready: persist_categorization_matches(
+            all_matches, to_cat, to_subcat, ready, workspace, source="user"
+        ),
+        on_success=lambda: console.print(f"[green]✓[/] Recategorized {total_matched} transaction(s)"),
     )
 
 

@@ -57,6 +57,11 @@ def print_dry_run_message(*, detail: str | None = None) -> None:
     console.print(f"[dim]{msg}[/dim]")
 
 
+def print_match_total(n: int) -> None:
+    """Print the standard 'Total: N transaction(s)' footer after a match table."""
+    console.print(f"\n[bold]Total:[/] {n} transaction(s)")
+
+
 def confirm_interactively(prompt: str) -> bool:
     """Return True when stdin is non-interactive (auto-proceed) or when the user confirms."""
     if not sys.stdin.isatty():
@@ -137,6 +142,7 @@ __all__ = [
     "print_error_list",
     "print_transaction_table",
     "print_dry_run_message",
+    "print_match_total",
     "confirm_interactively",
     "display_transaction_matches",
     "display_category_change_matches",

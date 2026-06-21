@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable, Sequence
 
 from gilt.cli.console import confirm_interactively, console, print_dry_run_message, print_error
-from gilt.cli.event_sourcing_bootstrap import require_persistence_service
+from gilt.cli.event_sourcing_bootstrap import require_event_sourcing, require_persistence_service
 from gilt.model.account import TransactionGroup
 from gilt.services.categorization_persistence_service import (
     CategorizationPersistenceResult,
@@ -73,6 +73,37 @@ def persist_row_categorizations(
 ) -> CategorizationPersistenceResult:
     """Build categorization updates from rows and persist them."""
     return run_categorization_updates(ready, workspace, build_categorization_updates(rows, source=source))
+
+
+def run_persisted_mutation(
+    *,
+    matches: Sequence,
+    display: Callable[[], None],
+    confirm_prompt: str,
+    assume_yes: bool,
+    write: bool,
+    workspace: Workspace,
+    persist: Callable[[EventSourcingReadyResult], None],
+    on_success: Callable[[], None] | None = None,
+) -> int:
+    """Orchestrate confirm → dry-run gate → require_event_sourcing → persist → on_success."""
+    def apply() -> int:
+        ready = require_event_sourcing(workspace)
+        if ready is None:
+            return 1
+        persist(ready)
+        if on_success is not None:
+            on_success()
+        return 0
+
+    return run_confirmed_mutation(
+        matches=matches,
+        display=display,
+        confirm_prompt=confirm_prompt,
+        assume_yes=assume_yes,
+        write=write,
+        apply=apply,
+    )
 
 
 def run_confirmed_mutation(
@@ -227,6 +258,7 @@ __all__ = [
     "run_categorization_updates",
     "persist_categorization_matches",
     "persist_row_categorizations",
+    "run_persisted_mutation",
     "run_confirmed_mutation",
     "find_matches_by_criteria",
     "search_by_criteria",

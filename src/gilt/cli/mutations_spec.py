@@ -11,6 +11,7 @@ from gilt.cli.mutations import (
     persist_row_categorizations,
     run_categorization_updates,
     run_confirmed_mutation,
+    run_persisted_mutation,
     search_by_criteria,
     validate_single_vs_batch_mode,
 )
@@ -483,6 +484,125 @@ class DescribeRunConfirmedMutation:
 
         apply.assert_called_once()
         assert result == 0
+
+
+class DescribeRunPersistedMutation:
+    def it_should_not_call_persist_when_write_is_false(self, tmp_path, mocker):
+        mocker.patch("gilt.cli.console.sys.stdin.isatty", return_value=True)
+        mocker.patch("gilt.cli.mutations.require_event_sourcing")
+        persist = Mock()
+        workspace = Workspace(root=tmp_path)
+
+        result = run_persisted_mutation(
+            matches=[],
+            display=Mock(),
+            confirm_prompt="Proceed?",
+            assume_yes=True,
+            write=False,
+            workspace=workspace,
+            persist=persist,
+        )
+
+        persist.assert_not_called()
+        assert result == 0
+
+    def it_should_print_dry_run_message_when_write_is_false(self, tmp_path, mocker):
+        mocker.patch("gilt.cli.console.sys.stdin.isatty", return_value=True)
+        mock_console = mocker.patch("gilt.cli.console.console")
+        mocker.patch("gilt.cli.mutations.require_event_sourcing")
+        workspace = Workspace(root=tmp_path)
+
+        run_persisted_mutation(
+            matches=[],
+            display=Mock(),
+            confirm_prompt="Proceed?",
+            assume_yes=True,
+            write=False,
+            workspace=workspace,
+            persist=Mock(),
+        )
+
+        printed = " ".join(str(c) for c in mock_console.print.call_args_list)
+        assert "Dry-run" in printed or "dry-run" in printed
+
+    def it_should_not_call_persist_when_confirm_declines(self, tmp_path, mocker):
+        mocker.patch("gilt.cli.console.sys.stdin.isatty", return_value=True)
+        mocker.patch("gilt.cli.console.typer.confirm", return_value=False)
+        mock_require = mocker.patch("gilt.cli.mutations.require_event_sourcing")
+        persist = Mock()
+        workspace = Workspace(root=tmp_path)
+
+        result = run_persisted_mutation(
+            matches=[],
+            display=Mock(),
+            confirm_prompt="Proceed?",
+            assume_yes=False,
+            write=True,
+            workspace=workspace,
+            persist=persist,
+        )
+
+        persist.assert_not_called()
+        mock_require.assert_not_called()
+        assert result == 0
+
+    def it_should_call_persist_with_ready_when_write_is_true(self, tmp_path, mocker):
+        mocker.patch("gilt.cli.console.sys.stdin.isatty", return_value=True)
+        mock_ready = Mock()
+        mocker.patch("gilt.cli.mutations.require_event_sourcing", return_value=mock_ready)
+        persist = Mock()
+        workspace = Workspace(root=tmp_path)
+
+        result = run_persisted_mutation(
+            matches=[],
+            display=Mock(),
+            confirm_prompt="Proceed?",
+            assume_yes=True,
+            write=True,
+            workspace=workspace,
+            persist=persist,
+        )
+
+        persist.assert_called_once_with(mock_ready)
+        assert result == 0
+
+    def it_should_call_on_success_after_persist(self, tmp_path, mocker):
+        mocker.patch("gilt.cli.console.sys.stdin.isatty", return_value=True)
+        mocker.patch("gilt.cli.mutations.require_event_sourcing", return_value=Mock())
+        persist = Mock()
+        on_success = Mock()
+        workspace = Workspace(root=tmp_path)
+
+        run_persisted_mutation(
+            matches=[],
+            display=Mock(),
+            confirm_prompt="Proceed?",
+            assume_yes=True,
+            write=True,
+            workspace=workspace,
+            persist=persist,
+            on_success=on_success,
+        )
+
+        persist.assert_called_once()
+        on_success.assert_called_once()
+
+    def it_should_return_one_when_require_event_sourcing_returns_none(self, tmp_path, mocker):
+        mocker.patch("gilt.cli.console.sys.stdin.isatty", return_value=True)
+        mocker.patch("gilt.cli.mutations.require_event_sourcing", return_value=None)
+        workspace = Workspace(root=tmp_path)
+
+        result = run_persisted_mutation(
+            matches=[],
+            display=Mock(),
+            confirm_prompt="Proceed?",
+            assume_yes=True,
+            write=True,
+            workspace=workspace,
+            persist=Mock(),
+        )
+
+        assert result == 1
 
 
 class DescribePersistRowCategorizations:

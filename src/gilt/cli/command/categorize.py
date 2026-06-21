@@ -31,7 +31,7 @@ from ..loaders import load_account_transactions
 from ..mutations import (
     find_matches_by_criteria,
     persist_row_categorizations,
-    run_confirmed_mutation,
+    run_persisted_mutation,
     validate_single_vs_batch_mode,
 )
 
@@ -126,10 +126,7 @@ def _confirm_and_apply(
     total_matched = len(all_matches)
     auto_yes = single_mode or total_matched <= 1 or assume_yes
 
-    def apply() -> int:
-        ready = require_event_sourcing(workspace)
-        if ready is None:
-            return 1
+    def persist(ready) -> None:
         result = categorization_service.run_categorization(
             [group for _, group in all_matches],
             category,
@@ -141,15 +138,15 @@ def _confirm_and_apply(
             for group in result.updated_transactions
         ]
         _persist_categorizations(updated_pairs, ready, workspace)
-        return 0
 
-    return run_confirmed_mutation(
+    return run_persisted_mutation(
         matches=all_matches,
         display=lambda: _display_matches(all_matches, category, subcategory),
         confirm_prompt=f"Categorize {total_matched} transaction(s)?",
         assume_yes=auto_yes,
         write=write,
-        apply=apply,
+        workspace=workspace,
+        persist=persist,
     )
 
 
