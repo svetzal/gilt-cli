@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from gilt.testing.fixtures import make_pair
-from gilt.transfer.prompt_manager import PromptManager
+from gilt.transfer.prompt_manager import PromptManager, _confusion_counts
 
 
 class DescribePromptManagerInitialization:
@@ -275,3 +275,47 @@ class DescribePromptManagerPromptAssembly:
         manager.add_feedback(pair, llm_said_duplicate=True, llm_confidence=0.9, user_confirmed=True)
         prompt = manager.get_prompt()
         assert "ACME CORP" in prompt
+
+
+class DescribeConfusionCounts:
+    """Focused specs for the _confusion_counts helper."""
+
+    def _make_entry(self, llm_said: bool, user_confirmed: bool) -> dict:
+        return {
+            "llm_said_duplicate": llm_said,
+            "user_confirmed": user_confirmed,
+        }
+
+    def it_should_return_all_zeros_for_empty_history(self):
+        assert _confusion_counts([]) == (0, 0, 0, 0)
+
+    def it_should_count_true_positives(self):
+        history = [self._make_entry(True, True)]
+        tp, fp, tn, fn = _confusion_counts(history)
+        assert (tp, fp, tn, fn) == (1, 0, 0, 0)
+
+    def it_should_count_false_positives(self):
+        history = [self._make_entry(True, False)]
+        tp, fp, tn, fn = _confusion_counts(history)
+        assert (tp, fp, tn, fn) == (0, 1, 0, 0)
+
+    def it_should_count_true_negatives(self):
+        history = [self._make_entry(False, False)]
+        tp, fp, tn, fn = _confusion_counts(history)
+        assert (tp, fp, tn, fn) == (0, 0, 1, 0)
+
+    def it_should_count_false_negatives(self):
+        history = [self._make_entry(False, True)]
+        tp, fp, tn, fn = _confusion_counts(history)
+        assert (tp, fp, tn, fn) == (0, 0, 0, 1)
+
+    def it_should_tally_a_mixed_feedback_list(self):
+        history = [
+            self._make_entry(True, True),   # tp
+            self._make_entry(True, True),   # tp
+            self._make_entry(True, False),  # fp
+            self._make_entry(False, False), # tn
+            self._make_entry(False, True),  # fn
+        ]
+        tp, fp, tn, fn = _confusion_counts(history)
+        assert (tp, fp, tn, fn) == (2, 1, 1, 1)

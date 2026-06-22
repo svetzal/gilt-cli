@@ -290,6 +290,19 @@ The `projection.py` module fused schema, write-side reducer, and read-side queri
 
 **Rule:** When adding new projection behaviour, place it in the appropriate collaborator module — not back into `projection.py`. Schema changes go to `projection_schema.py`, new event handlers to `projection_reducer.py`, new queries to `projection_queries.py`.
 
+## Budget Projection Module Layout
+
+The `budget_projection.py` module fused schema, write-side reducer, and read-side queries into one class (same pattern as `projection.py`). It has been split into cohesive units following the same **extract-collaborators-behind-facade** pattern:
+
+| Module | Responsibility |
+|---|---|
+| `budget_projection_schema.py` | `ensure_budget_projection_schema` — DDL for `budget_projections` and `budget_history` tables |
+| `budget_projection_reducer.py` | `apply_budget_events` and per-event `_apply_*` functions — write side |
+| `budget_projection_queries.py` | `BudgetProjection` type, `get_budget`, `get_active_budgets`, `get_budgets_at_date`, `get_budget_history` — read side |
+| `budget_projection.py` | `BudgetProjectionBuilder` facade — orchestrates the above; re-exports `BudgetProjection` and `BudgetProjectionBuilder` so existing callers need no changes |
+
+**Rule:** When adding new budget projection behaviour, place it in the appropriate collaborator module — not back into `budget_projection.py`. Schema changes go to `budget_projection_schema.py`, new event handlers to `budget_projection_reducer.py`, new queries to `budget_projection_queries.py`.
+
 ## Ingest Module Layout
 
 The `ingest/__init__.py` module fused column detection, normalization, model mapping, account matching, config I/O, event emission, and ledger I/O into one file. It has been split into cohesive units following the **extract-collaborators-behind-facade** pattern:

@@ -49,6 +49,15 @@ Transaction 2:
 Assess whether these are duplicates."""
 
 
+def _confusion_counts(feedback_history: list[dict]) -> tuple[int, int, int, int]:
+    """Return (tp, fp, tn, fn) tallies over a feedback history list."""
+    tp = sum(1 for f in feedback_history if f["llm_said_duplicate"] and f["user_confirmed"])
+    fp = sum(1 for f in feedback_history if f["llm_said_duplicate"] and not f["user_confirmed"])
+    tn = sum(1 for f in feedback_history if not f["llm_said_duplicate"] and not f["user_confirmed"])
+    fn = sum(1 for f in feedback_history if not f["llm_said_duplicate"] and f["user_confirmed"])
+    return tp, fp, tn, fn
+
+
 class PromptManager:
     """Manages an adaptive prompt that learns from user feedback."""
 
@@ -217,24 +226,9 @@ class PromptManager:
                 "false_negatives": 0,
             }
 
-        tp = sum(
-            1 for f in self.feedback_history if f["llm_said_duplicate"] and f["user_confirmed"]
-        )
-        fp = sum(
-            1 for f in self.feedback_history if f["llm_said_duplicate"] and not f["user_confirmed"]
-        )
-        tn = sum(
-            1
-            for f in self.feedback_history
-            if not f["llm_said_duplicate"] and not f["user_confirmed"]
-        )
-        fn = sum(
-            1 for f in self.feedback_history if not f["llm_said_duplicate"] and f["user_confirmed"]
-        )
-
+        tp, fp, tn, fn = _confusion_counts(self.feedback_history)
         total = len(self.feedback_history)
-        correct = tp + tn
-        accuracy = correct / total if total > 0 else 0.0
+        accuracy = (tp + tn) / total if total > 0 else 0.0
 
         return {
             "total_feedback": total,

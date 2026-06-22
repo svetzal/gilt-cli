@@ -32,6 +32,38 @@ from gilt.transfer.prompt_manager import PromptManager
 logger = logging.getLogger(__name__)
 
 
+def _is_candidate_pair(
+    txn1: Transaction,
+    txn2: Transaction,
+    max_days_apart: int,
+    amount_tolerance: float,
+) -> bool:
+    """Return True if the pair meets all duplicate-candidate criteria."""
+    if txn1.account_id != txn2.account_id:
+        return False
+    if abs(txn1.amount - txn2.amount) > amount_tolerance:
+        return False
+    return txn1.description != txn2.description
+
+
+def _to_transaction_pair(txn1: Transaction, txn2: Transaction) -> TransactionPair:
+    """Build a TransactionPair from two Transaction objects."""
+    return TransactionPair(
+        txn1_id=txn1.transaction_id,
+        txn1_date=txn1.date,
+        txn1_description=txn1.description,
+        txn1_amount=txn1.amount,
+        txn1_account=txn1.account_id,
+        txn1_source_file=txn1.source_file,
+        txn2_id=txn2.transaction_id,
+        txn2_date=txn2.date,
+        txn2_description=txn2.description,
+        txn2_amount=txn2.amount,
+        txn2_account=txn2.account_id,
+        txn2_source_file=txn2.source_file,
+    )
+
+
 class DuplicateDetector:
     """Service for detecting duplicate transactions using ML or LLM analysis."""
 
@@ -56,19 +88,25 @@ class DuplicateDetector:
         self.use_ml = use_ml
         self.projections_path = projections_path
         self._llm: LLMBroker | None = None
-        self._ml_classifier = None
         self.prompt_manager: PromptManager | None = None
         if data_dir:
             self.prompt_manager = PromptManager(data_dir)
 
-        # Load latest PromptUpdated event for learned patterns
         self.prompt_version = "v1"
         self.learned_patterns: list[str] = []
-        if event_store_path and event_store_path.exists():
-            self._load_learned_patterns(event_store_path)
-            # Initialize ML classifier from training data if use_ml is True
-            if use_ml:
-                self._ml_classifier = self._init_ml_classifier(event_store_path)
+        self._ml_classifier = self._load_learning_state(event_store_path, use_ml)
+
+    def _load_learning_state(self, event_store_path: Path | None, use_ml: bool):
+        """Load learned patterns and optionally train the ML classifier.
+
+        Returns the trained classifier, or None if unavailable.
+        """
+        if not (event_store_path and event_store_path.exists()):
+            return None
+        self._load_learned_patterns(event_store_path)
+        if use_ml:
+            return self._init_ml_classifier(event_store_path)
+        return None
 
     def _init_ml_classifier(self, event_store_path: Path):
         """Initialize and train ML classifier from event store.
@@ -179,9 +217,6 @@ class DuplicateDetector:
         - Same account
         - Different descriptions (no point checking identical ones)
 
-        This focuses on the bank description variation problem where the same
-        transaction appears with modified text but same core details.
-
         Args:
             transactions: List of all transactions to analyze
             max_days_apart: Maximum days between potential duplicates (default 1)
@@ -192,45 +227,13 @@ class DuplicateDetector:
         """
         pairs: list[TransactionPair] = []
 
-        # Compare each transaction with subsequent ones
         for i, txn1 in enumerate(transactions):
-            # Only look ahead at transactions within the date window
             for txn2 in transactions[i + 1 :]:
-                # Stop if we're beyond the date window
                 date_diff = abs((txn2.date - txn1.date).days)
                 if date_diff > max_days_apart:
                     break
-
-                # Check same account
-                if txn1.account_id != txn2.account_id:
-                    continue
-
-                # Check amount is exactly the same (within rounding tolerance)
-                amount_diff = abs(txn1.amount - txn2.amount)
-                if amount_diff > amount_tolerance:
-                    continue
-
-                # Skip if descriptions are identical (not duplicates, just repeated)
-                if txn1.description == txn2.description:
-                    continue
-
-                # This is a candidate pair
-                pairs.append(
-                    TransactionPair(
-                        txn1_id=txn1.transaction_id,
-                        txn1_date=txn1.date,
-                        txn1_description=txn1.description,
-                        txn1_amount=txn1.amount,
-                        txn1_account=txn1.account_id,
-                        txn1_source_file=txn1.source_file,
-                        txn2_id=txn2.transaction_id,
-                        txn2_date=txn2.date,
-                        txn2_description=txn2.description,
-                        txn2_amount=txn2.amount,
-                        txn2_account=txn2.account_id,
-                        txn2_source_file=txn2.source_file,
-                    )
-                )
+                if _is_candidate_pair(txn1, txn2, max_days_apart, amount_tolerance):
+                    pairs.append(_to_transaction_pair(txn1, txn2))
 
         return pairs
 

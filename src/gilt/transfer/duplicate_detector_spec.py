@@ -7,7 +7,8 @@ from tempfile import TemporaryDirectory
 from gilt.model.duplicate import TransactionPair
 from gilt.model.events import PromptUpdated
 from gilt.storage.event_store import EventStore
-from gilt.transfer.duplicate_detector import DuplicateDetector
+from gilt.testing.fixtures import make_transaction
+from gilt.transfer.duplicate_detector import DuplicateDetector, _is_candidate_pair
 
 
 class DescribeDuplicateDetectorAdaptivePrompts:
@@ -185,3 +186,27 @@ class DescribeTransactionPairSourceFileTracking:
 
         assert pair.txn1_source_file is None
         assert pair.txn2_source_file is None
+
+
+class DescribeIsCandidatePair:
+    """Focused specs for the _is_candidate_pair predicate."""
+
+    def it_should_accept_same_account_same_amount_different_description(self):
+        txn1 = make_transaction(account_id="MYBANK_CHQ", amount=-42.50, description="ACME CORP")
+        txn2 = make_transaction(account_id="MYBANK_CHQ", amount=-42.50, description="ACME CORP LTD")
+        assert _is_candidate_pair(txn1, txn2, max_days_apart=1, amount_tolerance=0.001) is True
+
+    def it_should_reject_different_accounts(self):
+        txn1 = make_transaction(account_id="MYBANK_CHQ", amount=-42.50, description="ACME CORP")
+        txn2 = make_transaction(account_id="BANK2_BIZ", amount=-42.50, description="ACME CORP LTD")
+        assert _is_candidate_pair(txn1, txn2, max_days_apart=1, amount_tolerance=0.001) is False
+
+    def it_should_reject_amount_beyond_tolerance(self):
+        txn1 = make_transaction(account_id="MYBANK_CHQ", amount=-42.50, description="ACME CORP")
+        txn2 = make_transaction(account_id="MYBANK_CHQ", amount=-43.00, description="ACME CORP LTD")
+        assert _is_candidate_pair(txn1, txn2, max_days_apart=1, amount_tolerance=0.001) is False
+
+    def it_should_reject_identical_descriptions(self):
+        txn1 = make_transaction(account_id="MYBANK_CHQ", amount=-42.50, description="ACME CORP")
+        txn2 = make_transaction(account_id="MYBANK_CHQ", amount=-42.50, description="ACME CORP")
+        assert _is_candidate_pair(txn1, txn2, max_days_apart=1, amount_tolerance=0.001) is False
