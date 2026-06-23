@@ -6,7 +6,8 @@ from pathlib import Path
 
 import typer
 
-HELP_WRITE = "Persist changes (default: dry-run)"
+from gilt.cli.registration._dispatch import HELP_WRITE, dispatch, resolve_fy_range
+
 HELP_ACCOUNT_DISPLAY = "Account ID to display (e.g., MYBANK_CHQ)"
 HELP_ACCOUNT_WITH_TX = "Account ID containing the transaction (e.g., MYBANK_CHQ)"
 
@@ -55,7 +56,8 @@ def register_ytd(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         """
         from gilt.cli.command import ytd as cmd_ytd
 
-        code = cmd_ytd.run(
+        dispatch(
+            cmd_ytd.run,
             account=account,
             year=year,
             workspace=ws_fn(ctx),
@@ -65,7 +67,6 @@ def register_ytd(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
             raw=raw,
             compare=compare,
         )
-        raise typer.Exit(code=code)
 
 
 def register_status(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -95,24 +96,14 @@ def register_status(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
           gilt status --stale-threshold 30
         """
         from gilt.cli.command import status as cmd_status
-        from gilt.cli.console import console
-        from gilt.util.fy import fiscal_year_range
 
-        fy_range = None
-        if fy is not None:
-            try:
-                fy_range = fiscal_year_range(fy)
-            except ValueError as exc:
-                console.print(f"[red]Error:[/] {exc}")
-                raise typer.Exit(code=1) from exc
-
-        code = cmd_status.run(
-            fy_range=fy_range,
+        dispatch(
+            cmd_status.run,
+            fy_range=resolve_fy_range(fy),
             fy_label=fy,
             stale_threshold=stale_threshold,
             workspace=ws_fn(ctx),
         )
-        raise typer.Exit(code=code)
 
 
 def register_summary(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -154,7 +145,6 @@ def register_summary(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         """
         from gilt.cli.command import summary as cmd_summary
         from gilt.cli.console import console
-        from gilt.util.fy import fiscal_year_range
 
         if fy is not None and year is not None:
             console.print(
@@ -162,24 +152,16 @@ def register_summary(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
             )
             raise typer.Exit(code=1)
 
-        fy_range = None
-        if fy is not None:
-            try:
-                fy_range = fiscal_year_range(fy)
-            except ValueError as exc:
-                console.print(f"[red]Error:[/] {exc}")
-                raise typer.Exit(code=1) from exc
-
-        code = cmd_summary.run(
+        dispatch(
+            cmd_summary.run,
             year=year,
-            fy_range=fy_range,
+            fy_range=resolve_fy_range(fy),
             fy_label=fy,
             account=account,
             category=category,
             include_uncategorized=include_uncategorized,
             workspace=ws_fn(ctx),
         )
-        raise typer.Exit(code=code)
 
 
 def register_budget(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -209,13 +191,13 @@ def register_budget(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         """
         from gilt.cli.command import budget as cmd_budget
 
-        code = cmd_budget.run(
+        dispatch(
+            cmd_budget.run,
             year=year,
             month=month,
             category=category,
             workspace=ws_fn(ctx),
         )
-        raise typer.Exit(code=code)
 
 
 def register_report(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -252,14 +234,14 @@ def register_report(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         """
         from gilt.cli.command import report as cmd_report
 
-        code = cmd_report.run(
+        dispatch(
+            cmd_report.run,
             year=year,
             month=month,
             output=output,
             workspace=ws_fn(ctx),
             write=write,
         )
-        raise typer.Exit(code=code)
 
 
 def register_show(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -280,8 +262,7 @@ def register_show(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         """
         from gilt.cli.command import show as cmd_show
 
-        code = cmd_show.run(txid=txid, workspace=ws_fn(ctx))
-        raise typer.Exit(code=code)
+        dispatch(cmd_show.run, txid=txid, workspace=ws_fn(ctx))
 
 
 def register_history(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -319,7 +300,8 @@ def register_history(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         """
         from gilt.cli.command import history as cmd_history
 
-        code = cmd_history.run(
+        dispatch(
+            cmd_history.run,
             pattern=pattern,
             account=account,
             include_uncategorized=include_uncategorized,
@@ -328,7 +310,6 @@ def register_history(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
             date_to=date_to,
             workspace=ws_fn(ctx),
         )
-        raise typer.Exit(code=code)
 
 
 def register_note(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -374,7 +355,8 @@ def register_note(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         """
         from gilt.cli.command import note as cmd_note
 
-        code = cmd_note.run(
+        dispatch(
+            cmd_note.run,
             account=account,
             txid=txid,
             note_text=note_text,
@@ -386,7 +368,6 @@ def register_note(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
             workspace=ws_fn(ctx),
             write=write,
         )
-        raise typer.Exit(code=code)
 
 
 def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]

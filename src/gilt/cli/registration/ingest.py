@@ -6,7 +6,7 @@ from pathlib import Path
 
 import typer
 
-HELP_WRITE = "Persist changes (default: dry-run)"
+from gilt.cli.registration._dispatch import HELP_WRITE, dispatch, resolve_fy_range
 
 
 def register_ingest(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -21,11 +21,7 @@ def register_ingest(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         """
         from gilt.cli.command import ingest as cmd_ingest
 
-        code = cmd_ingest.run(
-            workspace=ws_fn(ctx),
-            write=write,
-        )
-        raise typer.Exit(code=code)
+        dispatch(cmd_ingest.run, workspace=ws_fn(ctx), write=write)
 
 
 def register_reingest(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -52,12 +48,7 @@ def register_reingest(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg
         """
         from gilt.cli.command import reingest as cmd_reingest
 
-        code = cmd_reingest.run(
-            account=account,
-            workspace=ws_fn(ctx),
-            write=write,
-        )
-        raise typer.Exit(code=code)
+        dispatch(cmd_reingest.run, account=account, workspace=ws_fn(ctx), write=write)
 
 
 def register_ingest_receipts(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -95,7 +86,8 @@ def register_ingest_receipts(app: typer.Typer, ws_fn) -> None:  # type: ignore[t
         """
         from gilt.cli.command import ingest_receipts as cmd_ingest_receipts
 
-        code = cmd_ingest_receipts.run(
+        dispatch(
+            cmd_ingest_receipts.run,
             workspace=ws_fn(ctx),
             source=source,
             write=write,
@@ -103,7 +95,6 @@ def register_ingest_receipts(app: typer.Typer, ws_fn) -> None:  # type: ignore[t
             account=account,
             interactive=interactive,
         )
-        raise typer.Exit(code=code)
 
 
 def register_receipts(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -146,26 +137,16 @@ def register_receipts(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg
           gilt receipts --fy FY25 --missing
         """
         from gilt.cli.command import receipts as cmd_receipts
-        from gilt.cli.console import console
-        from gilt.util.fy import fiscal_year_range
 
-        fy_range = None
-        if fy is not None:
-            try:
-                fy_range = fiscal_year_range(fy)
-            except ValueError as exc:
-                console.print(f"[red]Error:[/] {exc}")
-                raise typer.Exit(code=1) from exc
-
-        code = cmd_receipts.run(
+        dispatch(
+            cmd_receipts.run,
             category=category,
             by_account=by_account,
-            fy_range=fy_range,
+            fy_range=resolve_fy_range(fy),
             fy_label=fy,
             missing=missing,
             workspace=ws_fn(ctx),
         )
-        raise typer.Exit(code=code)
 
 
 def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]

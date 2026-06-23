@@ -6,8 +6,7 @@ from __future__ import annotations
 import typer
 
 from gilt.config import DEFAULT_OLLAMA_MODEL
-
-HELP_WRITE = "Persist changes (default: dry-run)"
+from gilt.cli.registration._dispatch import HELP_WRITE, dispatch
 
 
 def register_duplicates(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -52,7 +51,8 @@ def register_duplicates(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-a
         """
         from gilt.cli.command import duplicates as cmd_duplicates
 
-        code = cmd_duplicates.run(
+        dispatch(
+            cmd_duplicates.run,
             workspace=ws_fn(ctx),
             model=model,
             max_days_apart=max_days_apart,
@@ -61,7 +61,6 @@ def register_duplicates(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-a
             interactive=interactive,
             use_llm=use_llm,
         )
-        raise typer.Exit(code=code)
 
 
 def register_mark_duplicate(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -74,7 +73,7 @@ def register_mark_duplicate(app: typer.Typer, ws_fn) -> None:  # type: ignore[ty
         duplicate_txid: str = typer.Option(
             ..., "--duplicate", "-d", help="Transaction ID to mark as duplicate (8+ char prefix)"
         ),
-        write: bool = typer.Option(False, "--write", help="Persist changes (default: dry-run)"),
+        write: bool = typer.Option(False, "--write", help=HELP_WRITE),
     ):
         """Manually mark a specific pair of transactions as duplicates.
 
@@ -98,13 +97,13 @@ def register_mark_duplicate(app: typer.Typer, ws_fn) -> None:  # type: ignore[ty
         """
         from gilt.cli.command import mark_duplicate as cmd_mark_duplicate
 
-        code = cmd_mark_duplicate.run(
+        dispatch(
+            cmd_mark_duplicate.run,
             primary_txid=primary_txid,
             duplicate_txid=duplicate_txid,
             workspace=ws_fn(ctx),
             write=write,
         )
-        raise typer.Exit(code=code)
 
 
 def register_diagnose_duplicates(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -120,8 +119,7 @@ def register_diagnose_duplicates(app: typer.Typer, ws_fn) -> None:  # type: igno
         """
         from gilt.cli.command import diagnose_duplicates as cmd_diagnose_duplicates
 
-        code = cmd_diagnose_duplicates.run(workspace=ws_fn(ctx))
-        raise typer.Exit(code=code)
+        dispatch(cmd_diagnose_duplicates.run, workspace=ws_fn(ctx))
 
 
 def register_audit_ml(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -156,13 +154,13 @@ def register_audit_ml(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg
         """
         from gilt.cli.command import audit_ml as cmd_audit_ml
 
-        code = cmd_audit_ml.run(
+        dispatch(
+            cmd_audit_ml.run,
             workspace=ws_fn(ctx),
             mode=mode,
             filter_pattern=filter_pattern,
             limit=limit,
         )
-        raise typer.Exit(code=code)
 
 
 def register_prompt_stats(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]

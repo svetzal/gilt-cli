@@ -7,7 +7,7 @@ from pathlib import Path
 
 import typer
 
-HELP_WRITE = "Persist changes (default: dry-run)"
+from gilt.cli.registration._dispatch import HELP_WRITE, dispatch, resolve_fy_range
 
 
 def register_categorize(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -86,7 +86,8 @@ def register_categorize(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-a
         """
         from gilt.cli.command import categorize as cmd_categorize
 
-        code = cmd_categorize.run(
+        dispatch(
+            cmd_categorize.run,
             account=account,
             txid=txid,
             description=description,
@@ -101,7 +102,6 @@ def register_categorize(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-a
             workspace=ws_fn(ctx),
             write=write,
         )
-        raise typer.Exit(code=code)
 
 
 def register_recategorize(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -170,7 +170,8 @@ def register_recategorize(app: typer.Typer, ws_fn) -> None:  # type: ignore[type
             raise typer.Exit(code=1)
         date_from, date_to, fy_range = date_selection
 
-        code = cmd_recategorize.run(
+        dispatch(
+            cmd_recategorize.run,
             from_category=from_cat,
             to_category=to_cat,
             account=account,
@@ -185,7 +186,6 @@ def register_recategorize(app: typer.Typer, ws_fn) -> None:  # type: ignore[type
             workspace=ws_fn(ctx),
             write=write,
         )
-        raise typer.Exit(code=code)
 
 
 def register_auto_categorize(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -234,7 +234,8 @@ def register_auto_categorize(app: typer.Typer, ws_fn) -> None:  # type: ignore[t
         """
         from gilt.cli.command import auto_categorize as cmd_auto_categorize
 
-        code = cmd_auto_categorize.run(
+        dispatch(
+            cmd_auto_categorize.run,
             account=account,
             confidence=confidence,
             min_samples=min_samples,
@@ -244,7 +245,6 @@ def register_auto_categorize(app: typer.Typer, ws_fn) -> None:  # type: ignore[t
             workspace=ws_fn(ctx),
             write=write,
         )
-        raise typer.Exit(code=code)
 
 
 def register_uncategorized(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -281,7 +281,6 @@ def register_uncategorized(app: typer.Typer, ws_fn) -> None:  # type: ignore[typ
         """
         from gilt.cli.command import uncategorized as cmd_uncategorized
         from gilt.cli.console import console
-        from gilt.util.fy import fiscal_year_range
 
         if fy is not None and year is not None:
             console.print(
@@ -289,24 +288,16 @@ def register_uncategorized(app: typer.Typer, ws_fn) -> None:  # type: ignore[typ
             )
             raise typer.Exit(code=1)
 
-        fy_range = None
-        if fy is not None:
-            try:
-                fy_range = fiscal_year_range(fy)
-            except ValueError as exc:
-                console.print(f"[red]Error:[/] {exc}")
-                raise typer.Exit(code=1) from exc
-
-        code = cmd_uncategorized.run(
+        dispatch(
+            cmd_uncategorized.run,
             account=account,
             year=year,
             limit=limit,
             min_amount=min_amount,
-            fy_range=fy_range,
+            fy_range=resolve_fy_range(fy),
             fy_label=fy,
             workspace=ws_fn(ctx),
         )
-        raise typer.Exit(code=code)
 
 
 def register_diagnose_categories(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -323,8 +314,7 @@ def register_diagnose_categories(app: typer.Typer, ws_fn) -> None:  # type: igno
         """
         from gilt.cli.command import diagnose_categories as cmd_diagnose_categories
 
-        code = cmd_diagnose_categories.run(workspace=ws_fn(ctx))
-        raise typer.Exit(code=code)
+        dispatch(cmd_diagnose_categories.run, workspace=ws_fn(ctx))
 
 
 def register_infer_rules(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -363,7 +353,8 @@ def register_infer_rules(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-
         """
         from gilt.cli.command import infer_rules as cmd_infer_rules
 
-        code = cmd_infer_rules.run(
+        dispatch(
+            cmd_infer_rules.run,
             workspace=ws_fn(ctx),
             apply=apply,
             write=write,
@@ -371,7 +362,6 @@ def register_infer_rules(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-
             min_confidence=min_confidence,
             export=export,
         )
-        raise typer.Exit(code=code)
 
 
 def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
