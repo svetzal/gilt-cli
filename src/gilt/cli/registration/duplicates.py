@@ -5,8 +5,8 @@ from __future__ import annotations
 
 import typer
 
-from gilt.config import DEFAULT_OLLAMA_MODEL
 from gilt.cli.registration._dispatch import HELP_WRITE, dispatch
+from gilt.config import DEFAULT_OLLAMA_MODEL
 
 
 def register_duplicates(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -184,11 +184,11 @@ def register_prompt_stats(app: typer.Typer, ws_fn) -> None:  # type: ignore[type
         """
         from gilt.cli.command import prompt_stats as cmd_prompt_stats
 
-        code = cmd_prompt_stats.run(
+        dispatch(
+            cmd_prompt_stats.run,
             workspace=ws_fn(ctx),
             generate_update=generate_update,
         )
-        raise typer.Exit(code=code)
 
 
 def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
