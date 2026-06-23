@@ -15,8 +15,6 @@ import typer
 
 from gilt.workspace import Workspace
 
-HELP_WRITE = "Persist changes (default: dry-run)"
-
 APP_HELP = "Gilt CLI (local-only)"
 HELP_ACCOUNT_DISPLAY = "Account ID to display (e.g., MYBANK_CHQ)"
 HELP_ACCOUNT_WITH_TX = "Account ID containing the transaction (e.g., MYBANK_CHQ)"

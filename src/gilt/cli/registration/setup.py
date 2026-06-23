@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import typer
 
-HELP_WRITE = "Persist changes (default: dry-run)"
+from gilt.cli.registration._dispatch import HELP_WRITE, dispatch
 
 
 def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -42,12 +42,12 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         """
         from gilt.cli.command import skill_init as cmd_skill_init
 
-        code = cmd_skill_init.run(
+        dispatch(
+            cmd_skill_init.run,
             global_install=global_install,
             force=force,
             json_output=json_output,
         )
-        raise typer.Exit(code=code)
 
     @app.command()
     def init(ctx: typer.Context):
@@ -62,24 +62,21 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         """
         from gilt.cli.command import init as cmd_init
 
-        code = cmd_init.run(workspace=ws_fn(ctx))
-        raise typer.Exit(code=code)
+        dispatch(cmd_init.run, workspace=ws_fn(ctx))
 
     @app.command()
     def accounts(ctx: typer.Context):
         """List available accounts (IDs and descriptions)."""
         from gilt.cli.command import accounts as cmd_accounts
 
-        code = cmd_accounts.run(workspace=ws_fn(ctx))
-        raise typer.Exit(code=code)
+        dispatch(cmd_accounts.run, workspace=ws_fn(ctx))
 
     @app.command()
     def categories(ctx: typer.Context):
         """List all defined categories with usage statistics."""
         from gilt.cli.command import categories as cmd_categories
 
-        code = cmd_categories.run(workspace=ws_fn(ctx))
-        raise typer.Exit(code=code)
+        dispatch(cmd_categories.run, workspace=ws_fn(ctx))
 
     @app.command()
     def category(
@@ -113,7 +110,8 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         """
         from gilt.cli.command import category as cmd_category
 
-        code = cmd_category.run(
+        dispatch(
+            cmd_category.run,
             add=add,
             remove=remove,
             set_budget=set_budget,
@@ -124,4 +122,3 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
             workspace=ws_fn(ctx),
             write=write,
         )
-        raise typer.Exit(code=code)

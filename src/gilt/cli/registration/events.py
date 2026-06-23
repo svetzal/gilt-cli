@@ -6,7 +6,7 @@ from pathlib import Path
 
 import typer
 
-HELP_WRITE = "Persist changes (default: dry-run)"
+from gilt.cli.registration._dispatch import dispatch
 
 
 def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -44,14 +44,14 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         """
         from gilt.cli.command import rebuild_projections as cmd_rebuild_projections
 
-        code = cmd_rebuild_projections.run(
+        dispatch(
+            cmd_rebuild_projections.run,
             workspace=ws_fn(ctx),
             from_scratch=from_scratch,
             incremental=incremental,
             events_db=events_db,
             projections_db=projections_db,
         )
-        raise typer.Exit(code=code)
 
     @app.command(name="backfill-events")
     def backfill_events(
@@ -88,14 +88,14 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         from gilt.cli.command import backfill_events as cmd_backfill_events
 
         ws = ws_fn(ctx)
-        code = cmd_backfill_events.run(
+        dispatch(
+            cmd_backfill_events.run,
             workspace=ws,
             event_store_path=events_db,
             projections_db_path=projections_db,
             budget_projections_db_path=budget_projections_db,
             dry_run=not write,
         )
-        raise typer.Exit(code=code)
 
     @app.command(name="migrate-to-events")
     def migrate_to_events(
@@ -136,7 +136,8 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         from gilt.cli.command import migrate_to_events as cmd_migrate_to_events
 
         ws = ws_fn(ctx)
-        code = cmd_migrate_to_events.run(
+        dispatch(
+            cmd_migrate_to_events.run,
             workspace=ws,
             event_store_path=events_db,
             projections_db_path=projections_db,
@@ -144,4 +145,3 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
             write=write,
             force=force,
         )
-        raise typer.Exit(code=code)
