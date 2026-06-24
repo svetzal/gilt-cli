@@ -311,10 +311,10 @@ class DescribeConfusionCounts:
 
     def it_should_tally_a_mixed_feedback_list(self):
         history = [
-            self._make_entry(True, True),   # tp
-            self._make_entry(True, True),   # tp
+            self._make_entry(True, True),  # tp
+            self._make_entry(True, True),  # tp
             self._make_entry(True, False),  # fp
-            self._make_entry(False, False), # tn
+            self._make_entry(False, False),  # tn
             self._make_entry(False, True),  # fn
         ]
         tp, fp, tn, fn = _confusion_counts(history)

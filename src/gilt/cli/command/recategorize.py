@@ -219,7 +219,9 @@ def _run_rename_mode(
         write=write,
         workspace=workspace,
         persist=lambda ready: _apply_renaming(all_matches, to_cat, to_subcat, ready, workspace),
-        on_success=lambda: console.print(f"[green]✓[/] Renamed category in {total_matched} transaction(s)"),
+        on_success=lambda: console.print(
+            f"[green]✓[/] Renamed category in {total_matched} transaction(s)"
+        ),
     )
 
 
@@ -326,7 +328,9 @@ def _run_selection_mode(
         persist=lambda ready: persist_categorization_matches(
             all_matches, to_cat, to_subcat, ready, workspace, source="user"
         ),
-        on_success=lambda: console.print(f"[green]✓[/] Recategorized {total_matched} transaction(s)"),
+        on_success=lambda: console.print(
+            f"[green]✓[/] Recategorized {total_matched} transaction(s)"
+        ),
     )
 
 

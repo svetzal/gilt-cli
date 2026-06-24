@@ -24,10 +24,17 @@ def _setup_db(tmp_path: Path) -> Path:
     return db_path
 
 
-def _insert_txn(db_path: Path, txn_id: str, date: str = "2024-01-15",
-                description: str = "EXAMPLE UTILITY", amount: float = -42.50,
-                account_id: str = "MYBANK_CHQ", is_duplicate: int = 0,
-                category: str | None = None, subcategory: str | None = None) -> None:
+def _insert_txn(
+    db_path: Path,
+    txn_id: str,
+    date: str = "2024-01-15",
+    description: str = "EXAMPLE UTILITY",
+    amount: float = -42.50,
+    account_id: str = "MYBANK_CHQ",
+    is_duplicate: int = 0,
+    category: str | None = None,
+    subcategory: str | None = None,
+) -> None:
     conn = sqlite3.connect(db_path)
     conn.execute(
         """INSERT INTO transaction_projections
@@ -123,8 +130,15 @@ class DescribeGetDistinctAccountIds:
     def it_should_return_each_account_id_once(self, tmp_path):
         db_path = _setup_db(tmp_path)
         _insert_txn(db_path, "txn1", account_id="MYBANK_CHQ", is_duplicate=0)
-        _insert_txn(db_path, "txn2", account_id="MYBANK_CHQ", is_duplicate=0,
-                    date="2024-02-01", description="SAMPLE STORE", amount=-5.00)
+        _insert_txn(
+            db_path,
+            "txn2",
+            account_id="MYBANK_CHQ",
+            is_duplicate=0,
+            date="2024-02-01",
+            description="SAMPLE STORE",
+            amount=-5.00,
+        )
         result = get_distinct_account_ids(db_path)
         assert result.count("MYBANK_CHQ") == 1
 
@@ -132,10 +146,22 @@ class DescribeGetDistinctAccountIds:
 class DescribeFindCategoryHistory:
     def it_should_return_matching_rows_by_description_pattern(self, tmp_path):
         db_path = _setup_db(tmp_path)
-        _insert_txn(db_path, "txn1", description="EXAMPLE UTILITY BILL",
-                    category="Bills", subcategory="Utilities", is_duplicate=0)
-        _insert_txn(db_path, "txn2", description="SAMPLE STORE",
-                    category="Shopping", subcategory=None, is_duplicate=0)
+        _insert_txn(
+            db_path,
+            "txn1",
+            description="EXAMPLE UTILITY BILL",
+            category="Bills",
+            subcategory="Utilities",
+            is_duplicate=0,
+        )
+        _insert_txn(
+            db_path,
+            "txn2",
+            description="SAMPLE STORE",
+            category="Shopping",
+            subcategory=None,
+            is_duplicate=0,
+        )
         result = find_category_history(db_path, "EXAMPLE UTILITY")
         descs = [r.category for r in result]
         assert "Bills" in descs
@@ -143,44 +169,71 @@ class DescribeFindCategoryHistory:
 
     def it_should_filter_by_account_id(self, tmp_path):
         db_path = _setup_db(tmp_path)
-        _insert_txn(db_path, "txn1", account_id="MYBANK_CHQ", description="ACME CORP",
-                    category="Bills", is_duplicate=0)
-        _insert_txn(db_path, "txn2", account_id="BANK2_BIZ", description="ACME CORP",
-                    category="Expense", is_duplicate=0)
+        _insert_txn(
+            db_path,
+            "txn1",
+            account_id="MYBANK_CHQ",
+            description="ACME CORP",
+            category="Bills",
+            is_duplicate=0,
+        )
+        _insert_txn(
+            db_path,
+            "txn2",
+            account_id="BANK2_BIZ",
+            description="ACME CORP",
+            category="Expense",
+            is_duplicate=0,
+        )
         result = find_category_history(db_path, "ACME CORP", account_id="MYBANK_CHQ")
         assert all(r.category == "Bills" for r in result)
 
     def it_should_exclude_uncategorized_by_default(self, tmp_path):
         db_path = _setup_db(tmp_path)
-        _insert_txn(db_path, "txn1", description="EXAMPLE UTILITY",
-                    category=None, is_duplicate=0)
+        _insert_txn(db_path, "txn1", description="EXAMPLE UTILITY", category=None, is_duplicate=0)
         result = find_category_history(db_path, "EXAMPLE UTILITY")
         assert result == []
 
     def it_should_include_uncategorized_when_requested(self, tmp_path):
         db_path = _setup_db(tmp_path)
-        _insert_txn(db_path, "txn1", description="EXAMPLE UTILITY",
-                    category=None, is_duplicate=0)
-        result = find_category_history(db_path, "EXAMPLE UTILITY",
-                                        include_uncategorized=True)
+        _insert_txn(db_path, "txn1", description="EXAMPLE UTILITY", category=None, is_duplicate=0)
+        result = find_category_history(db_path, "EXAMPLE UTILITY", include_uncategorized=True)
         assert len(result) >= 1
 
     def it_should_respect_limit_parameter(self, tmp_path):
         db_path = _setup_db(tmp_path)
         for i in range(5):
-            _insert_txn(db_path, f"txn{i}", description="EXAMPLE UTILITY",
-                        category=f"Cat{i}", is_duplicate=0,
-                        date=f"2024-0{i+1}-01", amount=float(-i - 1))
+            _insert_txn(
+                db_path,
+                f"txn{i}",
+                description="EXAMPLE UTILITY",
+                category=f"Cat{i}",
+                is_duplicate=0,
+                date=f"2024-0{i + 1}-01",
+                amount=float(-i - 1),
+            )
         result = find_category_history(db_path, "EXAMPLE UTILITY", limit=2)
         assert len(result) <= 2
 
     def it_should_return_correct_aggregation_fields(self, tmp_path):
         db_path = _setup_db(tmp_path)
-        _insert_txn(db_path, "txn1", description="EXAMPLE UTILITY",
-                    category="Bills", amount=-42.50, is_duplicate=0)
-        _insert_txn(db_path, "txn2", description="EXAMPLE UTILITY",
-                    category="Bills", amount=-10.00, is_duplicate=0,
-                    date="2024-02-01")
+        _insert_txn(
+            db_path,
+            "txn1",
+            description="EXAMPLE UTILITY",
+            category="Bills",
+            amount=-42.50,
+            is_duplicate=0,
+        )
+        _insert_txn(
+            db_path,
+            "txn2",
+            description="EXAMPLE UTILITY",
+            category="Bills",
+            amount=-10.00,
+            is_duplicate=0,
+            date="2024-02-01",
+        )
         result = find_category_history(db_path, "EXAMPLE UTILITY")
         assert len(result) == 1
         row = result[0]

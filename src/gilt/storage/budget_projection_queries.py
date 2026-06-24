@@ -78,18 +78,14 @@ def get_budget(db_path: Path, budget_id: str) -> BudgetProjection | None:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     try:
-        cursor = conn.execute(
-            "SELECT * FROM budget_projections WHERE budget_id = ?", (budget_id,)
-        )
+        cursor = conn.execute("SELECT * FROM budget_projections WHERE budget_id = ?", (budget_id,))
         row = cursor.fetchone()
         return _row_to_budget_projection(row) if row else None
     finally:
         conn.close()
 
 
-def get_active_budgets(
-    db_path: Path, category: str | None = None
-) -> list[BudgetProjection]:
+def get_active_budgets(db_path: Path, category: str | None = None) -> list[BudgetProjection]:
     """Retrieve all active (non-deleted) budgets, optionally filtered by category."""
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row

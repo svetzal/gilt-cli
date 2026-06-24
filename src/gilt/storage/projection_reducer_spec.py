@@ -91,8 +91,9 @@ class DescribeApplyTransactionImported:
 class DescribeApplyDescriptionObserved:
     def it_should_update_canonical_description(self):
         conn = _conn()
-        _apply_transaction_imported(conn, _make_imported(txn_id="orig000000000000",
-                                                          raw_description="OLD DESC"))
+        _apply_transaction_imported(
+            conn, _make_imported(txn_id="orig000000000000", raw_description="OLD DESC")
+        )
         conn.commit()
 
         event = TransactionDescriptionObserved(
@@ -113,8 +114,9 @@ class DescribeApplyDescriptionObserved:
 
     def it_should_append_new_description_to_history(self):
         conn = _conn()
-        _apply_transaction_imported(conn, _make_imported(txn_id="orig000000000000",
-                                                          raw_description="OLD DESC"))
+        _apply_transaction_imported(
+            conn, _make_imported(txn_id="orig000000000000", raw_description="OLD DESC")
+        )
         conn.commit()
 
         event = TransactionDescriptionObserved(

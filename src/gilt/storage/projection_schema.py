@@ -87,8 +87,6 @@ def _migrate_enrichment_columns(conn: sqlite3.Connection) -> None:
 
     for col_name, col_type in enrichment_columns:
         if col_name not in existing_columns:
-            conn.execute(
-                f"ALTER TABLE transaction_projections ADD COLUMN {col_name} {col_type}"
-            )
+            conn.execute(f"ALTER TABLE transaction_projections ADD COLUMN {col_name} {col_type}")
 
     conn.commit()

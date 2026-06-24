@@ -21,17 +21,19 @@ class DescribeEnsureProjectionSchema:
     def it_should_create_transaction_projections_table(self):
         conn = sqlite3.connect(":memory:")
         ensure_projection_schema(conn)
-        tables = {r[0] for r in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        ).fetchall()}
+        tables = {
+            r[0]
+            for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+        }
         assert "transaction_projections" in tables
 
     def it_should_create_projection_metadata_table(self):
         conn = sqlite3.connect(":memory:")
         ensure_projection_schema(conn)
-        tables = {r[0] for r in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        ).fetchall()}
+        tables = {
+            r[0]
+            for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+        }
         assert "projection_metadata" in tables
 
     def it_should_create_required_indexes(self):
@@ -46,27 +48,44 @@ class DescribeEnsureProjectionSchema:
         conn = sqlite3.connect(":memory:")
         ensure_projection_schema(conn)
         ensure_projection_schema(conn)  # should not raise
-        tables = {r[0] for r in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        ).fetchall()}
+        tables = {
+            r[0]
+            for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+        }
         assert "transaction_projections" in tables
 
     def it_should_include_core_columns(self):
         conn = sqlite3.connect(":memory:")
         ensure_projection_schema(conn)
         cols = _table_columns(conn, "transaction_projections")
-        for required in ["transaction_id", "transaction_date", "canonical_description",
-                         "amount", "currency", "account_id", "is_duplicate",
-                         "primary_transaction_id", "last_event_id"]:
+        for required in [
+            "transaction_id",
+            "transaction_date",
+            "canonical_description",
+            "amount",
+            "currency",
+            "account_id",
+            "is_duplicate",
+            "primary_transaction_id",
+            "last_event_id",
+        ]:
             assert required in cols, f"Missing column: {required}"
 
     def it_should_include_enrichment_columns(self):
         conn = sqlite3.connect(":memory:")
         ensure_projection_schema(conn)
         cols = _table_columns(conn, "transaction_projections")
-        for enrichment_col in ["vendor", "service", "invoice_number", "tax_amount",
-                               "tax_type", "enrichment_currency", "receipt_file",
-                               "enrichment_source", "source_email"]:
+        for enrichment_col in [
+            "vendor",
+            "service",
+            "invoice_number",
+            "tax_amount",
+            "tax_type",
+            "enrichment_currency",
+            "receipt_file",
+            "enrichment_source",
+            "source_email",
+        ]:
             assert enrichment_col in cols, f"Missing enrichment column: {enrichment_col}"
 
 

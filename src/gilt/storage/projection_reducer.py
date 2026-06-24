@@ -22,9 +22,7 @@ from gilt.model.events import (
 from gilt.storage.duplicate_normalization import find_root_primary
 
 
-def apply_events(
-    conn: sqlite3.Connection, events: list[Event], start_sequence: int
-) -> int:
+def apply_events(conn: sqlite3.Connection, events: list[Event], start_sequence: int) -> int:
     """Apply a list of events to projections.
 
     Args:
@@ -67,9 +65,7 @@ def apply_events(
     return processed
 
 
-def _apply_transaction_imported(
-    conn: sqlite3.Connection, event: TransactionImported
-) -> None:
+def _apply_transaction_imported(conn: sqlite3.Connection, event: TransactionImported) -> None:
     cursor = conn.execute(
         "SELECT transaction_id FROM transaction_projections WHERE transaction_id = ?",
         (event.transaction_id,),
@@ -175,9 +171,7 @@ def _apply_description_observed(
     _link_duplicate_if_present(conn, event)
 
 
-def _apply_transaction_categorized(
-    conn: sqlite3.Connection, event: TransactionCategorized
-) -> None:
+def _apply_transaction_categorized(conn: sqlite3.Connection, event: TransactionCategorized) -> None:
     conn.execute(
         """
         UPDATE transaction_projections
@@ -195,9 +189,7 @@ def _apply_transaction_categorized(
     )
 
 
-def _apply_transaction_enriched(
-    conn: sqlite3.Connection, event: TransactionEnriched
-) -> None:
+def _apply_transaction_enriched(conn: sqlite3.Connection, event: TransactionEnriched) -> None:
     conn.execute(
         """
         UPDATE transaction_projections
@@ -229,9 +221,7 @@ def _apply_transaction_enriched(
     )
 
 
-def _apply_duplicate_confirmed(
-    conn: sqlite3.Connection, event: DuplicateConfirmed
-) -> None:
+def _apply_duplicate_confirmed(conn: sqlite3.Connection, event: DuplicateConfirmed) -> None:
     primary_id = event.primary_transaction_id
     duplicate_id = event.duplicate_transaction_id
 
@@ -295,9 +285,7 @@ def _apply_duplicate_confirmed(
     )
 
 
-def _apply_duplicate_rejected(
-    conn: sqlite3.Connection, event: DuplicateRejected
-) -> None:
+def _apply_duplicate_rejected(conn: sqlite3.Connection, event: DuplicateRejected) -> None:
     conn.execute(
         """
         UPDATE transaction_projections

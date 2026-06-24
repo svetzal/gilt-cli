@@ -72,7 +72,9 @@ def persist_row_categorizations(
     source: str,
 ) -> CategorizationPersistenceResult:
     """Build categorization updates from rows and persist them."""
-    return run_categorization_updates(ready, workspace, build_categorization_updates(rows, source=source))
+    return run_categorization_updates(
+        ready, workspace, build_categorization_updates(rows, source=source)
+    )
 
 
 def run_persisted_mutation(
@@ -87,6 +89,7 @@ def run_persisted_mutation(
     on_success: Callable[[], None] | None = None,
 ) -> int:
     """Orchestrate confirm → dry-run gate → require_event_sourcing → persist → on_success."""
+
     def apply() -> int:
         ready = require_event_sourcing(workspace)
         if ready is None:

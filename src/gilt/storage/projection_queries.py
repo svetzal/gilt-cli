@@ -65,9 +65,7 @@ def get_current_sequence(db_path: Path) -> int:
     """Get the last event sequence number that was processed."""
     conn = sqlite3.connect(db_path)
     try:
-        cursor = conn.execute(
-            "SELECT value FROM projection_metadata WHERE key = 'last_sequence'"
-        )
+        cursor = conn.execute("SELECT value FROM projection_metadata WHERE key = 'last_sequence'")
         row = cursor.fetchone()
         return int(row[0]) if row else 0
     finally:

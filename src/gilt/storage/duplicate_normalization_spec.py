@@ -18,8 +18,9 @@ def _seed_db(conn: sqlite3.Connection) -> None:
     ensure_projection_schema(conn)
 
 
-def _insert_txn(conn: sqlite3.Connection, txn_id: str, is_duplicate: int = 0,
-                primary_id: str | None = None) -> None:
+def _insert_txn(
+    conn: sqlite3.Connection, txn_id: str, is_duplicate: int = 0, primary_id: str | None = None
+) -> None:
     conn.execute(
         """INSERT INTO transaction_projections
            (transaction_id, transaction_date, canonical_description,
