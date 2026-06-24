@@ -26,7 +26,7 @@ from gilt.services.transaction_operations_service import (
 from gilt.services.transaction_query_service import TransactionFilter, TransactionQueryService
 from gilt.workspace import Workspace
 
-from ..console import console, display_category_change_matches, print_error, print_match_total
+from ..console import print_error, print_match_total
 from ..event_sourcing_bootstrap import require_persistence_service
 from ..formatting import build_category_path
 from ..loaders import load_account_transactions
@@ -35,6 +35,7 @@ from ..mutations import (
     persist_categorization_matches,
     run_persisted_mutation,
 )
+from . import recategorize_view
 
 # ---------------------------------------------------------------------------
 # Validation helpers
@@ -131,31 +132,6 @@ def _find_matching_transactions(
 
 
 # ---------------------------------------------------------------------------
-# Display
-# ---------------------------------------------------------------------------
-
-
-def _display_matches(
-    matches: list[tuple[str, TransactionGroup]],
-    from_label: str | None,
-    to_category: str,
-) -> None:
-    """Display matched transactions in a table.
-
-    When ``from_label`` is None (selection mode without explicit --from),
-    the "From" column shows the transaction's current category.
-    """
-    display_category_change_matches(
-        "Transactions to Recategorize",
-        "From",
-        "→ To",
-        matches,
-        to_category,
-        from_label=from_label,
-    )
-
-
-# ---------------------------------------------------------------------------
 # Apply helpers
 # ---------------------------------------------------------------------------
 
@@ -204,11 +180,11 @@ def _run_rename_mode(
     total_matched = len(all_matches)
 
     if total_matched == 0:
-        console.print(f"[yellow]No transactions found with category '{from_category}'[/]")
+        recategorize_view.print_no_transactions_for_category(from_category)
         return 0
 
     def display() -> None:
-        _display_matches(all_matches, from_category, to_category)
+        recategorize_view.display_recategorize_matches(all_matches, from_category, to_category)
         print_match_total(total_matched)
 
     return run_persisted_mutation(
@@ -219,9 +195,7 @@ def _run_rename_mode(
         write=write,
         workspace=workspace,
         persist=lambda ready: _apply_renaming(all_matches, to_cat, to_subcat, ready, workspace),
-        on_success=lambda: console.print(
-            f"[green]✓[/] Renamed category in {total_matched} transaction(s)"
-        ),
+        on_success=lambda: recategorize_view.print_renamed_success(total_matched),
     )
 
 
@@ -295,7 +269,7 @@ def _run_selection_mode(
     filtered_transactions = TransactionQueryService().find_matching(all_candidates, criteria)
 
     if not filtered_transactions:
-        console.print("[yellow]No transactions match the given filters[/]")
+        recategorize_view.print_no_filter_matches()
         return 0
 
     if desc_prefix is not None or pattern is not None:
@@ -309,13 +283,13 @@ def _run_selection_mode(
         ]
 
     if not all_matches:
-        console.print("[yellow]No transactions match the given filters[/]")
+        recategorize_view.print_no_filter_matches()
         return 0
 
     total_matched = len(all_matches)
 
     def display() -> None:
-        _display_matches(all_matches, from_category or None, to_category)
+        recategorize_view.display_recategorize_matches(all_matches, from_category or None, to_category)
         print_match_total(total_matched)
 
     return run_persisted_mutation(
@@ -328,9 +302,7 @@ def _run_selection_mode(
         persist=lambda ready: persist_categorization_matches(
             all_matches, to_cat, to_subcat, ready, workspace, source="user"
         ),
-        on_success=lambda: console.print(
-            f"[green]✓[/] Recategorized {total_matched} transaction(s)"
-        ),
+        on_success=lambda: recategorize_view.print_recategorized_success(total_matched),
     )
 
 

@@ -168,6 +168,8 @@ Complex CLI commands are split into three cohesive modules following the **funct
 | `<name>_view.py` | Rich rendering — `display_*`, `print_*`, and progress-bar builders. No user prompts, no persistence. |
 | `<name>_review.py` | Interactive input loops — `Prompt.ask` calls, decision handling, feedback recording. Calls view functions for output. |
 
+**Note**: `<name>_review.py` is omitted when a command has no interactive input loop — confirmation is delegated entirely to `mutations.run_confirmed_mutation` / `run_persisted_mutation`. Commands like `categorize` and `recategorize` are two-module (orchestration + view), not three.
+
 **Mutation flow rule**: every preview → confirm → dry-run → persist sequence routes through `mutations.run_confirmed_mutation` or `mutations.run_persisted_mutation`. Never hand-roll this pattern inline.
 
 **Dry-run contract**: when `write=False`, the command MUST call `print_dry_run_message()` (provided by the mutation helpers) and return without emitting any events or modifying any files.
@@ -176,6 +178,8 @@ Complex CLI commands are split into three cohesive modules following the **funct
 
 **Reference implementations**:
 - `categorize.py` / `auto_categorize.py` — mutation helper usage and dry-run pattern
+- `categorize.py` / `categorize_view.py` — two-module split (no review; confirmation via mutation helpers)
+- `recategorize.py` / `recategorize_view.py` — two-module split (no review; confirmation via mutation helpers)
 - `auto_categorize_view.py` / `auto_categorize_review.py` — view/review split
 - `duplicates_view.py` / `duplicates_review.py` — progress-bar isolation in view module
 

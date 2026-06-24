@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from gilt.model.account import TransactionGroup
-from gilt.model.category_io import format_category_path, load_categories_config
+from gilt.model.category_io import load_categories_config
 from gilt.model.ledger_repository import LedgerRepository
 from gilt.services.categorization_service import CategorizationService
 from gilt.services.transaction_operations_service import (
@@ -17,15 +17,10 @@ from gilt.services.transaction_operations_service import (
 )
 from gilt.workspace import Workspace
 
-from ..console import (
-    console,
-    display_category_change_matches,
-    display_transaction_matches,
-    print_error,
-)
+from ..console import print_error
 from ..event_sourcing_bootstrap import load_event_store, require_event_sourcing
 from ..filtering import group_by_account
-from ..formatting import build_category_path, category_preview_row, format_prefix_lookup_error
+from ..formatting import build_category_path, format_prefix_lookup_error
 from ..loaders import load_account_transactions
 from ..mutations import (
     find_matches_by_criteria,
@@ -34,6 +29,7 @@ from ..mutations import (
     run_persisted_mutation,
     validate_single_vs_batch_mode,
 )
+from . import categorize_view
 
 logger = logging.getLogger(__name__)
 
@@ -141,7 +137,7 @@ def _confirm_and_apply(
 
     return run_persisted_mutation(
         matches=all_matches,
-        display=lambda: _display_matches(all_matches, category, subcategory),
+        display=lambda: categorize_view.display_categorization_matches(all_matches, category, subcategory),
         confirm_prompt=f"Categorize {total_matched} transaction(s)?",
         assume_yes=auto_yes,
         write=write,
@@ -292,7 +288,7 @@ def _run_file_batch(
         return 1
 
     if not entries:
-        console.print("[yellow]No entries found in batch input[/]")
+        categorize_view.print_no_entries()
         return 0
 
     all_transactions = load_account_transactions(workspace, account)
@@ -343,11 +339,11 @@ def _persist_file_batch(
             workspace,
             source="user",
         )
-        console.print(f"[green]✓[/] Categorized {len(resolved)} transaction(s)")
+        categorize_view.print_categorized_success(len(resolved))
 
     return run_confirmed_mutation(
         matches=preview_matches,
-        display=lambda: _display_batch_preview(preview_matches, resolved),
+        display=lambda: categorize_view.display_batch_preview(preview_matches, resolved),
         confirm_prompt=f"Categorize {len(resolved)} transaction(s)?",
         assume_yes=True,
         write=write,
@@ -362,28 +358,6 @@ def _apply_batch_persist(persist, workspace: Workspace) -> int:
         return 1
     persist(ready)
     return 0
-
-
-def _display_batch_preview(
-    preview_matches: list[tuple[str, TransactionGroup]],
-    resolved: list[ResolvedEntry],
-) -> None:
-    """Display a preview table for file-batch categorizations."""
-    # Build a quick lookup: txn_id → (category, subcategory)
-    cat_by_txn = {e.transaction_id: (e.category, e.subcategory) for e in resolved}
-
-    def row_fn(item: tuple[str, TransactionGroup]) -> tuple:
-        account_id, group = item
-        t = group.primary
-        cat, subcat = cat_by_txn.get(t.transaction_id, (t.category or "", t.subcategory))
-        return category_preview_row(account_id, t, format_category_path(cat, subcat))
-
-    display_transaction_matches(
-        "Batch Categorization Preview",
-        [("→ Category", {"style": "green"})],
-        preview_matches,
-        row_fn,
-    )
 
 
 def _run_single_batch(
@@ -429,17 +403,14 @@ def _run_single_batch(
         return 1
 
     if len(all_matches) == 0:
-        console.print("[yellow]No matching transactions found[/]")
+        categorize_view.print_no_matches()
         return 0
 
     recategorized_count = sum(
         1 for _, g in all_matches if g.primary.category is not None and g.primary.category != ""
     )
     if not single_mode and len(all_matches) > 1 and not assume_yes and not write:
-        console.print(
-            f"[yellow]Batch mode:[/] {len(all_matches)} transactions would be categorized. "
-            f"Use --yes to auto-confirm (dry-run)"
-        )
+        categorize_view.print_batch_mode_notice(len(all_matches))
 
     result = _confirm_and_apply(
         all_matches,
@@ -451,7 +422,7 @@ def _run_single_batch(
         workspace,
         categorization_service,
     )
-    return _report_categorization_result(all_matches, result, recategorized_count, write)
+    return categorize_view.report_categorization_result(all_matches, result, recategorized_count, write)
 
 
 def run(
@@ -554,7 +525,7 @@ def _validate_inputs(
     service, categorization_service = _init_services(workspace, service, categorization_service)
     category, subcategory, cat_warning = build_category_path(category, subcategory)
     if cat_warning:
-        console.print(f"[yellow]Warning:[/] {cat_warning}")
+        categorize_view.print_category_warning(cat_warning)
 
     mode_result = validate_single_vs_batch_mode(txid, description, desc_prefix, pattern)
     if mode_result is None:
@@ -565,42 +536,10 @@ def _validate_inputs(
     if not validation.is_valid:
         for error in validation.errors:
             print_error(error)
-        console.print(f"Add it first: gilt category --add '{category}' --write")
+        categorize_view.print_category_add_hint(category)
         return 1
 
     return service, categorization_service, category, subcategory, single_mode
-
-
-def _report_categorization_result(
-    all_matches: list[tuple[str, TransactionGroup]],
-    result: int,
-    recategorized_count: int,
-    write: bool,
-) -> int:
-    """Report post-apply categorization success with recategorized-count warning. Returns exit code."""
-    if result == 0 and write:
-        if recategorized_count > 0:
-            console.print(
-                f"[yellow]Warning:[/] {recategorized_count} transaction(s) already had a category "
-                f"and were re-categorized"
-            )
-        console.print(f"[green]✓[/] Categorized {len(all_matches)} transaction(s)")
-    return result
-
-
-def _display_matches(
-    matches: list[tuple[str, TransactionGroup]],
-    category: str,
-    subcategory: str | None,
-) -> None:
-    """Display matched transactions in a table."""
-    display_category_change_matches(
-        "Matched Transactions",
-        "Current Cat",
-        "→ New Cat",
-        matches,
-        format_category_path(category, subcategory),
-    )
 
 
 __all__ = ["run"]
