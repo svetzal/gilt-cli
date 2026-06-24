@@ -21,16 +21,16 @@ from ..console import (
     console,
     display_category_change_matches,
     display_transaction_matches,
-    print_dry_run_message,
     print_error,
 )
 from ..event_sourcing_bootstrap import load_event_store, require_event_sourcing
 from ..filtering import group_by_account
-from ..formatting import base_match_row, build_category_path, format_prefix_lookup_error
+from ..formatting import build_category_path, category_preview_row, format_prefix_lookup_error
 from ..loaders import load_account_transactions
 from ..mutations import (
     find_matches_by_criteria,
     persist_row_categorizations,
+    run_confirmed_mutation,
     run_persisted_mutation,
     validate_single_vs_batch_mode,
 )
@@ -221,7 +221,9 @@ def _parse_batch_lines(text: str) -> tuple[list[BatchEntry], list[str]]:
             )
             continue
         txid_prefix, category_path = parts[0], parts[1].strip()
-        entries.append(BatchEntry(line_no=line_no, txid_prefix=txid_prefix, category_path=category_path))
+        entries.append(
+            BatchEntry(line_no=line_no, txid_prefix=txid_prefix, category_path=category_path)
+        )
     return entries, errors
 
 
@@ -251,16 +253,20 @@ def _resolve_batch_entries(
         # Resolve txid prefix
         result = service.find_projection_by_prefix(entry.txid_prefix, all_transactions)
         if result.error is not None:
-            errors.append(f"Line {entry.line_no}: {format_prefix_lookup_error(result, entry.txid_prefix)}")
+            errors.append(
+                f"Line {entry.line_no}: {format_prefix_lookup_error(result, entry.txid_prefix)}"
+            )
             continue
 
         txn = result.transaction
-        resolved.append(ResolvedEntry(
-            transaction_id=txn["transaction_id"],
-            account_id=txn["account_id"],
-            category=cat_name,
-            subcategory=subcat_name,
-        ))
+        resolved.append(
+            ResolvedEntry(
+                transaction_id=txn["transaction_id"],
+                account_id=txn["account_id"],
+                category=cat_name,
+                subcategory=subcat_name,
+            )
+        )
 
     return resolved, errors
 
@@ -320,7 +326,9 @@ def _persist_file_batch(
         if row is None:
             continue
         group = TransactionGroup.from_projection_row(row)
-        updated_txn = group.primary.model_copy(update={"category": entry.category, "subcategory": entry.subcategory})
+        updated_txn = group.primary.model_copy(
+            update={"category": entry.category, "subcategory": entry.subcategory}
+        )
         updated_group = TransactionGroup(
             group_id=group.group_id,
             primary=updated_txn,
@@ -328,26 +336,31 @@ def _persist_file_batch(
         )
         preview_matches.append((entry.account_id, updated_group))
 
-    _display_batch_preview(preview_matches, resolved)
+    def persist(ready) -> None:
+        persist_row_categorizations(
+            ((e.transaction_id, e.account_id, e.category, e.subcategory, 1.0) for e in resolved),
+            ready,
+            workspace,
+            source="user",
+        )
+        console.print(f"[green]✓[/] Categorized {len(resolved)} transaction(s)")
 
-    if not write:
-        print_dry_run_message()
-        return 0
+    return run_confirmed_mutation(
+        matches=preview_matches,
+        display=lambda: _display_batch_preview(preview_matches, resolved),
+        confirm_prompt=f"Categorize {len(resolved)} transaction(s)?",
+        assume_yes=True,
+        write=write,
+        apply=lambda: _apply_batch_persist(persist, workspace),
+    )
 
+
+def _apply_batch_persist(persist, workspace: Workspace) -> int:
+    """Resolve event sourcing and run persist callback. Returns exit code."""
     ready = require_event_sourcing(workspace)
     if ready is None:
         return 1
-
-    persist_row_categorizations(
-        (
-            (e.transaction_id, e.account_id, e.category, e.subcategory, 1.0)
-            for e in resolved
-        ),
-        ready,
-        workspace,
-        source="user",
-    )
-    console.print(f"[green]✓[/] Categorized {len(resolved)} transaction(s)")
+    persist(ready)
     return 0
 
 
@@ -363,7 +376,7 @@ def _display_batch_preview(
         account_id, group = item
         t = group.primary
         cat, subcat = cat_by_txn.get(t.transaction_id, (t.category or "", t.subcategory))
-        return base_match_row(account_id, t) + (format_category_path(cat, subcat),)
+        return category_preview_row(account_id, t, format_category_path(cat, subcat))
 
     display_transaction_matches(
         "Batch Categorization Preview",

@@ -158,6 +158,27 @@ Improper worker lifecycle causes segfaults when a worker emits signals to a widg
 
 **Reference implementation**: worker interrupt handling in `src/gilt/gui/controllers/intelligence_scan_controller.py`; `cleanupPage` in `src/gilt/gui/views/categorization_review_page.py` and `src/gilt/gui/views/import_wizard/pages/execute_page.py`; `ImportWizard.reject` in `src/gilt/gui/views/import_wizard/wizard.py`.
 
+## CLI Command Module Layout
+
+Complex CLI commands are split into three cohesive modules following the **functional core, imperative shell** pattern:
+
+| Module | Responsibility |
+|---|---|
+| `<name>.py` | Orchestration only — `run()` and pure helpers. Imports from view/review modules. No `Table(`, `Prompt`, or `rich.progress` at the top level. |
+| `<name>_view.py` | Rich rendering — `display_*`, `print_*`, and progress-bar builders. No user prompts, no persistence. |
+| `<name>_review.py` | Interactive input loops — `Prompt.ask` calls, decision handling, feedback recording. Calls view functions for output. |
+
+**Mutation flow rule**: every preview → confirm → dry-run → persist sequence routes through `mutations.run_confirmed_mutation` or `mutations.run_persisted_mutation`. Never hand-roll this pattern inline.
+
+**Dry-run contract**: when `write=False`, the command MUST call `print_dry_run_message()` (provided by the mutation helpers) and return without emitting any events or modifying any files.
+
+**Shared formatting**: the 5-column base row for transaction tables is `base_match_row(account_id, txn)` from `formatting.py`. The 6-column category-preview row is `category_preview_row(account_id, txn, category_path)` — use it instead of inline tuple construction.
+
+**Reference implementations**:
+- `categorize.py` / `auto_categorize.py` — mutation helper usage and dry-run pattern
+- `auto_categorize_view.py` / `auto_categorize_review.py` — view/review split
+- `duplicates_view.py` / `duplicates_review.py` — progress-bar isolation in view module
+
 ## Common Tasks
 
 ### Adding a CLI Command

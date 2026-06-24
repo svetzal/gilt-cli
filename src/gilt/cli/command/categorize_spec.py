@@ -957,7 +957,9 @@ class DescribeCategorizeBatchFile:
         entries, errors = _parse_batch_lines(text)
         assert errors == []
         assert len(entries) == 2
-        assert entries[0] == BatchEntry(line_no=3, txid_prefix="aaaa1111", category_path="Banking:Fees")
+        assert entries[0] == BatchEntry(
+            line_no=3, txid_prefix="aaaa1111", category_path="Banking:Fees"
+        )
         assert entries[1] == BatchEntry(line_no=6, txid_prefix="cccc3333", category_path="Shopping")
 
     def it_should_apply_batch_from_file_on_write(self):
@@ -1229,3 +1231,21 @@ class DescribeCategorizeBatchFile:
             # Combining --from-stdin with --description should fail
             rc = run(workspace=workspace, from_stdin=True, description="SAMPLE STORE")
             assert rc == 1
+
+    def it_should_not_persist_file_batch_in_dry_run(self):
+        """Dry-run (write=False) must print message and not emit events or alter ledger."""
+        with TemporaryDirectory() as tmpdir:
+            _config_path, data_dir, workspace = _build_batch_workspace(tmpdir)
+            txid1, txid2 = _build_two_transactions(data_dir)
+            build_projections_from_csvs(data_dir, workspace.projections_path)
+
+            batch_file = Path(tmpdir) / "batch.txt"
+            batch_file.write_text(f"{txid1} Shopping\n{txid2} Shopping\n")
+
+            rc = run(workspace=workspace, txid_file=batch_file, write=False)
+            assert rc == 0
+
+            # Ledger must be unchanged — no categories written
+            groups = load_ledger_csv((data_dir / "TEST.csv").read_text(), default_currency="CAD")
+            assert groups[0].primary.category is None
+            assert groups[1].primary.category is None

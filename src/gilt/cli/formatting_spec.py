@@ -5,6 +5,7 @@ from datetime import date
 from gilt.cli.formatting import (
     base_match_row,
     build_category_path,
+    category_preview_row,
     fmt_colored_amount,
     format_prefix_lookup_error,
 )
@@ -150,6 +151,51 @@ class DescribeBaseMatchRow:
         result = base_match_row("ACC", t)
 
         assert result[3] == ""
+
+
+class DescribeCategoryPreviewRow:
+    def it_should_return_six_element_tuple_with_category_appended(self):
+        t = Transaction(
+            transaction_id="abcd1234abcd1234",
+            date=date(2025, 1, 15),
+            description="EXAMPLE UTILITY PAYMENT",
+            amount=-42.50,
+            currency="CAD",
+            account_id="MYBANK_CHQ",
+        )
+
+        result = category_preview_row("MYBANK_CHQ", t, "Utilities:Electricity")
+
+        assert len(result) == 6
+        assert result[5] == "Utilities:Electricity"
+
+    def it_should_include_base_row_fields_as_first_five_elements(self):
+        t = Transaction(
+            transaction_id="abcd1234abcd1234",
+            date=date(2025, 2, 1),
+            description="ACME CORP",
+            amount=-99.00,
+            currency="CAD",
+            account_id="MYBANK_CC",
+        )
+
+        result = category_preview_row("MYBANK_CC", t, "Shopping")
+
+        assert result[:5] == base_match_row("MYBANK_CC", t)
+
+    def it_should_accept_empty_category_path(self):
+        t = Transaction(
+            transaction_id="abcd1234abcd1234",
+            date=date(2025, 3, 1),
+            description="SAMPLE STORE",
+            amount=-10.00,
+            currency="CAD",
+            account_id="MYBANK_CHQ",
+        )
+
+        result = category_preview_row("MYBANK_CHQ", t, "")
+
+        assert result[5] == ""
 
 
 class DescribeBuildCategoryPath:

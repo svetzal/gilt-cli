@@ -6,9 +6,7 @@ as a fallback for transactions that don't match any inferred rule.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, replace
-
-from rich.prompt import Prompt
+from dataclasses import dataclass, field
 
 from gilt.ml.categorization_classifier import CategorizationClassifier
 from gilt.model.account import Transaction
@@ -21,12 +19,23 @@ from gilt.services.event_sourcing_service import EventSourcingReadyResult
 from gilt.services.rule_inference_service import RuleInferenceService
 from gilt.workspace import Workspace
 
-from ..console import console, display_transaction_matches, print_dry_run_message, print_error
+from ..console import console, print_dry_run_message
 from ..event_sourcing_bootstrap import require_event_sourcing
 from ..filtering import find_uncategorized
-from ..formatting import base_match_row, fmt_amount_str
 from ..loaders import load_account_transactions
 from ..mutations import persist_row_categorizations
+
+# View and review modules re-export their functions into this namespace so
+# that existing call sites (including tests) remain unchanged.
+from .auto_categorize_review import handle_modify_choice as _handle_modify_choice  # noqa: F401
+from .auto_categorize_review import run_interactive_review as _interactive_review  # noqa: F401
+from .auto_categorize_view import display_predictions as _display_predictions  # noqa: F401
+from .auto_categorize_view import (  # noqa: F401
+    display_transaction_for_review as _display_transaction_for_review,
+)
+from .auto_categorize_view import print_explain as _print_explain  # noqa: F401
+from .auto_categorize_view import print_train_failure as _print_train_failure  # noqa: F401
+from .auto_categorize_view import print_train_success as _print_train_success  # noqa: F401
 
 
 @dataclass
@@ -104,7 +113,9 @@ def _write_categorizations(approved: list[Prediction], ready, workspace) -> int:
     """Apply categorizations: emit events, update CSVs, rebuild projections. Returns updated count."""
     result = persist_row_categorizations(
         (
-            (p.transaction_id, p.account_id) + build_category_from_path(p.category) + (p.confidence,)
+            (p.transaction_id, p.account_id)
+            + build_category_from_path(p.category)
+            + (p.confidence,)
             for p in approved
         ),
         ready,
@@ -199,51 +210,6 @@ def _predict_with_ml(
                 )
             )
     return result
-
-
-def _print_explain(
-    classifier: CategorizationClassifier,
-    all_predictions: list[Prediction],
-) -> None:
-    """Print top-3 category candidates for each prediction when --explain is active."""
-    txn_data = [
-        {
-            "transaction_id": p.account_id,
-            "description": p.txn.description,
-            "amount": p.txn.amount,
-            "account": p.account_id,
-            "date": str(p.txn.date),
-        }
-        for p in all_predictions
-    ]
-
-    topk_results = classifier.predict_topk(txn_data, k=3)
-
-    console.print("\n[bold]Top-3 candidates (--explain)[/bold]")
-    for p, topk in zip(all_predictions, topk_results, strict=False):
-        console.print(
-            f"\n  [cyan]{p.txn.description[:45]}[/cyan]  "
-            f"[dim]{str(p.txn.date)}[/dim]  [yellow]{fmt_amount_str(p.txn.amount)}[/yellow]"
-        )
-        for i, (cat, c) in enumerate(topk, 1):
-            marker = "[green]→[/green]" if cat == p.category else " "
-            console.print(f"    {marker} {i}. {cat:<40} {c:.1%}")
-    console.print()
-
-
-def _print_train_failure(train_result: _TrainResult, min_samples: int) -> None:
-    if train_result.error_message:
-        print_error(train_result.error_message)
-        console.print(f"\nNeed at least {min_samples} categorized transactions per category.")
-        console.print("Categorize more transactions first using:")
-        console.print("  [cyan]gilt categorize --desc-prefix PATTERN --category CAT --write[/cyan]")
-
-
-def _print_train_success(train_result: _TrainResult) -> None:
-    console.print("[green]✓[/green] Classifier trained successfully")
-    console.print(f"  Categories: {train_result.metrics['num_categories']}")
-    console.print(f"  Training samples: {train_result.metrics['total_samples']}")
-    console.print(f"  Test accuracy: {train_result.metrics['test_accuracy']:.1%}")
 
 
 def run(
@@ -344,122 +310,6 @@ def _review_and_persist(
     count = _write_categorizations(approved, ready, workspace)
     console.print(f"[green]✓[/green] Categorized {count} transaction(s)")
     return 0
-
-
-def _display_predictions(predictions: list[Prediction]) -> None:
-    """Display predictions in a table."""
-
-    def row_fn(item: Prediction) -> tuple:
-        return base_match_row(item.account_id, item.txn) + (item.category, f"{item.confidence:.1%}", item.source)
-
-    console.print("\n")
-    display_transaction_matches(
-        "Auto-Categorization Predictions",
-        [
-            ("→ Category", {"style": "green"}),
-            ("Confidence", {"style": "blue", "justify": "right"}),
-            ("Source", {"style": "dim"}),
-        ],
-        predictions,
-        row_fn,
-    )
-
-
-def _handle_modify_choice(category_config, default_category: str) -> str | None:
-    """Prompt user for a new category and validate it. Returns category string or None if invalid."""
-    console.print("\n[dim]Available categories:[/dim]")
-    for cat in category_config.categories:
-        console.print(f"  - {cat.name}")
-        if cat.subcategories:
-            for subcat in cat.subcategories:
-                console.print(f"    - {cat.name}:{subcat.name}")
-
-    new_category = Prompt.ask(
-        "\nEnter category (Category or Category:Subcategory)",
-        default=default_category,
-    )
-
-    cat_name, subcat_name = build_category_from_path(new_category)
-    cat_obj = next((c for c in category_config.categories if c.name == cat_name), None)
-
-    if not cat_obj:
-        print_error(f"Invalid category: {cat_name}")
-        return None
-
-    if subcat_name:
-        subcat_obj = next((s for s in (cat_obj.subcategories or []) if s.name == subcat_name), None)
-        if not subcat_obj:
-            print_error(f"Invalid subcategory: {subcat_name}")
-            return None
-
-    return new_category
-
-
-def _display_transaction_for_review(
-    console,
-    i: int,
-    total: int,
-    account_id: str,
-    txn: Transaction,
-    category: str,
-    conf: float,
-) -> None:
-    """Print a single transaction with its ML-suggested category for interactive review."""
-    console.print(f"\n[bold cyan]Transaction {i}/{total}[/bold cyan]")
-    console.print(f"  Account:     {account_id}")
-    console.print(f"  Date:        {txn.date}")
-    console.print(f"  Description: {txn.description}")
-    console.print(f"  Amount:      {fmt_amount_str(txn.amount)}")
-    console.print(f"  Suggested:   [green]{category}[/green] ([blue]{conf:.1%}[/blue] confident)")
-
-
-def _interactive_review(
-    predictions: list[Prediction],
-    category_config,
-) -> list[Prediction]:
-    """Interactive review mode - approve, reject, or modify predictions."""
-    console.print("\n[bold]Interactive Review Mode[/bold]")
-    console.print("[dim]For each prediction: (a)pprove, (r)eject, (m)odify, (q)uit[/dim]\n")
-
-    approved: list[Prediction] = []
-
-    for i, p in enumerate(predictions, 1):
-        # Display transaction
-        _display_transaction_for_review(
-            console, i, len(predictions), p.account_id, p.txn, p.category, p.confidence
-        )
-
-        # Get user decision
-        while True:
-            choice = Prompt.ask(
-                "\nAction",
-                choices=["a", "r", "m", "q"],
-                default="a",
-            ).lower()
-
-            if choice == "a":
-                approved.append(p)
-                console.print("[green]✓ Approved[/green]")
-                break
-
-            elif choice == "r":
-                console.print("[yellow]✗ Rejected[/yellow]")
-                break
-
-            elif choice == "m":
-                new_category = _handle_modify_choice(category_config, p.category)
-                if new_category is None:
-                    continue
-                approved.append(replace(p, category=new_category))
-                console.print(f"[green]✓ Modified to {new_category}[/green]")
-                break
-
-            elif choice == "q":
-                console.print("\n[yellow]Review interrupted[/yellow]")
-                return approved
-
-    console.print(f"\n[green]Review complete: {len(approved)}/{len(predictions)} approved[/green]")
-    return approved
 
 
 __all__ = ["run", "Prediction"]

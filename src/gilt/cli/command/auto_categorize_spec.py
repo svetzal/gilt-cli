@@ -12,6 +12,7 @@ from gilt.cli.command.auto_categorize import (
     Prediction,
     _handle_modify_choice,
     _interactive_review,
+    _review_and_persist,
     run,
 )
 from gilt.model.account import Transaction, TransactionGroup
@@ -410,7 +411,9 @@ class DescribeAutoCategorize:
 class DescribeInteractiveReview:
     """Specs for _interactive_review()."""
 
-    def _make_prediction(self, txn_id: str = "txn001", description: str = "SAMPLE STORE") -> Prediction:
+    def _make_prediction(
+        self, txn_id: str = "txn001", description: str = "SAMPLE STORE"
+    ) -> Prediction:
         txn = Transaction(
             transaction_id=txn_id,
             date=date(2025, 2, 1),
@@ -434,7 +437,7 @@ class DescribeInteractiveReview:
         category_config = CategoryConfig(categories=[Category(name="Groceries")])
         predictions = [self._make_prediction()]
 
-        with patch("gilt.cli.command.auto_categorize.Prompt.ask", return_value="a"):
+        with patch("gilt.cli.command.auto_categorize_review.Prompt.ask", return_value="a"):
             approved = _interactive_review(predictions, category_config)
 
         assert len(approved) == 1
@@ -446,7 +449,7 @@ class DescribeInteractiveReview:
         category_config = CategoryConfig(categories=[Category(name="Groceries")])
         predictions = [self._make_prediction()]
 
-        with patch("gilt.cli.command.auto_categorize.Prompt.ask", return_value="r"):
+        with patch("gilt.cli.command.auto_categorize_review.Prompt.ask", return_value="r"):
             approved = _interactive_review(predictions, category_config)
 
         assert approved == []
@@ -463,9 +466,12 @@ class DescribeInteractiveReview:
         predictions = [self._make_prediction()]
 
         with (
-            patch("gilt.cli.command.auto_categorize.Prompt.ask", side_effect=["m", "Dining Out"]),
             patch(
-                "gilt.cli.command.auto_categorize._handle_modify_choice",
+                "gilt.cli.command.auto_categorize_review.Prompt.ask",
+                side_effect=["m", "Dining Out"],
+            ),
+            patch(
+                "gilt.cli.command.auto_categorize_review.handle_modify_choice",
                 return_value="Dining Out",
             ),
         ):
@@ -483,7 +489,7 @@ class DescribeInteractiveReview:
             self._make_prediction("txn002"),
         ]
 
-        with patch("gilt.cli.command.auto_categorize.Prompt.ask", return_value="q"):
+        with patch("gilt.cli.command.auto_categorize_review.Prompt.ask", return_value="q"):
             approved = _interactive_review(predictions, category_config)
 
         assert approved == []
@@ -502,7 +508,7 @@ class DescribeHandleModifyChoice:
             ]
         )
 
-        with patch("gilt.cli.command.auto_categorize.Prompt.ask", return_value="Dining Out"):
+        with patch("gilt.cli.command.auto_categorize_review.Prompt.ask", return_value="Dining Out"):
             result = _handle_modify_choice(category_config, "Groceries")
 
         assert result == "Dining Out"
@@ -512,7 +518,9 @@ class DescribeHandleModifyChoice:
 
         category_config = CategoryConfig(categories=[Category(name="Groceries")])
 
-        with patch("gilt.cli.command.auto_categorize.Prompt.ask", return_value="NonExistent"):
+        with patch(
+            "gilt.cli.command.auto_categorize_review.Prompt.ask", return_value="NonExistent"
+        ):
             result = _handle_modify_choice(category_config, "Groceries")
 
         assert result is None
@@ -525,7 +533,8 @@ class DescribeHandleModifyChoice:
         )
 
         with patch(
-            "gilt.cli.command.auto_categorize.Prompt.ask", return_value="Entertainment:Movies"
+            "gilt.cli.command.auto_categorize_review.Prompt.ask",
+            return_value="Entertainment:Movies",
         ):
             result = _handle_modify_choice(category_config, "Entertainment:Music")
 
@@ -619,4 +628,54 @@ class DescribeAutoCategorizeIdempotency:
                 write=True,
             )
             assert rc2 == 0
-            # The command should succeed with 0 uncategorized transactions
+
+
+class DescribeReviewAndPersist:
+    """Specs for _review_and_persist dry-run behaviour."""
+
+    def _make_prediction(self, txn_id: str = "txn001") -> Prediction:
+        from gilt.model.account import Transaction
+
+        txn = Transaction(
+            transaction_id=txn_id,
+            date=date(2025, 1, 15),
+            description="EXAMPLE UTILITY",
+            amount=-42.50,
+            currency="CAD",
+            account_id="MYBANK_CHQ",
+        )
+        return Prediction(
+            account_id="MYBANK_CHQ",
+            transaction_id=txn_id,
+            txn=txn,
+            category="Utilities",
+            confidence=0.90,
+            source="ml",
+        )
+
+    def it_should_not_persist_categorizations_in_dry_run(self):
+        """Dry-run (write=False) must print message and not call persist."""
+        from unittest.mock import MagicMock
+
+        from gilt.model.category import Category, CategoryConfig
+        from gilt.workspace import Workspace
+
+        category_config = CategoryConfig(categories=[Category(name="Utilities")])
+        predictions = [self._make_prediction()]
+        mock_ready = MagicMock()
+
+        with TemporaryDirectory() as tmpdir:
+            workspace = Workspace(root=Path(tmpdir))
+            rc = _review_and_persist(
+                all_predictions=predictions,
+                category_config=category_config,
+                workspace=workspace,
+                ready=mock_ready,
+                write=False,
+                interactive=False,
+            )
+
+        assert rc == 0
+        # persist_row_categorizations must NOT have been called
+        mock_ready.persist_categorizations.assert_not_called()
+        # The command should succeed with 0 uncategorized transactions

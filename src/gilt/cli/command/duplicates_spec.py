@@ -384,7 +384,7 @@ class DescribeRunReviewLoop:
             event_store=MagicMock(),
         )
 
-        with patch("gilt.cli.command.duplicates._display_and_review_match") as mock_display:
+        with patch("gilt.cli.command.duplicates_review.display_and_review_match") as mock_display:
             _run_review_loop(
                 ctx, filtered_matches, review_service, detector, "llama3", interactive=True
             )
@@ -411,7 +411,7 @@ class DescribeRunReviewLoop:
         )
 
         with patch(
-            "gilt.cli.command.duplicates._display_and_review_match",
+            "gilt.cli.command.duplicates_review.display_and_review_match",
             side_effect=KeyboardInterrupt,
         ):
             _run_review_loop(

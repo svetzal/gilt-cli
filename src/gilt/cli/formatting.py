@@ -54,6 +54,11 @@ def base_match_row(account_id: str, t: Transaction) -> tuple:
     )
 
 
+def category_preview_row(account_id: str, t: Transaction, category_path: str) -> tuple:
+    """Build the 6-column category-preview row: base 5 columns + formatted category path."""
+    return base_match_row(account_id, t) + (category_path,)
+
+
 def build_category_path(
     category: str,
     subcategory: str | None = None,
@@ -87,5 +92,6 @@ __all__ = [
     "fmt_colored_amount",
     "format_prefix_lookup_error",
     "base_match_row",
+    "category_preview_row",
     "build_category_path",
 ]
