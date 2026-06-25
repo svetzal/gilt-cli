@@ -10,6 +10,7 @@ from gilt.workspace import Workspace
 from ..console import console, display_transaction_matches, print_error
 from ..formatting import fmt_amount_str
 from ..mutations import run_confirmed_mutation, validate_single_vs_batch_mode
+from ._errors import CommandAbort
 
 
 def _highlight_prefix(desc: str, prefix: str, style: str = "bold yellow") -> str:
@@ -67,14 +68,15 @@ def _resolve_note_targets(
     desc_prefix: str | None,
     pattern: str | None,
     amount: float | None,
-) -> list[TransactionGroup] | int:
+) -> list[TransactionGroup]:
     """Resolve which transactions to annotate, printing appropriate messages.
 
     Delegates pure matching to the service and handles console output for
-    success/failure feedback.  Returns the matched groups or an exit code.
+    success/failure feedback.  Returns the matched groups, or raises CommandAbort
+    with exit code 1 (not found) or 2 (bad input).
     """
     if validate_single_vs_batch_mode(txid, description, desc_prefix, pattern) is None:
-        return 1
+        raise CommandAbort(1)
 
     result = service.find_transaction_targets(
         groups,
@@ -90,7 +92,7 @@ def _resolve_note_targets(
         # Exit 2 for bad-input errors (too short, ambiguous, invalid pattern);
         # exit 1 for "not found" (valid query, no matches).
         not_found = result.startswith("No transaction found")
-        return 1 if not_found else 2
+        raise CommandAbort(1 if not_found else 2)
 
     if not result:
         return []
@@ -183,12 +185,12 @@ def run(
 
     service = TransactionOperationsService()
 
-    result = _resolve_note_targets(
-        service, groups, account, txid, description, desc_prefix, pattern, amount
-    )
-    if isinstance(result, int):
-        return result
-    groups_to_update = result
+    try:
+        groups_to_update = _resolve_note_targets(
+            service, groups, account, txid, description, desc_prefix, pattern, amount
+        )
+    except CommandAbort as exc:
+        return exc.code
 
     if not groups_to_update:
         console.print("[yellow]No transactions matched the specified criteria.[/yellow]")

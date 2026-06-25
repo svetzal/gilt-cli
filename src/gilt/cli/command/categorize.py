@@ -30,6 +30,7 @@ from ..mutations import (
     validate_single_vs_batch_mode,
 )
 from . import categorize_view
+from ._errors import CommandAbort
 
 logger = logging.getLogger(__name__)
 
@@ -186,12 +187,12 @@ def _init_services(
     return service, categorization_service
 
 
-def _read_batch_input(txid_file: Path | None, from_stdin: bool) -> str | int:
-    """Read batch input from file or stdin. Returns text or exit-code int on error."""
+def _read_batch_input(txid_file: Path | None, from_stdin: bool) -> str:
+    """Read batch input from file or stdin. Raises CommandAbort(1) if file not found."""
     if txid_file is not None:
         if not txid_file.exists():
             print_error(f"Batch file not found: {txid_file}")
-            return 1
+            raise CommandAbort(1)
         return txid_file.read_text(encoding="utf-8")
     # from_stdin
     return sys.stdin.read()
@@ -277,9 +278,10 @@ def _run_file_batch(
     categorization_service: CategorizationService | None,
 ) -> int:
     """Orchestrate the file batch flow: read → parse → resolve → preview → persist."""
-    text = _read_batch_input(txid_file, from_stdin)
-    if isinstance(text, int):
-        return text
+    try:
+        text = _read_batch_input(txid_file, from_stdin)
+    except CommandAbort as exc:
+        return exc.code
 
     entries, parse_errors = _parse_batch_lines(text)
     if parse_errors:
@@ -377,20 +379,20 @@ def _run_single_batch(
     categorization_service: CategorizationService | None,
 ) -> int:
     """Validate inputs, resolve matching transactions, confirm, and apply categorization."""
-    inputs = _validate_inputs(
-        workspace,
-        service,
-        categorization_service,
-        category,
-        subcategory,
-        txid,
-        description,
-        desc_prefix,
-        pattern,
-    )
-    if isinstance(inputs, int):
-        return inputs
-    service, categorization_service, category, subcategory, single_mode = inputs
+    try:
+        service, categorization_service, category, subcategory, single_mode = _validate_inputs(
+            workspace,
+            service,
+            categorization_service,
+            category,
+            subcategory,
+            txid,
+            description,
+            desc_prefix,
+            pattern,
+        )
+    except CommandAbort as exc:
+        return exc.code
 
     all_transactions = load_account_transactions(workspace, account)
     if all_transactions is None:
@@ -520,8 +522,8 @@ def _validate_inputs(
     description: str | None,
     desc_prefix: str | None,
     pattern: str | None,
-) -> tuple[TransactionOperationsService, CategorizationService, str, str | None, bool] | int:
-    """Initialize services and validate inputs. Returns initialized tuple or exit code."""
+) -> tuple[TransactionOperationsService, CategorizationService, str, str | None, bool]:
+    """Initialize services and validate inputs. Returns initialized tuple or raises CommandAbort(1)."""
     service, categorization_service = _init_services(workspace, service, categorization_service)
     category, subcategory, cat_warning = build_category_path(category, subcategory)
     if cat_warning:
@@ -529,7 +531,7 @@ def _validate_inputs(
 
     mode_result = validate_single_vs_batch_mode(txid, description, desc_prefix, pattern)
     if mode_result is None:
-        return 1
+        raise CommandAbort(1)
     single_mode = mode_result
 
     validation = categorization_service.validate_category(category, subcategory)
@@ -537,7 +539,7 @@ def _validate_inputs(
         for error in validation.errors:
             print_error(error)
         categorize_view.print_category_add_hint(category)
-        return 1
+        raise CommandAbort(1)
 
     return service, categorization_service, category, subcategory, single_mode
 

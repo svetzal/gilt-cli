@@ -30,6 +30,7 @@ from gilt.workspace import Workspace
 
 from ..console import console, print_error, print_error_list
 from ..event_sourcing_bootstrap import build_effective_paths, build_event_sourcing_service
+from ._errors import CommandAbort
 
 
 def _display_dry_run_plan(ledger_files: list[Path], has_categories: bool) -> None:
@@ -80,12 +81,12 @@ def _check_preconditions(
     effective_projections_db_path: Path,
     effective_budget_projections_db_path: Path,
     force: bool,
-) -> tuple[list[Path], bool] | int:
-    """Check migration preconditions. Returns (ledger_files, has_categories) or exit code on failure."""
+) -> tuple[list[Path], bool]:
+    """Check migration preconditions. Returns (ledger_files, has_categories) or raises CommandAbort(1)."""
     ledger_files = LedgerRepository(data_dir).ledger_paths()
     if not ledger_files:
         print_error(f"No CSV files found in {data_dir}")
-        return 1
+        raise CommandAbort(1)
 
     has_categories = categories_config.exists()
 
@@ -95,7 +96,7 @@ def _check_preconditions(
         event_count = event_store.get_latest_sequence_number()
 
         if event_count > 0 and not force:
-            return 1
+            raise CommandAbort(1)
         elif event_count > 0 and force:
             effective_event_store_path.unlink()
             if effective_projections_db_path.exists():
@@ -152,8 +153,8 @@ def _build_projections(
     es_service: EventSourcingService,
     has_categories: bool,
     effective_budget_projections_db_path: Path,
-) -> tuple[object, object | None, int, int] | int:
-    """Build projections from events. Returns (tx_builder, budget_builder, tx_count, budget_count) or exit code."""
+) -> tuple[object, object | None, int, int]:
+    """Build projections from events. Returns (tx_builder, budget_builder, tx_count, budget_count) or raises CommandAbort(1)."""
     event_store = es_service.get_event_store()
 
     try:
@@ -161,7 +162,7 @@ def _build_projections(
         tx_count = tx_builder.build_from_scratch(event_store)
     except (OSError, ValueError) as e:
         print_error(f"Error building transaction projections: {e}")
-        return 1
+        raise CommandAbort(1) from None
 
     budget_builder = None
     budget_count = 0
@@ -171,7 +172,7 @@ def _build_projections(
             budget_count = budget_builder.build_from_scratch(event_store)
         except (OSError, ValueError) as e:
             print_error(f"Error building budget projections: {e}")
-            return 1
+            raise CommandAbort(1) from None
 
     return tx_builder, budget_builder, tx_count, budget_count
 
@@ -283,19 +284,19 @@ def run(
     )
 
     console.print("[bold]Step 1: Checking preconditions[/]")
-    preconditions = _check_preconditions(
-        data_dir,
-        categories_config,
-        es_service,
-        effective_event_store_path,
-        effective_projections_db_path,
-        effective_budget_projections_db_path,
-        force,
-    )
-    if isinstance(preconditions, int):
+    try:
+        ledger_files, has_categories = _check_preconditions(
+            data_dir,
+            categories_config,
+            es_service,
+            effective_event_store_path,
+            effective_projections_db_path,
+            effective_budget_projections_db_path,
+            force,
+        )
+    except CommandAbort as exc:
         _print_preconditions_failure(data_dir, es_service, effective_event_store_path)
-        return preconditions
-    ledger_files, has_categories = preconditions
+        return exc.code
     _print_preconditions_success(ledger_files, has_categories, categories_config)
 
     console.print()
@@ -339,12 +340,12 @@ def _run_migration(
         console.print(f"[green]✓[/green] Created {budget_events} budget event(s)")
 
     console.print("\n[bold]Step 3: Building projections from events[/]")
-    projections_result = _build_projections(
-        es_service, has_categories, effective_budget_projections_db_path
-    )
-    if isinstance(projections_result, int):
-        return projections_result
-    tx_builder, budget_builder, tx_count, budget_count = projections_result
+    try:
+        tx_builder, budget_builder, tx_count, budget_count = _build_projections(
+            es_service, has_categories, effective_budget_projections_db_path
+        )
+    except CommandAbort as exc:
+        return exc.code
     console.print(f"[green]✓[/green] Built transaction projections ({tx_count} events processed)")
     if has_categories:
         console.print(

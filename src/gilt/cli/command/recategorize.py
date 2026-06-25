@@ -36,6 +36,7 @@ from ..mutations import (
     run_persisted_mutation,
 )
 from . import recategorize_view
+from ._errors import CommandAbort
 
 # ---------------------------------------------------------------------------
 # Validation helpers
@@ -311,12 +312,12 @@ def _run_selection_mode(
 # ---------------------------------------------------------------------------
 
 
-def _parse_to_category(to_category: str) -> tuple[str, str | None] | int:
-    """Parse and validate to_category. Returns (to_cat, to_subcat) or exit code on empty."""
+def _parse_to_category(to_category: str) -> tuple[str, str | None]:
+    """Parse and validate to_category. Returns (to_cat, to_subcat) or raises CommandAbort(1) on empty."""
     to_cat, to_subcat, _ = build_category_path(to_category)
     if not to_cat:
         print_error("--to category cannot be empty")
-        return 1
+        raise CommandAbort(1)
     return to_cat, to_subcat
 
 
@@ -374,10 +375,10 @@ def run(
     Returns:
         Exit code (0 success, 1 error)
     """
-    parsed = _parse_to_category(to_category)
-    if isinstance(parsed, int):
-        return parsed
-    to_cat, to_subcat = parsed
+    try:
+        to_cat, to_subcat = _parse_to_category(to_category)
+    except CommandAbort as exc:
+        return exc.code
 
     selection_mode = any(
         x is not None
