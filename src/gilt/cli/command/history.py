@@ -4,13 +4,11 @@ from __future__ import annotations
 
 from datetime import date
 
-from rich.table import Table
-
 from gilt.workspace import Workspace
 
 from ..console import console
 from ..event_sourcing_bootstrap import require_projections
-from ..formatting import fmt_amount
+from .history_view import display_history_table
 
 
 def run(
@@ -46,9 +44,6 @@ def run(
             return 2
 
     builder = require_projections(workspace)
-    if builder is None:
-        return 1
-
     rows = builder.find_category_history(
         pattern,
         account_id=account,
@@ -62,41 +57,5 @@ def run(
         console.print(f"[yellow]No matching transactions for pattern '{pattern}'[/]")
         return 0
 
-    _display_history_table(rows, pattern, account, date_from, date_to)
+    display_history_table(rows, pattern, account, date_from, date_to)
     return 0
-
-
-def _display_history_table(
-    rows, pattern: str, account: str | None, date_from: str | None, date_to: str | None
-) -> None:
-    """Build and print the category history table."""
-    title = f"History for '{pattern}'"
-    if account:
-        title += f" — account {account}"
-    if date_from or date_to:
-        window = f"{date_from or '...'} → {date_to or '...'}"
-        title += f" — {window}"
-
-    table = Table(title=title, show_lines=False)
-    table.add_column("Category", style="yellow")
-    table.add_column("Subcategory", style="yellow")
-    table.add_column("Count", justify="right", style="cyan")
-    table.add_column("Sum", justify="right")
-    table.add_column("Min", justify="right")
-    table.add_column("Max", justify="right")
-    table.add_column("Latest", style="dim", no_wrap=True)
-
-    for row in rows:
-        cat_display = row.category or "(uncategorized)"
-        sub_display = row.subcategory or ""
-        table.add_row(
-            cat_display,
-            sub_display,
-            str(row.count),
-            fmt_amount(row.total),
-            fmt_amount(row.min_amount),
-            fmt_amount(row.max_amount),
-            row.latest_date or "",
-        )
-
-    console.print(table)

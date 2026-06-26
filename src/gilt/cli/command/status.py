@@ -5,28 +5,15 @@ Per-account freshness and coverage dashboard.
 """
 
 import contextlib
-from dataclasses import dataclass
 from datetime import date
 
 from rich.console import Console
-from rich.table import Table
 
 from gilt.workspace import Workspace
 
 from ..console import console as _default_console
 from ..event_sourcing_bootstrap import require_projections
-
-
-@dataclass
-class StatusRow:
-    account_id: str
-    latest_txn: str  # "YYYY-MM-DD" or "—"
-    days_since_latest: int | str  # int or "—"
-    total_txns: int
-    uncategorized: int
-    mojility_txns: int
-    mojility_w_receipt: int
-    mojility_receipt_pct: int | str  # int or "—"
+from .status_view import StatusRow, render
 
 
 def _passes_fy_filter(txn_date: date, fy_range: tuple[date, date] | None) -> bool:
@@ -121,54 +108,6 @@ def _aggregate(
     return [_build_status_row(aid, accounts[aid], today) for aid in sorted(accounts)]
 
 
-def _render(
-    status_rows: list[StatusRow],
-    stale_threshold: int,
-    fy_label: str | None,
-    console: Console,
-) -> None:
-    """Render the status dashboard as a Rich table."""
-    moj_header = "mojility_txns"
-    if fy_label:
-        moj_header = f"mojility_txns ({fy_label.upper()})"
-
-    table = Table(title="Account Status", show_header=True, header_style="bold")
-    table.add_column("account_id", style="cyan")
-    table.add_column("latest_txn")
-    table.add_column("days_since", justify="right")
-    table.add_column("total_txns", justify="right")
-    table.add_column("uncategorized", justify="right")
-    table.add_column(moj_header, justify="right")
-    table.add_column("mojility_w_receipt", justify="right")
-    table.add_column("mojility_receipt_pct", justify="right")
-
-    for row in status_rows:
-        days = row.days_since_latest
-        stale = isinstance(days, int) and days > stale_threshold
-
-        account_cell = row.account_id
-        latest_cell = str(row.latest_txn)
-        days_cell = str(days)
-
-        if stale:
-            account_cell = f"[red]⚠ {account_cell}[/red]"
-            latest_cell = f"[red]{latest_cell}[/red]"
-            days_cell = f"[red]{days_cell}[/red]"
-
-        table.add_row(
-            account_cell,
-            latest_cell,
-            days_cell,
-            str(row.total_txns),
-            str(row.uncategorized),
-            str(row.mojility_txns),
-            str(row.mojility_w_receipt),
-            str(row.mojility_receipt_pct),
-        )
-
-    console.print(table)
-
-
 def run(
     *,
     fy_range: tuple[date, date] | None = None,
@@ -198,9 +137,6 @@ def run(
     effective_today = today if today is not None else date.today()
 
     projection_builder = require_projections(workspace)
-    if projection_builder is None:
-        return 1
-
     rows = projection_builder.get_all_transactions(include_duplicates=False)
 
     if not rows:
@@ -208,7 +144,7 @@ def run(
         return 0
 
     status_rows = _aggregate(rows, fy_range, effective_today)
-    _render(status_rows, stale_threshold, fy_label, con)
+    render(status_rows, stale_threshold, fy_label, con)
     return 0
 
 

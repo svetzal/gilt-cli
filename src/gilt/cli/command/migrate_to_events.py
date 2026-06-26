@@ -96,6 +96,15 @@ def _check_preconditions(
         event_count = event_store.get_latest_sequence_number()
 
         if event_count > 0 and not force:
+            console.print(
+                f"[yellow]Warning:[/yellow] Event store already exists with {event_count} events"
+            )
+            console.print(f"[dim]{effective_event_store_path}[/dim]")
+            console.print()
+            console.print("Options:")
+            console.print("  1. Use --force to overwrite existing event store")
+            console.print("  2. Delete the event store manually and run again")
+            console.print("  3. Use 'gilt rebuild-projections' to rebuild from existing events")
             raise CommandAbort(1)
         elif event_count > 0 and force:
             effective_event_store_path.unlink()
@@ -207,30 +216,6 @@ def _validate_migration(
         )
 
 
-def _print_preconditions_failure(
-    data_dir: Path, es_service, effective_event_store_path: Path
-) -> None:
-    ledger_files = LedgerRepository(data_dir).ledger_paths()
-    if not ledger_files:
-        console.print("[dim]Nothing to migrate.[/dim]")
-        return
-    event_store_status = es_service.check_event_store_status()
-    if not event_store_status.exists:
-        return
-    event_store = es_service.get_event_store()
-    event_count = event_store.get_latest_sequence_number()
-    if event_count > 0:
-        console.print(
-            f"[yellow]Warning:[/yellow] Event store already exists with {event_count} events"
-        )
-        console.print(f"[dim]{effective_event_store_path}[/dim]")
-        console.print()
-        console.print("Options:")
-        console.print("  1. Use --force to overwrite existing event store")
-        console.print("  2. Delete the event store manually and run again")
-        console.print("  3. Use 'gilt rebuild-projections' to rebuild from existing events")
-
-
 def _print_preconditions_success(
     ledger_files: list[Path], has_categories: bool, categories_config: Path
 ) -> None:
@@ -284,19 +269,15 @@ def run(
     )
 
     console.print("[bold]Step 1: Checking preconditions[/]")
-    try:
-        ledger_files, has_categories = _check_preconditions(
-            data_dir,
-            categories_config,
-            es_service,
-            effective_event_store_path,
-            effective_projections_db_path,
-            effective_budget_projections_db_path,
-            force,
-        )
-    except CommandAbort as exc:
-        _print_preconditions_failure(data_dir, es_service, effective_event_store_path)
-        return exc.code
+    ledger_files, has_categories = _check_preconditions(
+        data_dir,
+        categories_config,
+        es_service,
+        effective_event_store_path,
+        effective_projections_db_path,
+        effective_budget_projections_db_path,
+        force,
+    )
     _print_preconditions_success(ledger_files, has_categories, categories_config)
 
     console.print()
@@ -340,12 +321,9 @@ def _run_migration(
         console.print(f"[green]✓[/green] Created {budget_events} budget event(s)")
 
     console.print("\n[bold]Step 3: Building projections from events[/]")
-    try:
-        tx_builder, budget_builder, tx_count, budget_count = _build_projections(
-            es_service, has_categories, effective_budget_projections_db_path
-        )
-    except CommandAbort as exc:
-        return exc.code
+    tx_builder, budget_builder, tx_count, budget_count = _build_projections(
+        es_service, has_categories, effective_budget_projections_db_path
+    )
     console.print(f"[green]✓[/green] Built transaction projections ({tx_count} events processed)")
     if has_categories:
         console.print(
@@ -364,10 +342,9 @@ def _run_migration(
         )
     except (OSError, ValueError) as e:
         print_error(f"Validation failed: {e}")
-        return 1
-    validation_exit = _print_validation_result(validation_result, has_categories)
-    if validation_exit != 0:
-        return validation_exit
+        raise CommandAbort(1)
+    if _print_validation_result(validation_result, has_categories) != 0:
+        raise CommandAbort(1)
 
     _display_completion_summary(
         effective_event_store_path,

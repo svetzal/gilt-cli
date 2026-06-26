@@ -17,62 +17,17 @@ Privacy:
 """
 
 
-from rich.console import Console
-from rich.panel import Panel
-from rich.table import Table
-
 from gilt.model.events import PromptUpdated
 from gilt.transfer.prompt_learning import PromptLearningService
 from gilt.workspace import Workspace
 
 from ..console import console
 from ..event_sourcing_bootstrap import require_event_sourcing
-
-
-def _display_accuracy_metrics(console: Console, metrics) -> None:
-    """Build and print the accuracy metrics table."""
-    metrics_table = Table(title="Accuracy Metrics", show_header=True)
-    metrics_table.add_column("Metric", style="cyan")
-    metrics_table.add_column("Value", style="green", justify="right")
-
-    metrics_table.add_row("Total Feedback", str(metrics.total_feedback))
-    metrics_table.add_row("Overall Accuracy", f"{metrics.accuracy:.1%}")
-    metrics_table.add_row("Precision", f"{metrics.precision:.1%}")
-    metrics_table.add_row("Recall", f"{metrics.recall:.1%}")
-    metrics_table.add_row("F1 Score", f"{metrics.f1_score:.1%}")
-    metrics_table.add_row("", "")  # Separator
-    metrics_table.add_row("True Positives", str(metrics.true_positives))
-    metrics_table.add_row("False Positives", str(metrics.false_positives))
-    metrics_table.add_row("True Negatives", str(metrics.true_negatives))
-    metrics_table.add_row("False Negatives", str(metrics.false_negatives))
-
-    console.print(metrics_table)
-    console.print()
-
-
-def _display_learned_patterns(console: Console, patterns: list) -> None:
-    """Print a panel for each learned pattern."""
-    if not patterns:
-        return
-
-    console.print("[cyan]Learned Patterns:[/cyan]")
-    console.print()
-
-    for pattern in patterns:
-        color = "green" if pattern.confidence > 0.7 else "yellow"
-        panel = Panel(
-            f"[bold]{pattern.description}[/bold]\n\n"
-            f"Confidence: {pattern.confidence:.1%} | "
-            f"Evidence: {pattern.evidence_count} cases",
-            title=f"[{color}]{pattern.pattern_type.upper()}[/{color}]",
-            border_style=color,
-        )
-        console.print(panel)
-        console.print()
+from .prompt_stats_view import display_accuracy_metrics, display_learned_patterns, display_prompt_history
 
 
 def _generate_and_emit_update(
-    console: Console, learning_service: PromptLearningService, event_store
+    learning_service: PromptLearningService, event_store
 ) -> None:
     """Generate a prompt update from learned patterns and emit it to the event store."""
     console.print("[yellow]Generating prompt update...[/yellow]")
@@ -111,18 +66,13 @@ def run(
     Returns:
         Exit code (0 = success)
     """
-    # Init
     ready = require_event_sourcing(workspace)
-    if ready is None:
-        return 1
-
     event_store = ready.event_store
     learning_service = PromptLearningService(event_store)
 
     console.print("[cyan]Prompt Learning Statistics[/cyan]")
     console.print()
 
-    # Compute metrics
     metrics = learning_service.get_accuracy()
 
     if metrics.total_feedback == 0:
@@ -130,54 +80,17 @@ def run(
         console.print("[dim]Run 'gilt duplicates --interactive' to provide feedback.[/dim]")
         return 0
 
-    # Display metrics
-    _display_accuracy_metrics(console, metrics)
+    display_accuracy_metrics(console, metrics)
 
-    # Display patterns
     patterns = learning_service.identify_learned_patterns()
-    _display_learned_patterns(console, patterns)
+    display_learned_patterns(console, patterns)
 
-    # Generate update if requested
     if generate_update:
-        _generate_and_emit_update(console, learning_service, event_store)
+        _generate_and_emit_update(learning_service, event_store)
 
-    # Display history
-    _display_prompt_history(console, event_store)
+    display_prompt_history(console, event_store)
 
     return 0
-
-
-def _display_prompt_history(console: Console, event_store) -> None:
-    """Display prompt version history table."""
-    prompt_events = event_store.get_events_by_type("PromptUpdated")
-    if not prompt_events:
-        return
-
-    console.print()
-    console.print("[cyan]Prompt Version History:[/cyan]")
-
-    history_table = Table(show_header=True)
-    history_table.add_column("Version", style="cyan")
-    history_table.add_column("Accuracy", style="green", justify="right")
-    history_table.add_column("Patterns Learned", style="yellow", justify="right")
-    history_table.add_column("Timestamp", style="dim")
-
-    for event in prompt_events:
-        if not isinstance(event, PromptUpdated):
-            continue
-
-        accuracy = event.accuracy_metrics.get("accuracy", 0.0)
-        patterns_count = len(event.learned_patterns)
-        timestamp = event.event_timestamp.strftime("%Y-%m-%d %H:%M")
-
-        history_table.add_row(
-            event.prompt_version,
-            f"{accuracy:.1%}",
-            str(patterns_count),
-            timestamp,
-        )
-
-    console.print(history_table)
 
 
 __all__ = ["run"]

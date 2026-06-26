@@ -5,8 +5,8 @@ class CommandAbort(Exception):
     """Control-flow signal to abort a command with a given exit code.
 
     Raised by command helpers so their return type carries only the success value,
-    not an int sentinel. Caught at each run() boundary and converted to the int
-    exit-code contract.
+    not an int sentinel. Caught once at the dispatch() choke-point and converted
+    to typer.Exit — not at each run() boundary.
     """
 
     def __init__(self, code: int = 1) -> None:

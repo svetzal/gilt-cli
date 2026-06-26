@@ -7,6 +7,7 @@ from datetime import date
 import pytest
 import typer
 
+from gilt.cli.command._errors import CommandAbort
 from gilt.cli.registration._dispatch import dispatch, resolve_fy_range
 
 
@@ -28,6 +29,15 @@ class DescribeDispatch:
             dispatch(fake_run)
 
         assert exc_info.value.exit_code == 3
+
+    def it_should_translate_command_abort_to_typer_exit_with_abort_code(self):
+        def fake_run(**kwargs):
+            raise CommandAbort(2)
+
+        with pytest.raises(typer.Exit) as exc_info:
+            dispatch(fake_run)
+
+        assert exc_info.value.exit_code == 2
 
 
 class DescribeResolveFyRange:

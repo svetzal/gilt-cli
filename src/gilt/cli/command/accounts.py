@@ -3,13 +3,12 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from rich.table import Table
-
 from gilt.ingest import load_accounts_config
 from gilt.model.ledger_repository import LedgerRepository
 from gilt.workspace import Workspace
 
 from ..console import console
+from .accounts_view import display_accounts_table
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +21,6 @@ def _collect_accounts(config_path: Path, data_dir: Path) -> dict[str, str]:
     """
     id_to_desc: dict[str, str] = {}
 
-    # 1) Configured accounts (best-effort)
     try:
         accounts = load_accounts_config(config_path)
     except OSError:
@@ -33,7 +31,6 @@ def _collect_accounts(config_path: Path, data_dir: Path) -> dict[str, str]:
         if not aid:
             continue
         desc = getattr(a, "description", None)
-        # If description missing, try a friendly composite
         if not desc:
             inst = getattr(a, "institution", None) or ""
             prod = getattr(a, "product", None) or ""
@@ -41,7 +38,6 @@ def _collect_accounts(config_path: Path, data_dir: Path) -> dict[str, str]:
             desc = combo or aid
         id_to_desc[aid] = desc
 
-    # 2) Unmanaged ledgers present on disk
     try:
         for aid in LedgerRepository(data_dir).available_account_ids():
             if aid not in id_to_desc:
@@ -65,12 +61,5 @@ def run(*, workspace: Workspace) -> int:
         )
         return 0
 
-    table = Table(title="Available Accounts", show_lines=False)
-    table.add_column("Account ID", style="cyan", no_wrap=True)
-    table.add_column("Description", style="white")
-
-    for aid in sorted(mapping.keys()):
-        table.add_row(aid, mapping[aid])
-
-    console.print(table)
+    display_accounts_table(mapping)
     return 0

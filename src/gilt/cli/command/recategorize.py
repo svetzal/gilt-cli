@@ -171,12 +171,9 @@ def _run_rename_mode(
     from_cat, from_subcat, _ = build_category_path(from_category)
     if not from_cat:
         print_error("--from category cannot be empty")
-        return 1
+        raise CommandAbort(1)
 
     all_transactions = load_account_transactions(workspace, None)
-    if all_transactions is None:
-        return 1
-
     all_matches = _find_matching_transactions(all_transactions, from_cat, from_subcat)
     total_matched = len(all_matches)
 
@@ -241,7 +238,7 @@ def _run_selection_mode(
     flag_error = _validate_selection_flags(desc_prefix, pattern, amount_eq, amount_min, amount_max)
     if flag_error is not None:
         print_error(flag_error)
-        return 1
+        raise CommandAbort(1)
 
     from_cat: str | None = None
     from_subcat: str | None = None
@@ -249,11 +246,9 @@ def _run_selection_mode(
         from_cat, from_subcat, _ = build_category_path(from_category)
         if not from_cat:
             print_error("--from category cannot be empty")
-            return 1
+            raise CommandAbort(1)
 
     all_rows = load_account_transactions(workspace, None)
-    if all_rows is None:
-        return 1
 
     criteria = _build_transaction_filter(
         account=account,
@@ -276,7 +271,7 @@ def _run_selection_mode(
     if desc_prefix is not None or pattern is not None:
         all_matches = _build_text_matches(filtered_transactions, desc_prefix, pattern, service)
         if all_matches is None:
-            return 1
+            raise CommandAbort(1)
     else:
         all_matches = [
             (t.account_id, TransactionGroup(group_id=t.transaction_id, primary=t))
@@ -375,11 +370,7 @@ def run(
     Returns:
         Exit code (0 success, 1 error)
     """
-    try:
-        to_cat, to_subcat = _parse_to_category(to_category)
-    except CommandAbort as exc:
-        return exc.code
-
+    to_cat, to_subcat = _parse_to_category(to_category)
     selection_mode = any(
         x is not None
         for x in (
@@ -402,7 +393,7 @@ def run(
                 "(--desc-prefix, --pattern, --amount-eq, --account, --date-from/--date-to, --fy) "
                 "to recategorize a filtered set"
             )
-            return 1
+            raise CommandAbort(1)
         return _run_rename_mode(
             from_category=from_category,
             to_category=to_category,

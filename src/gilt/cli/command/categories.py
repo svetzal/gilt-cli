@@ -7,97 +7,12 @@ List all defined categories with usage statistics.
 from collections import defaultdict
 from pathlib import Path
 
-from rich.table import Table
-
 from gilt.model.category_io import load_categories_config
 from gilt.model.ledger_repository import LedgerRepository
 from gilt.workspace import Workspace
 
 from ..console import console
-from ..formatting import fmt_amount_str
-
-
-def _add_category_with_subcategories(table: Table, cat, usage: dict) -> None:
-    """Add a bold parent summary row plus indented rows for each subcategory."""
-    cat_key = (cat.name, None)
-    count, total = usage.get(cat_key, (0, 0.0))
-
-    budget_str = ""
-    if cat.budget:
-        budget_str = f"${cat.budget.amount:,.2f}/{cat.budget.period.value}"
-
-    # Sum subcategory usage into the parent totals
-    total_count = count
-    total_amount = total
-    for subcat in cat.subcategories:
-        subcat_key = (cat.name, subcat.name)
-        sub_count, sub_total = usage.get(subcat_key, (0, 0.0))
-        total_count += sub_count
-        total_amount += sub_total
-
-    table.add_row(
-        f"[bold]{cat.name}[/]",
-        "",
-        cat.description or "",
-        budget_str,
-        f"[bold]{total_count}[/]" if total_count > 0 else "—",
-        f"[bold]${total_amount:,.2f}[/]" if total_count > 0 else "—",
-    )
-
-    # Subcategory rows (indented)
-    for subcat in cat.subcategories:
-        subcat_key = (cat.name, subcat.name)
-        sub_count, sub_total = usage.get(subcat_key, (0, 0.0))
-
-        table.add_row(
-            "",
-            f"  {subcat.name}",
-            subcat.description or "",
-            "",
-            str(sub_count) if sub_count > 0 else "—",
-            fmt_amount_str(sub_total) if sub_count > 0 else "—",
-        )
-
-
-def _display_categories_table(category_config, usage: dict) -> None:
-    """Build and print the categories Rich table plus summary line."""
-    table = Table(title="Categories", show_lines=True)
-    table.add_column("Category", style="cyan", no_wrap=True)
-    table.add_column("Subcategory", style="blue")
-    table.add_column("Description", style="white")
-    table.add_column("Budget", style="green", justify="right")
-    table.add_column("Usage (Count)", style="yellow", justify="right")
-    table.add_column("Usage (Total)", style="yellow", justify="right")
-
-    for cat in category_config.categories:
-        # Category row (without subcategory)
-        cat_key = (cat.name, None)
-        count, total = usage.get(cat_key, (0, 0.0))
-
-        budget_str = ""
-        if cat.budget:
-            budget_str = f"${cat.budget.amount:,.2f}/{cat.budget.period.value}"
-
-        if not cat.subcategories:
-            table.add_row(
-                cat.name,
-                "",
-                cat.description or "",
-                budget_str,
-                str(count) if count > 0 else "—",
-                fmt_amount_str(total) if count > 0 else "—",
-            )
-        else:
-            _add_category_with_subcategories(table, cat, usage)
-
-    console.print(table)
-
-    # Show summary
-    total_defined = len(category_config.categories)
-    total_used = len(
-        [key for key in usage if key[0] in [c.name for c in category_config.categories]]
-    )
-    console.print(f"\nTotal categories: {total_defined} | Used in transactions: {total_used}")
+from .categories_view import display_categories_table
 
 
 def _count_category_usage(data_dir: Path) -> dict[tuple[str, str | None], tuple[int, float]]:
@@ -113,7 +28,7 @@ def _count_category_usage(data_dir: Path) -> dict[tuple[str, str | None], tuple[
         subcat = group.primary.subcategory
         amount = group.primary.amount
 
-        if cat:  # Only count categorized transactions
+        if cat:
             key = (cat, subcat)
             count, total = usage[key]
             usage[key] = (count + 1, total + amount)
@@ -136,7 +51,6 @@ def run(
     config = workspace.categories_config
     data_dir = workspace.ledger_data_dir
 
-    # Load category definitions
     category_config = load_categories_config(config)
 
     if not category_config.categories:
@@ -145,8 +59,7 @@ def run(
         )
         return 0
 
-    # Count usage across ledgers
     usage = _count_category_usage(data_dir)
 
-    _display_categories_table(category_config, usage)
+    display_categories_table(category_config, usage)
     return 0

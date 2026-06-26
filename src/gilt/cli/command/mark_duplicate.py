@@ -11,64 +11,14 @@ Privacy:
 
 from __future__ import annotations
 
-from rich.prompt import Prompt
-from rich.table import Table
-
 from gilt.services.duplicate_review_service import DuplicateReviewService
 from gilt.services.transaction_operations_service import TransactionOperationsService
 from gilt.workspace import Workspace
 
 from ..console import console, print_error
 from ..event_sourcing_bootstrap import require_event_sourcing, require_projections
-
-
-def _display_validation_results(validation, write: bool) -> None:
-    """Display validation errors and warnings to the console."""
-    for error in validation.errors:
-        print_error(error)
-    for warning in validation.warnings:
-        console.print(f"[yellow]Warning:[/yellow] {warning}")
-        if not write and ("different account" in warning or "different amount" in warning):
-            console.print("[yellow]Use --write to proceed anyway[/yellow]")
-
-
-def _build_comparison_table(primary_txn: dict, duplicate_txn: dict) -> Table:
-    """Build a Rich table comparing the two transactions side by side."""
-    table = Table(title="Mark Duplicate Transactions", show_header=True, show_lines=True)
-    table.add_column("Field", style="cyan")
-    table.add_column("Primary (Keep)", style="green")
-    table.add_column("Duplicate (Hide)", style="red")
-    table.add_row("ID", primary_txn["transaction_id"][:8], duplicate_txn["transaction_id"][:8])
-    table.add_row(
-        "Date", str(primary_txn["transaction_date"]), str(duplicate_txn["transaction_date"])
-    )
-    table.add_row("Account", primary_txn["account_id"], duplicate_txn["account_id"])
-    table.add_row(
-        "Amount", f"{float(primary_txn['amount']):.2f}", f"{float(duplicate_txn['amount']):.2f}"
-    )
-    table.add_row(
-        "Description", primary_txn["canonical_description"], duplicate_txn["canonical_description"]
-    )
-    return table
-
-
-def _prompt_description_choice(primary_txn: dict, duplicate_txn: dict) -> str:
-    """Display both description options, prompt for a choice, and return the canonical description."""
-    console.print()
-    console.print("[yellow]Which description would you like to keep?[/yellow]")
-    console.print(f"  1) {primary_txn['canonical_description']} [green](primary)[/green]")
-    console.print(f"  2) {duplicate_txn['canonical_description']} [red](duplicate)[/red]")
-    console.print()
-    choice = Prompt.ask(
-        "Description choice [1/2]", choices=["1", "2"], default="1", show_choices=False
-    )
-    canonical_description = (
-        primary_txn["canonical_description"]
-        if choice == "1"
-        else duplicate_txn["canonical_description"]
-    )
-    console.print()
-    return canonical_description
+from .mark_duplicate_review import prompt_description_choice
+from .mark_duplicate_view import build_comparison_table, display_validation_results
 
 
 def _persist_mark(
@@ -115,11 +65,7 @@ def run(
         print_error(f"Data directory not found: {workspace.ledger_data_dir}")
         return 1
     projection_builder = require_projections(workspace)
-    if projection_builder is None:
-        return 1
     ready = require_event_sourcing(workspace)
-    if ready is None:
-        return 1
 
     review_service = DuplicateReviewService(event_store=ready.event_store)
     tx_service = TransactionOperationsService()
@@ -132,14 +78,14 @@ def run(
     if isinstance(preparation, str):
         print_error(preparation)
         return 1
-    _display_validation_results(preparation.validation, write)
+    display_validation_results(preparation.validation, write)
     if not preparation.validation.is_valid:
         return 1
 
     primary_txn = preparation.primary_txn
     duplicate_txn = preparation.duplicate_txn
-    console.print(_build_comparison_table(primary_txn, duplicate_txn))
-    canonical_description = _prompt_description_choice(primary_txn, duplicate_txn)
+    console.print(build_comparison_table(primary_txn, duplicate_txn))
+    canonical_description = prompt_description_choice(primary_txn, duplicate_txn)
 
     if not write:
         console.print("[yellow]Dry-run mode:[/yellow]")

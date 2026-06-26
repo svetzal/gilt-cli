@@ -1,0 +1,77 @@
+"""Rich rendering functions for the ingest-receipts command."""
+
+from __future__ import annotations
+
+from rich.table import Table
+
+from gilt.services.receipt_ingestion_service import MatchResult
+
+from ..console import console, print_dry_run_message
+from ..formatting import fmt_amount_str
+
+
+def display_summary(
+    matched: list[MatchResult],
+    ambiguous: list[MatchResult],
+    unmatched: list[MatchResult],
+    skipped_already_ingested: int,
+    skipped_parse_errors: int,
+    write: bool,
+    written: int,
+) -> None:
+    """Print the final ingest-receipts summary block."""
+    console.print("\n[bold]Summary:[/bold]")
+    console.print(f"  Matched: {len(matched)}")
+    console.print(f"  Ambiguous: {len(ambiguous)}")
+    console.print(f"  Unmatched: {len(unmatched)}")
+    console.print(f"  Already ingested: {skipped_already_ingested}")
+    if skipped_parse_errors:
+        console.print(f"  Parse errors: {skipped_parse_errors}")
+
+    if write and written > 0:
+        console.print(f"\n[green]{written} TransactionEnriched event(s) written.[/green]")
+        console.print("[dim]Tip: Run 'gilt rebuild-projections' to update projections.[/dim]")
+    elif not write and matched:
+        print_dry_run_message(detail=f"{len(matched)} enrichment(s)")
+
+
+def display_results_table(results: list[MatchResult]) -> None:
+    """Display receipt matching results in a table."""
+    if not results:
+        return
+
+    table = Table(title="Receipt Matching Results", show_lines=False)
+    table.add_column("Vendor", style="white", no_wrap=True, max_width=30)
+    table.add_column("Amount", justify="right", style="yellow")
+    table.add_column("Date", style="cyan", no_wrap=True)
+    table.add_column("Invoice #", style="dim")
+    table.add_column("Status", no_wrap=True)
+    table.add_column("Details", style="dim", max_width=50)
+
+    for r in results:
+        receipt = r.receipt
+        amount_str = fmt_amount_str(receipt.amount)
+        confidence = r.match_confidence or ""
+
+        if r.status == "matched":
+            status = f"[green]matched ({confidence})[/green]"
+            details = f"txid={r.transaction_id[:8]}"
+            if r.current_description:
+                details += f"  {r.current_description[:40]}"
+        elif r.status == "ambiguous":
+            status = f"[yellow]ambiguous ({r.candidate_count})[/yellow]"
+            details = ", ".join(c["transaction_id"][:8] for c in r.candidates[:5])
+        else:
+            status = "[red]unmatched[/red]"
+            details = ""
+
+        table.add_row(
+            receipt.vendor,
+            amount_str,
+            str(receipt.receipt_date),
+            receipt.invoice_number or "",
+            status,
+            details,
+        )
+
+    console.print(table)

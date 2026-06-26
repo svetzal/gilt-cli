@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from gilt.cli.command._errors import CommandAbort
 from gilt.cli.console import print_error
 from gilt.cli.event_sourcing_bootstrap import require_projections
 from gilt.cli.filtering import find_by_account
@@ -16,26 +17,24 @@ def load_ledger_text(ledger_path: Path) -> str:
     return ledger_path.read_text(encoding="utf-8")
 
 
-def load_account_transactions(workspace: Workspace, account: str | None) -> list[dict] | None:
+def load_account_transactions(workspace: Workspace, account: str | None) -> list[dict]:
     """require_projections → get_all_transactions(include_duplicates=False) → find_by_account.
 
-    Prints an error and returns None when projections are missing or when no transactions
-    exist for the requested account.
+    Prints an error and raises CommandAbort(1) when projections are missing or when no
+    transactions exist for the requested account.
     """
     projection_builder = require_projections(workspace)
-    if projection_builder is None:
-        return None
 
     all_transactions = projection_builder.get_all_transactions(include_duplicates=False)
     all_transactions = find_by_account(all_transactions, account)
 
     if account and not all_transactions:
         print_error(f"No transactions found for account '{account}'")
-        return None
+        raise CommandAbort(1)
 
     if not all_transactions:
         print_error("No transactions found in projections database")
-        return None
+        raise CommandAbort(1)
 
     return all_transactions
 
@@ -44,15 +43,12 @@ def load_all_transactions(
     workspace: Workspace,
     *,
     include_duplicates: bool,
-) -> list[Transaction] | None:
+) -> list[Transaction]:
     """require_projections → get_all_transactions → convert to Transaction objects.
 
-    Returns None when projections are missing.
+    Raises CommandAbort(1) when projections are missing.
     """
     projection_builder = require_projections(workspace)
-    if projection_builder is None:
-        return None
-
     rows = projection_builder.get_all_transactions(include_duplicates=include_duplicates)
     return [Transaction.from_projection_row(row) for row in rows]
 
@@ -62,10 +58,10 @@ def load_filtered_transactions(
     criteria: TransactionFilter,
     *,
     include_duplicates: bool = False,
-) -> list[Transaction] | None:
+) -> list[Transaction]:
     """Load all transactions from projections and filter by the given criteria.
 
-    Returns None when the projections database is missing or unavailable.
+    Raises CommandAbort(1) when the projections database is missing or unavailable.
     Returns an empty list when there are no matching transactions.
 
     Args:
@@ -74,11 +70,9 @@ def load_filtered_transactions(
         include_duplicates: When True, duplicate transactions are included in the load.
 
     Returns:
-        Filtered Transaction list, or None if projections are unavailable.
+        Filtered Transaction list.
     """
     projection_builder = require_projections(workspace)
-    if projection_builder is None:
-        return None
     rows = projection_builder.get_all_transactions(include_duplicates=include_duplicates)
     transactions = [Transaction.from_projection_row(row) for row in rows]
     return TransactionQueryService().find_matching(transactions, criteria)

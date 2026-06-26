@@ -8,6 +8,7 @@ from importlib.metadata import version
 from pathlib import Path
 
 from ..console import console, print_error
+from ._errors import CommandAbort
 
 _SKILL_SOURCE_DIR = Path(__file__).resolve().parent.parent.parent / "skills" / "gilt"
 
@@ -137,7 +138,7 @@ def run(
         else:
             print_error("Skill source directory not found.")
             console.print(f"  Expected: {_SKILL_SOURCE_DIR}")
-        return 1
+        raise CommandAbort(1)
 
     if global_install:
         target_dir = Path.home() / ".claude" / "skills" / "gilt"
@@ -174,7 +175,9 @@ def run(
         console.print(f"  Target: {target_dir}\n")
         _report_results(file_entries)
 
-    return 0 if success else 1
+    if not success:
+        raise CommandAbort(1)
+    return 0
 
 
 def _report_results(file_entries: list[dict[str, str]]) -> None:

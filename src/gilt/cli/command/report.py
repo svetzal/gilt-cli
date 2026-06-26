@@ -18,6 +18,7 @@ from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
 from ..console import console, print_dry_run_message, print_error
+from ._errors import CommandAbort
 
 
 def _check_pandoc() -> bool:
@@ -104,14 +105,14 @@ def _write_report_files(
         console.print(f"[green]✓[/] Written markdown report: [cyan]{markdown_path}[/]")
     except OSError as e:
         print_error(f"Error writing markdown file: {e}")
-        return 1
+        raise CommandAbort(1)
 
     if has_pandoc:
         if _convert_to_docx(markdown_path, docx_path):
             console.print(f"[green]✓[/] Written Word document: [cyan]{docx_path}[/]")
         else:
             console.print("[yellow]Warning:[/] Markdown file created but Word conversion failed")
-            return 1
+            raise CommandAbort(1)
 
     return 0
 
@@ -139,11 +140,11 @@ def run(
 
     if month is not None and year is None:
         print_error("--month requires --year")
-        return 1
+        raise CommandAbort(1)
 
     if month is not None and (month < 1 or month > 12):
         print_error("--month must be between 1 and 12")
-        return 1
+        raise CommandAbort(1)
 
     has_pandoc = _check_pandoc()
     if not has_pandoc:

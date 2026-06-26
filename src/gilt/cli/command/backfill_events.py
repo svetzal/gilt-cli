@@ -19,16 +19,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from rich.progress import Progress, SpinnerColumn, TextColumn
-
 from gilt.model.category_io import load_categories_config
-from gilt.model.ledger_repository import LEDGER_IO_ERRORS, LedgerRepository
 from gilt.services.event_migration_service import EventMigrationService, MigrationStats
 from gilt.storage.budget_projection import BudgetProjectionBuilder
 from gilt.workspace import Workspace
 
 from ..console import console, print_error, print_error_list
 from ..event_sourcing_bootstrap import build_effective_paths, build_event_sourcing_service
+from .backfill_events_view import backfill_transactions_with_progress, display_summary
 
 
 def _init_event_sourcing(
@@ -41,28 +39,6 @@ def _init_event_sourcing(
     service = EventMigrationService()
     event_store = es_service.get_event_store()
     return es_service, service, event_store
-
-
-def _display_summary(
-    stats: MigrationStats, dry_run: bool, effective_event_store_path: Path
-) -> None:
-    """Print the migration summary and dry-run/completion message."""
-    console.print("\n[bold cyan]Migration Summary[/]")
-    console.print(f"TransactionImported events: {stats.transaction_imported}")
-    console.print(f"TransactionCategorized events: {stats.transaction_categorized}")
-    console.print(f"BudgetCreated events: {stats.budget_created}")
-
-    if stats.errors > 0:
-        print_error(f"Errors: {stats.errors}")
-
-    total_events = stats.transaction_imported + stats.transaction_categorized + stats.budget_created
-    console.print(f"\n[bold]Total events: {total_events}[/]")
-
-    if dry_run:
-        console.print("\n[yellow]This was a dry run. Use --write to persist events.[/]")
-    else:
-        console.print("\n[green]✓ Events successfully written to event store[/]")
-        console.print(f"Event store: {effective_event_store_path}")
 
 
 def run(
@@ -143,7 +119,7 @@ def _run_backfill(
     )
 
     console.print("[bold]Step 1: Backfilling transaction events[/]")
-    ledger_count = _backfill_transactions(data_dir, event_store, service, stats, dry_run)
+    ledger_count = backfill_transactions_with_progress(data_dir, event_store, service, stats, dry_run)
     if ledger_count == 0:
         console.print("[yellow]No ledger files found[/]")
 
@@ -154,7 +130,7 @@ def _run_backfill(
     if stats.budget_created == 0:
         console.print("[yellow]No budgets found in configuration[/]")
 
-    _display_summary(stats, dry_run, effective_event_store_path)
+    display_summary(stats, dry_run, effective_event_store_path)
 
     if not dry_run:
         return _validate_and_report(
@@ -218,57 +194,6 @@ def _display_validation_results(result) -> None:
 
     if result.sample_transactions_match:
         console.print("  ✓ Sample transaction validation passed")
-
-
-def _backfill_transactions(
-    data_dir: Path,
-    event_store,
-    service: EventMigrationService,
-    stats: MigrationStats,
-    dry_run: bool,
-) -> int:
-    """Backfill transaction events from ledger CSVs. Returns ledger file count."""
-    ledger_files = LedgerRepository(data_dir).ledger_paths()
-
-    if not ledger_files:
-        return 0
-
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-    ) as progress:
-        task = progress.add_task("Processing ledgers...", total=len(ledger_files))
-
-        for ledger_path in ledger_files:
-            try:
-                # Use service to generate events
-                csv_text = ledger_path.read_text(encoding="utf-8")
-                events, errors = service.build_transaction_events(csv_text, ledger_path.name)
-
-                # Update statistics
-                for event in events:
-                    if event.event_type == "TransactionImported":
-                        stats.transaction_imported += 1
-                    elif event.event_type == "TransactionCategorized":
-                        stats.transaction_categorized += 1
-
-                    # Write events if not dry run
-                    if not dry_run:
-                        event_store.append_event(event)
-
-                # Report errors
-                for error in errors:
-                    print_error(error)
-                    stats.errors += 1
-
-            except LEDGER_IO_ERRORS as e:
-                print_error(f"Error processing {ledger_path.name}: {e}")
-                stats.errors += 1
-
-            progress.advance(task)
-
-    return len(ledger_files)
 
 
 def _backfill_budgets(
@@ -337,6 +262,8 @@ def _validate_projections(
     except (OSError, ValueError) as e:
         print_error(f"Error loading categories config: {e}")
         return _ValidationResult(passed=False, tx_count=tx_count, budget_count=budget_count)
+
+    from gilt.model.ledger_repository import LedgerRepository
 
     ledger_texts = LedgerRepository(data_dir).load_all_raw_texts()
     result = service.validate_migration(

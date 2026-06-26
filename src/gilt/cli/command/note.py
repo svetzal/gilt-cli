@@ -169,32 +169,28 @@ def run(
 
     if not ledger_repo.exists(account):
         print_error(f"Ledger not found: {ledger_repo.ledger_path(account)}")
-        return 1
+        raise CommandAbort(1)
 
     try:
         groups = ledger_repo.load(account)
     except ValueError as e:
         print_error(f"Error loading ledger: {e}")
-        return 1
+        raise CommandAbort(1)
 
     if not groups:
         console.print(
             f"[yellow]No transactions found in ledger:[/] {ledger_repo.ledger_path(account)}"
         )
-        return 1
+        raise CommandAbort(1)
 
     service = TransactionOperationsService()
-
-    try:
-        groups_to_update = _resolve_note_targets(
-            service, groups, account, txid, description, desc_prefix, pattern, amount
-        )
-    except CommandAbort as exc:
-        return exc.code
+    groups_to_update = _resolve_note_targets(
+        service, groups, account, txid, description, desc_prefix, pattern, amount
+    )
 
     if not groups_to_update:
         console.print("[yellow]No transactions matched the specified criteria.[/yellow]")
-        return 1
+        raise CommandAbort(1)
 
     _print_note_target_summary(
         groups_to_update, account, txid, description, desc_prefix, pattern, amount

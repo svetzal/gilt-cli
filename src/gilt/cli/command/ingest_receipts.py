@@ -12,9 +12,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from rich.prompt import Prompt
-from rich.table import Table
-
 from gilt.services.receipt_ingestion_service import (
     DEFAULT_VENDOR_PATTERNS,
     MatchResult,
@@ -26,8 +23,9 @@ from gilt.services.receipt_ingestion_service import (
 )
 from gilt.workspace import Workspace
 
-from ..console import console, print_dry_run_message, print_error
-from ..formatting import fmt_amount_str
+from ..console import console, print_error
+from .ingest_receipts_review import resolve_ambiguous_interactively
+from .ingest_receipts_view import display_results_table, display_summary
 
 
 def _emit_enrichment_events(matched: list[MatchResult], store) -> int:
@@ -53,129 +51,6 @@ def _emit_enrichment_events(matched: list[MatchResult], store) -> int:
         store.append_event(event)
         written += 1
     return written
-
-
-def _display_summary(
-    console,
-    matched: list[MatchResult],
-    ambiguous: list[MatchResult],
-    unmatched: list[MatchResult],
-    skipped_already_ingested: int,
-    skipped_parse_errors: int,
-    write: bool,
-    written: int,
-) -> None:
-    """Print the final ingest-receipts summary block."""
-    console.print("\n[bold]Summary:[/bold]")
-    console.print(f"  Matched: {len(matched)}")
-    console.print(f"  Ambiguous: {len(ambiguous)}")
-    console.print(f"  Unmatched: {len(unmatched)}")
-    console.print(f"  Already ingested: {skipped_already_ingested}")
-    if skipped_parse_errors:
-        console.print(f"  Parse errors: {skipped_parse_errors}")
-
-    if write and written > 0:
-        console.print(f"\n[green]{written} TransactionEnriched event(s) written.[/green]")
-        console.print("[dim]Tip: Run 'gilt rebuild-projections' to update projections.[/dim]")
-    elif not write and matched:
-        print_dry_run_message(detail=f"{len(matched)} enrichment(s)")
-
-
-def _display_results_table(results: list[MatchResult]) -> None:
-    """Display receipt matching results in a table."""
-    if not results:
-        return
-
-    table = Table(title="Receipt Matching Results", show_lines=False)
-    table.add_column("Vendor", style="white", no_wrap=True, max_width=30)
-    table.add_column("Amount", justify="right", style="yellow")
-    table.add_column("Date", style="cyan", no_wrap=True)
-    table.add_column("Invoice #", style="dim")
-    table.add_column("Status", no_wrap=True)
-    table.add_column("Details", style="dim", max_width=50)
-
-    for r in results:
-        receipt = r.receipt
-        amount_str = fmt_amount_str(receipt.amount)
-        confidence = r.match_confidence or ""
-
-        if r.status == "matched":
-            status = f"[green]matched ({confidence})[/green]"
-            details = f"txid={r.transaction_id[:8]}"
-            if r.current_description:
-                details += f"  {r.current_description[:40]}"
-        elif r.status == "ambiguous":
-            status = f"[yellow]ambiguous ({r.candidate_count})[/yellow]"
-            details = ", ".join(c["transaction_id"][:8] for c in r.candidates[:5])
-        else:
-            status = "[red]unmatched[/red]"
-            details = ""
-
-        table.add_row(
-            receipt.vendor,
-            amount_str,
-            str(receipt.receipt_date),
-            receipt.invoice_number or "",
-            status,
-            details,
-        )
-
-    console.print(table)
-
-
-def _resolve_ambiguous_interactively(ambiguous: list[MatchResult]) -> list[MatchResult]:
-    """Prompt the user to disambiguate ambiguous matches. Returns resolved items."""
-    resolved: list[MatchResult] = []
-
-    for r in ambiguous:
-        receipt = r.receipt
-        tax_str = f" + ${receipt.tax_amount:.2f} {receipt.tax_type}" if receipt.tax_amount else ""
-        subtotal = receipt.amount
-        total = subtotal + receipt.tax_amount if receipt.tax_amount else subtotal
-
-        console.print("\n[bold]Ambiguous receipt:[/bold]")
-        console.print(f"  Vendor: {receipt.vendor}")
-        if receipt.service:
-            console.print(f"  Service: {receipt.service}")
-        console.print(f"  Amount: ${subtotal:.2f}{tax_str} = ${total:.2f}")
-        console.print(f"  Date: {receipt.receipt_date}")
-        if receipt.invoice_number:
-            console.print(f"  Invoice: {receipt.invoice_number}")
-        console.print()
-
-        for i, candidate in enumerate(r.candidates, 1):
-            txid = candidate["transaction_id"][:8]
-            txn_date = candidate.get("transaction_date", "")
-            txn_amount = candidate.get("amount", "")
-            desc = candidate.get("canonical_description", "")
-            acct = candidate.get("account_id", "")
-            console.print(f"  {i}) {txid}  {txn_date}  ${txn_amount}  {desc}  [{acct}]")
-
-        console.print()
-        valid_choices = [str(i) for i in range(1, len(r.candidates) + 1)] + ["s", "S"]
-        choice = Prompt.ask(
-            f"Select [1-{len(r.candidates)}/s to skip]",
-            choices=valid_choices,
-            show_choices=False,
-        )
-
-        if choice.lower() == "s":
-            continue
-
-        selected = r.candidates[int(choice) - 1]
-        resolved.append(
-            MatchResult(
-                receipt=receipt,
-                status="matched",
-                transaction_id=selected["transaction_id"],
-                candidate_count=r.candidate_count,
-                current_description=selected.get("canonical_description", ""),
-                candidates=r.candidates,
-                match_confidence="user-selected",
-            )
-        )
-
-    return resolved
 
 
 def _filter_paths_by_year(json_paths: list[Path], year: int) -> tuple[list[Path], list[str]]:
@@ -243,7 +118,7 @@ def run(
     skipped_already_ingested = batch.skipped_already_ingested
     skipped_parse_errors = batch.skipped_parse_errors
 
-    _display_results_table(matched + ambiguous + unmatched)
+    display_results_table(matched + ambiguous + unmatched)
     return _finalize_receipts(
         matched,
         ambiguous,
@@ -268,7 +143,7 @@ def _finalize_receipts(
 ) -> int:
     """Resolve ambiguous matches interactively, emit enrichment events, and display summary."""
     if interactive and ambiguous:
-        resolved = _resolve_ambiguous_interactively(ambiguous)
+        resolved = resolve_ambiguous_interactively(ambiguous)
         matched.extend(resolved)
         ambiguous = [r for r in ambiguous if r not in resolved]
 
@@ -276,8 +151,7 @@ def _finalize_receipts(
     if write and matched:
         written = _emit_enrichment_events(matched, store)
 
-    _display_summary(
-        console,
+    display_summary(
         matched,
         ambiguous,
         unmatched,

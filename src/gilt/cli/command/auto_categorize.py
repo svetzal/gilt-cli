@@ -68,9 +68,6 @@ class Prediction:
 def _train_classifier(workspace, min_samples) -> _TrainResult:
     """Train the ML classifier. Returns a _TrainResult with exit_code=None on success."""
     ready = require_event_sourcing(workspace)
-    if ready is None:
-        return _TrainResult(exit_code=1)
-
     try:
         classifier = CategorizationClassifier(
             ready.event_store, min_samples_per_category=min_samples
@@ -85,9 +82,6 @@ def _train_classifier(workspace, min_samples) -> _TrainResult:
 def _load_uncategorized(workspace, account, limit) -> _LoadResult:
     """Load uncategorized transactions. Returns a _LoadResult with exit_code=None on success."""
     all_rows = load_account_transactions(workspace, None)
-    if all_rows is None:
-        return _LoadResult(exit_code=1)
-
     uncategorized_rows = find_uncategorized(all_rows)
     if account:
         uncategorized_rows = [r for r in uncategorized_rows if r.get("account_id") == account]

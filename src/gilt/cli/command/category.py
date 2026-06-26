@@ -23,6 +23,7 @@ from gilt.workspace import Workspace
 
 from ..console import console, print_dry_run_message, print_error
 from ..formatting import fmt_amount_str
+from ._errors import CommandAbort
 
 
 def run(
@@ -61,7 +62,7 @@ def run(
     actions = [add, remove, set_budget]
     if sum(a is not None for a in actions) != 1:
         print_error("Specify exactly one action: --add, --remove, or --set-budget")
-        return 1
+        raise CommandAbort(1)
 
     # Load config
     category_config = load_categories_config(config)
@@ -93,7 +94,7 @@ def run(
             category_config, set_budget, amount, period, config, write
         )
 
-    return 1
+    raise CommandAbort(1)
 
 
 def _validate_and_handle_set_budget(
@@ -107,16 +108,16 @@ def _validate_and_handle_set_budget(
     """Validate amount and period, then dispatch to _handle_set_budget. Returns exit code."""
     if amount is None:
         print_error("--amount is required with --set-budget")
-        return 1
+        raise CommandAbort(1)
     if amount <= 0:
         print_error("Budget amount must be positive")
-        return 1
+        raise CommandAbort(1)
 
     try:
         budget_period = BudgetPeriod(period)
     except ValueError:
         print_error(f"Invalid period '{period}'. Use 'monthly' or 'yearly'")
-        return 1
+        raise CommandAbort(1)
 
     return _handle_set_budget(
         category_config=category_config,
@@ -158,7 +159,7 @@ def _handle_add(
             print_error(error)
         if subcat_name and any("does not exist" in e for e in result.errors):
             console.print(f"Create the parent first: gilt category --add '{cat_name}' --write")
-        return 1
+        raise CommandAbort(1)
 
     # Success - display what will be added
     if subcat_name:
@@ -185,7 +186,7 @@ def _confirm_removal(plan, write: bool) -> int | None:
         for warning in plan.warnings:
             console.print(f"[yellow]Warning:[/] {warning}")
         console.print("[dim]Use --force to confirm removal (dry-run)[/]")
-        return 1
+        raise CommandAbort(1)
 
     import sys
 
@@ -272,7 +273,7 @@ def _handle_set_budget(
 
     if subcat_name:
         print_error("Budgets can only be set at category level, not subcategory")
-        return 1
+        raise CommandAbort(1)
 
     # Use service for business logic
     service = CategoryManagementService(category_config)
@@ -284,7 +285,7 @@ def _handle_set_budget(
             print_error(error)
         if "not found" in " ".join(result.errors):
             console.print(f"Create it first: gilt category --add '{cat_name}' --write")
-        return 1
+        raise CommandAbort(1)
 
     # Display what will be set
     console.print(f"[bold]Setting budget for:[/] {cat_name}")

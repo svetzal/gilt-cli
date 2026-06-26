@@ -278,25 +278,18 @@ def _run_file_batch(
     categorization_service: CategorizationService | None,
 ) -> int:
     """Orchestrate the file batch flow: read → parse → resolve → preview → persist."""
-    try:
-        text = _read_batch_input(txid_file, from_stdin)
-    except CommandAbort as exc:
-        return exc.code
-
+    text = _read_batch_input(txid_file, from_stdin)
     entries, parse_errors = _parse_batch_lines(text)
     if parse_errors:
         for err in parse_errors:
             print_error(err)
-        return 1
+        raise CommandAbort(1)
 
     if not entries:
         categorize_view.print_no_entries()
         return 0
 
     all_transactions = load_account_transactions(workspace, account)
-    if all_transactions is None:
-        return 1
-
     svc, cat_svc = _init_services(workspace, service, categorization_service)
 
     resolved, resolve_errors = _resolve_batch_entries(
@@ -305,7 +298,7 @@ def _run_file_batch(
     if resolve_errors:
         for err in resolve_errors:
             print_error(err)
-        return 1
+        raise CommandAbort(1)
 
     return _persist_file_batch(resolved, all_transactions, workspace, write)
 
@@ -356,8 +349,6 @@ def _persist_file_batch(
 def _apply_batch_persist(persist, workspace: Workspace) -> int:
     """Resolve event sourcing and run persist callback. Returns exit code."""
     ready = require_event_sourcing(workspace)
-    if ready is None:
-        return 1
     persist(ready)
     return 0
 
@@ -379,30 +370,24 @@ def _run_single_batch(
     categorization_service: CategorizationService | None,
 ) -> int:
     """Validate inputs, resolve matching transactions, confirm, and apply categorization."""
-    try:
-        service, categorization_service, category, subcategory, single_mode = _validate_inputs(
-            workspace,
-            service,
-            categorization_service,
-            category,
-            subcategory,
-            txid,
-            description,
-            desc_prefix,
-            pattern,
-        )
-    except CommandAbort as exc:
-        return exc.code
+    service, categorization_service, category, subcategory, single_mode = _validate_inputs(
+        workspace,
+        service,
+        categorization_service,
+        category,
+        subcategory,
+        txid,
+        description,
+        desc_prefix,
+        pattern,
+    )
 
     all_transactions = load_account_transactions(workspace, account)
-    if all_transactions is None:
-        return 1
-
     all_matches = _resolve_targets(
         all_transactions, single_mode, txid, description, desc_prefix, pattern, amount, service
     )
     if all_matches is None:
-        return 1
+        raise CommandAbort(1)
 
     if len(all_matches) == 0:
         categorize_view.print_no_matches()
@@ -478,7 +463,7 @@ def run(
                 "--txid-file / --from-stdin cannot be combined with "
                 "--txid, --description, --desc-prefix, --pattern, --category, or --subcategory"
             )
-            return 1
+            raise CommandAbort(1)
         return _run_file_batch(
             workspace=workspace,
             account=account,
@@ -493,7 +478,7 @@ def run(
         print_error(
             "--category is required (or use --txid-file / --from-stdin for file batch mode)"
         )
-        return 1
+        raise CommandAbort(1)
 
     return _run_single_batch(
         workspace=workspace,

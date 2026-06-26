@@ -179,8 +179,6 @@ def run(
     data_dir = workspace.ledger_data_dir
 
     ready = require_event_sourcing(workspace)
-    if ready is None:
-        return 1
     event_store = ready.event_store
     projection_builder = ready.projection_builder
     es_service = build_event_sourcing_service(workspace)

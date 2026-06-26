@@ -7,6 +7,8 @@ from typing import Any, NoReturn
 
 import typer
 
+from gilt.cli.command._errors import CommandAbort
+
 HELP_WRITE = "Persist changes (default: dry-run)"
 
 
@@ -16,7 +18,10 @@ def dispatch(run: Callable[..., int], /, **kwargs: Any) -> NoReturn:
     Cross-cutting concerns (logging, error middleware, exit-code translation) belong here,
     not in each wrapper.
     """
-    code = run(**kwargs)
+    try:
+        code = run(**kwargs)
+    except CommandAbort as exc:
+        raise typer.Exit(code=exc.code) from exc
     raise typer.Exit(code=code)
 
 

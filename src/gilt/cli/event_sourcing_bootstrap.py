@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from gilt.cli.command._errors import CommandAbort
 from gilt.cli.console import console
 from gilt.model.ledger_repository import LedgerRepository
 from gilt.services.categorization_persistence_service import CategorizationPersistenceService
@@ -43,8 +44,8 @@ def require_event_sourcing(
     *,
     event_store_path: Path | None = None,
     projections_path: Path | None = None,
-) -> EventSourcingReadyResult | None:
-    """Initialize event sourcing or print error and return None.
+) -> EventSourcingReadyResult:
+    """Initialize event sourcing or print error and raise CommandAbort(1).
 
     Calls ensure_ready() which auto-rebuilds projections if needed.
     Uses the error message pattern from the duplicates command (most informative).
@@ -79,7 +80,7 @@ def require_event_sourcing(
             console.print("  3. Run: gilt ingest --write")
         else:
             console.print(f"[red]Error:[/red] Data directory not found: {data_dir}")
-        return None
+        raise CommandAbort(1)
 
     if result.events_processed > 0:
         console.print(
@@ -102,14 +103,14 @@ def require_persistence_service(
     )
 
 
-def require_projections(workspace: Workspace) -> ProjectionBuilder | None:
-    """Load projections or print error and return None."""
+def require_projections(workspace: Workspace) -> ProjectionBuilder:
+    """Load projections or print error and raise CommandAbort(1)."""
     if not workspace.projections_path.exists():
         console.print(
             f"[red]Error:[/red] Projections database not found at {workspace.projections_path}\n"
             "[dim]Run 'gilt rebuild-projections' first[/dim]"
         )
-        return None
+        raise CommandAbort(1)
     return ProjectionBuilder(workspace.projections_path)
 
 

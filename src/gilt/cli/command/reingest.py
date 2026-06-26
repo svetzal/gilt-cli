@@ -18,6 +18,7 @@ from gilt.workspace import Workspace
 
 from ..console import console, print_dry_run_message, print_error
 from ..event_sourcing_bootstrap import require_event_sourcing
+from ._errors import CommandAbort
 
 
 def _delete_existing_ledger(ledger_path: Path) -> bool:
@@ -104,7 +105,7 @@ def run(
 
     if not target:
         print_error(f"Account '{account}' not found in config")
-        return 1
+        raise CommandAbort(1)
 
     # Find source files for this account
     ingestion_service = IngestionService(accounts=accounts)
@@ -113,12 +114,10 @@ def run(
 
     if not account_files:
         console.print(f"[yellow]No source files matched account '{account}'[/]")
-        return 1
+        raise CommandAbort(1)
 
     # Initialize event sourcing
     ready = require_event_sourcing(workspace)
-    if ready is None:
-        return 1
     event_store = ready.event_store
     projection_builder = ready.projection_builder
 

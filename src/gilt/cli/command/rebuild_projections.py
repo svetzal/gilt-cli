@@ -16,12 +16,12 @@ Options:
 
 from pathlib import Path
 
-from rich.table import Table
-
 from gilt.workspace import Workspace
 
 from ..console import console, print_error
 from ..event_sourcing_bootstrap import build_event_sourcing_service
+from ._errors import CommandAbort
+from .rebuild_projections_view import display_rebuild_summary
 
 
 def run(
@@ -41,18 +41,15 @@ def run(
     """
     es_service = build_event_sourcing_service(workspace, events_db, projections_db)
 
-    # Check if event store exists
     event_store_status = es_service.check_event_store_status()
     if not event_store_status.exists:
         print_error(f"Event store not found: {event_store_status.path}")
         console.print("[dim]Run 'gilt ingest --write' first to create events.[/dim]")
-        return 1
+        raise CommandAbort(1)
 
-    # Get instances
     event_store = es_service.get_event_store()
     projection_builder = es_service.get_projection_builder()
 
-    # Determine mode (default to incremental unless --from-scratch specified)
     mode = "from-scratch" if from_scratch else "incremental"
 
     console.print(f"[bold]Rebuilding projections ({mode} mode)[/bold]")
@@ -60,7 +57,6 @@ def run(
     console.print(f"Projections DB: {es_service.projections_path}")
     console.print()
 
-    # Get event counts
     all_events = event_store.get_all_events()
     total_events = len(all_events)
 
@@ -89,59 +85,13 @@ def _rebuild_and_report(
 
         transactions = projection_builder.get_all_transactions(include_duplicates=False)
         duplicates = projection_builder.get_all_transactions(include_duplicates=True)
-        _display_rebuild_summary(transactions, duplicates)
+        display_rebuild_summary(transactions, duplicates)
 
         return 0
 
     except (OSError, ValueError) as e:
         print_error(f"Error rebuilding projections: {e}")
-        return 1
-
-
-def _display_rebuild_summary(
-    transactions: list,
-    duplicates: list,
-) -> None:
-    """Display the rebuild summary including account breakdown and enrichment stats."""
-    num_duplicates = len(duplicates) - len(transactions)
-
-    console.print()
-    console.print("[bold]Summary:[/bold]")
-    console.print(f"  Total transactions: {len(transactions)}")
-    if num_duplicates > 0:
-        console.print(f"  Duplicates detected: {num_duplicates}")
-
-    # Show transaction breakdown by account
-    accounts = {}
-    for txn in transactions:
-        account_id = txn["account_id"]
-        accounts[account_id] = accounts.get(account_id, 0) + 1
-
-    if accounts:
-        console.print()
-        table = Table(title="Transactions by Account")
-        table.add_column("Account", style="cyan")
-        table.add_column("Count", justify="right", style="green")
-
-        for account_id in sorted(accounts.keys()):
-            table.add_row(account_id, str(accounts[account_id]))
-
-        console.print(table)
-
-    # Show description evolution examples
-    evolved_count = sum(
-        1
-        for txn in transactions
-        if txn.get("description_history") and len(eval(txn["description_history"])) > 1
-    )
-
-    if evolved_count > 0:
-        console.print()
-        console.print(f"[dim]ℹ {evolved_count} transactions have evolved descriptions[/dim]")
-
-    enriched_count = sum(1 for txn in transactions if txn.get("vendor"))
-    if enriched_count > 0:
-        console.print(f"[dim]ℹ {enriched_count} transactions enriched with receipt data[/dim]")
+        raise CommandAbort(1)
 
 
 __all__ = ["run"]
