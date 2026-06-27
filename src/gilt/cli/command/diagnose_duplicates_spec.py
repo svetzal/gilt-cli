@@ -9,6 +9,9 @@ from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
+
+from gilt.cli.command._errors import CommandAbort
 from gilt.cli.command.diagnose_duplicates import run
 from gilt.model.events import TransactionImported
 from gilt.storage.event_store import EventStore
@@ -152,5 +155,6 @@ class DescribeDiagnose_DuplicatesCommand:
             tmp_path = Path(tmpdir)
             workspace = Workspace(root=tmp_path)
             # No projections.db created
-            rc = run(workspace=workspace)
-            assert rc == 1
+            with pytest.raises(CommandAbort) as exc_info:
+                run(workspace=workspace)
+            assert exc_info.value.code == 1

@@ -303,7 +303,7 @@ class DescribeIngestReceiptsCommand:
             _write_receipt(source / "acme.json")
 
             # User selects candidate 1
-            with patch("gilt.cli.command.ingest_receipts.Prompt.ask", return_value="1"):
+            with patch("gilt.cli.command.ingest_receipts_review.Prompt.ask",return_value="1"):
                 rc = run(workspace=ws, source=source, write=True, interactive=True)
 
             assert rc == 0
@@ -338,7 +338,7 @@ class DescribeIngestReceiptsCommand:
             _write_receipt(source / "acme.json")
 
             # User selects candidate 2
-            with patch("gilt.cli.command.ingest_receipts.Prompt.ask", return_value="2"):
+            with patch("gilt.cli.command.ingest_receipts_review.Prompt.ask",return_value="2"):
                 rc = run(workspace=ws, source=source, write=True, interactive=True)
 
             assert rc == 0
@@ -370,7 +370,7 @@ class DescribeIngestReceiptsCommand:
             _write_receipt(source / "acme.json")
 
             # User skips
-            with patch("gilt.cli.command.ingest_receipts.Prompt.ask", return_value="s"):
+            with patch("gilt.cli.command.ingest_receipts_review.Prompt.ask",return_value="s"):
                 rc = run(workspace=ws, source=source, write=True, interactive=True)
 
             assert rc == 0
@@ -418,7 +418,7 @@ class DescribeIngestReceiptsCommand:
             _write_receipt(source / "acme.json")
 
             # Interactive + dry-run: user selects but nothing is written
-            with patch("gilt.cli.command.ingest_receipts.Prompt.ask", return_value="1"):
+            with patch("gilt.cli.command.ingest_receipts_review.Prompt.ask",return_value="1"):
                 rc = run(workspace=ws, source=source, write=False, interactive=True)
 
             assert rc == 0

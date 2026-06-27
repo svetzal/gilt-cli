@@ -117,7 +117,7 @@ def _validate_and_handle_set_budget(
         budget_period = BudgetPeriod(period)
     except ValueError:
         print_error(f"Invalid period '{period}'. Use 'monthly' or 'yearly'")
-        raise CommandAbort(1)
+        raise CommandAbort(1) from None
 
     return _handle_set_budget(
         category_config=category_config,

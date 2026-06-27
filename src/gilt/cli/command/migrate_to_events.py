@@ -342,7 +342,7 @@ def _run_migration(
         )
     except (OSError, ValueError) as e:
         print_error(f"Validation failed: {e}")
-        raise CommandAbort(1)
+        raise CommandAbort(1) from None
     if _print_validation_result(validation_result, has_categories) != 0:
         raise CommandAbort(1)
 

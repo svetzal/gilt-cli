@@ -9,8 +9,10 @@ from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
 from rich.console import Console
 
+from gilt.cli.command._errors import CommandAbort
 from gilt.cli.command.conftest import write_ledger
 from gilt.cli.command.uncategorized import run
 from gilt.model.account import Transaction, TransactionGroup
@@ -260,8 +262,9 @@ class DescribeUncategorizedCommand:
             workspace = Workspace(root=Path(tmpdir))
             _build_projections(workspace, [])
 
-            rc = run(workspace=workspace)
-            assert rc == 1
+            with pytest.raises(CommandAbort) as exc_info:
+                run(workspace=workspace)
+            assert exc_info.value.code == 1
 
     def it_should_error_on_nonexistent_account(self):
         with TemporaryDirectory() as tmpdir:
@@ -275,8 +278,9 @@ class DescribeUncategorizedCommand:
             builder = ProjectionBuilder(workspace.projections_path)
             builder.build_from_scratch(store)
 
-            rc = run(account="NONEXISTENT", workspace=workspace)
-            assert rc == 1
+            with pytest.raises(CommandAbort) as exc_info:
+                run(account="NONEXISTENT", workspace=workspace)
+            assert exc_info.value.code == 1
 
     def it_should_combine_filters(self):
         with TemporaryDirectory() as tmpdir:

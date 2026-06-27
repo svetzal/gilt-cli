@@ -9,8 +9,10 @@ from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
 from rich.console import Console
 
+from gilt.cli.command._errors import CommandAbort
 from gilt.cli.command.receipts import run
 from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.events import TransactionCategorized, TransactionEnriched, TransactionImported
@@ -377,6 +379,7 @@ class DescribeReceiptsCommand:
             # Do NOT build projections
 
             cap = Console(record=True)
-            rc = run(workspace=workspace, _console=cap)
+            with pytest.raises(CommandAbort) as exc_info:
+                run(workspace=workspace, _console=cap)
 
-            assert rc == 1
+            assert exc_info.value.code == 1

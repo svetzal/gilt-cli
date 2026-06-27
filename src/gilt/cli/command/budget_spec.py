@@ -7,6 +7,9 @@ Tests for budget command.
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
+
+from gilt.cli.command._errors import CommandAbort
 from gilt.cli.command.budget import run
 from gilt.cli.command.conftest import write_ledger
 from gilt.model.account import Transaction, TransactionGroup
@@ -230,8 +233,9 @@ class DescribeBudgetCommand:
             config = CategoryConfig(categories=[Category(name="Housing")])
             save_categories_config(config_path, config)
 
-            rc = run(month=1, workspace=workspace)
-            assert rc == 1
+            with pytest.raises(CommandAbort) as exc_info:
+                run(month=1, workspace=workspace)
+            assert exc_info.value.code == 1
 
     def it_should_error_on_invalid_month(self):
         with TemporaryDirectory() as tmpdir:
@@ -245,8 +249,9 @@ class DescribeBudgetCommand:
             config = CategoryConfig(categories=[Category(name="Housing")])
             save_categories_config(config_path, config)
 
-            rc = run(year=2025, month=13, workspace=workspace)
-            assert rc == 1
+            with pytest.raises(CommandAbort) as exc_info:
+                run(year=2025, month=13, workspace=workspace)
+            assert exc_info.value.code == 1
 
 
 class DescribeBudgetProration:

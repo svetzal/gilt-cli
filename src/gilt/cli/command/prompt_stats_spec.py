@@ -10,6 +10,9 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+from gilt.cli.command._errors import CommandAbort
 from gilt.cli.command.prompt_stats import run
 from gilt.services.event_sourcing_service import EventSourcingReadyResult
 
@@ -40,9 +43,10 @@ class DescribePromptStatsCommand:
         workspace.ledger_data_dir = Path("/nonexistent/path/accounts")
         workspace.event_store_path = Path("/nonexistent/path/events.db")
 
-        result = run(workspace=workspace)
+        with pytest.raises(CommandAbort) as exc_info:
+            run(workspace=workspace)
 
-        assert result == 1
+        assert exc_info.value.code == 1
 
     def it_should_return_error_when_event_store_not_found(self):
         with TemporaryDirectory() as tmpdir:
@@ -62,9 +66,10 @@ class DescribePromptStatsCommand:
                 )
                 mock_es_cls.return_value = mock_es
 
-                result = run(workspace=workspace)
+                with pytest.raises(CommandAbort) as exc_info:
+                    run(workspace=workspace)
 
-            assert result == 1
+            assert exc_info.value.code == 1
 
     def it_should_show_no_feedback_message_when_no_feedback(self):
         with TemporaryDirectory() as tmpdir:

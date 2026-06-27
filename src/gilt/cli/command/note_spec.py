@@ -3,6 +3,9 @@ from __future__ import annotations
 from datetime import date as dt_date
 from pathlib import Path
 
+import pytest
+
+from gilt.cli.command._errors import CommandAbort
 from gilt.cli.command.note import run
 from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
@@ -188,12 +191,14 @@ def it_should_complain_on_short_or_ambiguous_prefix(tmp_path: Path):
     )
 
     # Too short
-    rc_short = run(account=acc, txid="aabbccd", note_text="x", workspace=workspace, write=False)
-    assert rc_short == 2
+    with pytest.raises(CommandAbort) as exc_info_short:
+        run(account=acc, txid="aabbccd", note_text="x", workspace=workspace, write=False)
+    assert exc_info_short.value.code == 2
 
     # Ambiguous
-    rc_amb = run(account=acc, txid="aabbccdd", note_text="x", workspace=workspace, write=False)
-    assert rc_amb == 2
+    with pytest.raises(CommandAbort) as exc_info_amb:
+        run(account=acc, txid="aabbccdd", note_text="x", workspace=workspace, write=False)
+    assert exc_info_amb.value.code == 2
 
 
 def it_should_update_notes_in_batch_by_description_and_amount(tmp_path: Path):
@@ -304,16 +309,17 @@ def it_should_return_error_when_no_batch_matches(tmp_path: Path):
             }
         ],
     )
-    rc = run(
-        account=acc,
-        txid=None,
-        note_text="x",
-        description="DEF",
-        amount=-10.0,
-        workspace=workspace,
-        write=False,
-    )
-    assert rc == 1
+    with pytest.raises(CommandAbort) as exc_info:
+        run(
+            account=acc,
+            txid=None,
+            note_text="x",
+            description="DEF",
+            amount=-10.0,
+            workspace=workspace,
+            write=False,
+        )
+    assert exc_info.value.code == 1
 
 
 def it_should_match_batch_on_description_with_whitespace_and_amount_by_absolute_when_needed(
@@ -659,15 +665,16 @@ def it_should_error_on_invalid_regex_pattern(tmp_path: Path):
     )
 
     # Invalid regex should return error code
-    rc = run(
-        account=acc,
-        txid=None,
-        note_text="test",
-        description=None,
-        desc_prefix=None,
-        pattern=r"[invalid(regex",  # Unclosed bracket
-        amount=None,
-        workspace=workspace,
-        write=False,
-    )
-    assert rc == 2  # Error code for invalid pattern
+    with pytest.raises(CommandAbort) as exc_info:
+        run(
+            account=acc,
+            txid=None,
+            note_text="test",
+            description=None,
+            desc_prefix=None,
+            pattern=r"[invalid(regex",  # Unclosed bracket
+            amount=None,
+            workspace=workspace,
+            write=False,
+        )
+    assert exc_info.value.code == 2  # Error code for invalid pattern

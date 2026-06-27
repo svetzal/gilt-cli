@@ -9,8 +9,10 @@ from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
 from rich.console import Console
 
+from gilt.cli.command._errors import CommandAbort
 from gilt.cli.command.summary import run
 from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.events import TransactionCategorized, TransactionImported
@@ -83,8 +85,9 @@ class DescribeSummaryCommand:
     def it_should_return_error_when_projections_missing(self):
         with TemporaryDirectory() as tmpdir:
             workspace = Workspace(root=Path(tmpdir))
-            rc, _ = _run_capturing(workspace)
-            assert rc == 1
+            with pytest.raises(CommandAbort) as exc_info:
+                _run_capturing(workspace)
+            assert exc_info.value.code == 1
 
     def it_should_show_category_table_with_defaults(self):
         with TemporaryDirectory() as tmpdir:

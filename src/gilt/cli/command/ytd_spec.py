@@ -191,7 +191,7 @@ class DescribeYtdServiceDisplay:
 
             buf = StringIO()
             test_console = Console(file=buf, width=200)
-            with patch("gilt.cli.command.ytd.console", test_console):
+            with patch("gilt.cli.command.ytd_view.console", test_console):
                 rc = run(
                     account="TEST_ACCT",
                     year=2025,
@@ -232,7 +232,7 @@ class DescribeYtdServiceDisplay:
 
             buf = StringIO()
             test_console = Console(file=buf, width=200)
-            with patch("gilt.cli.command.ytd.console", test_console):
+            with patch("gilt.cli.command.ytd_view.console", test_console):
                 rc = run(
                     account="TEST_ACCT",
                     year=2025,
@@ -275,7 +275,7 @@ class DescribeYtdServiceDisplay:
 
             buf = StringIO()
             test_console = Console(file=buf, width=200)
-            with patch("gilt.cli.command.ytd.console", test_console):
+            with patch("gilt.cli.command.ytd_view.console", test_console):
                 rc = run(
                     account="TEST_ACCT",
                     year=2025,
@@ -319,7 +319,7 @@ class DescribeYtdServiceDisplay:
 
             buf = StringIO()
             test_console = Console(file=buf, width=200)
-            with patch("gilt.cli.command.ytd.console", test_console):
+            with patch("gilt.cli.command.ytd_view.console", test_console):
                 rc = run(
                     account="TEST_ACCT",
                     year=2025,

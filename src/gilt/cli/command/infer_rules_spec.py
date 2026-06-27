@@ -1,7 +1,10 @@
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+import pytest
+
 from gilt.cli.command import infer_rules
+from gilt.cli.command._errors import CommandAbort
 from gilt.services.event_sourcing_service import EventSourcingReadyResult
 
 
@@ -17,8 +20,9 @@ def _make_workspace(tmp_path):
 class DescribeInferRulesCommand:
     def it_should_return_error_when_projections_missing(self, tmp_path):
         ws = _make_workspace(tmp_path)
-        code = infer_rules.run(workspace=ws)
-        assert code == 1
+        with pytest.raises(CommandAbort) as exc_info:
+            infer_rules.run(workspace=ws)
+        assert exc_info.value.code == 1
 
     def it_should_display_rules_in_preview_mode(self, tmp_path):
         ws = _make_workspace(tmp_path)

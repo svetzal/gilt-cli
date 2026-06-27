@@ -8,8 +8,10 @@ from datetime import date
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
 from typer.testing import CliRunner
 
+from gilt.cli.command._errors import CommandAbort
 from gilt.cli.command.conftest import build_projections_from_csvs, write_ledger
 from gilt.cli.command.recategorize import build_date_selection, run
 from gilt.model.account import Transaction, TransactionGroup
@@ -407,13 +409,14 @@ class DescribeRecategorizeCommand:
 
             workspace = Workspace(root=Path(tmpdir))
 
-            rc = run(
-                from_category="",
-                to_category="Other",
-                workspace=workspace,
-                write=False,
-            )
-            assert rc == 1
+            with pytest.raises(CommandAbort) as exc_info:
+                run(
+                    from_category="",
+                    to_category="Other",
+                    workspace=workspace,
+                    write=False,
+                )
+            assert exc_info.value.code == 1
 
     def it_should_error_on_empty_to_category(self):
         """Test that empty --to category returns error."""
@@ -423,13 +426,14 @@ class DescribeRecategorizeCommand:
 
             workspace = Workspace(root=Path(tmpdir))
 
-            rc = run(
-                from_category="Business",
-                to_category="",
-                workspace=workspace,
-                write=False,
-            )
-            assert rc == 1
+            with pytest.raises(CommandAbort) as exc_info:
+                run(
+                    from_category="Business",
+                    to_category="",
+                    workspace=workspace,
+                    write=False,
+                )
+            assert exc_info.value.code == 1
 
 
 # ---------------------------------------------------------------------------
@@ -831,38 +835,41 @@ class DescribeSelectionModeValidation:
     def it_should_error_when_desc_prefix_and_pattern_both_set(self):
         with TemporaryDirectory() as tmpdir:
             workspace = self._workspace(tmpdir)
-            rc = run(
-                to_category="Work",
-                workspace=workspace,
-                desc_prefix="ACME",
-                pattern=r"ACME.*",
-                write=False,
-            )
-            assert rc == 1
+            with pytest.raises(CommandAbort) as exc_info:
+                run(
+                    to_category="Work",
+                    workspace=workspace,
+                    desc_prefix="ACME",
+                    pattern=r"ACME.*",
+                    write=False,
+                )
+            assert exc_info.value.code == 1
 
     def it_should_error_when_amount_eq_combined_with_min_or_max(self):
         with TemporaryDirectory() as tmpdir:
             workspace = self._workspace(tmpdir)
-            rc = run(
-                to_category="Work",
-                workspace=workspace,
-                amount_eq=-18.30,
-                amount_min=-20.00,
-                write=False,
-            )
-            assert rc == 1
+            with pytest.raises(CommandAbort) as exc_info:
+                run(
+                    to_category="Work",
+                    workspace=workspace,
+                    amount_eq=-18.30,
+                    amount_min=-20.00,
+                    write=False,
+                )
+            assert exc_info.value.code == 1
 
     def it_should_error_when_no_from_and_no_selection(self):
         """Without --from and without selection flags, the command must error."""
         with TemporaryDirectory() as tmpdir:
             workspace = self._workspace(tmpdir)
-            rc = run(
-                to_category="Work",
-                workspace=workspace,
-                from_category=None,
-                write=False,
-            )
-            assert rc == 1
+            with pytest.raises(CommandAbort) as exc_info:
+                run(
+                    to_category="Work",
+                    workspace=workspace,
+                    from_category=None,
+                    write=False,
+                )
+            assert exc_info.value.code == 1
 
     def it_should_not_error_when_selection_only_and_no_from(self):
         """Selection mode with --to but no --from is valid."""

@@ -23,7 +23,11 @@ from gilt.workspace import Workspace
 
 from ..console import console
 from ..event_sourcing_bootstrap import require_event_sourcing
-from .prompt_stats_view import display_accuracy_metrics, display_learned_patterns, display_prompt_history
+from .prompt_stats_view import (
+    display_accuracy_metrics,
+    display_learned_patterns,
+    display_prompt_history,
+)
 
 
 def _generate_and_emit_update(

@@ -10,6 +10,9 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+from gilt.cli.command._errors import CommandAbort
 from gilt.cli.command.audit_ml import run
 from gilt.services.event_sourcing_service import EventSourcingReadyResult
 
@@ -20,9 +23,10 @@ class DescribeAuditMlCommand:
             workspace = MagicMock()
             workspace.event_store_path = Path(tmpdir) / "nonexistent" / "events.db"
 
-            result = run(workspace=workspace, mode="summary")
+            with pytest.raises(CommandAbort) as exc_info:
+                run(workspace=workspace, mode="summary")
 
-            assert result == 1
+            assert exc_info.value.code == 1
 
     def it_should_return_error_for_unknown_mode(self):
         with TemporaryDirectory() as tmpdir:

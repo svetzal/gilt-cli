@@ -8,6 +8,9 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
+import pytest
+
+from gilt.cli.command._errors import CommandAbort
 from gilt.cli.command.auto_categorize import (
     Prediction,
     _handle_modify_choice,
@@ -121,13 +124,14 @@ class DescribeAutoCategorize:
             save_categories_config(config_path, config)
 
             # Run without projections database
-            rc = run(
-                workspace=workspace,
-                write=False,
-            )
+            with pytest.raises(CommandAbort) as exc_info:
+                run(
+                    workspace=workspace,
+                    write=False,
+                )
 
             # Should fail with error about missing projections database
-            assert rc == 1
+            assert exc_info.value.code == 1
 
     def it_should_train_classifier_and_predict(self):
         """Should train classifier and predict categories."""

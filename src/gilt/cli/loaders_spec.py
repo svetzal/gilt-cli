@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+import pytest
+
+from gilt.cli.command._errors import CommandAbort
 from gilt.cli.loaders import (
     load_account_transactions,
     load_all_transactions,
@@ -18,9 +21,8 @@ class DescribeLoadAccountTransactions:
     def it_should_return_none_when_projections_missing(self, tmp_path):
         workspace = Workspace(root=tmp_path)
 
-        result = load_account_transactions(workspace, None)
-
-        assert result is None
+        with pytest.raises(CommandAbort):
+            load_account_transactions(workspace, None)
 
     def it_should_return_none_and_print_error_when_no_transactions_for_account(
         self, tmp_path, mocker
@@ -43,9 +45,9 @@ class DescribeLoadAccountTransactions:
         ProjectionBuilder(workspace.projections_path).build_from_scratch(store)
         mock_console = mocker.patch("gilt.cli.console.console")
 
-        result = load_account_transactions(workspace, "NONEXISTENT_ACCT")
+        with pytest.raises(CommandAbort):
+            load_account_transactions(workspace, "NONEXISTENT_ACCT")
 
-        assert result is None
         mock_console.print.assert_called()
         args = mock_console.print.call_args[0][0]
         assert "NONEXISTENT_ACCT" in args
@@ -91,9 +93,8 @@ class DescribeLoadAllTransactions:
     def it_should_return_none_when_projections_missing(self, tmp_path):
         workspace = Workspace(root=tmp_path)
 
-        result = load_all_transactions(workspace, include_duplicates=False)
-
-        assert result is None
+        with pytest.raises(CommandAbort):
+            load_all_transactions(workspace, include_duplicates=False)
 
     def it_should_return_transaction_list_when_projections_exist(self, tmp_path):
         workspace = Workspace(root=tmp_path)
@@ -124,9 +125,8 @@ class DescribeLoadFilteredTransactions:
     def it_should_return_none_when_projections_missing(self, tmp_path):
         workspace = Workspace(root=tmp_path)
 
-        result = load_filtered_transactions(workspace, TransactionFilter())
-
-        assert result is None
+        with pytest.raises(CommandAbort):
+            load_filtered_transactions(workspace, TransactionFilter())
 
     def it_should_return_filtered_transactions_from_projections(self, tmp_path):
         workspace = Workspace(root=tmp_path)

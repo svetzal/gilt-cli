@@ -175,7 +175,7 @@ def run(
         groups = ledger_repo.load(account)
     except ValueError as e:
         print_error(f"Error loading ledger: {e}")
-        raise CommandAbort(1)
+        raise CommandAbort(1) from None
 
     if not groups:
         console.print(

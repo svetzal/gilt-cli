@@ -7,6 +7,9 @@ Tests for category command.
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
+
+from gilt.cli.command._errors import CommandAbort
 from gilt.cli.command.category import run
 from gilt.cli.command.conftest import write_ledger
 from gilt.model.account import Transaction, TransactionGroup
@@ -92,12 +95,13 @@ class DescribeCategoryAdd:
 
             save_categories_config(config_path, CategoryConfig(categories=[]))
 
-            rc = run(
-                add="Housing:Utilities",
-                workspace=workspace,
-                write=True,
-            )
-            assert rc == 1
+            with pytest.raises(CommandAbort) as exc_info:
+                run(
+                    add="Housing:Utilities",
+                    workspace=workspace,
+                    write=True,
+                )
+            assert exc_info.value.code == 1
 
             # The error must name the missing parent and tell the user how to
             # create it, so the failure is actionable rather than silent.
@@ -242,12 +246,13 @@ class DescribeCategoryRemove:
             write_ledger(ledger_path, groups)
 
             # Without force should fail in dry-run
-            rc = run(
-                remove="Housing",
-                workspace=workspace,
-                write=False,
-            )
-            assert rc == 1
+            with pytest.raises(CommandAbort) as exc_info:
+                run(
+                    remove="Housing",
+                    workspace=workspace,
+                    write=False,
+                )
+            assert exc_info.value.code == 1
 
             # With force should succeed
             rc = run(
@@ -344,13 +349,14 @@ class DescribeCategorySetBudget:
 
             save_categories_config(config_path, CategoryConfig(categories=[]))
 
-            rc = run(
-                set_budget="NonExistent",
-                amount=100.0,
-                workspace=workspace,
-                write=True,
-            )
-            assert rc == 1
+            with pytest.raises(CommandAbort) as exc_info:
+                run(
+                    set_budget="NonExistent",
+                    amount=100.0,
+                    workspace=workspace,
+                    write=True,
+                )
+            assert exc_info.value.code == 1
 
     def it_should_error_when_setting_budget_for_subcategory(self):
         with TemporaryDirectory() as tmpdir:
@@ -371,13 +377,14 @@ class DescribeCategorySetBudget:
             )
             save_categories_config(config_path, config)
 
-            rc = run(
-                set_budget="Housing:Utilities",
-                amount=100.0,
-                workspace=workspace,
-                write=True,
-            )
-            assert rc == 1
+            with pytest.raises(CommandAbort) as exc_info:
+                run(
+                    set_budget="Housing:Utilities",
+                    amount=100.0,
+                    workspace=workspace,
+                    write=True,
+                )
+            assert exc_info.value.code == 1
 
     def it_should_require_amount_parameter(self):
         with TemporaryDirectory() as tmpdir:
@@ -391,13 +398,14 @@ class DescribeCategorySetBudget:
             config = CategoryConfig(categories=[Category(name="Housing")])
             save_categories_config(config_path, config)
 
-            rc = run(
-                set_budget="Housing",
-                amount=None,
-                workspace=workspace,
-                write=True,
-            )
-            assert rc == 1
+            with pytest.raises(CommandAbort) as exc_info:
+                run(
+                    set_budget="Housing",
+                    amount=None,
+                    workspace=workspace,
+                    write=True,
+                )
+            assert exc_info.value.code == 1
 
     def it_should_reject_negative_amount(self):
         with TemporaryDirectory() as tmpdir:
@@ -411,13 +419,14 @@ class DescribeCategorySetBudget:
             config = CategoryConfig(categories=[Category(name="Housing")])
             save_categories_config(config_path, config)
 
-            rc = run(
-                set_budget="Housing",
-                amount=-100.0,
-                workspace=workspace,
-                write=True,
-            )
-            assert rc == 1
+            with pytest.raises(CommandAbort) as exc_info:
+                run(
+                    set_budget="Housing",
+                    amount=-100.0,
+                    workspace=workspace,
+                    write=True,
+                )
+            assert exc_info.value.code == 1
 
 
 class DescribeCategoryValidation:
@@ -432,17 +441,19 @@ class DescribeCategoryValidation:
             workspace = Workspace(root=Path(tmpdir))
 
             # No action
-            rc = run(
-                workspace=workspace,
-                write=False,
-            )
-            assert rc == 1
+            with pytest.raises(CommandAbort) as exc_info_no_action:
+                run(
+                    workspace=workspace,
+                    write=False,
+                )
+            assert exc_info_no_action.value.code == 1
 
             # Multiple actions
-            rc = run(
-                add="Housing",
-                remove="Transportation",
-                workspace=workspace,
-                write=False,
-            )
-            assert rc == 1
+            with pytest.raises(CommandAbort) as exc_info_multi:
+                run(
+                    add="Housing",
+                    remove="Transportation",
+                    workspace=workspace,
+                    write=False,
+                )
+            assert exc_info_multi.value.code == 1

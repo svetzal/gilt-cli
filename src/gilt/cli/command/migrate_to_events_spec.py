@@ -9,8 +9,10 @@ Privacy: all data is synthetic — no real bank names, account IDs, or merchant 
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
 import yaml
 
+from gilt.cli.command._errors import CommandAbort
 from gilt.cli.command.migrate_to_events import run
 from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.category import Budget, BudgetPeriod, Category, CategoryConfig
@@ -89,8 +91,9 @@ class DescribeMigrateToEventsPreconditions:
             ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
             # No CSVs written
 
-            result = run(workspace=ws, write=False)
-            assert result == 1
+            with pytest.raises(CommandAbort) as exc_info:
+                run(workspace=ws, write=False)
+            assert exc_info.value.code == 1
 
     def it_should_return_1_even_in_dry_run_when_no_csv_files(self):
         """Preconditions are checked before dry-run logic executes."""
@@ -98,8 +101,9 @@ class DescribeMigrateToEventsPreconditions:
             ws = Workspace(root=Path(tmpdir))
             ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
 
-            result = run(workspace=ws, write=False)
-            assert result == 1
+            with pytest.raises(CommandAbort) as exc_info:
+                run(workspace=ws, write=False)
+            assert exc_info.value.code == 1
 
     def it_should_return_1_when_event_store_already_has_events_and_no_force(self):
         with TemporaryDirectory() as tmpdir:
@@ -128,8 +132,9 @@ class DescribeMigrateToEventsPreconditions:
             )
 
             # Without --force, should refuse to overwrite
-            result = run(workspace=ws, write=True, force=False)
-            assert result == 1
+            with pytest.raises(CommandAbort) as exc_info:
+                run(workspace=ws, write=True, force=False)
+            assert exc_info.value.code == 1
 
 
 # ---------------------------------------------------------------------------

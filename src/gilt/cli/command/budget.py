@@ -56,7 +56,7 @@ def run(
         )
     except (OSError, ValueError) as e:
         print_error(f"Failed to generate budget report: {e}")
-        raise CommandAbort(1)
+        raise CommandAbort(1) from None
 
     display_budget_report(summary, year, month, category)
 

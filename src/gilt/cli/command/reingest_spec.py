@@ -10,6 +10,9 @@ The purge logic (collect/execute) is tested in reingestion_service_spec.py.
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+from gilt.cli.command._errors import CommandAbort
 from gilt.cli.command.reingest import (
     _delete_existing_ledger,
     _finalize_reingest,
@@ -124,8 +127,9 @@ class DescribeReingestRunDryRun:
         )
         ws.ingest_dir.mkdir(parents=True, exist_ok=True)
 
-        result = run(account="NONEXISTENT", workspace=ws, write=False)
-        assert result == 1
+        with pytest.raises(CommandAbort) as exc_info:
+            run(account="NONEXISTENT", workspace=ws, write=False)
+        assert exc_info.value.code == 1
 
     def it_should_return_one_when_no_source_files_match_account(self, tmp_path: Path):
         ws = Workspace(root=tmp_path)
@@ -142,9 +146,10 @@ class DescribeReingestRunDryRun:
 
         with patch("gilt.cli.command.reingest.IngestionService") as MockSvc:
             MockSvc.return_value.build_ingestion_plan.return_value = mock_plan
-            result = run(account="MYBANK_CHQ", workspace=ws, write=False)
+            with pytest.raises(CommandAbort) as exc_info:
+                run(account="MYBANK_CHQ", workspace=ws, write=False)
 
-        assert result == 1
+        assert exc_info.value.code == 1
 
     def it_should_display_plan_and_return_zero_in_dry_run_mode(self, tmp_path: Path):
         ws = Workspace(root=tmp_path)

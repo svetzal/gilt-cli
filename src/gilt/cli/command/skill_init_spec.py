@@ -7,6 +7,9 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
+import pytest
+
+from gilt.cli.command._errors import CommandAbort
 from gilt.cli.command.skill_init import (
     _parse_frontmatter_version,
     _stamp_version,
@@ -125,14 +128,15 @@ class DescribeSkillInit:
             with (
                 patch("gilt.cli.command.skill_init._get_package_version", return_value="0.4.1"),
                 patch("gilt.cli.command.skill_init.Path.cwd", return_value=target),
+                pytest.raises(CommandAbort) as exc_info,
             ):
-                rc = run()
+                run()
 
             # Should not overwrite
             content = skill_md.read_text(encoding="utf-8")
             assert _parse_frontmatter_version(content) == "9.9.9"
             assert "Old content" in content
-            assert rc == 1  # skipped file → non-zero exit
+            assert exc_info.value.code == 1  # skipped file → non-zero exit
 
     def it_should_overwrite_newer_version_with_force(self):
         with TemporaryDirectory() as tmpdir:
@@ -210,10 +214,11 @@ class DescribeSkillInit:
             with (
                 patch("gilt.cli.command.skill_init._get_package_version", return_value="0.4.1"),
                 patch("gilt.cli.command.skill_init.Path.cwd", return_value=target),
+                pytest.raises(CommandAbort) as exc_info,
             ):
-                rc = run()
+                run()
 
-            assert rc == 1
+            assert exc_info.value.code == 1
 
 
 class DescribeJsonOutput:
@@ -267,12 +272,13 @@ class DescribeJsonOutput:
             with (
                 patch("gilt.cli.command.skill_init._get_package_version", return_value="0.4.1"),
                 patch("gilt.cli.command.skill_init.Path.cwd", return_value=target),
+                pytest.raises(CommandAbort) as exc_info,
             ):
-                rc = run(json_output=True)
+                run(json_output=True)
 
             captured = capsys.readouterr()
             payload = json.loads(captured.out)
-            assert rc == 1
+            assert exc_info.value.code == 1
             assert payload["success"] is False
             skill_entry = next(e for e in payload["files"] if e["path"] == "SKILL.md")
             assert skill_entry["action"] == "skipped"

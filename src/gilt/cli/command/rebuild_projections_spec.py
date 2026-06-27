@@ -8,6 +8,9 @@ Privacy: all data is synthetic — no real bank names, account IDs, or merchant 
 
 from pathlib import Path
 
+import pytest
+
+from gilt.cli.command._errors import CommandAbort
 from gilt.cli.command.rebuild_projections import run
 from gilt.conftest import make_workspace
 from gilt.model.events import TransactionImported
@@ -35,9 +38,10 @@ class DescribeRebuildProjections:
     def it_should_return_one_when_event_store_missing(self, tmp_path):
         ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
 
-        result = run(workspace=ws)
+        with pytest.raises(CommandAbort) as exc_info:
+            run(workspace=ws)
 
-        assert result == 1
+        assert exc_info.value.code == 1
 
     def it_should_return_zero_on_success(self, tmp_path):
         ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])

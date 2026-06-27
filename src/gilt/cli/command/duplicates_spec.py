@@ -13,8 +13,10 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
 
+import pytest
 from rich.console import Console
 
+from gilt.cli.command._errors import CommandAbort
 from gilt.cli.command.duplicates import (
     ReviewContext,
     _analyze_candidates,
@@ -94,8 +96,8 @@ class DescribeSetupEventSourcing:
         with TemporaryDirectory() as tmpdir:
             ws = Workspace(root=Path(tmpdir))
             # data dir intentionally NOT created
-            result = require_event_sourcing(ws)
-            assert result is None
+            with pytest.raises(CommandAbort):
+                require_event_sourcing(ws)
 
     def it_should_return_none_when_data_dir_exists_but_no_event_store_and_csvs_present(self):
         with TemporaryDirectory() as tmpdir:
@@ -105,8 +107,8 @@ class DescribeSetupEventSourcing:
             _write_synthetic_ledger(ws.ledger_data_dir)
             # No event store created
 
-            result = require_event_sourcing(ws)
-            assert result is None
+            with pytest.raises(CommandAbort):
+                require_event_sourcing(ws)
 
     def it_should_return_none_when_data_dir_exists_but_no_event_store_and_no_csvs(self):
         with TemporaryDirectory() as tmpdir:
@@ -114,8 +116,8 @@ class DescribeSetupEventSourcing:
             ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
             # No CSVs, no event store
 
-            result = require_event_sourcing(ws)
-            assert result is None
+            with pytest.raises(CommandAbort):
+                require_event_sourcing(ws)
 
     def it_should_return_ready_result_when_event_store_and_projections_exist(self):
         with TemporaryDirectory() as tmpdir:
@@ -427,8 +429,9 @@ class DescribeDuplicatesRun:
             ws = Workspace(root=Path(tmpdir))
             # Data dir intentionally absent
 
-            result = run(workspace=ws)
-            assert result == 1
+            with pytest.raises(CommandAbort) as exc_info:
+                run(workspace=ws)
+            assert exc_info.value.code == 1
 
     def it_should_return_0_when_no_candidate_pairs_found(self):
         """With a single unique transaction there are no duplicates to detect."""

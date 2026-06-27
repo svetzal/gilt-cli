@@ -9,8 +9,10 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
+import pytest
 from rich.console import Console
 
+from gilt.cli.command._errors import CommandAbort
 from gilt.cli.command.show import run
 from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.events import TransactionEnriched, TransactionImported
@@ -275,7 +277,10 @@ class DescribeShowAmbiguousPrefix:
 
             buf = StringIO()
             test_console = Console(file=buf, width=200)
-            with patch("gilt.cli.command.show.console", test_console):
+            with (
+                patch("gilt.cli.command.show.console", test_console),
+                patch("gilt.cli.command.show_view.console", test_console),
+            ):
                 rc = run(txid="aabbccdd", workspace=workspace)
 
             output = buf.getvalue()
@@ -386,7 +391,10 @@ class DescribeShowNoProjections:
 
             buf = StringIO()
             test_console = Console(file=buf, width=200)
-            with patch("gilt.cli.command.show.console", test_console):
-                rc = run(txid="aabbccdd", workspace=workspace)
+            with (
+                patch("gilt.cli.command.show.console", test_console),
+                pytest.raises(CommandAbort) as exc_info,
+            ):
+                run(txid="aabbccdd", workspace=workspace)
 
-            assert rc == 1
+            assert exc_info.value.code == 1

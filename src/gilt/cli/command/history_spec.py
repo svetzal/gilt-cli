@@ -8,8 +8,10 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
+import pytest
 from rich.console import Console
 
+from gilt.cli.command._errors import CommandAbort
 from gilt.cli.command.history import run
 from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.events import TransactionImported
@@ -103,7 +105,10 @@ class DescribeHistoryBasicGrouping:
 
             buf = StringIO()
             test_console = Console(file=buf, width=200)
-            with patch("gilt.cli.command.history.console", test_console):
+            with (
+                patch("gilt.cli.command.history.console", test_console),
+                patch("gilt.cli.command.history_view.console", test_console),
+            ):
                 rc = run(pattern="EXAMPLE PHARMACY", workspace=workspace)
 
             output = buf.getvalue()
@@ -131,7 +136,10 @@ class DescribeHistoryCaseInsensitivity:
 
             buf = StringIO()
             test_console = Console(file=buf, width=200)
-            with patch("gilt.cli.command.history.console", test_console):
+            with (
+                patch("gilt.cli.command.history.console", test_console),
+                patch("gilt.cli.command.history_view.console", test_console),
+            ):
                 rc = run(pattern="acme corp", workspace=workspace)
 
             output = buf.getvalue()
@@ -170,7 +178,10 @@ class DescribeHistoryAccountFilter:
 
             buf = StringIO()
             test_console = Console(file=buf, width=200)
-            with patch("gilt.cli.command.history.console", test_console):
+            with (
+                patch("gilt.cli.command.history.console", test_console),
+                patch("gilt.cli.command.history_view.console", test_console),
+            ):
                 rc = run(
                     pattern="SAMPLE STORE",
                     account="MYBANK_CHQ",
@@ -199,7 +210,10 @@ class DescribeHistoryIncludeUncategorized:
 
             buf = StringIO()
             test_console = Console(file=buf, width=200)
-            with patch("gilt.cli.command.history.console", test_console):
+            with (
+                patch("gilt.cli.command.history.console", test_console),
+                patch("gilt.cli.command.history_view.console", test_console),
+            ):
                 rc = run(pattern="EXAMPLE UTILITY", workspace=workspace)
 
             output = buf.getvalue()
@@ -218,7 +232,10 @@ class DescribeHistoryIncludeUncategorized:
 
             buf = StringIO()
             test_console = Console(file=buf, width=200)
-            with patch("gilt.cli.command.history.console", test_console):
+            with (
+                patch("gilt.cli.command.history.console", test_console),
+                patch("gilt.cli.command.history_view.console", test_console),
+            ):
                 rc = run(
                     pattern="EXAMPLE UTILITY",
                     include_uncategorized=True,
@@ -249,7 +266,10 @@ class DescribeHistoryLimit:
 
             buf = StringIO()
             test_console = Console(file=buf, width=200)
-            with patch("gilt.cli.command.history.console", test_console):
+            with (
+                patch("gilt.cli.command.history.console", test_console),
+                patch("gilt.cli.command.history_view.console", test_console),
+            ):
                 rc = run(pattern="ACME CORP", limit=2, workspace=workspace)
 
             output = buf.getvalue()
@@ -285,7 +305,10 @@ class DescribeHistoryOrdering:
 
             buf = StringIO()
             test_console = Console(file=buf, width=200)
-            with patch("gilt.cli.command.history.console", test_console):
+            with (
+                patch("gilt.cli.command.history.console", test_console),
+                patch("gilt.cli.command.history_view.console", test_console),
+            ):
                 rc = run(pattern="SAMPLE STORE", workspace=workspace)
 
             output = buf.getvalue()
@@ -311,7 +334,10 @@ class DescribeHistoryEmptyResult:
 
             buf = StringIO()
             test_console = Console(file=buf, width=200)
-            with patch("gilt.cli.command.history.console", test_console):
+            with (
+                patch("gilt.cli.command.history.console", test_console),
+                patch("gilt.cli.command.history_view.console", test_console),
+            ):
                 rc = run(pattern="NONEXISTENT VENDOR", workspace=workspace)
 
             output = buf.getvalue()
@@ -344,7 +370,10 @@ class DescribeHistoryDateWindow:
 
             buf = StringIO()
             test_console = Console(file=buf, width=200)
-            with patch("gilt.cli.command.history.console", test_console):
+            with (
+                patch("gilt.cli.command.history.console", test_console),
+                patch("gilt.cli.command.history_view.console", test_console),
+            ):
                 rc = run(
                     pattern="EXAMPLE UTILITY",
                     date_from="2025-01-01",
@@ -387,7 +416,10 @@ class DescribeHistoryDuplicatesExcluded:
 
             buf = StringIO()
             test_console = Console(file=buf, width=200)
-            with patch("gilt.cli.command.history.console", test_console):
+            with (
+                patch("gilt.cli.command.history.console", test_console),
+                patch("gilt.cli.command.history_view.console", test_console),
+            ):
                 rc = run(pattern="EXAMPLE PHARMACY DUPLICATE", workspace=workspace)
 
             output = buf.getvalue()
@@ -406,7 +438,11 @@ class DescribeHistoryNoProjections:
 
             buf = StringIO()
             test_console = Console(file=buf, width=200)
-            with patch("gilt.cli.command.history.console", test_console):
-                rc = run(pattern="ANY PATTERN", workspace=workspace)
+            with (
+                patch("gilt.cli.command.history.console", test_console),
+                patch("gilt.cli.command.history_view.console", test_console),
+                pytest.raises(CommandAbort) as exc_info,
+            ):
+                run(pattern="ANY PATTERN", workspace=workspace)
 
-            assert rc == 1
+            assert exc_info.value.code == 1

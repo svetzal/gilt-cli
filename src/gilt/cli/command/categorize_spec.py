@@ -9,6 +9,9 @@ from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
+
+from gilt.cli.command._errors import CommandAbort
 from gilt.cli.command.categorize import BatchEntry, _parse_batch_lines, run
 from gilt.cli.command.conftest import build_projections_from_csvs, write_ledger
 from gilt.model.account import Transaction, TransactionGroup
@@ -35,22 +38,24 @@ class DescribeCategorizeValidation:
             save_categories_config(config_path, config)
 
             # No mode specified
-            rc = run(
-                category="Housing",
-                workspace=workspace,
-                write=False,
-            )
-            assert rc == 1
+            with pytest.raises(CommandAbort) as exc_info_no_mode:
+                run(
+                    category="Housing",
+                    workspace=workspace,
+                    write=False,
+                )
+            assert exc_info_no_mode.value.code == 1
 
             # Multiple modes
-            rc = run(
-                txid="abcd1234",
-                description="Test",
-                category="Housing",
-                workspace=workspace,
-                write=False,
-            )
-            assert rc == 1
+            with pytest.raises(CommandAbort) as exc_info_multi:
+                run(
+                    txid="abcd1234",
+                    description="Test",
+                    category="Housing",
+                    workspace=workspace,
+                    write=False,
+                )
+            assert exc_info_multi.value.code == 1
 
     def it_should_error_on_nonexistent_category(self):
         with TemporaryDirectory() as tmpdir:
@@ -83,14 +88,15 @@ class DescribeCategorizeValidation:
             # Build projections from test CSVs
             build_projections_from_csvs(data_dir, workspace.projections_path)
 
-            rc = run(
-                account="TEST",
-                txid="abcd1234",
-                category="NonExistent",
-                workspace=workspace,
-                write=False,
-            )
-            assert rc == 1
+            with pytest.raises(CommandAbort) as exc_info:
+                run(
+                    account="TEST",
+                    txid="abcd1234",
+                    category="NonExistent",
+                    workspace=workspace,
+                    write=False,
+                )
+            assert exc_info.value.code == 1
 
 
 class DescribeCategorizeSingleMode:
@@ -413,13 +419,14 @@ class DescribeCategorizeSingleMode:
             # Build projections from test CSVs
             build_projections_from_csvs(data_dir, workspace.projections_path)
 
-            rc = run(
-                txid="abcd1234",  # No account specified, ambiguous
-                category="Housing",
-                workspace=workspace,
-                write=False,
-            )
-            assert rc == 1
+            with pytest.raises(CommandAbort) as exc_info:
+                run(
+                    txid="abcd1234",  # No account specified, ambiguous
+                    category="Housing",
+                    workspace=workspace,
+                    write=False,
+                )
+            assert exc_info.value.code == 1
 
 
 class DescribeCategorizeBatchMode:
@@ -880,14 +887,15 @@ class DescribeCategorizePatternMode:
             build_projections_from_csvs(data_dir, workspace.projections_path)
 
             # Invalid regex should return error code
-            rc = run(
-                account="TEST",
-                pattern=r"[invalid(regex",  # Unclosed bracket
-                category="Housing",
-                workspace=workspace,
-                write=False,
-            )
-            assert rc == 1  # Error code for invalid pattern
+            with pytest.raises(CommandAbort) as exc_info:
+                run(
+                    account="TEST",
+                    pattern=r"[invalid(regex",  # Unclosed bracket
+                    category="Housing",
+                    workspace=workspace,
+                    write=False,
+                )
+            assert exc_info.value.code == 1  # Error code for invalid pattern
 
 
 def _build_batch_workspace(tmpdir: str) -> tuple[Path, Path, Workspace]:
@@ -1178,8 +1186,9 @@ class DescribeCategorizeBatchFile:
             # "aaaa1111" is ambiguous (matches both)
             batch_file.write_text("aaaa1111 Shopping\n")
 
-            rc = run(workspace=workspace, txid_file=batch_file, write=True)
-            assert rc == 1
+            with pytest.raises(CommandAbort) as exc_info:
+                run(workspace=workspace, txid_file=batch_file, write=True)
+            assert exc_info.value.code == 1
 
             # Ledger must be unchanged
             groups = load_ledger_csv((data_dir / "TEST.csv").read_text(), default_currency="CAD")
@@ -1196,8 +1205,9 @@ class DescribeCategorizeBatchFile:
             # Line 1 is valid; line 2 references an unknown category
             batch_file.write_text(f"{txid1} Shopping\n{txid2} NonExistentCategory\n")
 
-            rc = run(workspace=workspace, txid_file=batch_file, write=True)
-            assert rc == 1
+            with pytest.raises(CommandAbort) as exc_info:
+                run(workspace=workspace, txid_file=batch_file, write=True)
+            assert exc_info.value.code == 1
 
             # All-or-nothing: neither transaction should be updated
             groups = load_ledger_csv((data_dir / "TEST.csv").read_text(), default_currency="CAD")
@@ -1221,16 +1231,19 @@ class DescribeCategorizeBatchFile:
             batch_file.write_text("aaaa1111 Shopping\n")
 
             # Combining --txid-file with --txid should fail
-            rc = run(workspace=workspace, txid_file=batch_file, txid="aaaa1111")
-            assert rc == 1
+            with pytest.raises(CommandAbort) as exc_info1:
+                run(workspace=workspace, txid_file=batch_file, txid="aaaa1111")
+            assert exc_info1.value.code == 1
 
             # Combining --txid-file with --category should fail
-            rc = run(workspace=workspace, txid_file=batch_file, category="Shopping")
-            assert rc == 1
+            with pytest.raises(CommandAbort) as exc_info2:
+                run(workspace=workspace, txid_file=batch_file, category="Shopping")
+            assert exc_info2.value.code == 1
 
             # Combining --from-stdin with --description should fail
-            rc = run(workspace=workspace, from_stdin=True, description="SAMPLE STORE")
-            assert rc == 1
+            with pytest.raises(CommandAbort) as exc_info3:
+                run(workspace=workspace, from_stdin=True, description="SAMPLE STORE")
+            assert exc_info3.value.code == 1
 
     def it_should_not_persist_file_batch_in_dry_run(self):
         """Dry-run (write=False) must print message and not emit events or alter ledger."""

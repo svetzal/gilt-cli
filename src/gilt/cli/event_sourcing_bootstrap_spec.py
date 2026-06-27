@@ -4,6 +4,9 @@ import sqlite3
 from decimal import Decimal
 from unittest.mock import Mock
 
+import pytest
+
+from gilt.cli.command._errors import CommandAbort
 from gilt.cli.event_sourcing_bootstrap import (
     load_event_store,
     require_event_sourcing,
@@ -32,14 +35,14 @@ class DescribeRequireProjections:
     def it_should_return_none_when_db_is_missing(self, tmp_path, capsys):
         workspace = Workspace(root=tmp_path)
 
-        result = require_projections(workspace)
-
-        assert result is None
+        with pytest.raises(CommandAbort):
+            require_projections(workspace)
 
     def it_should_print_error_message_when_db_is_missing(self, tmp_path, capsys):
         workspace = Workspace(root=tmp_path)
 
-        require_projections(workspace)
+        with pytest.raises(CommandAbort):
+            require_projections(workspace)
 
         # Rich console writes to stdout; capture it
         captured = capsys.readouterr()
@@ -81,9 +84,8 @@ class DescribeRequireEventSourcing:
         mock_svc = mocker.patch("gilt.cli.event_sourcing_bootstrap.EventSourcingService")
         mock_svc.return_value.ensure_ready.return_value = not_ready
 
-        result = require_event_sourcing(ws)
-
-        assert result is None
+        with pytest.raises(CommandAbort):
+            require_event_sourcing(ws)
 
     def it_should_return_none_when_no_data_exists(self, tmp_path, mocker):
         ws = Workspace(root=tmp_path)
@@ -91,9 +93,8 @@ class DescribeRequireEventSourcing:
         mock_svc = mocker.patch("gilt.cli.event_sourcing_bootstrap.EventSourcingService")
         mock_svc.return_value.ensure_ready.return_value = not_ready
 
-        result = require_event_sourcing(ws)
-
-        assert result is None
+        with pytest.raises(CommandAbort):
+            require_event_sourcing(ws)
 
 
 class DescribeRequirePersistenceService:

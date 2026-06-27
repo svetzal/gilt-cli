@@ -11,6 +11,9 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
+import pytest
+
+from gilt.cli.command._errors import CommandAbort
 from gilt.cli.command.conftest import build_projections_from_csvs, write_ledger
 from gilt.cli.command.report import run
 from gilt.model.account import Transaction, TransactionGroup
@@ -150,14 +153,15 @@ class DescribeReportCommand:
             config = CategoryConfig(categories=[])
             save_categories_config(config_path, config)
 
-            result = run(
-                year=None,
-                month=10,
-                workspace=workspace,
-                write=False,
-            )
+            with pytest.raises(CommandAbort) as exc_info:
+                run(
+                    year=None,
+                    month=10,
+                    workspace=workspace,
+                    write=False,
+                )
 
-            assert result == 1
+            assert exc_info.value.code == 1
 
     def it_should_error_on_invalid_month(self):
         """Should return error when month is out of range."""
@@ -173,11 +177,12 @@ class DescribeReportCommand:
             config = CategoryConfig(categories=[])
             save_categories_config(config_path, config)
 
-            result = run(
-                year=2025,
-                month=13,
-                workspace=workspace,
-                write=False,
-            )
+            with pytest.raises(CommandAbort) as exc_info:
+                run(
+                    year=2025,
+                    month=13,
+                    workspace=workspace,
+                    write=False,
+                )
 
-            assert result == 1
+            assert exc_info.value.code == 1

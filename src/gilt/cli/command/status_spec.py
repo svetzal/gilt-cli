@@ -9,8 +9,10 @@ from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
 from rich.console import Console
 
+from gilt.cli.command._errors import CommandAbort
 from gilt.cli.command.status import run
 from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.events import TransactionCategorized, TransactionImported
@@ -299,6 +301,7 @@ class DescribeStatusCommand:
             # Do NOT build projections — projections_path does not exist
 
             cap = Console(record=True)
-            rc = run(workspace=workspace, _console=cap, today=date(2025, 1, 1))
+            with pytest.raises(CommandAbort) as exc_info:
+                run(workspace=workspace, _console=cap, today=date(2025, 1, 1))
 
-            assert rc == 1
+            assert exc_info.value.code == 1

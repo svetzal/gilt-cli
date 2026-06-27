@@ -105,7 +105,7 @@ def _write_report_files(
         console.print(f"[green]✓[/] Written markdown report: [cyan]{markdown_path}[/]")
     except OSError as e:
         print_error(f"Error writing markdown file: {e}")
-        raise CommandAbort(1)
+        raise CommandAbort(1) from None
 
     if has_pandoc:
         if _convert_to_docx(markdown_path, docx_path):

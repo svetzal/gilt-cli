@@ -91,7 +91,7 @@ def _rebuild_and_report(
 
     except (OSError, ValueError) as e:
         print_error(f"Error rebuilding projections: {e}")
-        raise CommandAbort(1)
+        raise CommandAbort(1) from None
 
 
 __all__ = ["run"]
