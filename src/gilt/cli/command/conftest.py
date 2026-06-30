@@ -49,3 +49,36 @@ def build_projections_from_csvs(data_dir: Path, projections_path: Path):
 
     builder = ProjectionBuilder(projections_path)
     builder.build_from_scratch(store)
+
+
+def capture_view(view_module_name: str, fn) -> str:
+    """Swap the module-level console in a view module, call fn(), and return captured output.
+
+    Usage::
+
+        output = capture_view("gilt.cli.command.accounts_view", lambda: display_accounts_table(mapping))
+    """
+    import importlib
+    from io import StringIO
+
+    from rich.console import Console
+
+    import gilt.cli.console as console_mod
+
+    view_mod = importlib.import_module(view_module_name)
+
+    buf = StringIO()
+    new_console = Console(file=buf, highlight=False, width=200)
+
+    old_view = getattr(view_mod, "console", None)
+    old_mod = console_mod.console
+    if old_view is not None:
+        view_mod.console = new_console
+    console_mod.console = new_console
+    try:
+        fn()
+    finally:
+        if old_view is not None:
+            view_mod.console = old_view
+        console_mod.console = old_mod
+    return buf.getvalue()
