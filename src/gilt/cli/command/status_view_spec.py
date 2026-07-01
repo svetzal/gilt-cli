@@ -54,5 +54,13 @@ class DescribeRender:
         rows = [_make_status_row(days_since=60)]
         render(rows, stale_threshold=30, fy_label=None, console=con)
         output = buf.getvalue()
-        # Stale accounts get a warning indicator
-        assert "60" in output
+        assert "⚠" in output
+
+    def it_should_not_highlight_fresh_accounts(self):
+        from gilt.cli.command.status_view import render
+
+        con, buf = _make_console()
+        rows = [_make_status_row(days_since=5)]
+        render(rows, stale_threshold=30, fy_label=None, console=con)
+        output = buf.getvalue()
+        assert "⚠" not in output

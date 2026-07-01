@@ -70,5 +70,5 @@ class DescribeRunReviewLoop:
         from gilt.cli.command.duplicates_review import run_review_loop
 
         ctx, buf = _make_review_ctx()
-        # Should not raise
         run_review_loop(ctx, [], ctx.review_service, ctx.detector, "model", interactive=False)
+        ctx.review_service.build_suggestion_event.assert_not_called()

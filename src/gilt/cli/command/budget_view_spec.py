@@ -67,9 +67,18 @@ class DescribeDisplayBudgetReport:
 
         summary = _make_summary()
         output = _capture(
-            lambda: display_budget_report(summary, year=None, month=None, category_filter="Utilities")
+            lambda: display_budget_report(summary, year=None, month=None, category_filter="Housing")
         )
-        assert "Utilities" in output
+        assert "Housing" in output
+
+    def it_should_not_include_category_filter_in_title_when_absent(self):
+        from gilt.cli.command.budget_view import display_budget_report
+
+        summary = _make_summary()
+        output = _capture(
+            lambda: display_budget_report(summary, year=None, month=None, category_filter=None)
+        )
+        assert "Housing" not in output
 
     def it_should_include_year_in_title_when_provided(self):
         from gilt.cli.command.budget_view import display_budget_report
@@ -80,11 +89,20 @@ class DescribeDisplayBudgetReport:
         )
         assert "2025" in output
 
-    def it_should_show_total_budgeted_amount(self):
+    def it_should_not_include_year_in_title_when_absent(self):
         from gilt.cli.command.budget_view import display_budget_report
 
-        summary = _make_summary(total_budgeted=500.0, total_actual=300.0)
+        summary = _make_summary()
         output = _capture(
             lambda: display_budget_report(summary, year=None, month=None, category_filter=None)
         )
-        assert "500" in output
+        assert "2025" not in output
+
+    def it_should_show_total_budgeted_amount(self):
+        from gilt.cli.command.budget_view import display_budget_report
+
+        summary = _make_summary(total_budgeted=1234.0, total_actual=300.0)
+        output = _capture(
+            lambda: display_budget_report(summary, year=None, month=None, category_filter=None)
+        )
+        assert "1,234" in output

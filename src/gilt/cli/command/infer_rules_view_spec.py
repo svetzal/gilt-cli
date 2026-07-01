@@ -56,6 +56,6 @@ class DescribeDisplayRules:
     def it_should_show_rules_count(self):
         from gilt.cli.command.infer_rules_view import display_rules
 
-        rules = [_make_rule(), _make_rule(description="ACME CORP")]
+        rules = [_make_rule(description=f"VENDOR {i}") for i in range(7)]
         output = _capture(lambda: display_rules(rules))
-        assert "2" in output
+        assert "7 rule(s)" in output

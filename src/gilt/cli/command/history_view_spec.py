@@ -66,3 +66,12 @@ class DescribeDisplayHistoryTable:
             lambda: display_history_table(rows, "EXAMPLE", "MYBANK_CHQ", None, None)
         )
         assert "MYBANK_CHQ" in output
+
+    def it_should_not_include_account_filter_in_title_when_absent(self):
+        from gilt.cli.command.history_view import display_history_table
+
+        rows = [_make_history_row()]
+        output = _capture(
+            lambda: display_history_table(rows, "EXAMPLE", None, None, None)
+        )
+        assert "MYBANK_CHQ" not in output
