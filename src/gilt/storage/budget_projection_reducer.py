@@ -77,7 +77,7 @@ def _apply_budget_created(conn: sqlite3.Connection, event: BudgetCreated) -> Non
     )
 
 
-def _resolve_updated_values(
+def _build_updated_values(
     event: BudgetUpdated,
     current_amount: float,
     current_period: str,
@@ -145,7 +145,7 @@ def _apply_budget_updated(conn: sqlite3.Connection, event: BudgetUpdated) -> Non
         return  # Budget doesn't exist yet, skip
 
     current_amount, current_period, current_start = row
-    new_amount, new_period, new_start = _resolve_updated_values(
+    new_amount, new_period, new_start = _build_updated_values(
         event, current_amount, current_period, current_start
     )
 

@@ -194,7 +194,7 @@ class BudgetService:
               - cat_actual: actual spending to add to total_actual
               - is_over_budget: True if spending exceeded the budget
         """
-        budget_amount = self._calculate_budget_for_period(cat, year, month)
+        budget_amount = self._get_budget_for_period(cat, year, month)
         cat_actual, subcat_actuals = self._collect_spending_for_category(cat.name, spending)
 
         remaining = None
@@ -225,7 +225,7 @@ class BudgetService:
 
         return items, budget_for_totals, cat_actual, is_over_budget
 
-    def _calculate_budget_for_period(
+    def _get_budget_for_period(
         self,
         category: Category,
         year: int | None,

@@ -24,7 +24,7 @@ from gilt.services.receipt_ingestion_service import (
 from gilt.workspace import Workspace
 
 from ..console import console, print_error
-from .ingest_receipts_review import resolve_ambiguous_interactively
+from .ingest_receipts_review import run_ambiguous_interactively
 from .ingest_receipts_view import display_results_table, display_summary
 
 
@@ -53,7 +53,7 @@ def _emit_enrichment_events(matched: list[MatchResult], store) -> int:
     return written
 
 
-def _filter_paths_by_year(json_paths: list[Path], year: int) -> tuple[list[Path], list[str]]:
+def _find_paths_by_year(json_paths: list[Path], year: int) -> tuple[list[Path], list[str]]:
     """Load and filter receipt files by year. Returns (filtered_paths, parse_warnings)."""
     all_receipts = []
     parse_warnings: list[str] = []
@@ -86,7 +86,7 @@ def run(
     # Scan files
     json_paths = find_receipt_files(source)
     if year is not None:
-        json_paths, parse_warnings = _filter_paths_by_year(json_paths, year)
+        json_paths, parse_warnings = _find_paths_by_year(json_paths, year)
         for w in parse_warnings:
             console.print(f"[yellow]Warning: {w}[/yellow]")
         if parse_warnings:
@@ -143,7 +143,7 @@ def _finalize_receipts(
 ) -> int:
     """Resolve ambiguous matches interactively, emit enrichment events, and display summary."""
     if interactive and ambiguous:
-        resolved = resolve_ambiguous_interactively(ambiguous)
+        resolved = run_ambiguous_interactively(ambiguous)
         matched.extend(resolved)
         ambiguous = [r for r in ambiguous if r not in resolved]
 

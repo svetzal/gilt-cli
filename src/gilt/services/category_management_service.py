@@ -160,13 +160,13 @@ class CategoryManagementService:
             )
 
         if subcategory:
-            return self._plan_subcategory_removal(
+            return self._build_subcategory_removal(
                 cat, category, subcategory, transaction_groups, force
             )
 
-        return self._plan_category_removal(cat, category, transaction_groups, force)
+        return self._build_category_removal(cat, category, transaction_groups, force)
 
-    def _plan_subcategory_removal(
+    def _build_subcategory_removal(
         self,
         cat,
         category: str,
@@ -214,7 +214,7 @@ class CategoryManagementService:
             warnings=warnings,
         )
 
-    def _plan_category_removal(
+    def _build_category_removal(
         self,
         cat,
         category: str,

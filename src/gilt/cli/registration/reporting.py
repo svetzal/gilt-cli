@@ -6,7 +6,7 @@ from pathlib import Path
 
 import typer
 
-from gilt.cli.registration._dispatch import HELP_WRITE, dispatch, resolve_fy_range
+from gilt.cli.registration._dispatch import HELP_WRITE, build_fy_range, dispatch
 
 HELP_ACCOUNT_DISPLAY = "Account ID to display (e.g., MYBANK_CHQ)"
 HELP_ACCOUNT_WITH_TX = "Account ID containing the transaction (e.g., MYBANK_CHQ)"
@@ -99,7 +99,7 @@ def register_status(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
 
         dispatch(
             cmd_status.run,
-            fy_range=resolve_fy_range(fy),
+            fy_range=build_fy_range(fy),
             fy_label=fy,
             stale_threshold=stale_threshold,
             workspace=ws_fn(ctx),
@@ -155,7 +155,7 @@ def register_summary(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         dispatch(
             cmd_summary.run,
             year=year,
-            fy_range=resolve_fy_range(fy),
+            fy_range=build_fy_range(fy),
             fy_label=fy,
             account=account,
             category=category,

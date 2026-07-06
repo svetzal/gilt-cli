@@ -6,7 +6,7 @@ from pathlib import Path
 
 import typer
 
-from gilt.cli.registration._dispatch import HELP_WRITE, dispatch, resolve_fy_range
+from gilt.cli.registration._dispatch import HELP_WRITE, build_fy_range, dispatch
 
 
 def register_ingest(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -142,7 +142,7 @@ def register_receipts(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg
             cmd_receipts.run,
             category=category,
             by_account=by_account,
-            fy_range=resolve_fy_range(fy),
+            fy_range=build_fy_range(fy),
             fy_label=fy,
             missing=missing,
             workspace=ws_fn(ctx),

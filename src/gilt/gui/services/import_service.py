@@ -259,13 +259,13 @@ class ImportService:
         except (FileNotFoundError, UnicodeDecodeError, pd.errors.ParserError, KeyError) as e:
             return 0, 0, str(e)
 
-    def _parse_file_to_transactions(self, file_path: Path, account_id: str) -> list[Transaction]:
+    def _load_file_to_transactions(self, file_path: Path, account_id: str) -> list[Transaction]:
         """Parse a CSV file and return its rows as Transaction objects."""
         return build_transactions_from_dataframe(
             load_file(file_path, account_id, self._amount_sign_for(account_id))
         )
 
-    def _filter_relevant_matches(
+    def _find_relevant_matches(
         self, matches: list[DuplicateMatch], new_ids: set[str]
     ) -> list[DuplicateMatch]:
         """Filter matches to those involving new transactions, swapping pairs so txn1 is always new."""
@@ -306,7 +306,7 @@ class ImportService:
             return []
 
         try:
-            new_transactions = self._parse_file_to_transactions(file_path, account_id)
+            new_transactions = self._load_file_to_transactions(file_path, account_id)
 
             if not new_transactions:
                 return []
@@ -318,7 +318,7 @@ class ImportService:
             matches = self.duplicate_service.find_duplicates(all_transactions)
 
             new_ids = {t.transaction_id for t in new_transactions}
-            return self._filter_relevant_matches(matches, new_ids)
+            return self._find_relevant_matches(matches, new_ids)
 
         except (OSError, ValueError) as e:
             _logger.error("Error scanning for duplicates: %s", e)

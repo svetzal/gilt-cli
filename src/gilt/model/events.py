@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field, PlainSerializer, field_serializer, field_
 from pydantic.functional_validators import BeforeValidator
 
 
-def _parse_decimal(value: Any) -> Decimal:
+def _build_decimal(value: Any) -> Decimal:
     if isinstance(value, Decimal):
         return value
     return Decimal(str(value))
@@ -35,7 +35,7 @@ def _serialize_decimal(value: Decimal) -> str:
     return str(value)
 
 
-def _parse_optional_decimal(value: Any) -> Decimal | None:
+def _build_optional_decimal(value: Any) -> Decimal | None:
     if value is None:
         return None
     if isinstance(value, Decimal):
@@ -49,13 +49,13 @@ def _serialize_optional_decimal(value: Decimal | None) -> str | None:
 
 SerializedDecimal = Annotated[
     Decimal,
-    BeforeValidator(_parse_decimal),
+    BeforeValidator(_build_decimal),
     PlainSerializer(_serialize_decimal, return_type=str),
 ]
 
 OptionalSerializedDecimal = Annotated[
     Decimal | None,
-    BeforeValidator(_parse_optional_decimal),
+    BeforeValidator(_build_optional_decimal),
     PlainSerializer(_serialize_optional_decimal, return_type=str | None),
 ]
 

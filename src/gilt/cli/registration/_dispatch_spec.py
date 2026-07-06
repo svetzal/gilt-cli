@@ -8,7 +8,7 @@ import pytest
 import typer
 
 from gilt.cli.command._errors import CommandAbort
-from gilt.cli.registration._dispatch import dispatch, resolve_fy_range
+from gilt.cli.registration._dispatch import build_fy_range, dispatch
 
 
 class DescribeDispatch:
@@ -42,10 +42,10 @@ class DescribeDispatch:
 
 class DescribeResolveFyRange:
     def it_should_return_none_when_fy_is_none(self):
-        assert resolve_fy_range(None) is None
+        assert build_fy_range(None) is None
 
     def it_should_return_a_range_for_a_valid_fy(self):
-        start, end = resolve_fy_range("FY25")
+        start, end = build_fy_range("FY25")
 
         assert start == date(2024, 11, 1)
         assert end == date(2025, 10, 31)
@@ -54,7 +54,7 @@ class DescribeResolveFyRange:
         mock_print = mocker.patch("gilt.cli.console.console.print")
 
         with pytest.raises(typer.Exit) as exc_info:
-            resolve_fy_range("INVALID_FY")
+            build_fy_range("INVALID_FY")
 
         assert exc_info.value.exit_code == 1
         mock_print.assert_called_once()

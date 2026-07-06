@@ -11,9 +11,9 @@ import pytest
 from gilt.ingest.normalization import (
     HASH_ALGO_SPEC,
     _build_transaction_dataframe,
-    _resolve_amount_series,
-    _resolve_date_series,
-    _resolve_description_series,
+    _build_amount_series,
+    _build_date_series,
+    _build_description_series,
     build_transaction_id,
 )
 
@@ -61,46 +61,46 @@ class DescribeResolveAmountSeries:
     def it_should_parse_plain_numeric_values(self):
         df = self._make_df(["-42.50", "100.00"])
         column_map = {"amount": "Amount", "usd": None}
-        result = _resolve_amount_series(df, column_map, {}, "expenses_negative")
+        result = _build_amount_series(df, column_map, {}, "expenses_negative")
         assert list(result) == pytest.approx([-42.50, 100.00])
 
     def it_should_strip_dollar_signs_and_commas(self):
         df = self._make_df(["$1,234.56", "-$99.99"])
         column_map = {"amount": "Amount", "usd": None}
-        result = _resolve_amount_series(df, column_map, {}, "expenses_negative")
+        result = _build_amount_series(df, column_map, {}, "expenses_negative")
         assert result.iloc[0] == pytest.approx(1234.56)
         assert result.iloc[1] == pytest.approx(-99.99)
 
     def it_should_convert_parenthesized_values_to_negative(self):
         df = self._make_df(["(123.45)"])
         column_map = {"amount": "Amount", "usd": None}
-        result = _resolve_amount_series(df, column_map, {}, "expenses_negative")
+        result = _build_amount_series(df, column_map, {}, "expenses_negative")
         assert result.iloc[0] == pytest.approx(-123.45)
 
     def it_should_negate_amounts_when_expenses_positive(self):
         df = self._make_df(["50.00", "-20.00"])
         column_map = {"amount": "Amount", "usd": None}
-        result = _resolve_amount_series(df, column_map, {}, "expenses_positive")
+        result = _build_amount_series(df, column_map, {}, "expenses_positive")
         assert result.iloc[0] == pytest.approx(-50.00)
         assert result.iloc[1] == pytest.approx(20.00)
 
     def it_should_fall_back_to_usd_column_when_amount_absent(self):
         df = pd.DataFrame({"USD$": ["75.00"]})
         column_map = {"amount": None, "usd": "USD$"}
-        result = _resolve_amount_series(df, column_map, {}, "expenses_negative")
+        result = _build_amount_series(df, column_map, {}, "expenses_negative")
         assert result.iloc[0] == pytest.approx(75.00)
 
     def it_should_produce_nan_for_non_numeric_values(self):
         df = self._make_df(["not-a-number"])
         column_map = {"amount": "Amount", "usd": None}
-        result = _resolve_amount_series(df, column_map, {}, "expenses_negative")
+        result = _build_amount_series(df, column_map, {}, "expenses_negative")
         assert pd.isna(result.iloc[0])
 
     def it_should_use_override_series_when_provided(self):
         df = self._make_df(["ignored"])
         column_map = {"amount": "Amount", "usd": None}
         override = pd.Series(["99.99"])
-        result = _resolve_amount_series(df, column_map, {"amount_series": override}, "expenses_negative")
+        result = _build_amount_series(df, column_map, {"amount_series": override}, "expenses_negative")
         assert result.iloc[0] == pytest.approx(99.99)
 
 
@@ -108,20 +108,20 @@ class DescribeResolveDateSeries:
     def it_should_format_valid_dates_as_yyyy_mm_dd(self):
         df = pd.DataFrame({"Date": ["2024-01-15", "2024-12-31"]})
         column_map = {"date": "Date"}
-        result = _resolve_date_series(df, column_map, {})
+        result = _build_date_series(df, column_map, {})
         assert list(result) == ["2024-01-15", "2024-12-31"]
 
     def it_should_return_nat_string_for_invalid_dates(self):
         df = pd.DataFrame({"Date": ["not-a-date"]})
         column_map = {"date": "Date"}
-        result = _resolve_date_series(df, column_map, {})
+        result = _build_date_series(df, column_map, {})
         assert pd.isna(result.iloc[0]) or result.iloc[0] == "NaT"
 
     def it_should_use_override_series_over_column_map(self):
         df = pd.DataFrame({"Date": ["2020-01-01"]})
         column_map = {"date": "Date"}
         override = pd.Series(["2024-06-15"])
-        result = _resolve_date_series(df, column_map, {"date_series": override})
+        result = _build_date_series(df, column_map, {"date_series": override})
         assert result.iloc[0] == "2024-06-15"
 
 
@@ -129,25 +129,25 @@ class DescribeResolveDescriptionSeries:
     def it_should_return_desc1_when_desc2_is_empty(self):
         df = pd.DataFrame({"Description 1": ["EXAMPLE UTILITY"], "Description 2": [""]})
         column_map = {"desc1": "Description 1", "desc2": "Description 2"}
-        result = _resolve_description_series(df, column_map, {})
+        result = _build_description_series(df, column_map, {})
         assert result.iloc[0] == "EXAMPLE UTILITY"
 
     def it_should_join_desc1_and_desc2_with_dash(self):
         df = pd.DataFrame({"Description 1": ["SAMPLE STORE"], "Description 2": ["REF1234"]})
         column_map = {"desc1": "Description 1", "desc2": "Description 2"}
-        result = _resolve_description_series(df, column_map, {})
+        result = _build_description_series(df, column_map, {})
         assert result.iloc[0] == "SAMPLE STORE - REF1234"
 
     def it_should_not_append_empty_desc2(self):
         df = pd.DataFrame({"Description 1": ["ACME CORP"], "Description 2": [None]})
         column_map = {"desc1": "Description 1", "desc2": "Description 2"}
-        result = _resolve_description_series(df, column_map, {})
+        result = _build_description_series(df, column_map, {})
         assert result.iloc[0] == "ACME CORP"
 
     def it_should_handle_missing_desc2_column(self):
         df = pd.DataFrame({"Description 1": ["EXAMPLE UTILITY"]})
         column_map = {"desc1": "Description 1", "desc2": None}
-        result = _resolve_description_series(df, column_map, {})
+        result = _build_description_series(df, column_map, {})
         assert result.iloc[0] == "EXAMPLE UTILITY"
 
 

@@ -21,7 +21,7 @@ def _get_package_version() -> str:
     return version("gilt-cli")
 
 
-def _parse_frontmatter_version(text: str) -> str | None:
+def _build_frontmatter_version(text: str) -> str | None:
     """Extract gilt-version from YAML frontmatter, or None if absent."""
     match = _VERSION_FRONTMATTER_RE.match(text)
     if not match:
@@ -74,7 +74,7 @@ def _install_file(
 
         # Version guard: only applies to stamped files (SKILL.md)
         if stamp and not force:
-            installed_version = _parse_frontmatter_version(existing_text)
+            installed_version = _build_frontmatter_version(existing_text)
             if installed_version is not None and _version_tuple(installed_version) > _version_tuple(
                 pkg_version
             ):

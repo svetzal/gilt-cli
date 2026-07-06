@@ -125,7 +125,7 @@ class CategoriesView(QWidget):
 
         return button_layout
 
-    def _resolve_category_name_for_row(self, selected_row: int) -> str:
+    def _get_category_name_for_row(self, selected_row: int) -> str:
         """Return the category name for a row, walking backwards if it is a subcategory row."""
         category_item = self.table.item(selected_row, 0)
         category_name = category_item.text() if category_item else ""
@@ -293,7 +293,7 @@ class CategoriesView(QWidget):
         if selected_row < 0:
             return
 
-        category_name = self._resolve_category_name_for_row(selected_row)
+        category_name = self._get_category_name_for_row(selected_row)
         subcategory_item = self.table.item(selected_row, 1)
         subcategory_name = subcategory_item.text() if subcategory_item else ""
 
@@ -364,7 +364,7 @@ class CategoriesView(QWidget):
         if selected_row < 0:
             return
 
-        category_name = self._resolve_category_name_for_row(selected_row)
+        category_name = self._get_category_name_for_row(selected_row)
         subcategory_item = self.table.item(selected_row, 1)
         subcategory_name = subcategory_item.text() if subcategory_item else ""
 

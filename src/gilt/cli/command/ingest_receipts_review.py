@@ -9,7 +9,7 @@ from gilt.services.receipt_ingestion_service import MatchResult
 from ..console import console
 
 
-def resolve_ambiguous_interactively(ambiguous: list[MatchResult]) -> list[MatchResult]:
+def run_ambiguous_interactively(ambiguous: list[MatchResult]) -> list[MatchResult]:
     """Prompt the user to disambiguate ambiguous matches. Returns resolved items."""
     resolved: list[MatchResult] = []
 

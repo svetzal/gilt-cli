@@ -161,7 +161,7 @@ def _valid_sign_pair(d: Txn, o: Txn) -> bool:
     return d.amount * o.amount < 0 or _is_bank2_biz_loc_pair(d.account_id, o.account_id)
 
 
-def _filter_candidate_others(
+def _find_candidate_others(
     d: Txn,
     txns_by_ccy: dict[str, list[Txn]],
     matched_other_ids: set[str],
@@ -226,7 +226,7 @@ def _try_match_for_debit(
 ) -> Match | None:
     if d.has_desc_token(EXCLUDE_FROM_PAIRING_TOKENS):
         return None
-    cand_others = _filter_candidate_others(d, txns_by_ccy, matched_other_ids)
+    cand_others = _find_candidate_others(d, txns_by_ccy, matched_other_ids)
     if not cand_others:
         return None
     best = _select_best_match(

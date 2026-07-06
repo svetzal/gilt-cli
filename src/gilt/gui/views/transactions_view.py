@@ -325,14 +325,14 @@ class TransactionsView(QWidget):
         self.table.selection_changed.connect(self._on_selection_changed)
 
         self.table.categorize_requested.connect(self._on_categorize_requested)
-        self.table.apply_prediction_requested.connect(self._mutation_controller._apply_prediction)
+        self.table.apply_prediction_requested.connect(self._mutation_controller._run_prediction)
         self.table.note_requested.connect(self._on_note_requested)
         self.table.duplicate_resolution_requested.connect(self._on_resolve_duplicate_requested)
         self.table.manual_merge_requested.connect(self._on_manual_merge_requested)
         self.table.receipt_match_requested.connect(self._on_receipt_match_requested)
         self.detail_panel.receipt_match_requested.connect(self._on_receipt_match_requested)
         self.detail_panel.apply_prediction_requested.connect(
-            self._mutation_controller._apply_prediction
+            self._mutation_controller._run_prediction
         )
         self.detail_panel.apply_receipt_requested.connect(
             self._receipt_controller.run_match_from_panel

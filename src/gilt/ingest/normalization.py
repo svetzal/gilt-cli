@@ -26,7 +26,7 @@ def build_transaction_id(account_id: str, date: str, amount, description: str) -
     return hashlib.sha256(base.encode("utf-8")).hexdigest()[:16]
 
 
-def _resolve_date_series(
+def _build_date_series(
     df: pd.DataFrame, column_map: dict[str, str | None], overrides: dict[str, pd.Series]
 ) -> pd.Series:
     """Resolve and format the date series as YYYY-MM-DD strings.
@@ -42,7 +42,7 @@ def _resolve_date_series(
     return pd.to_datetime(raw, errors="coerce", dayfirst=False).dt.strftime("%Y-%m-%d")
 
 
-def _resolve_description_series(
+def _build_description_series(
     df: pd.DataFrame, column_map: dict[str, str | None], overrides: dict[str, pd.Series]
 ) -> pd.Series:
     """Resolve and combine desc1 and desc2 into a single description series.
@@ -73,7 +73,7 @@ def _resolve_description_series(
     return combined.fillna("").astype(str).str.strip()
 
 
-def _resolve_amount_series(
+def _build_amount_series(
     df: pd.DataFrame,
     column_map: dict[str, str | None],
     overrides: dict[str, pd.Series],
@@ -121,9 +121,9 @@ def _build_transaction_dataframe(
     """
     out = pd.DataFrame()
 
-    out["date"] = _resolve_date_series(df, column_map, overrides)
-    out["description"] = _resolve_description_series(df, column_map, overrides)
-    out["amount"] = _resolve_amount_series(df, column_map, overrides, amount_sign)
+    out["date"] = _build_date_series(df, column_map, overrides)
+    out["description"] = _build_description_series(df, column_map, overrides)
+    out["amount"] = _build_amount_series(df, column_map, overrides, amount_sign)
 
     if column_map["currency"]:
         out["currency"] = df[column_map["currency"]].astype(str).replace("", "CAD")

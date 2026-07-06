@@ -143,7 +143,7 @@ Every GUI mutation that writes to CSV must follow this three-step sequence in or
 
 Skipping step 2 means the view reloads stale data and the user sees no change until the next restart.
 
-**Reference implementation**: `_apply_categorization` in `src/gilt/gui/controllers/transaction_mutation_controller.py`.
+**Reference implementation**: `_run_categorization` in `src/gilt/gui/controllers/transaction_mutation_controller.py`.
 
 ### QThread Worker Lifecycle
 
@@ -299,7 +299,9 @@ Function verb prefixes are standardised across the codebase. Follow these rules 
 
 The `find_projection_by_prefix` / `find_by_id_prefix` split in `TransactionOperationsService` exemplifies the rule that two methods doing similar things on *different types* must have names that reveal the type they operate on.
 
-**Remediation history:** Commit `4eab73a` applied `scan_→find_` and `rebuild_→build_` conventions across storage and service layers. A subsequent refactor extended the full convention set (`filter_→find_`, `plan_→build_`, `apply_→run_`, `calculate_→get_`, `generate_→build_`, `resolve_→find_/build_/run_`, `parse_→build_/load_`) to all remaining layers (services, CLI commands, GUI views, transfer, ingest). All old verb prefixes have been eliminated from the codebase.
+**Remediation history:** Commit `4eab73a` applied `scan_→find_` and `rebuild_→build_` conventions across storage and service layers. A subsequent refactor extended the full convention set (`filter_→find_`, `plan_→build_`, `apply_→run_`, `calculate_→get_`, `generate_→build_`, `resolve_→find_/build_/run_`, `parse_→build_/load_`) to all remaining layers (services, CLI commands, GUI views, transfer, ingest). All old verb prefixes have been eliminated from the codebase, except the event-sourcing reducer vocabulary (`apply_events`/`_apply_*` in `storage/projection_reducer.py` and `storage/budget_projection_reducer.py`), which is intentional — these names are part of the documented module layout and reflect the event-sourcing pattern.
+
+**Exception**: `apply_events` and `_apply_*` in event-sourcing reducer modules (`projection_reducer.py`, `budget_projection_reducer.py`) are exempt — they use event-sourcing vocabulary by design and are documented as canonical in the Storage/Budget Projection Module Layout sections.
 
 ## Storage Projection Module Layout
 
@@ -335,7 +337,7 @@ The `ingest/__init__.py` module fused column detection, normalization, model map
 | Module | Responsibility |
 |---|---|
 | `column_mapping.py` | Pure column detection: `_first_match`, `_detect_columns`, `_RBC_REQUIRED_COLS`, `_detect_rbc_overrides`, `find_missing_columns` |
-| `normalization.py` | Pure DataFrame normalization: `build_transaction_id`, `HASH_ALGO_SPEC`, `_resolve_date_series`, `_resolve_description_series`, `_resolve_amount_series`, `_build_transaction_dataframe` |
+| `normalization.py` | Pure DataFrame normalization: `build_transaction_id`, `HASH_ALGO_SPEC`, `_build_date_series`, `_build_description_series`, `_build_amount_series`, `_build_transaction_dataframe` |
 | `transaction_mapping.py` | Pure DataFrame ↔ model mapping: `_opt_str`, `_groups_to_dataframe`, `_dataframe_to_groups`, `build_groups_from_dataframe`, `build_transactions_from_dataframe` |
 | `account_matching.py` | Pure account matching: `infer_account_for_file`, `build_normalization_plan` |
 | `config_loader.py` | Config I/O (reads YAML from disk): `load_accounts_config` |

@@ -64,10 +64,10 @@ def run(
         console.print("[yellow]Warning:[/yellow] Event store is empty")
         return 0
 
-    return _rebuild_and_report(from_scratch, projection_builder, event_store, total_events)
+    return _build_and_report(from_scratch, projection_builder, event_store, total_events)
 
 
-def _rebuild_and_report(
+def _build_and_report(
     from_scratch: bool, projection_builder, event_store, total_events: int
 ) -> int:
     """Rebuild projections (from scratch or incremental) and display summary."""

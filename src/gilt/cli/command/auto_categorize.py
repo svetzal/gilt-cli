@@ -119,7 +119,7 @@ def _write_categorizations(approved: list[Prediction], ready, workspace) -> int:
     return result.transactions_updated
 
 
-def _apply_rules_first(workspace, uncategorized_txns):
+def _run_rules_first(workspace, uncategorized_txns):
     """Try rule inference on uncategorized transactions.
 
     Returns (rule_approved, remaining_txns) where rule_approved is a list of
@@ -241,7 +241,7 @@ def run(
     uncategorized_txns = load_result.uncategorized_txns
 
     # Phase 1: Apply inferred rules (deterministic, high confidence)
-    rule_approved, remaining_txns = _apply_rules_first(workspace, uncategorized_txns)
+    rule_approved, remaining_txns = _run_rules_first(workspace, uncategorized_txns)
     if rule_approved:
         console.print(
             f"[green]{len(rule_approved)}[/green] transaction(s) matched by inferred rules"

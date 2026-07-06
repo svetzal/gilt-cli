@@ -7,7 +7,7 @@ from pathlib import Path
 
 import typer
 
-from gilt.cli.registration._dispatch import HELP_WRITE, dispatch, resolve_fy_range
+from gilt.cli.registration._dispatch import HELP_WRITE, build_fy_range, dispatch
 
 
 def register_categorize(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -294,7 +294,7 @@ def register_uncategorized(app: typer.Typer, ws_fn) -> None:  # type: ignore[typ
             year=year,
             limit=limit,
             min_amount=min_amount,
-            fy_range=resolve_fy_range(fy),
+            fy_range=build_fy_range(fy),
             fy_label=fy,
             workspace=ws_fn(ctx),
         )

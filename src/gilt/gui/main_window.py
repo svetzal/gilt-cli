@@ -89,7 +89,7 @@ class MainWindow(QMainWindow):
         app = QApplication.instance()
         if app:
             theme = app.property("current_theme") or "light"
-            self._apply_nav_theme(theme)
+            self._run_nav_theme(theme)
 
     def _init_ui(self):
         """Initialize the user interface."""
@@ -139,11 +139,11 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.nav_list)
 
         # Apply initial theme
-        self._apply_nav_theme("light")  # Will be updated by app
+        self._run_nav_theme("light")  # Will be updated by app
 
         return self.nav_widget
 
-    def _apply_nav_theme(self, theme: str):
+    def _run_nav_theme(self, theme: str):
         """
         Apply theme to navigation widget.
 
@@ -196,7 +196,7 @@ class MainWindow(QMainWindow):
         Args:
             theme: 'light' or 'dark'
         """
-        self._apply_nav_theme(theme)
+        self._run_nav_theme(theme)
 
     def _create_nav_item(self, text: str) -> QListWidgetItem:
         """Create a navigation list item."""

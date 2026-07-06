@@ -56,19 +56,19 @@ def _make_ambiguous_match():
 
 class DescribeResolveAmbiguousInteractively:
     def it_should_return_empty_list_when_user_skips(self):
-        from gilt.cli.command.ingest_receipts_review import resolve_ambiguous_interactively
+        from gilt.cli.command.ingest_receipts_review import run_ambiguous_interactively
 
         match = _make_ambiguous_match()
         with patch("gilt.cli.command.ingest_receipts_review.Prompt.ask", return_value="s"):
-            result = resolve_ambiguous_interactively([match])
+            result = run_ambiguous_interactively([match])
         assert result == []
 
     def it_should_return_resolved_match_when_user_selects_candidate(self):
-        from gilt.cli.command.ingest_receipts_review import resolve_ambiguous_interactively
+        from gilt.cli.command.ingest_receipts_review import run_ambiguous_interactively
 
         match = _make_ambiguous_match()
         with patch("gilt.cli.command.ingest_receipts_review.Prompt.ask", return_value="1"):
-            result = resolve_ambiguous_interactively([match])
+            result = run_ambiguous_interactively([match])
         assert len(result) == 1
         assert result[0].status == "matched"
         assert result[0].transaction_id == "abcd1234efgh5678"

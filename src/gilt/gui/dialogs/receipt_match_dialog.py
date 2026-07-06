@@ -284,12 +284,12 @@ class BatchReceiptMatchDialog(QDialog):
         if not current:
             QMessageBox.warning(self, "No Selection", "Please select a transaction.")
             return
-        self._resolve_current(current.data(Qt.ItemDataRole.UserRole))
+        self._find_current(current.data(Qt.ItemDataRole.UserRole))
 
     def _on_ambiguous_select(self, item: QListWidgetItem):
-        self._resolve_current(item.data(Qt.ItemDataRole.UserRole))
+        self._find_current(item.data(Qt.ItemDataRole.UserRole))
 
-    def _resolve_current(self, candidate: dict):
+    def _find_current(self, candidate: dict):
         result = self._ambiguous[self._current_ambiguous_index]
         resolved = MatchResult(
             receipt=result.receipt,

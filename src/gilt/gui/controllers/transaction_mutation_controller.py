@@ -54,12 +54,12 @@ class TransactionMutationController(QObject):
         except (OSError, ValueError):
             self.status_message.emit("Warning: projections sync failed — view may be stale")
 
-    def _apply_prediction(self, transaction: TransactionGroup, predicted: str):
+    def _run_prediction(self, transaction: TransactionGroup, predicted: str):
         """Apply a predicted category directly to a transaction."""
         parts = predicted.split(":", 1)
         category = parts[0].strip()
         subcategory = parts[1].strip() if len(parts) == 2 else None
-        self._apply_categorization(
+        self._run_categorization(
             [transaction],
             category,
             subcategory,
@@ -90,11 +90,11 @@ class TransactionMutationController(QObject):
             )
             if dialog.exec():
                 category, subcategory = dialog.get_selected_category()
-                self._apply_categorization(selected_transactions, category, subcategory)
+                self._run_categorization(selected_transactions, category, subcategory)
         except (OSError, ValueError, yaml.YAMLError) as e:
             QMessageBox.critical(self._parent, "Error", f"Failed to open categorize dialog:\n{e}")
 
-    def _apply_categorization(
+    def _run_categorization(
         self,
         transactions: list[TransactionGroup],
         category: str,
@@ -160,9 +160,9 @@ class TransactionMutationController(QObject):
         )
         if dialog.exec():
             new_note = dialog.get_note()
-            self._apply_note(txn_group, new_note)
+            self._run_note(txn_group, new_note)
 
-    def _apply_note(self, transaction: TransactionGroup, note: str):
+    def _run_note(self, transaction: TransactionGroup, note: str):
         """Apply note to a transaction and save to disk."""
         try:
             persist_note_update(

@@ -111,7 +111,7 @@ def _link_duplicate_if_present(
         (new_id,),
     )
     if cursor.fetchone():
-        root_id, _ = _resolve_root_primary(conn, original_id)
+        root_id, _ = _find_root_primary(conn, original_id)
         actual_primary = root_id if root_id else original_id
 
         conn.execute(
@@ -235,7 +235,7 @@ def _apply_duplicate_confirmed(conn: sqlite3.Connection, event: DuplicateConfirm
     )
     primary_row = cursor.fetchone()
     if primary_row and primary_row[0]:
-        root_id, _ = _resolve_root_primary(conn, primary_id)
+        root_id, _ = _find_root_primary(conn, primary_id)
         if root_id:
             primary_id = root_id
 
@@ -300,7 +300,7 @@ def _apply_duplicate_rejected(conn: sqlite3.Connection, event: DuplicateRejected
     )
 
 
-def _resolve_root_primary(
+def _find_root_primary(
     conn: sqlite3.Connection, txn_id: str, max_hops: int = 8
 ) -> tuple[str | None, list[str]]:
     """Thin wrapper: resolves root via DB query, delegating logic to find_root_primary."""

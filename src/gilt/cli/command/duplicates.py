@@ -105,7 +105,7 @@ def _analyze_candidates(console_obj, detector, candidates, detection_method):
     return matches
 
 
-def _scan_for_candidates(detector, data_dir, max_days_apart, amount_tolerance):
+def _find_candidates(detector, data_dir, max_days_apart, amount_tolerance):
     """Load transactions and find candidate duplicate pairs. Returns (transactions, candidates)."""
     transactions = detector.load_all_transactions(data_dir)
     candidates = detector.find_potential_duplicates(
@@ -116,7 +116,7 @@ def _scan_for_candidates(detector, data_dir, max_days_apart, amount_tolerance):
     return transactions, candidates
 
 
-def _filter_matches(
+def _find_matches(
     detector, review_service, candidates, detection_method, min_confidence, projection_builder
 ):
     """Analyze, confidence-filter, and exclude already-processed matches.
@@ -199,7 +199,7 @@ def run(
     )
 
     console.print("[yellow]Loading transactions from projections...[/yellow]")
-    _, candidates = _scan_for_candidates(detector, data_dir, max_days_apart, amount_tolerance)
+    _, candidates = _find_candidates(detector, data_dir, max_days_apart, amount_tolerance)
     console.print(f"[green]Found {len(candidates)} candidate pairs[/green]")
 
     if not candidates:
@@ -209,7 +209,7 @@ def run(
     console.print(
         f"[yellow]Analyzing {len(candidates)} candidates with {detection_method}...[/yellow]"
     )
-    filtered_matches, skipped_count = _filter_matches(
+    filtered_matches, skipped_count = _find_matches(
         detector, review_service, candidates, detection_method, min_confidence, projection_builder
     )
 

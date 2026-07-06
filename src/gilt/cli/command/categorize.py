@@ -61,7 +61,7 @@ def _find_account_ledgers(data_dir: Path, account: str | None) -> list[Path]:
         return repo.ledger_paths()
 
 
-def _resolve_single_txid(
+def _find_single_txid(
     all_transactions: list[dict],
     txid: str,
     service: TransactionOperationsService,
@@ -82,7 +82,7 @@ def _resolve_single_txid(
     return [(row["account_id"], group)]
 
 
-def _resolve_targets(
+def _find_targets(
     all_transactions: list[dict],
     single_mode: bool,
     txid: str | None,
@@ -97,7 +97,7 @@ def _resolve_targets(
     Returns None on error (invalid pattern, ambiguous ID, etc.).
     """
     if single_mode and txid is not None:
-        return _resolve_single_txid(all_transactions, txid, service)
+        return _find_single_txid(all_transactions, txid, service)
 
     criteria = SearchCriteria(
         description=description,
@@ -187,7 +187,7 @@ def _init_services(
     return service, categorization_service
 
 
-def _read_batch_input(txid_file: Path | None, from_stdin: bool) -> str:
+def _load_batch_input(txid_file: Path | None, from_stdin: bool) -> str:
     """Read batch input from file or stdin. Raises CommandAbort(1) if file not found."""
     if txid_file is not None:
         if not txid_file.exists():
@@ -198,7 +198,7 @@ def _read_batch_input(txid_file: Path | None, from_stdin: bool) -> str:
     return sys.stdin.read()
 
 
-def _parse_batch_lines(text: str) -> tuple[list[BatchEntry], list[str]]:
+def _build_batch_lines(text: str) -> tuple[list[BatchEntry], list[str]]:
     """Parse batch input text.
 
     Returns (entries, errors).
@@ -224,7 +224,7 @@ def _parse_batch_lines(text: str) -> tuple[list[BatchEntry], list[str]]:
     return entries, errors
 
 
-def _resolve_batch_entries(
+def _find_batch_entries(
     entries: list[BatchEntry],
     all_transactions: list[dict],
     account: str | None,
@@ -278,8 +278,8 @@ def _run_file_batch(
     categorization_service: CategorizationService | None,
 ) -> int:
     """Orchestrate the file batch flow: read → parse → resolve → preview → persist."""
-    text = _read_batch_input(txid_file, from_stdin)
-    entries, parse_errors = _parse_batch_lines(text)
+    text = _load_batch_input(txid_file, from_stdin)
+    entries, parse_errors = _build_batch_lines(text)
     if parse_errors:
         for err in parse_errors:
             print_error(err)
@@ -292,7 +292,7 @@ def _run_file_batch(
     all_transactions = load_account_transactions(workspace, account)
     svc, cat_svc = _init_services(workspace, service, categorization_service)
 
-    resolved, resolve_errors = _resolve_batch_entries(
+    resolved, resolve_errors = _find_batch_entries(
         entries, all_transactions, account, cat_svc, svc
     )
     if resolve_errors:
@@ -342,11 +342,11 @@ def _persist_file_batch(
         confirm_prompt=f"Categorize {len(resolved)} transaction(s)?",
         assume_yes=True,
         write=write,
-        apply=lambda: _apply_batch_persist(persist, workspace),
+        apply=lambda: _run_batch_persist(persist, workspace),
     )
 
 
-def _apply_batch_persist(persist, workspace: Workspace) -> int:
+def _run_batch_persist(persist, workspace: Workspace) -> int:
     """Resolve event sourcing and run persist callback. Returns exit code."""
     ready = require_event_sourcing(workspace)
     persist(ready)
@@ -383,7 +383,7 @@ def _run_single_batch(
     )
 
     all_transactions = load_account_transactions(workspace, account)
-    all_matches = _resolve_targets(
+    all_matches = _find_targets(
         all_transactions, single_mode, txid, description, desc_prefix, pattern, amount, service
     )
     if all_matches is None:

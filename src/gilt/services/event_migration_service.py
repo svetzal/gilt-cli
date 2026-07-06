@@ -86,7 +86,7 @@ class EventMigrationService:
             reader = csv.DictReader(io.StringIO(csv_text))
 
             for row_num, row in enumerate(reader, start=2):  # Start at 2 (header = 1)
-                row_events, row_errors = self._generate_events_for_row(row, row_num, filename)
+                row_events, row_errors = self._build_events_for_row(row, row_num, filename)
                 events.extend(row_events)
                 errors.extend(row_errors)
 
@@ -95,7 +95,7 @@ class EventMigrationService:
 
         return events, errors
 
-    def _generate_events_for_row(
+    def _build_events_for_row(
         self, row: dict, row_num: int, filename: str
     ) -> tuple[list[Event], list[str]]:
         """Process a single CSV row and generate the corresponding events.

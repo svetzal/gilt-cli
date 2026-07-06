@@ -137,7 +137,7 @@ def _find_matching_transactions(
 # ---------------------------------------------------------------------------
 
 
-def _apply_renaming(
+def _run_renaming(
     matches: list[tuple[str, TransactionGroup]],
     to_cat: str,
     to_subcat: str | None,
@@ -192,7 +192,7 @@ def _run_rename_mode(
         assume_yes=False,
         write=write,
         workspace=workspace,
-        persist=lambda ready: _apply_renaming(all_matches, to_cat, to_subcat, ready, workspace),
+        persist=lambda ready: _run_renaming(all_matches, to_cat, to_subcat, ready, workspace),
         on_success=lambda: recategorize_view.print_renamed_success(total_matched),
     )
 
@@ -307,7 +307,7 @@ def _run_selection_mode(
 # ---------------------------------------------------------------------------
 
 
-def _parse_to_category(to_category: str) -> tuple[str, str | None]:
+def _build_to_category(to_category: str) -> tuple[str, str | None]:
     """Parse and validate to_category. Returns (to_cat, to_subcat) or raises CommandAbort(1) on empty."""
     to_cat, to_subcat, _ = build_category_path(to_category)
     if not to_cat:
@@ -370,7 +370,7 @@ def run(
     Returns:
         Exit code (0 success, 1 error)
     """
-    to_cat, to_subcat = _parse_to_category(to_category)
+    to_cat, to_subcat = _build_to_category(to_category)
     selection_mode = any(
         x is not None
         for x in (

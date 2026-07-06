@@ -74,7 +74,7 @@ def _convert_to_docx(markdown_path: Path, docx_path: Path) -> bool:
         return False
 
 
-def _resolve_output_paths(
+def _build_output_paths(
     output: Path | None,
     workspace: Workspace,
     year: int | None,
@@ -165,7 +165,7 @@ def run(
     report = service.build_report(transactions, year=year, month=month)
     markdown_content = service.render_markdown(report)
 
-    markdown_path, docx_path = _resolve_output_paths(output, workspace, year, month)
+    markdown_path, docx_path = _build_output_paths(output, workspace, year, month)
 
     if not write:
         print_dry_run_message()

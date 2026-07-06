@@ -132,7 +132,7 @@ class PromptManager:
         lines.append("")
         return lines
 
-    def _generate_learned_patterns(self) -> str:
+    def _build_learned_patterns(self) -> str:
         """Generate learned patterns section from feedback history."""
         if not self.feedback_history:
             return ""
@@ -174,7 +174,7 @@ class PromptManager:
         Returns:
             Prompt template with {{variable}} placeholders
         """
-        learned_patterns = self._generate_learned_patterns()
+        learned_patterns = self._build_learned_patterns()
         return DEFAULT_PROMPT_TEMPLATE.format(learned_patterns=learned_patterns)
 
     def add_feedback(

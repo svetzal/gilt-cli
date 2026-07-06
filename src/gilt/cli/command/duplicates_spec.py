@@ -20,7 +20,7 @@ from gilt.cli.command._errors import CommandAbort
 from gilt.cli.command.duplicates import (
     ReviewContext,
     _analyze_candidates,
-    _filter_matches,
+    _find_matches,
     _record_feedback,
     _run_review_loop,
     run,
@@ -193,9 +193,9 @@ def _make_assessment(is_duplicate: bool = True, confidence: float = 0.9) -> Dupl
 
 
 class DescribeFilterMatches:
-    """Specs for _filter_matches()."""
+    """Specs for _find_matches()."""
 
-    def it_should_filter_matches_below_confidence_threshold(self):
+    def it_should_find_matches_below_confidence_threshold(self):
         pair = _make_pair()
         high_conf = DuplicateMatch(pair=pair, assessment=_make_assessment(confidence=0.9))
         low_conf = DuplicateMatch(pair=pair, assessment=_make_assessment(confidence=0.2))
@@ -209,7 +209,7 @@ class DescribeFilterMatches:
         with patch(
             "gilt.cli.command.duplicates._analyze_candidates", return_value=[high_conf, low_conf]
         ):
-            result, skipped = _filter_matches(
+            result, skipped = _find_matches(
                 detector, review_service, [pair], "ML", 0.5, projection_builder
             )
 
@@ -227,7 +227,7 @@ class DescribeFilterMatches:
         projection_builder = MagicMock()
 
         with patch("gilt.cli.command.duplicates._analyze_candidates", return_value=[match]):
-            result, skipped = _filter_matches(
+            result, skipped = _find_matches(
                 detector, review_service, [pair], "ML", 0.0, projection_builder
             )
 
@@ -241,7 +241,7 @@ class DescribeFilterMatches:
         projection_builder = MagicMock()
 
         with patch("gilt.cli.command.duplicates._analyze_candidates", return_value=[]):
-            result, skipped = _filter_matches(
+            result, skipped = _find_matches(
                 detector, review_service, [], "ML", 0.9, projection_builder
             )
 
@@ -460,9 +460,9 @@ class DescribeDuplicatesRun:
             with (
                 patch("gilt.cli.command.duplicates.require_event_sourcing", return_value=ready),
                 patch(
-                    "gilt.cli.command.duplicates._scan_for_candidates", return_value=([], [pair])
+                    "gilt.cli.command.duplicates._find_candidates", return_value=([], [pair])
                 ),
-                patch("gilt.cli.command.duplicates._filter_matches", return_value=([match], 0)),
+                patch("gilt.cli.command.duplicates._find_matches", return_value=([match], 0)),
                 patch("gilt.cli.command.duplicates._run_review_loop"),
                 patch("gilt.cli.command.duplicates._display_summary"),
                 patch("gilt.cli.command.duplicates.build_event_sourcing_service"),

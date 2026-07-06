@@ -10,7 +10,7 @@ from gilt.transfer.matching import (
     Txn,
     _amount_closeness,
     _date_proximity,
-    _filter_candidate_others,
+    _find_candidate_others,
     _find_nearby_fees,
     _select_best_match,
     _try_match_for_debit,
@@ -398,7 +398,7 @@ class DescribeFilterCandidateOthers:
         )
         txns_by_ccy = {"CAD": [d, credit]}
 
-        result = _filter_candidate_others(d, txns_by_ccy, set())
+        result = _find_candidate_others(d, txns_by_ccy, set())
 
         assert credit in result
 
@@ -407,7 +407,7 @@ class DescribeFilterCandidateOthers:
         same_account = _make_txn(transaction_id="s1", account_id="A1", amount=100.0, currency="CAD")
         txns_by_ccy = {"CAD": [d, same_account]}
 
-        result = _filter_candidate_others(d, txns_by_ccy, set())
+        result = _find_candidate_others(d, txns_by_ccy, set())
 
         assert same_account not in result
 
@@ -416,7 +416,7 @@ class DescribeFilterCandidateOthers:
         matched = _make_txn(transaction_id="m1", account_id="A2", amount=100.0, currency="CAD")
         txns_by_ccy = {"CAD": [d, matched]}
 
-        result = _filter_candidate_others(d, txns_by_ccy, {"m1"})
+        result = _find_candidate_others(d, txns_by_ccy, {"m1"})
 
         assert matched not in result
 
@@ -431,7 +431,7 @@ class DescribeFilterCandidateOthers:
         )
         txns_by_ccy = {"CAD": [d, overdraft]}
 
-        result = _filter_candidate_others(d, txns_by_ccy, set())
+        result = _find_candidate_others(d, txns_by_ccy, set())
 
         assert overdraft not in result
 
@@ -446,7 +446,7 @@ class DescribeFilterCandidateOthers:
         )
         txns_by_ccy = {"CAD": [d, same_sign]}
 
-        result = _filter_candidate_others(d, txns_by_ccy, set())
+        result = _find_candidate_others(d, txns_by_ccy, set())
 
         assert same_sign not in result
 

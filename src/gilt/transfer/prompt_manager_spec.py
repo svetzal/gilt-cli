@@ -127,7 +127,7 @@ class DescribePromptManagerLearnedPatterns:
         return PromptManager(temp_dir)
 
     def it_should_return_empty_string_with_no_feedback(self, manager):
-        result = manager._generate_learned_patterns()
+        result = manager._build_learned_patterns()
         assert result == ""
 
     def it_should_include_false_positive_section_when_fp_exists(self, manager):
@@ -137,13 +137,13 @@ class DescribePromptManagerLearnedPatterns:
         manager.add_feedback(
             pair, llm_said_duplicate=True, llm_confidence=0.9, user_confirmed=False
         )
-        result = manager._generate_learned_patterns()
+        result = manager._build_learned_patterns()
         assert "FALSE POSITIVES" in result
 
     def it_should_include_confirmed_duplicate_section(self, manager):
         pair = make_pair(txn1_description="ACME CORP", txn2_description="ACME CORP")
         manager.add_feedback(pair, llm_said_duplicate=True, llm_confidence=0.9, user_confirmed=True)
-        result = manager._generate_learned_patterns()
+        result = manager._build_learned_patterns()
         assert "TRUE DUPLICATES" in result
         assert "ACME CORP" in result
 
@@ -152,7 +152,7 @@ class DescribePromptManagerLearnedPatterns:
         manager.add_feedback(
             pair, llm_said_duplicate=False, llm_confidence=0.2, user_confirmed=True
         )
-        result = manager._generate_learned_patterns()
+        result = manager._build_learned_patterns()
         assert "previously missed duplicates" in result
 
     def it_should_detect_location_pattern_from_symmetric_difference(self, manager):
@@ -163,7 +163,7 @@ class DescribePromptManagerLearnedPatterns:
         manager.add_feedback(
             pair, llm_said_duplicate=True, llm_confidence=0.8, user_confirmed=False
         )
-        result = manager._generate_learned_patterns()
+        result = manager._build_learned_patterns()
         assert "location" in result.lower() or "tokens" in result.lower()
 
 

@@ -11,7 +11,7 @@ import pytest
 
 from gilt.cli.command._errors import CommandAbort
 from gilt.cli.command.skill_init import (
-    _parse_frontmatter_version,
+    _build_frontmatter_version,
     _stamp_version,
     _version_tuple,
     run,
@@ -21,15 +21,15 @@ from gilt.cli.command.skill_init import (
 class DescribeVersionParsing:
     def it_should_extract_version_from_frontmatter(self):
         text = "---\nname: gilt\ngilt-version: 1.2.3\n---\nBody\n"
-        assert _parse_frontmatter_version(text) == "1.2.3"
+        assert _build_frontmatter_version(text) == "1.2.3"
 
     def it_should_return_none_when_no_version_field(self):
         text = "---\nname: gilt\n---\nBody\n"
-        assert _parse_frontmatter_version(text) is None
+        assert _build_frontmatter_version(text) is None
 
     def it_should_return_none_when_no_frontmatter(self):
         text = "# Just markdown\n"
-        assert _parse_frontmatter_version(text) is None
+        assert _build_frontmatter_version(text) is None
 
 
 class DescribeVersionStamping:
@@ -85,7 +85,7 @@ class DescribeSkillInit:
 
             skill_md = target / ".claude" / "skills" / "gilt" / "SKILL.md"
             content = skill_md.read_text(encoding="utf-8")
-            assert _parse_frontmatter_version(content) == "0.4.1"
+            assert _build_frontmatter_version(content) == "0.4.1"
 
     def it_should_not_stamp_version_into_command_reference(self):
         with TemporaryDirectory() as tmpdir:
@@ -134,7 +134,7 @@ class DescribeSkillInit:
 
             # Should not overwrite
             content = skill_md.read_text(encoding="utf-8")
-            assert _parse_frontmatter_version(content) == "9.9.9"
+            assert _build_frontmatter_version(content) == "9.9.9"
             assert "Old content" in content
             assert exc_info.value.code == 1  # skipped file → non-zero exit
 
@@ -156,7 +156,7 @@ class DescribeSkillInit:
                 rc = run(force=True)
 
             content = skill_md.read_text(encoding="utf-8")
-            assert _parse_frontmatter_version(content) == "0.4.1"
+            assert _build_frontmatter_version(content) == "0.4.1"
             assert rc == 0
 
     def it_should_always_install_when_no_version_in_existing_file(self):
@@ -177,7 +177,7 @@ class DescribeSkillInit:
                 rc = run()
 
             content = skill_md.read_text(encoding="utf-8")
-            assert _parse_frontmatter_version(content) == "0.4.1"
+            assert _build_frontmatter_version(content) == "0.4.1"
             assert rc == 0
 
     def it_should_report_up_to_date_when_content_unchanged(self):

@@ -142,7 +142,7 @@ def find_already_ingested_invoices(enrichment_events: list) -> set[str]:
     return invoices
 
 
-def _resolve_candidates(
+def _find_candidates(
     receipt: ReceiptData,
     candidates: list[dict],
     confidence: str,
@@ -341,7 +341,7 @@ def match_receipt_to_transactions(
         (pattern_candidates, "pattern-assisted"),
     ]:
         if candidates:
-            return _resolve_candidates(receipt, candidates, confidence)
+            return _find_candidates(receipt, candidates, confidence)
 
     return MatchResult(
         receipt=receipt,

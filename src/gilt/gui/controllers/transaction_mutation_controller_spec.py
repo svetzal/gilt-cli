@@ -26,7 +26,7 @@ class DescribeApplyCategorization:
                 "gilt.gui.controllers.transaction_mutation_controller.CategorizationPersistenceService"
             ) as mock_persist_svc,
         ):
-            TransactionMutationController._apply_categorization(controller, [group], "Food", None)
+            TransactionMutationController._run_categorization(controller, [group], "Food", None)
 
         mock_persist_svc.return_value.persist_categorizations.assert_called_once()
         controller.data_changed.emit.assert_called_once_with(None)
@@ -45,7 +45,7 @@ class DescribeApplyCategorization:
                 "gilt.services.categorization_persistence_service.persist_categorizations_to_csv"
             ) as mock_write,
         ):
-            TransactionMutationController._apply_categorization(controller, [group], "Food", None)
+            TransactionMutationController._run_categorization(controller, [group], "Food", None)
 
         mock_write.assert_called_once()
         controller._sync_projections.assert_called_once()
@@ -67,7 +67,7 @@ class DescribeApplyCategorization:
                 "gilt.gui.controllers.transaction_mutation_controller.CategorizationPersistenceService"
             ),
         ):
-            TransactionMutationController._apply_categorization(
+            TransactionMutationController._run_categorization(
                 controller, [group], "Food", "Groceries", source="user"
             )
 
@@ -97,7 +97,7 @@ class DescribeApplyNote:
                 "gilt.gui.controllers.transaction_mutation_controller.persist_note_update"
             ) as mock_persist,
         ):
-            TransactionMutationController._apply_note(controller, group, "Test note")
+            TransactionMutationController._run_note(controller, group, "Test note")
 
         mock_persist.assert_called_once()
         assert mock_persist.call_args.kwargs["note"] == "Test note"
@@ -121,7 +121,7 @@ class DescribeApplyNote:
                 "gilt.gui.controllers.transaction_mutation_controller.persist_note_update"
             ) as mock_persist,
         ):
-            TransactionMutationController._apply_note(controller, group, "")
+            TransactionMutationController._run_note(controller, group, "")
 
         assert mock_persist.call_args.kwargs["note"] is None
 
@@ -133,9 +133,9 @@ class DescribeApplyPrediction:
             transaction_id="t1", date=date(2025, 1, 15), amount=-50.0, description="SAMPLE STORE"
         )
 
-        TransactionMutationController._apply_prediction(controller, group, "Food: Groceries")
+        TransactionMutationController._run_prediction(controller, group, "Food: Groceries")
 
-        controller._apply_categorization.assert_called_once_with(
+        controller._run_categorization.assert_called_once_with(
             [group],
             "Food",
             "Groceries",
@@ -149,9 +149,9 @@ class DescribeApplyPrediction:
             transaction_id="t2", date=date(2025, 1, 15), amount=-20.0, description="BUS PASS"
         )
 
-        TransactionMutationController._apply_prediction(controller, group, "Transport")
+        TransactionMutationController._run_prediction(controller, group, "Transport")
 
-        controller._apply_categorization.assert_called_once_with(
+        controller._run_categorization.assert_called_once_with(
             [group],
             "Transport",
             None,
@@ -166,7 +166,7 @@ class DescribeCategorizeSelected:
 
         TransactionMutationController.categorize_selected(controller, [])
 
-        controller._apply_categorization.assert_not_called()
+        controller._run_categorization.assert_not_called()
 
 
 class DescribeNoteSelected:
@@ -177,7 +177,7 @@ class DescribeNoteSelected:
 
         TransactionMutationController.note_selected(controller, [group1, group2])
 
-        controller._apply_note.assert_not_called()
+        controller._run_note.assert_not_called()
 
 
 class DescribeRunDuplicateResolution:
@@ -218,7 +218,7 @@ class DescribeManualMerge:
 
         TransactionMutationController.manual_merge(controller, [group])
 
-        controller._apply_categorization.assert_not_called()
+        controller._run_categorization.assert_not_called()
         controller._sync_projections.assert_not_called()
 
 

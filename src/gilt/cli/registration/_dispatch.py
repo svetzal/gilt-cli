@@ -25,7 +25,7 @@ def dispatch(run: Callable[..., int], /, **kwargs: Any) -> NoReturn:
     raise typer.Exit(code=code)
 
 
-def resolve_fy_range(fy: str | None):
+def build_fy_range(fy: str | None):
     """Parse a fiscal-year string into a (start, end) date range.
 
     Returns None when fy is None. Raises typer.Exit(code=1) on parse failure,

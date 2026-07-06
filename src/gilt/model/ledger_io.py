@@ -81,7 +81,7 @@ def _to_str(v) -> str:
 # ---- Parsing helpers to keep load_ledger_csv simple ----
 
 
-def _parse_metadata_field(s: str) -> dict:
+def _build_metadata_field(s: str) -> dict:
     s = (s or "").strip()
     if not s:
         return {}
@@ -127,7 +127,7 @@ def _normalize_row(
     subcategory = (r.get("subcategory") or "").strip() or None
     notes = (r.get("notes") or "").strip() or None
     source_file = (r.get("source_file") or "").strip() or None
-    metadata = _parse_metadata_field((r.get("metadata_json") or "").strip())
+    metadata = _build_metadata_field((r.get("metadata_json") or "").strip())
     return (
         row_type,
         group_id,

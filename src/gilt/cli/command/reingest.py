@@ -137,7 +137,7 @@ def run(
         print_dry_run_message()
         return 0
 
-    return _execute_reingest(
+    return _run_reingest(
         ledger_path,
         reingest_svc,
         purge_plan,
@@ -150,7 +150,7 @@ def run(
     )
 
 
-def _execute_reingest(
+def _run_reingest(
     ledger_path: Path,
     reingest_svc,
     purge_plan,

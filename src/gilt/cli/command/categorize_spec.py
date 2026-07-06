@@ -12,7 +12,7 @@ from tempfile import TemporaryDirectory
 import pytest
 
 from gilt.cli.command._errors import CommandAbort
-from gilt.cli.command.categorize import BatchEntry, _parse_batch_lines, run
+from gilt.cli.command.categorize import BatchEntry, _build_batch_lines, run
 from gilt.cli.command.conftest import build_projections_from_csvs, write_ledger
 from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.category import Category, CategoryConfig, Subcategory
@@ -962,7 +962,7 @@ class DescribeCategorizeBatchFile:
             "# another comment\n"
             "cccc3333 Shopping\n"
         )
-        entries, errors = _parse_batch_lines(text)
+        entries, errors = _build_batch_lines(text)
         assert errors == []
         assert len(entries) == 2
         assert entries[0] == BatchEntry(
@@ -1217,7 +1217,7 @@ class DescribeCategorizeBatchFile:
     def it_should_abort_on_malformed_line_and_report_line_number(self):
         """A line with only one whitespace-delimited token is malformed."""
         text = "aaaa1111\n"
-        entries, errors = _parse_batch_lines(text)
+        entries, errors = _build_batch_lines(text)
         assert len(errors) == 1
         assert "line 1" in errors[0].lower()
 

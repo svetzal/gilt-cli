@@ -59,7 +59,7 @@ def _display_matches(
     )
 
 
-def _resolve_note_targets(
+def _find_note_targets(
     service: TransactionOperationsService,
     groups: list[TransactionGroup],
     account: str,
@@ -130,7 +130,7 @@ def _print_note_target_summary(
     )
 
 
-def _apply_and_write_notes(
+def _save_notes(
     service: TransactionOperationsService,
     groups: list[TransactionGroup],
     groups_to_update: list[TransactionGroup],
@@ -184,7 +184,7 @@ def run(
         raise CommandAbort(1)
 
     service = TransactionOperationsService()
-    groups_to_update = _resolve_note_targets(
+    groups_to_update = _find_note_targets(
         service, groups, account, txid, description, desc_prefix, pattern, amount
     )
 
@@ -202,7 +202,7 @@ def run(
         )
 
     def apply() -> int:
-        count = _apply_and_write_notes(
+        count = _save_notes(
             service, groups, groups_to_update, note_text, ledger_repo, account
         )
         console.print(
