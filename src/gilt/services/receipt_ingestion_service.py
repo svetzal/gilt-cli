@@ -189,6 +189,8 @@ DEFAULT_VENDOR_PATTERNS: dict[str, list[str]] = {
 _FX_AMOUNT_PCT = Decimal("0.08")  # 8% tolerance for FX matches
 _FX_DATE_WINDOW = 2
 _PATTERN_AMOUNT_PCT = Decimal("0.08")  # 8% tolerance for vendor-pattern matches
+_DEFAULT_DATE_WINDOW_DAYS = 3
+_DEFAULT_AMOUNT_TOLERANCE = Decimal("0.02")
 
 
 def _is_exact_match(
@@ -295,8 +297,8 @@ def match_receipt_to_transactions(
     receipt: ReceiptData,
     transactions: list[dict],
     account_id: str | None = None,
-    amount_tolerance: Decimal = Decimal("0.02"),
-    date_window_days: int = 3,
+    amount_tolerance: Decimal = _DEFAULT_AMOUNT_TOLERANCE,
+    date_window_days: int = _DEFAULT_DATE_WINDOW_DAYS,
     vendor_patterns: dict[str, list[str]] | None = None,
 ) -> MatchResult:
     """Match a receipt to bank transactions using multi-strategy matching.

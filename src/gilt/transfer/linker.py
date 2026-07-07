@@ -32,11 +32,16 @@ from gilt.transfer._constants import (
     TRANSFER_AMOUNT,
     TRANSFER_COUNTERPARTY_ACCOUNT_ID,
     TRANSFER_COUNTERPARTY_TRANSACTION_ID,
+    TRANSFER_EPSILON_DIRECT,
+    TRANSFER_EPSILON_INTERAC,
+    TRANSFER_FEE_DAY_WINDOW,
+    TRANSFER_FEE_MAX_AMOUNT,
     TRANSFER_FEE_TXN_IDS,
     TRANSFER_META_KEY,
     TRANSFER_METHOD,
     TRANSFER_ROLE,
     TRANSFER_SCORE,
+    TRANSFER_WINDOW_DAYS,
 )
 
 # We reuse the matching logic from the matching module (no CLI deps)
@@ -137,12 +142,13 @@ def _ensure_transfer_metadata(group: TransactionGroup, payload: dict) -> bool:
     return True
 
 
-# Default parameters for transfer linking. Both ingest and reingest use these values.
-TRANSFER_LINK_WINDOW_DAYS: int = 3
-TRANSFER_LINK_EPSILON_DIRECT: float = 0.0
-TRANSFER_LINK_EPSILON_INTERAC: float = 0.0
-TRANSFER_LINK_FEE_MAX_AMOUNT: float = 3.00
-TRANSFER_LINK_FEE_DAY_WINDOW: int = 1
+# Public aliases for the canonical tuning constants in _constants.py.
+# Preserved for backward compatibility with any external caller.
+TRANSFER_LINK_WINDOW_DAYS: int = TRANSFER_WINDOW_DAYS
+TRANSFER_LINK_EPSILON_DIRECT: float = TRANSFER_EPSILON_DIRECT
+TRANSFER_LINK_EPSILON_INTERAC: float = TRANSFER_EPSILON_INTERAC
+TRANSFER_LINK_FEE_MAX_AMOUNT: float = TRANSFER_FEE_MAX_AMOUNT
+TRANSFER_LINK_FEE_DAY_WINDOW: int = TRANSFER_FEE_DAY_WINDOW
 
 
 def link_transfers(

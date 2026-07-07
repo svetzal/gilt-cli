@@ -12,3 +12,11 @@ TRANSFER_FEE_TXN_IDS = "fee_txn_ids"
 # Transfer role values
 ROLE_DEBIT = "debit"
 ROLE_CREDIT = "credit"
+
+# Transfer matching/linking tuning parameters — single source of truth.
+# epsilon <= 0 means exact absolute-amount matching (see _amount_closeness in matching.py).
+TRANSFER_WINDOW_DAYS: int = 3
+TRANSFER_EPSILON_DIRECT: float = 0.0
+TRANSFER_EPSILON_INTERAC: float = 0.0
+TRANSFER_FEE_MAX_AMOUNT: float = 3.00
+TRANSFER_FEE_DAY_WINDOW: int = 1

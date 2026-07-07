@@ -94,7 +94,7 @@ Batch operations: always show preview table and count before confirming.
 ## Transfer Linking
 
 Implemented in `gilt.transfer.linker.link_transfers`, run post-ingest.
-- Parameters: `window_days=3`, `epsilon_direct=0.01`, `epsilon_interac=1.75`, `fee_max_amount=3.00`, `fee_day_window=1`
+- Parameters: `window_days=3`, `epsilon_direct=0.0`, `epsilon_interac=0.0`, `fee_max_amount=3.00`, `fee_day_window=1` (canonical values in `gilt.transfer._constants`)
 - Writes metadata to matched transactions under `primary.metadata.transfer` with: role, counterparty_account_id, counterparty_transaction_id, amount, method, score, fee_txn_ids
 - Idempotent: updates existing transfer blocks non-destructively
 

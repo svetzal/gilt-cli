@@ -14,6 +14,13 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from gilt.model.ledger_repository import LEDGER_IO_ERRORS, LedgerRepository
+from gilt.transfer._constants import (
+    TRANSFER_EPSILON_DIRECT,
+    TRANSFER_EPSILON_INTERAC,
+    TRANSFER_FEE_DAY_WINDOW,
+    TRANSFER_FEE_MAX_AMOUNT,
+    TRANSFER_WINDOW_DAYS,
+)
 
 # Tokens and keywords used to assess transfer-like transactions
 DESCRIPTION_TOKENS = [
@@ -251,11 +258,11 @@ def _try_match_for_debit(
 
 def find_matches(
     processed_dir: Path,
-    window_days: int = 3,
-    epsilon_direct: float = 0.0,
-    epsilon_interac: float = 0.0,
-    fee_max_amount: float = 3.00,
-    fee_day_window: int = 1,
+    window_days: int = TRANSFER_WINDOW_DAYS,
+    epsilon_direct: float = TRANSFER_EPSILON_DIRECT,
+    epsilon_interac: float = TRANSFER_EPSILON_INTERAC,
+    fee_max_amount: float = TRANSFER_FEE_MAX_AMOUNT,
+    fee_day_window: int = TRANSFER_FEE_DAY_WINDOW,
 ) -> list[Match]:
     """Compute likely transfer matches between accounts.
 
