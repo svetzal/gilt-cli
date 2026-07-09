@@ -68,3 +68,20 @@ class DescribeDisplayOrphanedCategories:
 
         output = _capture(lambda: display_orphaned_categories(result, config))
         assert "Action required" in output
+
+
+class DescribeDiagnoseCategoriesStatusMessages:
+    def it_should_print_no_categories_defined(self):
+        from gilt.cli.command.diagnose_categories_view import print_no_categories_defined
+
+        assert "No categories defined" in _capture(print_no_categories_defined)
+
+    def it_should_print_no_categorized_transactions(self):
+        from gilt.cli.command.diagnose_categories_view import print_no_categorized_transactions
+
+        assert "No categorized transactions" in _capture(print_no_categorized_transactions)
+
+    def it_should_print_all_categories_defined(self):
+        from gilt.cli.command.diagnose_categories_view import print_all_categories_defined
+
+        assert "All categories" in _capture(print_all_categories_defined)

@@ -103,3 +103,17 @@ class DescribeDisplayResultsTable:
 
         output = _capture(lambda: display_results_table([]))
         assert output.strip() == ""
+
+
+class DescribeIngestReceiptsStatusMessages:
+    def it_should_print_parse_warnings_and_summary(self):
+        from gilt.cli.command.ingest_receipts_view import print_parse_warnings
+
+        output = _capture(lambda: print_parse_warnings(["skipping a.json — bad"]))
+        assert "bad" in output
+        assert "Skipped 1" in output
+
+    def it_should_print_no_receipts(self):
+        from gilt.cli.command.ingest_receipts_view import print_no_receipts
+
+        assert "No receipt JSON files" in _capture(print_no_receipts)

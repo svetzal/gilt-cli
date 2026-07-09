@@ -7,6 +7,24 @@ from rich.table import Table
 from ..console import console
 
 
+def print_no_categories_defined() -> None:
+    """Print the message shown when categories.yml defines no categories."""
+    console.print(
+        "[yellow]No categories defined in config.[/] "
+        "Create config/categories.yml to define valid categories."
+    )
+
+
+def print_no_categorized_transactions() -> None:
+    """Print the message shown when no categorized transactions exist."""
+    console.print("[green]No categorized transactions found.[/]")
+
+
+def print_all_categories_defined() -> None:
+    """Print the message shown when every used category is defined in config."""
+    console.print("[green]✓ All categories in transactions are defined in config.[/]")
+
+
 def display_orphaned_categories(result, category_config) -> None:
     """Display the orphaned categories table and action guidance."""
     console.print(

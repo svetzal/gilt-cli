@@ -73,7 +73,10 @@ class DescribeShowSingleMatch:
 
             buf = StringIO()
             test_console = Console(file=buf, width=200)
-            with patch("gilt.cli.command.show.console", test_console):
+            with (
+                patch("gilt.cli.console.console", test_console),
+                patch("gilt.cli.command.show_view.console", test_console),
+            ):
                 rc = run(txid="aabbccdd", workspace=workspace)
 
             output = buf.getvalue()
@@ -106,7 +109,10 @@ class DescribeShowSingleMatch:
 
             buf = StringIO()
             test_console = Console(file=buf, width=200)
-            with patch("gilt.cli.command.show.console", test_console):
+            with (
+                patch("gilt.cli.console.console", test_console),
+                patch("gilt.cli.command.show_view.console", test_console),
+            ):
                 rc = run(txid="aabbccdd", workspace=workspace)
 
             output = buf.getvalue()
@@ -144,7 +150,10 @@ class DescribeShowSingleMatch:
 
             buf = StringIO()
             test_console = Console(file=buf, width=200)
-            with patch("gilt.cli.command.show.console", test_console):
+            with (
+                patch("gilt.cli.console.console", test_console),
+                patch("gilt.cli.command.show_view.console", test_console),
+            ):
                 rc = run(txid="aabbccdd", workspace=workspace)
 
             output = buf.getvalue()
@@ -191,7 +200,10 @@ class DescribeShowSingleMatch:
 
             buf = StringIO()
             test_console = Console(file=buf, width=200)
-            with patch("gilt.cli.command.show.console", test_console):
+            with (
+                patch("gilt.cli.console.console", test_console),
+                patch("gilt.cli.command.show_view.console", test_console),
+            ):
                 rc = run(txid="aabbccdd", workspace=workspace)
 
             output = buf.getvalue()
@@ -233,7 +245,10 @@ class DescribeShowSingleMatch:
 
             buf = StringIO()
             test_console = Console(file=buf, width=200)
-            with patch("gilt.cli.command.show.console", test_console):
+            with (
+                patch("gilt.cli.console.console", test_console),
+                patch("gilt.cli.command.show_view.console", test_console),
+            ):
                 rc = run(txid="aabbccdd", workspace=workspace)
 
             output = buf.getvalue()
@@ -278,7 +293,7 @@ class DescribeShowAmbiguousPrefix:
             buf = StringIO()
             test_console = Console(file=buf, width=200)
             with (
-                patch("gilt.cli.command.show.console", test_console),
+                patch("gilt.cli.console.console", test_console),
                 patch("gilt.cli.command.show_view.console", test_console),
             ):
                 rc = run(txid="aabbccdd", workspace=workspace)
@@ -315,7 +330,10 @@ class DescribeShowNoMatch:
 
             buf = StringIO()
             test_console = Console(file=buf, width=200)
-            with patch("gilt.cli.command.show.console", test_console):
+            with (
+                patch("gilt.cli.console.console", test_console),
+                patch("gilt.cli.command.show_view.console", test_console),
+            ):
                 rc = run(txid="ffffffff", workspace=workspace)
 
             output = buf.getvalue()
@@ -347,7 +365,10 @@ class DescribeShowPrefixValidation:
 
             buf = StringIO()
             test_console = Console(file=buf, width=200)
-            with patch("gilt.cli.command.show.console", test_console):
+            with (
+                patch("gilt.cli.console.console", test_console),
+                patch("gilt.cli.command.show_view.console", test_console),
+            ):
                 rc = run(txid="aabb", workspace=workspace)
 
             output = buf.getvalue()
@@ -375,7 +396,10 @@ class DescribeShowPrefixValidation:
 
             buf = StringIO()
             test_console = Console(file=buf, width=200)
-            with patch("gilt.cli.command.show.console", test_console):
+            with (
+                patch("gilt.cli.console.console", test_console),
+                patch("gilt.cli.command.show_view.console", test_console),
+            ):
                 rc = run(txid="aabbccdd11223344", workspace=workspace)
 
             assert rc == 0
@@ -392,7 +416,7 @@ class DescribeShowNoProjections:
             buf = StringIO()
             test_console = Console(file=buf, width=200)
             with (
-                patch("gilt.cli.command.show.console", test_console),
+                patch("gilt.cli.console.console", test_console),
                 pytest.raises(CommandAbort) as exc_info,
             ):
                 run(txid="aabbccdd", workspace=workspace)

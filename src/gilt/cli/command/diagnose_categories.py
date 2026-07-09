@@ -9,8 +9,12 @@ from gilt.model.ledger_repository import LedgerRepository
 from gilt.services.category_diagnostics_service import CategoryDiagnosticsService
 from gilt.workspace import Workspace
 
-from ..console import console
-from .diagnose_categories_view import display_orphaned_categories
+from .diagnose_categories_view import (
+    display_orphaned_categories,
+    print_all_categories_defined,
+    print_no_categories_defined,
+    print_no_categorized_transactions,
+)
 
 
 def _load_transactions_from_ledgers(data_dir) -> list[dict]:
@@ -42,10 +46,7 @@ def run(
 
     category_config = load_categories_config(config)
     if not category_config.categories:
-        console.print(
-            "[yellow]No categories defined in config.[/] "
-            "Create config/categories.yml to define valid categories."
-        )
+        print_no_categories_defined()
         return 0
 
     transactions = _load_transactions_from_ledgers(data_dir)
@@ -54,13 +55,13 @@ def run(
     used = service.collect_used_categories(transactions)
 
     if not used:
-        console.print("[green]No categorized transactions found.[/]")
+        print_no_categorized_transactions()
         return 0
 
     result = service.find_orphaned_categories(used)
 
     if not result.orphaned_categories:
-        console.print("[green]✓ All categories in transactions are defined in config.[/]")
+        print_all_categories_defined()
         return 0
 
     display_orphaned_categories(result, category_config)

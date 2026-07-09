@@ -42,10 +42,6 @@ VIOLATIONS = [
 # Modules that have a view sibling but still emit console.print from orchestration.
 # Remove an entry once its console.print calls have moved into the view module.
 ORCHESTRATION_PRINT_ALLOWLIST: set[str] = {
-    "diagnose_categories",
-    "history",
-    "ingest_receipts",
-    "show",
     "infer_rules",
     "rebuild_projections",
     "duplicates",

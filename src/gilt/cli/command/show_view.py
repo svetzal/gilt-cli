@@ -82,6 +82,21 @@ def build_detail_table(row: dict) -> Table:
     return table
 
 
+def print_ambiguous_prefix(prefix: str) -> None:
+    """Print the message shown when a prefix matches multiple transactions."""
+    console.print(
+        f"[yellow]Ambiguous prefix '{prefix}':[/] matches multiple transactions. "
+        "Provide a longer prefix to narrow the match."
+    )
+
+
+def display_transaction_detail(row: dict) -> None:
+    """Print the transaction-detail header and key-value table for a single row."""
+    txn_id_prefix = (row.get("transaction_id") or "")[:8]
+    console.print(f"\n[bold]Transaction Detail[/] — [cyan]{txn_id_prefix}[/]\n")
+    console.print(build_detail_table(row))
+
+
 def display_ambiguous_candidates(transactions: list[dict], ambiguous_ids: list[str]) -> None:
     """Display a summary table of candidate transactions for an ambiguous prefix."""
     id_set = set(ambiguous_ids)

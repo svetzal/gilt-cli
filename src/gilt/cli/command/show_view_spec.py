@@ -89,3 +89,19 @@ class DescribeBuildDetailTable:
         table = build_detail_table(row)
         assert table is not None
         assert table.row_count > 0
+
+
+class DescribeShowStatusMessages:
+    def it_should_print_ambiguous_prefix(self):
+        from gilt.cli.command.show_view import print_ambiguous_prefix
+
+        output = _capture(lambda: print_ambiguous_prefix("aabbccdd"))
+        assert "Ambiguous" in output
+        assert "aabbccdd" in output
+
+    def it_should_display_transaction_detail_header(self):
+        from gilt.cli.command.show_view import display_transaction_detail
+
+        output = _capture(lambda: display_transaction_detail({"transaction_id": "aabbccdd11223344"}))
+        assert "Transaction Detail" in output
+        assert "aabbccdd" in output

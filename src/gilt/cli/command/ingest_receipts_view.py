@@ -10,6 +10,21 @@ from ..console import console, print_dry_run_message
 from ..formatting import fmt_amount_str
 
 
+def print_parse_warnings(warnings: list[str]) -> None:
+    """Print per-file parse warnings and a skipped-count summary."""
+    for w in warnings:
+        console.print(f"[yellow]Warning: {w}[/yellow]")
+    if warnings:
+        console.print(
+            f"[yellow]Skipped {len(warnings)} receipt file(s) due to errors.[/yellow]"
+        )
+
+
+def print_no_receipts() -> None:
+    """Print the message shown when no receipt JSON files are found."""
+    console.print("[yellow]No receipt JSON files found.[/yellow]")
+
+
 def display_summary(
     matched: list[MatchResult],
     ambiguous: list[MatchResult],

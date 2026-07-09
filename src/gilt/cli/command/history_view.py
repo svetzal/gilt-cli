@@ -8,6 +8,16 @@ from ..console import console
 from ..formatting import fmt_amount
 
 
+def print_invalid_date(field: str, value: str) -> None:
+    """Print an error for an invalid ISO date passed to a date filter flag."""
+    console.print(f"[red]Error:[/] Invalid --{field} value: {value!r}")
+
+
+def print_no_matches(pattern: str) -> None:
+    """Print the message shown when no transactions match the pattern."""
+    console.print(f"[yellow]No matching transactions for pattern '{pattern}'[/]")
+
+
 def display_history_table(
     rows, pattern: str, account: str | None, date_from: str | None, date_to: str | None
 ) -> None:

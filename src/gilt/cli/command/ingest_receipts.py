@@ -23,9 +23,14 @@ from gilt.services.receipt_ingestion_service import (
 )
 from gilt.workspace import Workspace
 
-from ..console import console, print_error
+from ..console import print_error
 from .ingest_receipts_review import run_ambiguous_interactively
-from .ingest_receipts_view import display_results_table, display_summary
+from .ingest_receipts_view import (
+    display_results_table,
+    display_summary,
+    print_no_receipts,
+    print_parse_warnings,
+)
 
 
 def _emit_enrichment_events(matched: list[MatchResult], store) -> int:
@@ -87,14 +92,9 @@ def run(
     json_paths = find_receipt_files(source)
     if year is not None:
         json_paths, parse_warnings = _find_paths_by_year(json_paths, year)
-        for w in parse_warnings:
-            console.print(f"[yellow]Warning: {w}[/yellow]")
-        if parse_warnings:
-            console.print(
-                f"[yellow]Skipped {len(parse_warnings)} receipt file(s) due to errors.[/yellow]"
-            )
+        print_parse_warnings(parse_warnings)
     if not json_paths:
-        console.print("[yellow]No receipt JSON files found.[/yellow]")
+        print_no_receipts()
         return 0
 
     # Load projections

@@ -106,7 +106,6 @@ class DescribeHistoryBasicGrouping:
             buf = StringIO()
             test_console = Console(file=buf, width=200)
             with (
-                patch("gilt.cli.command.history.console", test_console),
                 patch("gilt.cli.command.history_view.console", test_console),
             ):
                 rc = run(pattern="EXAMPLE PHARMACY", workspace=workspace)
@@ -137,7 +136,6 @@ class DescribeHistoryCaseInsensitivity:
             buf = StringIO()
             test_console = Console(file=buf, width=200)
             with (
-                patch("gilt.cli.command.history.console", test_console),
                 patch("gilt.cli.command.history_view.console", test_console),
             ):
                 rc = run(pattern="acme corp", workspace=workspace)
@@ -179,7 +177,6 @@ class DescribeHistoryAccountFilter:
             buf = StringIO()
             test_console = Console(file=buf, width=200)
             with (
-                patch("gilt.cli.command.history.console", test_console),
                 patch("gilt.cli.command.history_view.console", test_console),
             ):
                 rc = run(
@@ -211,7 +208,6 @@ class DescribeHistoryIncludeUncategorized:
             buf = StringIO()
             test_console = Console(file=buf, width=200)
             with (
-                patch("gilt.cli.command.history.console", test_console),
                 patch("gilt.cli.command.history_view.console", test_console),
             ):
                 rc = run(pattern="EXAMPLE UTILITY", workspace=workspace)
@@ -233,7 +229,6 @@ class DescribeHistoryIncludeUncategorized:
             buf = StringIO()
             test_console = Console(file=buf, width=200)
             with (
-                patch("gilt.cli.command.history.console", test_console),
                 patch("gilt.cli.command.history_view.console", test_console),
             ):
                 rc = run(
@@ -267,7 +262,6 @@ class DescribeHistoryLimit:
             buf = StringIO()
             test_console = Console(file=buf, width=200)
             with (
-                patch("gilt.cli.command.history.console", test_console),
                 patch("gilt.cli.command.history_view.console", test_console),
             ):
                 rc = run(pattern="ACME CORP", limit=2, workspace=workspace)
@@ -306,7 +300,6 @@ class DescribeHistoryOrdering:
             buf = StringIO()
             test_console = Console(file=buf, width=200)
             with (
-                patch("gilt.cli.command.history.console", test_console),
                 patch("gilt.cli.command.history_view.console", test_console),
             ):
                 rc = run(pattern="SAMPLE STORE", workspace=workspace)
@@ -335,7 +328,6 @@ class DescribeHistoryEmptyResult:
             buf = StringIO()
             test_console = Console(file=buf, width=200)
             with (
-                patch("gilt.cli.command.history.console", test_console),
                 patch("gilt.cli.command.history_view.console", test_console),
             ):
                 rc = run(pattern="NONEXISTENT VENDOR", workspace=workspace)
@@ -371,7 +363,6 @@ class DescribeHistoryDateWindow:
             buf = StringIO()
             test_console = Console(file=buf, width=200)
             with (
-                patch("gilt.cli.command.history.console", test_console),
                 patch("gilt.cli.command.history_view.console", test_console),
             ):
                 rc = run(
@@ -417,7 +408,6 @@ class DescribeHistoryDuplicatesExcluded:
             buf = StringIO()
             test_console = Console(file=buf, width=200)
             with (
-                patch("gilt.cli.command.history.console", test_console),
                 patch("gilt.cli.command.history_view.console", test_console),
             ):
                 rc = run(pattern="EXAMPLE PHARMACY DUPLICATE", workspace=workspace)
@@ -439,7 +429,6 @@ class DescribeHistoryNoProjections:
             buf = StringIO()
             test_console = Console(file=buf, width=200)
             with (
-                patch("gilt.cli.command.history.console", test_console),
                 patch("gilt.cli.command.history_view.console", test_console),
                 pytest.raises(CommandAbort) as exc_info,
             ):

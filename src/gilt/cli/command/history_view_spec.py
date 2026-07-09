@@ -75,3 +75,17 @@ class DescribeDisplayHistoryTable:
             lambda: display_history_table(rows, "EXAMPLE", None, None, None)
         )
         assert "MYBANK_CHQ" not in output
+
+
+class DescribeHistoryStatusMessages:
+    def it_should_print_invalid_date_with_field_and_value(self):
+        from gilt.cli.command.history_view import print_invalid_date
+
+        output = _capture(lambda: print_invalid_date("date-from", "not-a-date"))
+        assert "date-from" in output
+        assert "not-a-date" in output
+
+    def it_should_print_no_matches_with_pattern(self):
+        from gilt.cli.command.history_view import print_no_matches
+
+        assert "SAMPLE" in _capture(lambda: print_no_matches("SAMPLE"))

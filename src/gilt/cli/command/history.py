@@ -6,9 +6,8 @@ from datetime import date
 
 from gilt.workspace import Workspace
 
-from ..console import console
 from ..event_sourcing_bootstrap import require_projections
-from .history_view import display_history_table
+from .history_view import display_history_table, print_invalid_date, print_no_matches
 
 
 def run(
@@ -33,14 +32,14 @@ def run(
         try:
             date.fromisoformat(date_from)
         except ValueError:
-            console.print(f"[red]Error:[/] Invalid --date-from value: {date_from!r}")
+            print_invalid_date("date-from", date_from)
             return 2
 
     if date_to is not None:
         try:
             date.fromisoformat(date_to)
         except ValueError:
-            console.print(f"[red]Error:[/] Invalid --date-to value: {date_to!r}")
+            print_invalid_date("date-to", date_to)
             return 2
 
     builder = require_projections(workspace)
@@ -54,7 +53,7 @@ def run(
     )
 
     if not rows:
-        console.print(f"[yellow]No matching transactions for pattern '{pattern}'[/]")
+        print_no_matches(pattern)
         return 0
 
     display_history_table(rows, pattern, account, date_from, date_to)
