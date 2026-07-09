@@ -26,6 +26,103 @@ def _capture(fn) -> str:
     return buf.getvalue()
 
 
+class _StubValidation:
+    def __init__(
+        self,
+        transaction_count_match=True,
+        budget_count_match=True,
+        sample_transactions_match=True,
+    ):
+        self.transaction_count_match = transaction_count_match
+        self.budget_count_match = budget_count_match
+        self.sample_transactions_match = sample_transactions_match
+
+
+class DescribePrintMigrationHeader:
+    def it_should_show_the_manual_backfill_banner(self):
+        from gilt.cli.command.backfill_events_view import print_migration_header
+
+        output = _capture(print_migration_header)
+        assert "Manual Backfill" in output
+
+
+class DescribePrintTransactionStep:
+    def it_should_show_the_step_one_header(self):
+        from gilt.cli.command.backfill_events_view import print_transaction_step
+
+        output = _capture(print_transaction_step)
+        assert "Step 1" in output
+
+
+class DescribePrintNoLedgers:
+    def it_should_show_the_no_ledgers_notice(self):
+        from gilt.cli.command.backfill_events_view import print_no_ledgers
+
+        output = _capture(print_no_ledgers)
+        assert "No ledger files found" in output
+
+
+class DescribePrintBudgetStep:
+    def it_should_show_the_step_two_header(self):
+        from gilt.cli.command.backfill_events_view import print_budget_step
+
+        output = _capture(print_budget_step)
+        assert "Step 2" in output
+
+
+class DescribeDisplayBudgets:
+    def it_should_show_each_budget_line(self):
+        from gilt.cli.command.backfill_events_view import display_budgets
+
+        output = _capture(
+            lambda: display_budgets(["  Groceries: $500.00/monthly"], budget_created=1)
+        )
+        assert "Groceries" in output
+
+    def it_should_show_no_budgets_notice_when_none_created(self):
+        from gilt.cli.command.backfill_events_view import display_budgets
+
+        output = _capture(lambda: display_budgets([], budget_created=0))
+        assert "No budgets found" in output
+
+
+class DescribeDisplayProjectionRebuild:
+    def it_should_show_the_processed_event_counts(self):
+        from gilt.cli.command.backfill_events_view import display_projection_rebuild
+
+        output = _capture(lambda: display_projection_rebuild(7, 4))
+        assert "Step 3" in output
+        assert "7" in output
+        assert "4" in output
+
+
+class DescribeDisplayValidationChecks:
+    def it_should_show_passing_check_lines(self):
+        from gilt.cli.command.backfill_events_view import display_validation_checks
+
+        output = _capture(lambda: display_validation_checks(_StubValidation()))
+        assert "Running validation checks" in output
+        assert "Transaction count matches" in output
+        assert "Budget count matches" in output
+
+
+class DescribePrintValidationErrors:
+    def it_should_list_the_validation_errors(self):
+        from gilt.cli.command.backfill_events_view import print_validation_errors
+
+        output = _capture(lambda: print_validation_errors(["mismatch in totals"]))
+        assert "Validation Errors" in output
+        assert "mismatch in totals" in output
+
+
+class DescribePrintAllValidationsPassed:
+    def it_should_show_the_all_clear_message(self):
+        from gilt.cli.command.backfill_events_view import print_all_validations_passed
+
+        output = _capture(print_all_validations_passed)
+        assert "All validations passed" in output
+
+
 class DescribeDisplaySummary:
     def it_should_show_migration_counts(self):
         from gilt.cli.command.backfill_events_view import display_summary

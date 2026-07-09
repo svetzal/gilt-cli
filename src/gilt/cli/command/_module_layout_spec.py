@@ -41,14 +41,7 @@ VIOLATIONS = [
 
 # Modules that have a view sibling but still emit console.print from orchestration.
 # Remove an entry once its console.print calls have moved into the view module.
-ORCHESTRATION_PRINT_ALLOWLIST: set[str] = {
-    "infer_rules",
-    "rebuild_projections",
-    "duplicates",
-    "prompt_stats",
-    "auto_categorize",
-    "backfill_events",
-}
+ORCHESTRATION_PRINT_ALLOWLIST: set[str] = set()
 
 # Modules with more than 3 console.print calls that do not yet have a view sibling.
 # Remove an entry once its <name>_view.py is created and the prints move there.
@@ -68,9 +61,7 @@ MISSING_VIEW_ALLOWLIST: set[str] = {
 # run_persisted_mutation and the inline dry-run wording is removed.
 MUTATION_FLOW_ALLOWLIST: set[str] = {
     "ingest_receipts",
-    "infer_rules",
     "report",
-    "auto_categorize",
     "reingest",
     "ingest",
     "category",

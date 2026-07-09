@@ -74,6 +74,51 @@ def display_summary(
                 console_obj.print(f"  False negatives: {stats['false_negatives']}")
 
 
+def print_loading_transactions() -> None:
+    """Print the 'loading transactions' status line."""
+    console.print("[yellow]Loading transactions from projections...[/yellow]")
+
+
+def print_candidate_count(count: int) -> None:
+    """Print the number of candidate pairs found."""
+    console.print(f"[green]Found {count} candidate pairs[/green]")
+
+
+def print_no_candidates() -> None:
+    """Print the 'no potential duplicates' status line."""
+    console.print("[green]No potential duplicates found![/green]")
+
+
+def print_analyzing(count: int, detection_method: str) -> None:
+    """Print the 'analyzing candidates' status line."""
+    console.print(f"[yellow]Analyzing {count} candidates with {detection_method}...[/yellow]")
+
+
+def print_no_confident_matches(min_confidence: float) -> None:
+    """Print the 'no duplicates above threshold' status line."""
+    console.print(f"[green]No duplicates found with confidence >= {min_confidence:.0%}[/green]")
+
+
+def print_confident_matches_header(count: int, min_confidence: float) -> None:
+    """Print the header announcing confident potential duplicates."""
+    console.print(
+        f"[cyan]Found {count} potential duplicate(s) "
+        f"with confidence >= {min_confidence:.0%}:[/cyan]"
+    )
+    console.print()
+
+
+def print_feedback_saved() -> None:
+    """Print confirmation that prompt-manager feedback was saved."""
+    console.print("[dim]✓ Feedback saved to prompt manager[/dim]")
+
+
+def print_skipped_pairs(skipped_count: int) -> None:
+    """Print how many already-processed pairs were skipped this session."""
+    console.print()
+    console.print(f"[dim]Skipped {skipped_count} pair(s) already processed in this session[/dim]")
+
+
 def print_detection_info(
     console_obj,
     data_dir,
@@ -133,5 +178,13 @@ __all__ = [
     "display_non_interactive_results",
     "display_summary",
     "print_detection_info",
+    "print_loading_transactions",
+    "print_candidate_count",
+    "print_no_candidates",
+    "print_analyzing",
+    "print_no_confident_matches",
+    "print_confident_matches_header",
+    "print_feedback_saved",
+    "print_skipped_pairs",
     "build_analysis_progress",
 ]

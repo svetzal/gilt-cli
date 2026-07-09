@@ -108,10 +108,85 @@ def display_transaction_for_review(
     console.print(f"  Suggested:   [green]{category}[/green] ([blue]{conf:.1%}[/blue] confident)")
 
 
+def print_loading_history() -> None:
+    """Print the status shown while categorization history is loaded/trained."""
+    console.print("[dim]Loading categorization history...[/dim]")
+
+
+def print_loading_uncategorized() -> None:
+    """Print the status shown while uncategorized transactions are loaded."""
+    console.print("\n[dim]Loading uncategorized transactions...[/dim]")
+
+
+def print_no_uncategorized() -> None:
+    """Print the message shown when no uncategorized transactions exist."""
+    console.print("[green]✓[/green] No uncategorized transactions found")
+
+
+def print_limited_to(limit: int) -> None:
+    """Print the notice that results were limited to the first N transactions."""
+    console.print(f"[dim]Limited to first {limit} transactions[/dim]")
+
+
+def print_found_uncategorized(count: int) -> None:
+    """Print the count of uncategorized transactions found."""
+    console.print(f"Found {count} uncategorized transaction(s)")
+
+
+def print_rules_matched(count: int) -> None:
+    """Print the count of transactions matched by inferred rules."""
+    console.print(f"[green]{count}[/green] transaction(s) matched by inferred rules")
+
+
+def print_predicting(confidence: float) -> None:
+    """Print the status shown while ML predictions are computed."""
+    console.print(f"\n[dim]Predicting categories (threshold: {confidence:.1%})...[/dim]")
+
+
+def print_ml_predictions(count: int) -> None:
+    """Print the count of ML predictions produced."""
+    console.print(f"[green]{count}[/green] ML predictions")
+
+
+def print_no_predictions(confidence: float) -> None:
+    """Print guidance shown when no predictions clear the confidence threshold."""
+    console.print(f"[yellow]No predictions above {confidence:.1%} confidence threshold[/yellow]")
+    console.print("\nTry:")
+    console.print("  - Lowering threshold: [cyan]--confidence 0.5[/cyan]")
+    console.print("  - Categorizing more transactions to improve training")
+
+
+def print_no_approved() -> None:
+    """Print the message shown when the review approved no predictions."""
+    console.print("\n[yellow]No predictions approved[/yellow]")
+
+
+def print_applying() -> None:
+    """Print the status shown while approved categorizations are applied."""
+    console.print("\n[dim]Applying categorizations...[/dim]")
+
+
+def print_categorized(count: int) -> None:
+    """Print the confirmation of how many transactions were categorized."""
+    console.print(f"[green]✓[/green] Categorized {count} transaction(s)")
+
+
 __all__ = [
     "display_predictions",
     "print_explain",
     "print_train_failure",
     "print_train_success",
     "display_transaction_for_review",
+    "print_loading_history",
+    "print_loading_uncategorized",
+    "print_no_uncategorized",
+    "print_limited_to",
+    "print_found_uncategorized",
+    "print_rules_matched",
+    "print_predicting",
+    "print_ml_predictions",
+    "print_no_predictions",
+    "print_no_approved",
+    "print_applying",
+    "print_categorized",
 ]

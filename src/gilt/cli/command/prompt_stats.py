@@ -27,6 +27,11 @@ from .prompt_stats_view import (
     display_accuracy_metrics,
     display_learned_patterns,
     display_prompt_history,
+    display_update_generated,
+    print_generating_update,
+    print_no_feedback,
+    print_no_patterns_learned,
+    print_statistics_header,
 )
 
 
@@ -34,7 +39,7 @@ def _build_and_emit_update(
     learning_service: PromptLearningService, event_store
 ) -> None:
     """Generate a prompt update from learned patterns and emit it to the event store."""
-    console.print("[yellow]Generating prompt update...[/yellow]")
+    print_generating_update()
 
     prompt_events = event_store.get_events_by_type("PromptUpdated")
     current_version = "v1"
@@ -47,14 +52,9 @@ def _build_and_emit_update(
 
     if prompt_update:
         event_store.append_event(prompt_update)
-        console.print(f"[green]✓ Generated {prompt_update.prompt_version}[/green]")
-        console.print()
-        console.print("[cyan]New patterns added:[/cyan]")
-        for pattern in prompt_update.learned_patterns:
-            console.print(f"  • {pattern}")
+        display_update_generated(prompt_update)
     else:
-        console.print("[yellow]No new patterns learned - update not generated[/yellow]")
-        console.print("[dim]More feedback needed to identify new patterns.[/dim]")
+        print_no_patterns_learned()
 
 
 def run(
@@ -74,14 +74,12 @@ def run(
     event_store = ready.event_store
     learning_service = PromptLearningService(event_store)
 
-    console.print("[cyan]Prompt Learning Statistics[/cyan]")
-    console.print()
+    print_statistics_header()
 
     metrics = learning_service.get_accuracy()
 
     if metrics.total_feedback == 0:
-        console.print("[yellow]No feedback data available yet.[/yellow]")
-        console.print("[dim]Run 'gilt duplicates --interactive' to provide feedback.[/dim]")
+        print_no_feedback()
         return 0
 
     display_accuracy_metrics(console, metrics)

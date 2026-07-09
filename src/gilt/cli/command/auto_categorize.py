@@ -19,7 +19,7 @@ from gilt.services.event_sourcing_service import EventSourcingReadyResult
 from gilt.services.rule_inference_service import RuleInferenceService
 from gilt.workspace import Workspace
 
-from ..console import console, print_dry_run_message
+from .. import mutations
 from ..event_sourcing_bootstrap import require_event_sourcing
 from ..filtering import find_uncategorized
 from ..loaders import load_account_transactions
@@ -32,6 +32,20 @@ from .auto_categorize_review import run_interactive_review as _interactive_revie
 from .auto_categorize_view import display_predictions as _display_predictions  # noqa: F401
 from .auto_categorize_view import (  # noqa: F401
     display_transaction_for_review as _display_transaction_for_review,
+)
+from .auto_categorize_view import (
+    print_applying,
+    print_categorized,
+    print_found_uncategorized,
+    print_limited_to,
+    print_loading_history,
+    print_loading_uncategorized,
+    print_ml_predictions,
+    print_no_approved,
+    print_no_predictions,
+    print_no_uncategorized,
+    print_predicting,
+    print_rules_matched,
 )
 from .auto_categorize_view import print_explain as _print_explain  # noqa: F401
 from .auto_categorize_view import print_train_failure as _print_train_failure  # noqa: F401
@@ -218,7 +232,7 @@ def run(
     write: bool = False,
 ) -> int:
     """Auto-categorize uncategorized transactions using rules then ML."""
-    console.print("[dim]Loading categorization history...[/dim]")
+    print_loading_history()
     train_result = _train_classifier(workspace, min_samples)
     if train_result.exit_code is not None:
         _print_train_failure(train_result, min_samples)
@@ -229,42 +243,35 @@ def run(
 
     category_config = load_categories_config(workspace.categories_config)
 
-    console.print("\n[dim]Loading uncategorized transactions...[/dim]")
+    print_loading_uncategorized()
     load_result = _load_uncategorized(workspace, account, limit)
     if load_result.exit_code is not None:
         if load_result.exit_code == 0:
-            console.print("[green]✓[/green] No uncategorized transactions found")
+            print_no_uncategorized()
         return load_result.exit_code
     if load_result.limited_to:
-        console.print(f"[dim]Limited to first {load_result.limited_to} transactions[/dim]")
-    console.print(f"Found {len(load_result.uncategorized_txns)} uncategorized transaction(s)")
+        print_limited_to(load_result.limited_to)
+    print_found_uncategorized(len(load_result.uncategorized_txns))
     uncategorized_txns = load_result.uncategorized_txns
 
     # Phase 1: Apply inferred rules (deterministic, high confidence)
     rule_approved, remaining_txns = _run_rules_first(workspace, uncategorized_txns)
     if rule_approved:
-        console.print(
-            f"[green]{len(rule_approved)}[/green] transaction(s) matched by inferred rules"
-        )
+        print_rules_matched(len(rule_approved))
 
     # Phase 2: ML predictions for remaining uncategorized
     ml_predictions: list[Prediction] = []
     if remaining_txns:
-        console.print(f"\n[dim]Predicting categories (threshold: {confidence:.1%})...[/dim]")
+        print_predicting(confidence)
         ml_predictions = _predict_with_ml(classifier, remaining_txns, confidence)
         if ml_predictions:
-            console.print(f"[green]{len(ml_predictions)}[/green] ML predictions")
+            print_ml_predictions(len(ml_predictions))
 
     # Combine results
     all_predictions = rule_approved + ml_predictions
 
     if not all_predictions:
-        console.print(
-            f"[yellow]No predictions above {confidence:.1%} confidence threshold[/yellow]"
-        )
-        console.print("\nTry:")
-        console.print("  - Lowering threshold: [cyan]--confidence 0.5[/cyan]")
-        console.print("  - Categorizing more transactions to improve training")
+        print_no_predictions(confidence)
         return 0
 
     return _review_and_persist(
@@ -293,17 +300,23 @@ def _review_and_persist(
         _print_explain(classifier, all_predictions)
 
     if not approved:
-        console.print("\n[yellow]No predictions approved[/yellow]")
+        print_no_approved()
         return 0
 
-    if not write:
-        print_dry_run_message(detail=f"{len(approved)} transaction(s)")
+    def apply() -> int:
+        print_applying()
+        count = _write_categorizations(approved, ready, workspace)
+        print_categorized(count)
         return 0
 
-    console.print("\n[dim]Applying categorizations...[/dim]")
-    count = _write_categorizations(approved, ready, workspace)
-    console.print(f"[green]✓[/green] Categorized {count} transaction(s)")
-    return 0
+    return mutations.run_confirmed_mutation(
+        matches=approved,
+        display=lambda: None,
+        confirm_prompt="",
+        assume_yes=True,
+        write=write,
+        apply=apply,
+    )
 
 
 __all__ = ["run", "Prediction"]

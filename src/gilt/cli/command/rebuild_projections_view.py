@@ -2,9 +2,44 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from rich.table import Table
 
 from ..console import console
+
+
+def print_event_store_missing_hint() -> None:
+    """Show the hint to run ingest when the event store is missing."""
+    console.print("[dim]Run 'gilt ingest --write' first to create events.[/dim]")
+
+
+def display_rebuild_header(mode: str, events_path: Path, projections_path: Path) -> None:
+    """Show the rebuild header with mode and database paths."""
+    console.print(f"[bold]Rebuilding projections ({mode} mode)[/bold]")
+    console.print(f"Events DB: {events_path}")
+    console.print(f"Projections DB: {projections_path}")
+    console.print()
+
+
+def print_empty_event_store_warning() -> None:
+    """Warn that the event store contains no events."""
+    console.print("[yellow]Warning:[/yellow] Event store is empty")
+
+
+def print_processing_events(total_events: int) -> None:
+    """Show how many events are being processed in a from-scratch rebuild."""
+    console.print(f"[dim]Processing {total_events} events...[/dim]")
+
+
+def print_already_up_to_date() -> None:
+    """Report that projections are already current (incremental no-op)."""
+    console.print("[green]✓[/green] Projections already up to date")
+
+
+def print_processed_events(processed: int) -> None:
+    """Report the number of events processed during the rebuild."""
+    console.print(f"[green]✓[/green] Processed {processed} events")
 
 
 def display_rebuild_summary(

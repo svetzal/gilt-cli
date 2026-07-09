@@ -24,9 +24,21 @@ from gilt.services.event_migration_service import EventMigrationService, Migrati
 from gilt.storage.budget_projection import BudgetProjectionBuilder
 from gilt.workspace import Workspace
 
-from ..console import console, print_error, print_error_list
+from ..console import print_dry_run_message, print_error
 from ..event_sourcing_bootstrap import build_effective_paths, build_event_sourcing_service
-from .backfill_events_view import backfill_transactions_with_progress, display_summary
+from .backfill_events_view import (
+    backfill_transactions_with_progress,
+    display_budgets,
+    display_projection_rebuild,
+    display_summary,
+    display_validation_checks,
+    print_all_validations_passed,
+    print_budget_step,
+    print_migration_header,
+    print_no_ledgers,
+    print_transaction_step,
+    print_validation_errors,
+)
 
 
 def _init_event_sourcing(
@@ -77,13 +89,10 @@ def run(
         workspace, event_store_path, projections_db_path, budget_projections_db_path
     )
 
-    console.print("[bold cyan]Event Sourcing Migration - Manual Backfill[/]")
-    console.print("[yellow]ℹ Most users should use 'gilt migrate-to-events --write'[/]")
-    console.print("Backfilling events from existing data\n")
+    print_migration_header()
 
     if dry_run:
-        console.print("[yellow]DRY RUN MODE[/] - No events will be written")
-        console.print("Use --write to actually create events\n")
+        print_dry_run_message()
 
     _, service, event_store = _init_event_sourcing(
         workspace, effective_event_store_path, effective_projections_db_path
@@ -118,17 +127,14 @@ def _run_backfill(
         errors=0,
     )
 
-    console.print("[bold]Step 1: Backfilling transaction events[/]")
+    print_transaction_step()
     ledger_count = backfill_transactions_with_progress(data_dir, event_store, service, stats, dry_run)
     if ledger_count == 0:
-        console.print("[yellow]No ledger files found[/]")
+        print_no_ledgers()
 
-    console.print("\n[bold]Step 2: Backfilling budget events[/]")
+    print_budget_step()
     budget_lines = _backfill_budgets(categories_config, event_store, service, stats, dry_run)
-    for line in budget_lines:
-        console.print(line)
-    if stats.budget_created == 0:
-        console.print("[yellow]No budgets found in configuration[/]")
+    display_budgets(budget_lines, stats.budget_created)
 
     display_summary(stats, dry_run, effective_event_store_path)
 
@@ -154,8 +160,6 @@ def _validate_and_report(
     budget_projections_db_path: Path,
 ) -> int:
     """Rebuild projections, run validation checks, and report results. Returns exit code."""
-    console.print("\n[bold]Step 3: Rebuilding projections[/]")
-    console.print("  Rebuilding transaction projections from events...")
     validation_result = _validate_projections(
         data_dir,
         categories_config,
@@ -164,36 +168,20 @@ def _validate_and_report(
         projections_db_path,
         budget_projections_db_path,
     )
-    console.print(f"  Processed {validation_result.tx_count} transaction events")
-    console.print("  Rebuilding budget projections from events...")
-    console.print(f"  Processed {validation_result.budget_count} budget events")
+    display_projection_rebuild(validation_result.tx_count, validation_result.budget_count)
 
     if not validation_result.passed:
         print_error("✗ Validation failed")
         return 1
 
     if validation_result.validation:
-        console.print("\n  Running validation checks...")
-        _display_validation_results(validation_result.validation)
+        display_validation_checks(validation_result.validation)
         if validation_result.validation.errors:
-            console.print()
-            print_error_list("Validation Errors", validation_result.validation.errors)
+            print_validation_errors(validation_result.validation.errors)
             return 1
 
-    console.print("\n[green]✓ All validations passed[/]")
+    print_all_validations_passed()
     return 0
-
-
-def _display_validation_results(result) -> None:
-    """Display the successful validation check lines."""
-    if result.transaction_count_match:
-        console.print("  ✓ Transaction count matches")
-
-    if result.budget_count_match:
-        console.print("  ✓ Budget count matches")
-
-    if result.sample_transactions_match:
-        console.print("  ✓ Sample transaction validation passed")
 
 
 def _backfill_budgets(

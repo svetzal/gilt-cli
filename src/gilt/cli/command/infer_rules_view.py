@@ -10,6 +10,32 @@ from ..console import console, display_transaction_matches
 from ..formatting import fmt_amount_str
 
 
+def print_no_rules() -> None:
+    """Print the message shown when no rules meet the thresholds."""
+    console.print("[yellow]No rules could be inferred with current thresholds[/yellow]")
+    console.print("[dim]Try lowering --min-evidence or --min-confidence[/dim]")
+
+
+def print_exported(count: int, path: str) -> None:
+    """Print confirmation that rules were exported to a file."""
+    console.print(f"[green]Exported {count} rules to {path}[/green]")
+
+
+def print_no_matches() -> None:
+    """Print the message shown when no uncategorized transactions match any rule."""
+    console.print("[green]No uncategorized transactions match inferred rules[/green]")
+
+
+def print_updating_projections() -> None:
+    """Print the status message shown while projections are rebuilt."""
+    console.print("[dim]Updating projections...[/dim]")
+
+
+def print_categorized(count: int) -> None:
+    """Print confirmation that transactions were categorized via rules."""
+    console.print(f"[green]Categorized {count} transaction(s) via rules[/green]")
+
+
 def display_rules(rules) -> None:
     table = Table(title="Inferred Categorization Rules", show_lines=False)
     table.add_column("Description", style="white")

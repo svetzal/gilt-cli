@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from io import StringIO
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from rich.console import Console
 
@@ -11,6 +13,14 @@ def _make_console() -> tuple[Console, StringIO]:
     buf = StringIO()
     con = Console(file=buf, highlight=False, width=200)
     return con, buf
+
+
+def _capture(fn, *args, **kwargs) -> str:
+    """Run a view function that writes to the module-level console, returning its output."""
+    con, buf = _make_console()
+    with patch("gilt.cli.command.prompt_stats_view.console", con):
+        fn(*args, **kwargs)
+    return buf.getvalue()
 
 
 def _make_metrics():
@@ -71,3 +81,48 @@ class DescribeDisplayLearnedPatterns:
         display_learned_patterns(con, patterns)
         output = buf.getvalue()
         assert "shorter descriptions" in output
+
+
+class DescribePrintStatisticsHeader:
+    def it_should_render_the_header(self):
+        from gilt.cli.command.prompt_stats_view import print_statistics_header
+
+        output = _capture(print_statistics_header)
+        assert "Prompt Learning Statistics" in output
+
+
+class DescribePrintNoFeedback:
+    def it_should_render_the_no_feedback_message(self):
+        from gilt.cli.command.prompt_stats_view import print_no_feedback
+
+        output = _capture(print_no_feedback)
+        assert "No feedback data available yet." in output
+
+
+class DescribePrintGeneratingUpdate:
+    def it_should_render_the_generating_status(self):
+        from gilt.cli.command.prompt_stats_view import print_generating_update
+
+        output = _capture(print_generating_update)
+        assert "Generating prompt update" in output
+
+
+class DescribeDisplayUpdateGenerated:
+    def it_should_render_the_version_and_patterns(self):
+        from gilt.cli.command.prompt_stats_view import display_update_generated
+
+        prompt_update = SimpleNamespace(
+            prompt_version="v2",
+            learned_patterns=["prefers shorter descriptions"],
+        )
+        output = _capture(display_update_generated, prompt_update)
+        assert "v2" in output
+        assert "prefers shorter descriptions" in output
+
+
+class DescribePrintNoPatternsLearned:
+    def it_should_render_the_no_patterns_message(self):
+        from gilt.cli.command.prompt_stats_view import print_no_patterns_learned
+
+        output = _capture(print_no_patterns_learned)
+        assert "No new patterns learned" in output

@@ -18,10 +18,18 @@ from pathlib import Path
 
 from gilt.workspace import Workspace
 
-from ..console import console, print_error
+from ..console import print_error
 from ..event_sourcing_bootstrap import build_event_sourcing_service
 from ._errors import CommandAbort
-from .rebuild_projections_view import display_rebuild_summary
+from .rebuild_projections_view import (
+    display_rebuild_header,
+    display_rebuild_summary,
+    print_already_up_to_date,
+    print_empty_event_store_warning,
+    print_event_store_missing_hint,
+    print_processed_events,
+    print_processing_events,
+)
 
 
 def run(
@@ -44,7 +52,7 @@ def run(
     event_store_status = es_service.check_event_store_status()
     if not event_store_status.exists:
         print_error(f"Event store not found: {event_store_status.path}")
-        console.print("[dim]Run 'gilt ingest --write' first to create events.[/dim]")
+        print_event_store_missing_hint()
         raise CommandAbort(1)
 
     event_store = es_service.get_event_store()
@@ -52,16 +60,13 @@ def run(
 
     mode = "from-scratch" if from_scratch else "incremental"
 
-    console.print(f"[bold]Rebuilding projections ({mode} mode)[/bold]")
-    console.print(f"Events DB: {es_service.event_store_path}")
-    console.print(f"Projections DB: {es_service.projections_path}")
-    console.print()
+    display_rebuild_header(mode, es_service.event_store_path, es_service.projections_path)
 
     all_events = event_store.get_all_events()
     total_events = len(all_events)
 
     if total_events == 0:
-        console.print("[yellow]Warning:[/yellow] Event store is empty")
+        print_empty_event_store_warning()
         return 0
 
     return _build_and_report(from_scratch, projection_builder, event_store, total_events)
@@ -73,15 +78,15 @@ def _build_and_report(
     """Rebuild projections (from scratch or incremental) and display summary."""
     try:
         if from_scratch:
-            console.print(f"[dim]Processing {total_events} events...[/dim]")
+            print_processing_events(total_events)
             processed = projection_builder.build_from_scratch(event_store)
         else:
             processed = projection_builder.build_incremental(event_store)
             if processed == 0:
-                console.print("[green]✓[/green] Projections already up to date")
+                print_already_up_to_date()
                 return 0
 
-        console.print(f"[green]✓[/green] Processed {processed} events")
+        print_processed_events(processed)
 
         transactions = projection_builder.get_all_transactions(include_duplicates=False)
         duplicates = projection_builder.get_all_transactions(include_duplicates=True)

@@ -52,7 +52,15 @@ from .duplicates_review import run_review_loop as _run_review_loop
 from .duplicates_view import build_analysis_progress
 from .duplicates_view import display_non_interactive_results as _display_non_interactive_results
 from .duplicates_view import display_summary as _display_summary
+from .duplicates_view import print_analyzing as _print_analyzing
+from .duplicates_view import print_candidate_count as _print_candidate_count
+from .duplicates_view import print_confident_matches_header as _print_confident_matches_header
 from .duplicates_view import print_detection_info as _print_detection_info
+from .duplicates_view import print_feedback_saved as _print_feedback_saved
+from .duplicates_view import print_loading_transactions as _print_loading_transactions
+from .duplicates_view import print_no_candidates as _print_no_candidates
+from .duplicates_view import print_no_confident_matches as _print_no_confident_matches
+from .duplicates_view import print_skipped_pairs as _print_skipped_pairs
 
 
 @dataclass
@@ -147,13 +155,10 @@ def _finalize_session(
     """Save prompt feedback, report skipped pairs, and display the session summary."""
     if detector.prompt_manager:
         detector.prompt_manager._save_prompt()
-        console.print("[dim]✓ Feedback saved to prompt manager[/dim]")
+        _print_feedback_saved()
 
     if skipped_count > 0:
-        console.print()
-        console.print(
-            f"[dim]Skipped {skipped_count} pair(s) already processed in this session[/dim]"
-        )
+        _print_skipped_pairs(skipped_count)
 
     _display_summary(
         console,
@@ -198,30 +203,24 @@ def run(
         interactive,
     )
 
-    console.print("[yellow]Loading transactions from projections...[/yellow]")
+    _print_loading_transactions()
     _, candidates = _find_candidates(detector, data_dir, max_days_apart, amount_tolerance)
-    console.print(f"[green]Found {len(candidates)} candidate pairs[/green]")
+    _print_candidate_count(len(candidates))
 
     if not candidates:
-        console.print("[green]No potential duplicates found![/green]")
+        _print_no_candidates()
         return 0
 
-    console.print(
-        f"[yellow]Analyzing {len(candidates)} candidates with {detection_method}...[/yellow]"
-    )
+    _print_analyzing(len(candidates), detection_method)
     filtered_matches, skipped_count = _find_matches(
         detector, review_service, candidates, detection_method, min_confidence, projection_builder
     )
 
     if not filtered_matches:
-        console.print(f"[green]No duplicates found with confidence >= {min_confidence:.0%}[/green]")
+        _print_no_confident_matches(min_confidence)
         return 0
 
-    console.print(
-        f"[cyan]Found {len(filtered_matches)} potential duplicate(s) "
-        f"with confidence >= {min_confidence:.0%}:[/cyan]"
-    )
-    console.print()
+    _print_confident_matches_header(len(filtered_matches), min_confidence)
 
     review_ctx = ReviewContext(
         console=console,

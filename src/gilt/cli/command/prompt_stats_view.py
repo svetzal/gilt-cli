@@ -6,6 +6,40 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from ..console import console
+
+
+def print_statistics_header() -> None:
+    """Print the prompt-stats command header."""
+    console.print("[cyan]Prompt Learning Statistics[/cyan]")
+    console.print()
+
+
+def print_no_feedback() -> None:
+    """Print the message shown when no feedback data exists yet."""
+    console.print("[yellow]No feedback data available yet.[/yellow]")
+    console.print("[dim]Run 'gilt duplicates --interactive' to provide feedback.[/dim]")
+
+
+def print_generating_update() -> None:
+    """Print the status line shown before a prompt update is generated."""
+    console.print("[yellow]Generating prompt update...[/yellow]")
+
+
+def display_update_generated(prompt_update) -> None:
+    """Print the generated prompt version and the patterns it added."""
+    console.print(f"[green]✓ Generated {prompt_update.prompt_version}[/green]")
+    console.print()
+    console.print("[cyan]New patterns added:[/cyan]")
+    for pattern in prompt_update.learned_patterns:
+        console.print(f"  • {pattern}")
+
+
+def print_no_patterns_learned() -> None:
+    """Print the message shown when no new patterns were learned."""
+    console.print("[yellow]No new patterns learned - update not generated[/yellow]")
+    console.print("[dim]More feedback needed to identify new patterns.[/dim]")
+
 
 def display_accuracy_metrics(console: Console, metrics) -> None:
     """Build and print the accuracy metrics table."""

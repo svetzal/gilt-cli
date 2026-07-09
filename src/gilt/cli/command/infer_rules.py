@@ -11,22 +11,30 @@ from gilt.services.rule_inference_service import RuleInferenceService
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
-from ..console import console, print_dry_run_message
+from .. import mutations
 from ..event_sourcing_bootstrap import (
     require_event_sourcing,
     require_persistence_service,
     require_projections,
 )
-from .infer_rules_view import display_matches, display_rules
+from .infer_rules_view import (
+    display_matches,
+    display_rules,
+    print_categorized,
+    print_exported,
+    print_no_matches,
+    print_no_rules,
+    print_updating_projections,
+)
 
 
 def _write_matches(matches, ready, workspace):
     """Apply rule-based categorizations: emit events, update CSVs, rebuild projections."""
     persistence_svc = require_persistence_service(ready, workspace)
     updates = categorization_updates_from_rule_matches(matches)
-    console.print("[dim]Updating projections...[/dim]")
+    print_updating_projections()
     persistence_svc.persist_categorizations(updates)
-    console.print(f"[green]Categorized {len(matches)} transaction(s) via rules[/green]")
+    print_categorized(len(matches))
 
 
 def run(
@@ -44,8 +52,7 @@ def run(
     rules = service.infer_rules(min_evidence=min_evidence, min_confidence=min_confidence)
 
     if not rules:
-        console.print("[yellow]No rules could be inferred with current thresholds[/yellow]")
-        console.print("[dim]Try lowering --min-evidence or --min-confidence[/dim]")
+        print_no_rules()
         return 0
 
     if export:
@@ -63,7 +70,7 @@ def run(
         from pathlib import Path
 
         Path(export).write_text(json.dumps(export_data, indent=2), encoding="utf-8")
-        console.print(f"[green]Exported {len(rules)} rules to {export}[/green]")
+        print_exported(len(rules), export)
         return 0
 
     if not apply:
@@ -81,18 +88,22 @@ def _run_apply_mode(workspace: Workspace, service: RuleInferenceService, rules, 
     matches = service.run_rules(all_txns, rules)
 
     if not matches:
-        console.print("[green]No uncategorized transactions match inferred rules[/green]")
+        print_no_matches()
         return 0
 
-    display_matches(matches)
-
-    if not write:
-        print_dry_run_message(detail=f"{len(matches)} transaction(s)")
+    def apply() -> int:
+        ready = require_event_sourcing(workspace)
+        _write_matches(matches, ready, workspace)
         return 0
 
-    ready = require_event_sourcing(workspace)
-    _write_matches(matches, ready, workspace)
-    return 0
+    return mutations.run_confirmed_mutation(
+        matches=matches,
+        display=lambda: display_matches(matches),
+        confirm_prompt="",
+        assume_yes=True,
+        write=write,
+        apply=apply,
+    )
 
 
 __all__ = ["run"]

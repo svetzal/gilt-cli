@@ -14,7 +14,15 @@ from rich.console import Console
 from gilt.cli.command.duplicates_view import (
     display_match_options,
     display_non_interactive_results,
+    print_analyzing,
+    print_candidate_count,
+    print_confident_matches_header,
     print_detection_info,
+    print_feedback_saved,
+    print_loading_transactions,
+    print_no_candidates,
+    print_no_confident_matches,
+    print_skipped_pairs,
 )
 from gilt.model.duplicate import DuplicateAssessment, DuplicateMatch, TransactionPair
 
@@ -135,6 +143,70 @@ class DescribeDisplayNonInteractiveResults:
         output = buf.getvalue()
         # Short (8-char) prefix of txn2_id
         assert "bbbb0002" in output
+
+
+def _capture_status(fn) -> str:
+    """Capture output of a status-line view function that uses the module-level console."""
+    buf = StringIO()
+
+    import gilt.cli.command.duplicates_view as view_mod
+
+    old = view_mod.console
+    view_mod.console = Console(file=buf, highlight=False)
+    try:
+        fn()
+    finally:
+        view_mod.console = old
+    return buf.getvalue()
+
+
+class DescribePrintLoadingTransactions:
+    def it_should_announce_loading_from_projections(self):
+        output = _capture_status(print_loading_transactions)
+        assert "Loading transactions" in output
+
+
+class DescribePrintCandidateCount:
+    def it_should_print_the_candidate_count(self):
+        output = _capture_status(lambda: print_candidate_count(7))
+        assert "Found 7 candidate pairs" in output
+
+
+class DescribePrintNoCandidates:
+    def it_should_announce_no_potential_duplicates(self):
+        output = _capture_status(print_no_candidates)
+        assert "No potential duplicates found" in output
+
+
+class DescribePrintAnalyzing:
+    def it_should_print_count_and_detection_method(self):
+        output = _capture_status(lambda: print_analyzing(3, "ML"))
+        assert "Analyzing 3 candidates with ML" in output
+
+
+class DescribePrintNoConfidentMatches:
+    def it_should_print_the_confidence_threshold(self):
+        output = _capture_status(lambda: print_no_confident_matches(0.75))
+        assert "75%" in output
+
+
+class DescribePrintConfidentMatchesHeader:
+    def it_should_print_count_and_threshold(self):
+        output = _capture_status(lambda: print_confident_matches_header(4, 0.5))
+        assert "4 potential duplicate(s)" in output
+        assert "50%" in output
+
+
+class DescribePrintFeedbackSaved:
+    def it_should_confirm_feedback_saved(self):
+        output = _capture_status(print_feedback_saved)
+        assert "Feedback saved" in output
+
+
+class DescribePrintSkippedPairs:
+    def it_should_report_skipped_count(self):
+        output = _capture_status(lambda: print_skipped_pairs(2))
+        assert "Skipped 2 pair(s)" in output
 
 
 class DescribePrintDetectionInfo:
