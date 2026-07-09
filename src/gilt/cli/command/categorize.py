@@ -447,7 +447,7 @@ def run(
     - --account ACCOUNT: Categorize in one account
     - (no --account): Categorize across all accounts
 
-    Safety: dry-run by default. Use --write to persist changes.
+    Safety: dry-run by default; pass --write to persist changes.
 
     Returns:
         Exit code (0 success, 1 error)
