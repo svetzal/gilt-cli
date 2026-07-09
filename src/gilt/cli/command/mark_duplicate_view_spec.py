@@ -66,6 +66,33 @@ class DescribeDisplayValidationResults:
         assert "different account" in output
 
 
+class DescribeDisplayMarkPreview:
+    def it_should_show_both_transaction_prefixes(self):
+        from gilt.cli.command.mark_duplicate_view import display_mark_preview
+
+        output = _capture(
+            lambda: display_mark_preview(
+                _make_primary_txn(), _make_duplicate_txn(), "EXAMPLE UTILITY PAYMENT"
+            )
+        )
+        assert "abcd1234" in output
+        assert "wxyz9876" in output
+        assert "EXAMPLE UTILITY PAYMENT" in output
+
+
+class DescribeDisplayMarkSuccess:
+    def it_should_show_events_processed(self):
+        from gilt.cli.command.mark_duplicate_view import display_mark_success
+
+        output = _capture(
+            lambda: display_mark_success(
+                _make_primary_txn(), _make_duplicate_txn(), "EXAMPLE UTILITY PAYMENT", 3
+            )
+        )
+        assert "3" in output
+        assert "abcd1234" in output
+
+
 class DescribeBuildComparisonTable:
     def it_should_include_transaction_ids(self):
         from gilt.cli.command.mark_duplicate_view import build_comparison_table

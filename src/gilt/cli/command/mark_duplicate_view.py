@@ -35,3 +35,46 @@ def build_comparison_table(primary_txn: dict, duplicate_txn: dict) -> Table:
         "Description", primary_txn["canonical_description"], duplicate_txn["canonical_description"]
     )
     return table
+
+
+def print_looking_up() -> None:
+    """Print the status message shown while transactions are being resolved."""
+    console.print("[dim]Looking up transactions...[/dim]")
+
+
+def print_rebuilding() -> None:
+    """Print the status message shown while projections are being rebuilt."""
+    console.print("[dim]Rebuilding projections...[/dim]")
+
+
+def display_comparison(primary_txn: dict, duplicate_txn: dict) -> None:
+    """Print the side-by-side comparison table for the two transactions."""
+    console.print(build_comparison_table(primary_txn, duplicate_txn))
+
+
+def display_mark_preview(
+    primary_txn: dict, duplicate_txn: dict, canonical_description: str
+) -> None:
+    """Print a summary of the pending duplicate marking (used as the confirm preview)."""
+    console.print(
+        f"  Mark {duplicate_txn['transaction_id'][:8]} as duplicate of "
+        f"{primary_txn['transaction_id'][:8]}"
+    )
+    console.print(f"  Description: {canonical_description}")
+
+
+def display_mark_success(
+    primary_txn: dict,
+    duplicate_txn: dict,
+    canonical_description: str,
+    events_processed: int,
+) -> None:
+    """Print the success summary after a duplicate has been persisted."""
+    console.print()
+    console.print("[green]✓ Duplicate marked successfully[/green]")
+    console.print(f"  Primary: {primary_txn['transaction_id'][:8]}")
+    console.print(
+        f"  Duplicate: {duplicate_txn['transaction_id'][:8]} [dim](hidden from budgets)[/dim]"
+    )
+    console.print(f"  Description: {canonical_description}")
+    console.print(f"  Events processed: {events_processed}")

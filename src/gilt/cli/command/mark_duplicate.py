@@ -15,10 +15,18 @@ from gilt.services.duplicate_review_service import DuplicateReviewService
 from gilt.services.transaction_operations_service import TransactionOperationsService
 from gilt.workspace import Workspace
 
-from ..console import console, print_error
+from .. import mutations
+from ..console import print_error
 from ..event_sourcing_bootstrap import require_event_sourcing, require_projections
 from .mark_duplicate_review import prompt_description_choice
-from .mark_duplicate_view import build_comparison_table, display_validation_results
+from .mark_duplicate_view import (
+    display_comparison,
+    display_mark_preview,
+    display_mark_success,
+    display_validation_results,
+    print_looking_up,
+    print_rebuilding,
+)
 
 
 def _persist_mark(
@@ -69,7 +77,7 @@ def run(
 
     review_service = DuplicateReviewService(event_store=ready.event_store)
     tx_service = TransactionOperationsService()
-    console.print("[dim]Looking up transactions...[/dim]")
+    print_looking_up()
     all_txns = projection_builder.get_all_transactions(include_duplicates=True)
 
     preparation = review_service.validate_and_prepare_mark(
@@ -84,28 +92,22 @@ def run(
 
     primary_txn = preparation.primary_txn
     duplicate_txn = preparation.duplicate_txn
-    console.print(build_comparison_table(primary_txn, duplicate_txn))
+    display_comparison(primary_txn, duplicate_txn)
     canonical_description = prompt_description_choice(primary_txn, duplicate_txn)
 
-    if not write:
-        console.print("[yellow]Dry-run mode:[/yellow]")
-        console.print(
-            f"  Would mark {duplicate_txn['transaction_id'][:8]} as duplicate of {primary_txn['transaction_id'][:8]}"
+    def apply() -> int:
+        print_rebuilding()
+        events_processed = _persist_mark(
+            review_service, ready, primary_txn, duplicate_txn, canonical_description
         )
-        console.print(f"  Would use description: {canonical_description}")
-        console.print("[dim]Use --write to persist changes[/dim]")
+        display_mark_success(primary_txn, duplicate_txn, canonical_description, events_processed)
         return 0
 
-    console.print("[dim]Rebuilding projections...[/dim]")
-    events_processed = _persist_mark(
-        review_service, ready, primary_txn, duplicate_txn, canonical_description
+    return mutations.run_confirmed_mutation(
+        matches=[primary_txn],
+        display=lambda: display_mark_preview(primary_txn, duplicate_txn, canonical_description),
+        confirm_prompt="",
+        assume_yes=True,
+        write=write,
+        apply=apply,
     )
-    console.print()
-    console.print("[green]✓ Duplicate marked successfully[/green]")
-    console.print(f"  Primary: {primary_txn['transaction_id'][:8]}")
-    console.print(
-        f"  Duplicate: {duplicate_txn['transaction_id'][:8]} [dim](hidden from budgets)[/dim]"
-    )
-    console.print(f"  Description: {canonical_description}")
-    console.print(f"  Events processed: {events_processed}")
-    return 0
