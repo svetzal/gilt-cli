@@ -17,8 +17,17 @@ from gilt.services.budget_reporting_service import BudgetReportingService
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
 
-from ..console import console, print_dry_run_message, print_error
+from .. import mutations
+from ..console import print_error
 from ._errors import CommandAbort
+from .report_view import (
+    display_report_preview,
+    print_docx_conversion_failed,
+    print_no_categories,
+    print_pandoc_warning,
+    print_written_docx,
+    print_written_markdown,
+)
 
 
 def _check_pandoc() -> bool:
@@ -102,16 +111,16 @@ def _write_report_files(
     markdown_path.parent.mkdir(parents=True, exist_ok=True)
     try:
         markdown_path.write_text(markdown_content, encoding="utf-8")
-        console.print(f"[green]✓[/] Written markdown report: [cyan]{markdown_path}[/]")
+        print_written_markdown(markdown_path)
     except OSError as e:
         print_error(f"Error writing markdown file: {e}")
         raise CommandAbort(1) from None
 
     if has_pandoc:
         if _convert_to_docx(markdown_path, docx_path):
-            console.print(f"[green]✓[/] Written Word document: [cyan]{docx_path}[/]")
+            print_written_docx(docx_path)
         else:
-            console.print("[yellow]Warning:[/] Markdown file created but Word conversion failed")
+            print_docx_conversion_failed()
             raise CommandAbort(1)
 
     return 0
@@ -148,16 +157,11 @@ def run(
 
     has_pandoc = _check_pandoc()
     if not has_pandoc:
-        console.print(
-            "[yellow]Warning:[/] pandoc not found. Install pandoc to generate .docx files."
-        )
-        console.print("  macOS: brew install pandoc")
-        console.print("  Linux: apt-get install pandoc or yum install pandoc")
-        console.print("\nContinuing with markdown generation only...")
+        print_pandoc_warning()
 
     category_config = load_categories_config(workspace.categories_config)
     if not category_config.categories:
-        console.print("[yellow]No categories defined.[/] Create config/categories.yml first")
+        print_no_categories()
         return 0
 
     transactions = _load_transactions(workspace)
@@ -167,16 +171,15 @@ def run(
 
     markdown_path, docx_path = _build_output_paths(output, workspace, year, month)
 
-    if not write:
-        print_dry_run_message()
-        console.print(f"\nWould write markdown to: [cyan]{markdown_path}[/]")
-        if has_pandoc:
-            console.print(f"Would write Word doc to: [cyan]{docx_path}[/]")
-        console.print("\n[dim]--- Preview (first 500 chars) ---[/]")
-        console.print(
-            markdown_content[:500] + "..." if len(markdown_content) > 500 else markdown_content
-        )
-        console.print("[dim]--- End preview ---[/]")
-        return 0
-
-    return _write_report_files(markdown_content, markdown_path, docx_path, has_pandoc)
+    return mutations.run_confirmed_mutation(
+        matches=[markdown_path],
+        display=lambda: display_report_preview(
+            markdown_path, docx_path, has_pandoc, markdown_content
+        ),
+        confirm_prompt="",
+        assume_yes=True,
+        write=write,
+        apply=lambda: _write_report_files(
+            markdown_content, markdown_path, docx_path, has_pandoc
+        ),
+    )

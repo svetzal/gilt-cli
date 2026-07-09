@@ -45,28 +45,12 @@ ORCHESTRATION_PRINT_ALLOWLIST: set[str] = set()
 
 # Modules with more than 3 console.print calls that do not yet have a view sibling.
 # Remove an entry once its <name>_view.py is created and the prints move there.
-MISSING_VIEW_ALLOWLIST: set[str] = {
-    "note",
-    "skill_init",
-    "init",
-    "report",
-    "reingest",
-    "ingest",
-    "category",
-    "migrate_to_events",
-}
+MISSING_VIEW_ALLOWLIST: set[str] = set()
 
 # Modules with a `write: bool` parameter that do not yet route through a mutation helper.
 # Remove an entry once persistence is routed through run_confirmed_mutation /
 # run_persisted_mutation and the inline dry-run wording is removed.
-MUTATION_FLOW_ALLOWLIST: set[str] = {
-    "ingest_receipts",
-    "report",
-    "reingest",
-    "ingest",
-    "category",
-    "migrate_to_events",
-}
+MUTATION_FLOW_ALLOWLIST: set[str] = set()
 
 DRY_RUN_WORDING = ["Use --write", "use --write", "DRY RUN MODE"]
 MUTATION_HELPERS = ["run_confirmed_mutation", "run_persisted_mutation"]

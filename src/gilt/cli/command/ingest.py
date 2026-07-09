@@ -14,8 +14,24 @@ from gilt.workspace import Workspace
 if TYPE_CHECKING:
     from gilt.storage.event_store import EventStore
 
-from ..console import console, print_error
+from .. import mutations
+from ..console import print_error
 from ..event_sourcing_bootstrap import build_event_sourcing_service
+from .ingest_view import (
+    display_plan,
+    display_post_counts,
+    display_pre_counts,
+    print_auto_categorized,
+    print_done,
+    print_event_store,
+    print_event_store_total,
+    print_no_transfers,
+    print_processed,
+    print_projection_total,
+    print_skip,
+    print_transfer_metadata,
+    print_wrote,
+)
 
 
 @dataclass
@@ -23,14 +39,6 @@ class NormalizationResult:
     name: str
     status: str
     out_path: Path | None
-
-
-def _print_plan(plan: Iterable[tuple[Path, str | None]], total_files: int) -> None:
-    console.print("[bold]Ingestion/Normalization Plan (dry-run)[/]")
-    console.print(f"Inputs matched: {total_files}")
-    for p, acct_id in plan:
-        console.print(f"  - {p.name} -> account_id={acct_id or 'UNKNOWN'}")
-    console.print("No files were read. No outputs were written.")
 
 
 def _load_ledger_counts(paths: Iterable[Path]) -> dict[str, int]:
@@ -77,24 +85,6 @@ def _perform_normalization(
     return results, written, skipped
 
 
-def _print_pre_counts(counts: dict[str, int]) -> None:
-    if not counts:
-        return
-    console.print("[bold]Loaded existing ledgers (pre-ingest)[/]")
-    for name, cnt in sorted(counts.items()):
-        console.print(f"  - {name}: {cnt} transactions (groups)")
-
-
-def _print_post_counts(counts: dict[str, int], pre_counts: dict[str, int]) -> None:
-    if not counts:
-        return
-    console.print("[bold]Reloaded ledgers (post-ingest)[/]")
-    for name, cnt in sorted(counts.items()):
-        delta = cnt - pre_counts.get(name, 0)
-        sign = "+" if delta >= 0 else ""
-        console.print(f"  - {name}: {cnt} groups ({sign}{delta} change)")
-
-
 def _run_post_ingest(workspace, output_dir, event_store, es_service):
     """Link transfers, rebuild projections, auto-categorize. Returns the result object."""
     orch = IngestionOrchestrationService(workspace)
@@ -113,50 +103,51 @@ def run(
     ingestion_service = IngestionService(accounts=load_accounts_config(workspace.accounts_config))
     ingestion_plan = ingestion_service.build_ingestion_plan(workspace.ingest_dir)
 
-    if not write:
-        _print_plan(ingestion_plan.files, ingestion_plan.total_files)
-        return 0
+    return mutations.run_confirmed_mutation(
+        matches=list(ingestion_plan.files),
+        display=lambda: display_plan(ingestion_plan.files, ingestion_plan.total_files),
+        confirm_prompt="",
+        assume_yes=True,
+        write=write,
+        apply=lambda: _run_ingest(workspace, ingestion_service, ingestion_plan),
+    )
 
+
+def _run_ingest(workspace: Workspace, ingestion_service, ingestion_plan) -> int:
+    """Perform the full ingest: normalize files, rebuild projections, report results."""
     output_dir = workspace.ledger_data_dir
     es_service = build_event_sourcing_service(workspace)
     event_store = es_service.get_event_store()
-    console.print(f"[dim]Event store: {es_service.event_store_path}[/]")
+    print_event_store(es_service.event_store_path)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     ledger_paths = ingestion_service.discover_ledger_paths(output_dir)
 
     pre_counts = _load_ledger_counts(ledger_paths)
-    _print_pre_counts(pre_counts)
+    display_pre_counts(pre_counts)
 
     norm_results, written, skipped = _perform_normalization(
         ingestion_plan.files, output_dir, ingestion_service, event_store=event_store
     )
     for nr in norm_results:
         if nr.status == "skip":
-            console.print(
-                f"[yellow][skip][/yellow] Could not infer account for {nr.name}; "
-                "update config/accounts.yml"
-            )
+            print_skip(nr.name)
         elif nr.status == "ok":
-            console.print(f"[green][ok][/green] Wrote {nr.out_path}")
+            print_wrote(nr.out_path)
 
     post_counts = _load_ledger_counts(ledger_paths)
-    _print_post_counts(post_counts, pre_counts)
+    display_post_counts(post_counts, pre_counts)
 
     result = _run_post_ingest(workspace, output_dir, event_store, es_service)
     if result.modified_transfer_count:
-        console.print(
-            f"[green][ok][/green] Updated {result.modified_transfer_count} ledger file(s) with transfer metadata"
-        )
+        print_transfer_metadata(result.modified_transfer_count)
     else:
-        console.print("[dim]No transfer links identified or no updates needed[/]")
-    console.print(f"[green][ok][/green] Processed {result.events_processed} new event(s)")
-    console.print(f"[dim]Projections: {result.total_transactions} total transactions[/dim]")
+        print_no_transfers()
+    print_processed(result.events_processed)
+    print_projection_total(result.total_transactions)
     if result.auto_categorized_count:
-        console.print(
-            f"[green][ok][/green] Auto-categorized {result.auto_categorized_count} transaction(s) via rules"
-        )
-    console.print(f"[dim]Event store: {result.latest_event_sequence} events total[/]")
+        print_auto_categorized(result.auto_categorized_count)
+    print_event_store_total(result.latest_event_sequence)
 
-    console.print(f"Done. Written={written}, Skipped={skipped}")
+    print_done(written, skipped)
     return 0

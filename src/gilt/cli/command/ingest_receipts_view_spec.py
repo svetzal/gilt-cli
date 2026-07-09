@@ -60,34 +60,28 @@ def _make_match_result(status="matched", txn_id="abcd1234"):
     )
 
 
-class DescribeDisplaySummary:
+class DescribeDisplayMatchSummary:
     def it_should_show_matched_count(self):
-        from gilt.cli.command.ingest_receipts_view import display_summary
+        from gilt.cli.command.ingest_receipts_view import display_match_summary
 
         matched = [_make_match_result("matched")]
-        output = _capture(
-            lambda: display_summary(matched, [], [], 0, 0, write=False, written=0)
-        )
+        output = _capture(lambda: display_match_summary(matched, [], [], 0, 0))
         assert "1" in output
         assert "Matched" in output
 
-    def it_should_show_dry_run_message_when_not_writing(self):
-        from gilt.cli.command.ingest_receipts_view import display_summary
 
-        matched = [_make_match_result("matched")]
-        output = _capture(
-            lambda: display_summary(matched, [], [], 0, 0, write=False, written=0)
-        )
-        assert "dry" in output.lower() or "write" in output.lower()
+class DescribePrintEventsWritten:
+    def it_should_show_written_count(self):
+        from gilt.cli.command.ingest_receipts_view import print_events_written
 
-    def it_should_show_written_count_when_write_is_true(self):
-        from gilt.cli.command.ingest_receipts_view import display_summary
-
-        matched = [_make_match_result("matched")]
-        output = _capture(
-            lambda: display_summary(matched, [], [], 0, 0, write=True, written=1)
-        )
+        output = _capture(lambda: print_events_written(1))
         assert "1" in output
+        assert "written" in output.lower()
+
+    def it_should_print_nothing_when_zero(self):
+        from gilt.cli.command.ingest_receipts_view import print_events_written
+
+        assert _capture(lambda: print_events_written(0)) == ""
 
 
 class DescribeDisplayResultsTable:

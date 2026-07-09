@@ -16,9 +16,21 @@ from gilt.services.reingestion_service import ReingestionService
 from gilt.transfer.linker import link_transfers
 from gilt.workspace import Workspace
 
-from ..console import console, print_dry_run_message, print_error
+from .. import mutations
+from ..console import print_error
 from ..event_sourcing_bootstrap import require_event_sourcing
 from ._errors import CommandAbort
+from .reingest_view import (
+    display_reingest_plan,
+    print_done,
+    print_no_source_files,
+    print_purge_results,
+    print_rebuilding,
+    print_rebuilt,
+    print_removed_ledger,
+    print_transfer_metadata,
+    print_wrote,
+)
 
 
 def _delete_existing_ledger(ledger_path: Path) -> bool:
@@ -67,23 +79,6 @@ def _finalize_reingest(
     return modified, events_processed
 
 
-def _display_reingest_plan(
-    account: str,
-    account_files: list[tuple],
-    ledger_path: Path,
-    purge_plan,
-) -> None:
-    """Print the reingest plan for the given account."""
-    ledger_exists = ledger_path.exists()
-    console.print(f"[bold]Reingest plan for account: {account}[/]")
-    console.print(f"  Source files: {len(account_files)}")
-    for p, _ in account_files:
-        console.print(f"    - {p.name}")
-    console.print(f"  Ledger file: {ledger_path.name} ({'exists' if ledger_exists else 'missing'})")
-    console.print(f"  Events to purge: {len(purge_plan.event_ids)}")
-    console.print(f"  Transactions to purge: {len(purge_plan.transaction_ids)}")
-
-
 def run(
     *,
     account: str,
@@ -113,7 +108,7 @@ def run(
     account_files = [(p, aid) for p, aid in ingestion_plan.files if aid == account]
 
     if not account_files:
-        console.print(f"[yellow]No source files matched account '{account}'[/]")
+        print_no_source_files(account)
         raise CommandAbort(1)
 
     # Initialize event sourcing
@@ -131,22 +126,27 @@ def run(
     purge_plan = reingest_svc.build_purge_plan(account)
 
     ledger_path = output_dir / f"{account}.csv"
-    _display_reingest_plan(account, account_files, ledger_path, purge_plan)
 
-    if not write:
-        print_dry_run_message()
-        return 0
+    def apply() -> int:
+        return _run_reingest(
+            ledger_path,
+            reingest_svc,
+            purge_plan,
+            account_files,
+            ingestion_service,
+            account,
+            output_dir,
+            event_store,
+            projection_builder,
+        )
 
-    return _run_reingest(
-        ledger_path,
-        reingest_svc,
-        purge_plan,
-        account_files,
-        ingestion_service,
-        account,
-        output_dir,
-        event_store,
-        projection_builder,
+    return mutations.run_confirmed_mutation(
+        matches=account_files,
+        display=lambda: display_reingest_plan(account, account_files, ledger_path, purge_plan),
+        confirm_prompt="",
+        assume_yes=True,
+        write=write,
+        apply=apply,
     )
 
 
@@ -163,29 +163,23 @@ def _run_reingest(
 ) -> int:
     """Delete ledger, purge events/projections, re-ingest files, rebuild projections."""
     if _delete_existing_ledger(ledger_path):
-        console.print(f"[green][ok][/] Removed ledger: {ledger_path.name}")
+        print_removed_ledger(ledger_path.name)
 
     purge_result = reingest_svc.run_purge(purge_plan)
-    console.print(f"[green][ok][/] Purged {purge_result.events_purged} events")
-    console.print(f"[green][ok][/] Purged {purge_result.projections_purged} projections")
-    console.print(
-        f"[green][ok][/] Purged {purge_result.cache_entries_purged} cached intelligence entries"
-    )
+    print_purge_results(purge_result)
 
     written, _, written_paths = _reingest_source_files(
         account_files, ingestion_service, account, output_dir, event_store
     )
     for out_path in written_paths:
-        console.print(f"[green][ok][/] Wrote {out_path}")
+        print_wrote(out_path)
 
-    console.print("[bold]Rebuilding projections[/]")
+    print_rebuilding()
     modified_transfers, events_processed = _finalize_reingest(
         output_dir, projection_builder, event_store
     )
     if modified_transfers:
-        console.print(
-            f"[green][ok][/] Updated {modified_transfers} ledger file(s) with transfer metadata"
-        )
-    console.print(f"[green][ok][/] Rebuilt projections from {events_processed} events")
-    console.print(f"\nDone. Re-ingested {written} file(s) for account {account}.")
+        print_transfer_metadata(modified_transfers)
+    print_rebuilt(events_processed)
+    print_done(written, account)
     return 0

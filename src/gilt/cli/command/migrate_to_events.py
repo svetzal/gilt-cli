@@ -28,49 +28,26 @@ from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.storage.budget_projection import BudgetProjectionBuilder
 from gilt.workspace import Workspace
 
-from ..console import console, print_error, print_error_list
+from .. import mutations
+from ..console import print_error
 from ..event_sourcing_bootstrap import build_effective_paths, build_event_sourcing_service
 from ._errors import CommandAbort
-
-
-def _display_dry_run_plan(ledger_files: list[Path], has_categories: bool) -> None:
-    """Show what the migration would do without executing it."""
-    console.print("[yellow]DRY RUN MODE[/] - No changes will be made")
-    console.print("Use --write to perform the migration\n")
-    console.print("[bold]Migration would:[/]")
-    console.print(f"  • Backfill events from {len(ledger_files)} CSV file(s)")
-    if has_categories:
-        console.print("  • Create budget events from categories.yml")
-    console.print("  • Build transaction projections")
-    console.print("  • Build budget projections")
-    console.print("  • Validate migration succeeded")
-
-
-def _display_completion_summary(
-    effective_event_store_path: Path,
-    effective_projections_db_path: Path,
-    transaction_events: int,
-    budget_events: int,
-    errors: int,
-) -> None:
-    """Print the post-migration completion summary."""
-    console.print()
-    console.print("[bold green]✓ Migration Complete![/]")
-    console.print()
-    console.print("[bold]Summary:[/]")
-    console.print(f"  Event store: {effective_event_store_path}")
-    console.print(f"  Total events: {transaction_events + budget_events}")
-    console.print(f"  Projections: {effective_projections_db_path}")
-    console.print()
-    console.print("[bold]You can now use:[/]")
-    console.print("  • gilt duplicates - Detect duplicate transactions")
-    console.print("  • gilt ingest - Import new data (maintains events)")
-    console.print("  • gilt rebuild-projections - Rebuild from events")
-
-    if errors > 0:
-        console.print()
-        console.print(f"[yellow]Warning:[/yellow] {errors} error(s) occurred during migration")
-        console.print("[dim]Check the messages above for details[/dim]")
+from .migrate_to_events_view import (
+    display_completion_summary,
+    display_migration_plan,
+    display_preconditions_success,
+    display_validation_result,
+    print_budget_events_created,
+    print_budget_projections_built,
+    print_event_store_exists_warning,
+    print_migration_header,
+    print_step_backfill,
+    print_step_preconditions,
+    print_step_projections,
+    print_step_validating,
+    print_transaction_events_created,
+    print_transaction_projections_built,
+)
 
 
 def _check_preconditions(
@@ -96,15 +73,7 @@ def _check_preconditions(
         event_count = event_store.get_latest_sequence_number()
 
         if event_count > 0 and not force:
-            console.print(
-                f"[yellow]Warning:[/yellow] Event store already exists with {event_count} events"
-            )
-            console.print(f"[dim]{effective_event_store_path}[/dim]")
-            console.print()
-            console.print("Options:")
-            console.print("  1. Use --force to overwrite existing event store")
-            console.print("  2. Delete the event store manually and run again")
-            console.print("  3. Use 'gilt rebuild-projections' to rebuild from existing events")
+            print_event_store_exists_warning(event_count, effective_event_store_path)
             raise CommandAbort(1)
         elif event_count > 0 and force:
             effective_event_store_path.unlink()
@@ -216,31 +185,6 @@ def _validate_migration(
         )
 
 
-def _print_preconditions_success(
-    ledger_files: list[Path], has_categories: bool, categories_config: Path
-) -> None:
-    console.print(f"[green]✓[/green] Found {len(ledger_files)} ledger CSV file(s)")
-    if not has_categories:
-        console.print(f"[yellow]Warning:[/yellow] Categories config not found: {categories_config}")
-        console.print("[dim]Will skip budget migration.[/dim]")
-    else:
-        console.print("[green]✓[/green] Categories config exists")
-
-
-def _print_validation_result(validation_result, has_categories: bool) -> int:
-    if validation_result.transaction_count_match:
-        console.print("[green]✓[/green] Transaction count matches CSV files")
-    if has_categories and validation_result.budget_count_match:
-        console.print("[green]✓[/green] Budget count matches categories.yml")
-    if validation_result.sample_transactions_match:
-        console.print("[green]✓[/green] Sample transaction validation passed")
-    if validation_result.errors:
-        console.print()
-        print_error_list("Validation errors", validation_result.errors)
-        return 1
-    return 0
-
-
 def run(
     *,
     workspace: Workspace,
@@ -261,14 +205,13 @@ def run(
         workspace, event_store_path, projections_db_path, budget_projections_db_path
     )
 
-    console.print("[bold cyan]Migrating to Event Sourcing Architecture[/]")
-    console.print()
+    print_migration_header()
 
     es_service = build_event_sourcing_service(
         workspace, effective_event_store_path, effective_projections_db_path
     )
 
-    console.print("[bold]Step 1: Checking preconditions[/]")
+    print_step_preconditions()
     ledger_files, has_categories = _check_preconditions(
         data_dir,
         categories_config,
@@ -278,23 +221,24 @@ def run(
         effective_budget_projections_db_path,
         force,
     )
-    _print_preconditions_success(ledger_files, has_categories, categories_config)
+    display_preconditions_success(ledger_files, has_categories, categories_config)
 
-    console.print()
-
-    if not write:
-        _display_dry_run_plan(ledger_files, has_categories)
-        return 0
-
-    return _run_migration(
-        es_service,
-        data_dir,
-        categories_config,
-        ledger_files,
-        has_categories,
-        effective_event_store_path,
-        effective_projections_db_path,
-        effective_budget_projections_db_path,
+    return mutations.run_confirmed_mutation(
+        matches=ledger_files,
+        display=lambda: display_migration_plan(ledger_files, has_categories),
+        confirm_prompt="",
+        assume_yes=True,
+        write=write,
+        apply=lambda: _run_migration(
+            es_service,
+            data_dir,
+            categories_config,
+            ledger_files,
+            has_categories,
+            effective_event_store_path,
+            effective_projections_db_path,
+            effective_budget_projections_db_path,
+        ),
     )
 
 
@@ -309,28 +253,26 @@ def _run_migration(
     effective_budget_projections_db_path: Path,
 ) -> int:
     """Execute backfill → build projections → validate → summary."""
-    console.print("[bold]Step 2: Backfilling events from CSV files[/]")
+    print_step_backfill()
     transaction_events, budget_events, errors = _backfill_events(
         ledger_files,
         has_categories,
         categories_config,
         es_service,
     )
-    console.print(f"[green]✓[/green] Created {transaction_events} transaction event(s)")
+    print_transaction_events_created(transaction_events)
     if has_categories:
-        console.print(f"[green]✓[/green] Created {budget_events} budget event(s)")
+        print_budget_events_created(budget_events)
 
-    console.print("\n[bold]Step 3: Building projections from events[/]")
+    print_step_projections()
     tx_builder, budget_builder, tx_count, budget_count = _build_projections(
         es_service, has_categories, effective_budget_projections_db_path
     )
-    console.print(f"[green]✓[/green] Built transaction projections ({tx_count} events processed)")
+    print_transaction_projections_built(tx_count)
     if has_categories:
-        console.print(
-            f"[green]✓[/green] Built budget projections ({budget_count} events processed)"
-        )
+        print_budget_projections_built(budget_count)
 
-    console.print("\n[bold]Step 4: Validating migration[/]")
+    print_step_validating()
     try:
         validation_result = _validate_migration(
             es_service,
@@ -343,10 +285,10 @@ def _run_migration(
     except (OSError, ValueError) as e:
         print_error(f"Validation failed: {e}")
         raise CommandAbort(1) from None
-    if _print_validation_result(validation_result, has_categories) != 0:
+    if display_validation_result(validation_result, has_categories) != 0:
         raise CommandAbort(1)
 
-    _display_completion_summary(
+    display_completion_summary(
         effective_event_store_path,
         effective_projections_db_path,
         transaction_events,

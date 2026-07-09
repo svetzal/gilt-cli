@@ -164,15 +164,19 @@ Complex CLI commands are split into three cohesive modules following the **funct
 
 | Module | Responsibility |
 |---|---|
-| `<name>.py` | Orchestration only — `run()` and pure helpers. Imports from view/review modules. No `Table(`, `Prompt`, or `rich.progress` at the top level. |
-| `<name>_view.py` | Rich rendering — `display_*`, `print_*`, and progress-bar builders. No user prompts, no persistence. |
+| `<name>.py` | Orchestration only — `run()` and pure helpers. Imports from view/review modules. Contains **NO `console.print` at all**, and no `Table(`, `Prompt`, or `rich.progress` at the top level. |
+| `<name>_view.py` | Rich rendering — `display_*`, `print_*`, and progress-bar builders. All `console.print` output lives here. No user prompts, no persistence. |
 | `<name>_review.py` | Interactive input loops — `Prompt.ask` calls, decision handling, feedback recording. Calls view functions for output. |
+
+**Orchestration output rule**: orchestration modules must not emit any console output directly — no `console.print`. Every user-facing message (status lines, previews, errors, success summaries) is rendered by a named function in the `_view.py` sibling. Any orchestration module that emits more than three `console.print` calls must have a `_view.py` sibling to hold them.
 
 **Note**: `<name>_review.py` is omitted when a command has no interactive input loop — confirmation is delegated entirely to `mutations.run_confirmed_mutation` / `run_persisted_mutation`. Commands like `categorize` and `recategorize` are two-module (orchestration + view), not three.
 
-**Mutation flow rule**: every preview → confirm → dry-run → persist sequence routes through `mutations.run_confirmed_mutation` or `mutations.run_persisted_mutation`. Never hand-roll this pattern inline.
+**Mutation flow rule**: every preview → confirm → dry-run → persist sequence routes through `mutations.run_confirmed_mutation` or `mutations.run_persisted_mutation`. Never hand-roll this pattern inline. Every command with a `write: bool` parameter must route through one of these helpers.
 
-**Dry-run contract**: when `write=False`, the command MUST call `print_dry_run_message()` (provided by the mutation helpers) and return without emitting any events or modifying any files.
+**Dry-run contract**: when `write=False`, the command MUST call `print_dry_run_message()` (provided by the mutation helpers) and return without emitting any events or modifying any files. The dry-run wording lives **solely** in `gilt.cli.console.print_dry_run_message` — never inline the strings `"Use --write"`, `"use --write"`, or `"DRY RUN MODE"` in a command module.
+
+**Executable enforcement**: `src/gilt/cli/command/_module_layout_spec.py` is the static guard for all of the above. It fails the build when an orchestration module embeds `console.print` / `Table(` / `Prompt` / `rich.progress`, when a print-heavy module lacks a view sibling, or when a `write: bool` command skips the mutation helpers or inlines dry-run wording. Add new commands in compliance rather than expanding its allowlists (the allowlists exist only as temporary scaffolding and should trend to empty).
 
 **Shared formatting**: the 5-column base row for transaction tables is `base_match_row(account_id, txn)` from `formatting.py`. The 6-column category-preview row is `category_preview_row(account_id, txn, category_path)` — use it instead of inline tuple construction.
 

@@ -6,7 +6,7 @@ from rich.table import Table
 
 from gilt.services.receipt_ingestion_service import MatchResult
 
-from ..console import console, print_dry_run_message
+from ..console import console
 from ..formatting import fmt_amount_str
 
 
@@ -25,16 +25,14 @@ def print_no_receipts() -> None:
     console.print("[yellow]No receipt JSON files found.[/yellow]")
 
 
-def display_summary(
+def display_match_summary(
     matched: list[MatchResult],
     ambiguous: list[MatchResult],
     unmatched: list[MatchResult],
     skipped_already_ingested: int,
     skipped_parse_errors: int,
-    write: bool,
-    written: int,
 ) -> None:
-    """Print the final ingest-receipts summary block."""
+    """Print the receipt-matching summary counts (shown in both dry-run and write modes)."""
     console.print("\n[bold]Summary:[/bold]")
     console.print(f"  Matched: {len(matched)}")
     console.print(f"  Ambiguous: {len(ambiguous)}")
@@ -43,11 +41,12 @@ def display_summary(
     if skipped_parse_errors:
         console.print(f"  Parse errors: {skipped_parse_errors}")
 
-    if write and written > 0:
+
+def print_events_written(written: int) -> None:
+    """Print confirmation of how many enrichment events were persisted."""
+    if written > 0:
         console.print(f"\n[green]{written} TransactionEnriched event(s) written.[/green]")
         console.print("[dim]Tip: Run 'gilt rebuild-projections' to update projections.[/dim]")
-    elif not write and matched:
-        print_dry_run_message(detail=f"{len(matched)} enrichment(s)")
 
 
 def display_results_table(results: list[MatchResult]) -> None:

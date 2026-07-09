@@ -11,7 +11,6 @@ import typer
 from gilt.model.category import BudgetPeriod
 from gilt.model.category_io import (
     build_category_from_path,
-    format_category_path,
     load_categories_config,
     save_categories_config,
 )
@@ -21,9 +20,22 @@ from gilt.services.category_management_service import (
 )
 from gilt.workspace import Workspace
 
-from ..console import console, print_dry_run_message, print_error
-from ..formatting import fmt_amount_str
+from .. import mutations
+from ..console import print_error
 from ._errors import CommandAbort
+from .category_view import (
+    display_add_preview,
+    display_remove_preview,
+    display_set_budget_preview,
+    print_already_exists,
+    print_cancelled,
+    print_create_parent_hint,
+    print_force_hint,
+    print_not_found_warning,
+    print_removal_warnings,
+    print_saved,
+    print_set_budget_create_hint,
+)
 
 
 def run(
@@ -145,12 +157,7 @@ def _handle_add(
 
     # Handle already exists case (not an error)
     if result.already_exists:
-        if subcat_name:
-            console.print(
-                f"[yellow]Subcategory '{format_category_path(cat_name, subcat_name)}' already exists[/]"
-            )
-        else:
-            console.print(f"[yellow]Category '{cat_name}' already exists[/]")
+        print_already_exists(cat_name, subcat_name)
         return 0
 
     # Handle validation errors
@@ -158,46 +165,40 @@ def _handle_add(
         for error in result.errors:
             print_error(error)
         if subcat_name and any("does not exist" in e for e in result.errors):
-            console.print(f"Create the parent first: gilt category --add '{cat_name}' --write")
+            print_create_parent_hint(cat_name)
         raise CommandAbort(1)
 
-    # Success - display what will be added
-    if subcat_name:
-        console.print(f"[bold]Adding subcategory:[/] {format_category_path(cat_name, subcat_name)}")
-    else:
-        console.print(f"[bold]Adding category:[/] {cat_name}")
-
-    if description:
-        console.print(f"  Description: {description}")
-
-    if not write:
-        print_dry_run_message()
+    def apply() -> int:
+        save_categories_config(config_path, category_config)
+        print_saved(config_path)
         return 0
 
-    # Save config
-    save_categories_config(config_path, category_config)
-    console.print(f"[green]✓[/] Saved to {config_path}")
-    return 0
+    return mutations.run_confirmed_mutation(
+        matches=[cat_name],
+        display=lambda: display_add_preview(cat_name, subcat_name, description),
+        confirm_prompt="",
+        assume_yes=True,
+        write=write,
+        apply=apply,
+    )
 
 
 def _confirm_removal(plan, write: bool) -> int | None:
     """Handle confirmation when removal is blocked. Returns exit code or None to proceed."""
     if not write:
-        for warning in plan.warnings:
-            console.print(f"[yellow]Warning:[/] {warning}")
-        console.print("[dim]Use --force to confirm removal (dry-run)[/]")
+        print_removal_warnings(plan.warnings)
+        print_force_hint()
         raise CommandAbort(1)
 
     import sys
 
     if sys.stdin.isatty():
-        for warning in plan.warnings:
-            console.print(f"[yellow]Warning:[/] {warning}")
+        print_removal_warnings(plan.warnings)
         confirm = typer.confirm(
             "Remove anyway? This will NOT remove the category from existing transactions"
         )
         if not confirm:
-            console.print("Cancelled")
+            print_cancelled()
             return 0
 
     return None
@@ -225,21 +226,17 @@ def _handle_remove(
     if plan.warnings and any("not found" in w for w in plan.warnings):
         for warning in plan.warnings:
             if "not found" in warning:
-                console.print(f"[yellow]{warning}[/]")
+                print_not_found_warning(warning)
         return 0
 
     # Display what will be removed
-    if subcat_name:
-        console.print(
-            f"[bold]Removing subcategory:[/] {format_category_path(cat_name, subcat_name)}"
-        )
-    else:
-        console.print(f"[bold]Removing category:[/] {cat_name}")
-
-    console.print(f"  Used in {plan.usage.transaction_count} transaction(s)")
+    subcat_count = None
     if plan.has_subcategories:
         cat = category_config.find_category(cat_name)
-        console.print(f"  Has {len(cat.subcategories)} subcategory(ies)")
+        subcat_count = len(cat.subcategories)
+    display_remove_preview(
+        cat_name, subcat_name, plan.usage.transaction_count, subcat_count
+    )
 
     # Check if removal is blocked
     if not plan.can_remove:
@@ -247,17 +244,20 @@ def _handle_remove(
         if result is not None:
             return result
 
-    if not write:
-        print_dry_run_message()
+    def apply() -> int:
+        service.remove_category(cat_name, subcat_name)
+        save_categories_config(config_path, category_config)
+        print_saved(config_path)
         return 0
 
-    # Perform the removal
-    service.remove_category(cat_name, subcat_name)
-
-    # Save config
-    save_categories_config(config_path, category_config)
-    console.print(f"[green]✓[/] Saved to {config_path}")
-    return 0
+    return mutations.run_confirmed_mutation(
+        matches=[cat_name],
+        display=lambda: None,
+        confirm_prompt="",
+        assume_yes=True,
+        write=write,
+        apply=apply,
+    )
 
 
 def _handle_set_budget(
@@ -284,23 +284,22 @@ def _handle_set_budget(
         for error in result.errors:
             print_error(error)
         if "not found" in " ".join(result.errors):
-            console.print(f"Create it first: gilt category --add '{cat_name}' --write")
+            print_set_budget_create_hint(cat_name)
         raise CommandAbort(1)
 
-    # Display what will be set
-    console.print(f"[bold]Setting budget for:[/] {cat_name}")
-    console.print(f"  Amount: {fmt_amount_str(amount)}/{period.value}")
-    if result.previous_budget:
-        console.print(
-            f"  Previous: {fmt_amount_str(result.previous_budget.amount)}/"
-            f"{result.previous_budget.period.value}"
-        )
-
-    if not write:
-        print_dry_run_message()
+    def apply() -> int:
+        # Budget already set by service; persist config.
+        save_categories_config(config_path, category_config)
+        print_saved(config_path)
         return 0
 
-    # Save config (budget already set by service)
-    save_categories_config(config_path, category_config)
-    console.print(f"[green]✓[/] Saved to {config_path}")
-    return 0
+    return mutations.run_confirmed_mutation(
+        matches=[cat_name],
+        display=lambda: display_set_budget_preview(
+            cat_name, amount, period.value, result.previous_budget
+        ),
+        confirm_prompt="",
+        assume_yes=True,
+        write=write,
+        apply=apply,
+    )

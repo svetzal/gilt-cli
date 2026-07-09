@@ -4,7 +4,7 @@ Command module for `gilt ingest-receipts`.
 Reads mailctl.receipt.v1 JSON sidecar files, matches them to existing bank
 transactions, and emits TransactionEnriched events.
 
-Dry-run by default. Use --write to persist events.
+Dry-run by default; pass --write to persist events.
 """
 
 from __future__ import annotations
@@ -23,11 +23,13 @@ from gilt.services.receipt_ingestion_service import (
 )
 from gilt.workspace import Workspace
 
+from .. import mutations
 from ..console import print_error
 from .ingest_receipts_review import run_ambiguous_interactively
 from .ingest_receipts_view import (
+    display_match_summary,
     display_results_table,
-    display_summary,
+    print_events_written,
     print_no_receipts,
     print_parse_warnings,
 )
@@ -147,17 +149,18 @@ def _finalize_receipts(
         matched.extend(resolved)
         ambiguous = [r for r in ambiguous if r not in resolved]
 
-    written = 0
-    if write and matched:
-        written = _emit_enrichment_events(matched, store)
+    def apply() -> int:
+        written = _emit_enrichment_events(matched, store) if matched else 0
+        print_events_written(written)
+        return 0
 
-    display_summary(
-        matched,
-        ambiguous,
-        unmatched,
-        skipped_already_ingested,
-        skipped_parse_errors,
-        write,
-        written,
+    return mutations.run_confirmed_mutation(
+        matches=matched,
+        display=lambda: display_match_summary(
+            matched, ambiguous, unmatched, skipped_already_ingested, skipped_parse_errors
+        ),
+        confirm_prompt="",
+        assume_yes=True,
+        write=write,
+        apply=apply,
     )
-    return 0

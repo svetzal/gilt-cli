@@ -7,56 +7,16 @@ from gilt.model.ledger_repository import LedgerRepository
 from gilt.services.transaction_operations_service import TransactionOperationsService
 from gilt.workspace import Workspace
 
-from ..console import console, display_transaction_matches, print_error
-from ..formatting import fmt_amount_str
+from ..console import print_error
 from ..mutations import run_confirmed_mutation, validate_single_vs_batch_mode
 from ._errors import CommandAbort
-
-
-def _highlight_prefix(desc: str, prefix: str, style: str = "bold yellow") -> str:
-    """Return description with the matching prefix highlighted using Rich markup.
-
-    Case-insensitive match at the start only; preserves original casing in the output.
-    If prefix does not match, returns desc unchanged.
-    """
-    d = desc or ""
-    p = (prefix or "").strip().lower()
-    if not p:
-        return d
-    if d.lower().startswith(p):
-        n = len(p)
-        return f"[{style}]{d[:n]}[/]{d[n:]}"
-    return d
-
-
-def _display_matches(
-    account: str,
-    groups: list[TransactionGroup],
-    note_text: str,
-    desc_prefix: str | None = None,
-) -> None:
-    """Display matched transactions in a table."""
-
-    def row_fn(group: TransactionGroup) -> tuple:
-        txn = group.primary
-        raw_desc = (txn.description or "").strip()
-        desc_display = _highlight_prefix(raw_desc, desc_prefix) if desc_prefix else raw_desc
-        return (
-            account,
-            txn.transaction_id[:8],
-            str(txn.date),
-            desc_display[:40],
-            fmt_amount_str(txn.amount),
-            (txn.notes or "")[:30] if txn.notes else "—",
-            note_text[:30],
-        )
-
-    display_transaction_matches(
-        "Matched Transactions",
-        [("Current Note", {"style": "dim"}), ("→ New Note", {"style": "green"})],
-        groups,
-        row_fn,
-    )
+from .note_view import (
+    display_matches,
+    print_no_matches,
+    print_no_transactions_in_ledger,
+    print_note_target_summary,
+    print_notes_saved,
+)
 
 
 def _find_note_targets(
@@ -98,36 +58,6 @@ def _find_note_targets(
         return []
 
     return result
-
-
-def _print_note_target_summary(
-    groups_to_update: list[TransactionGroup],
-    account: str,
-    txid: str | None,
-    description: str | None,
-    desc_prefix: str | None,
-    pattern: str | None,
-    amount: float | None,
-) -> None:
-    """Print a summary of which transactions will be annotated."""
-    if txid:
-        console.print(
-            f"Will set note for transaction {groups_to_update[0].primary.transaction_id[:8]}"
-        )
-        return
-    criteria_parts = []
-    if description:
-        criteria_parts.append(f"description='{description}'")
-    if desc_prefix:
-        criteria_parts.append(f"description_prefix='{desc_prefix}'")
-    if pattern:
-        criteria_parts.append(f"pattern='{pattern}'")
-    if amount is not None:
-        criteria_parts.append(f"amount={amount}")
-    console.print(
-        f"Will set note for {len(groups_to_update)} transactions in {account} "
-        f"matching {' and '.join(criteria_parts)}."
-    )
 
 
 def _save_notes(
@@ -178,9 +108,7 @@ def run(
         raise CommandAbort(1) from None
 
     if not groups:
-        console.print(
-            f"[yellow]No transactions found in ledger:[/] {ledger_repo.ledger_path(account)}"
-        )
+        print_no_transactions_in_ledger(ledger_repo.ledger_path(account))
         raise CommandAbort(1)
 
     service = TransactionOperationsService()
@@ -189,15 +117,15 @@ def run(
     )
 
     if not groups_to_update:
-        console.print("[yellow]No transactions matched the specified criteria.[/yellow]")
+        print_no_matches()
         raise CommandAbort(1)
 
-    _print_note_target_summary(
+    print_note_target_summary(
         groups_to_update, account, txid, description, desc_prefix, pattern, amount
     )
 
     def display() -> None:
-        _display_matches(
+        display_matches(
             account, groups_to_update, note_text, desc_prefix=desc_prefix if desc_prefix else None
         )
 
@@ -205,9 +133,7 @@ def run(
         count = _save_notes(
             service, groups, groups_to_update, note_text, ledger_repo, account
         )
-        console.print(
-            f"[green]Saved notes to ledger successfully.[/] Applied to {count} transaction(s)."
-        )
+        print_notes_saved(count)
         return 0
 
     return run_confirmed_mutation(

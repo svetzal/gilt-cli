@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from gilt.workspace import Workspace
 
-from ..console import console
+from .init_view import (
+    display_created,
+    display_skipped,
+    print_already_initialized,
+    print_init_header,
+    print_next_steps,
+)
 
 _STARTER_ACCOUNTS_YML = """\
 # Accounts configuration
@@ -67,7 +73,7 @@ def run(*, workspace: Workspace) -> int:
         Exit code (0 = success)
     """
     root = workspace.root
-    console.print(f"[bold cyan]Initializing workspace:[/] {root}\n")
+    print_init_header(root)
 
     created_dirs = []
     created_files = []
@@ -101,26 +107,12 @@ def run(*, workspace: Workspace) -> int:
             created_files.append(str(path.relative_to(root)))
 
     # Report results
-    if created_dirs or created_files:
-        console.print("[green]Created:[/]")
-        for d in created_dirs:
-            console.print(f"  {d}")
-        for f in created_files:
-            console.print(f"  {f}")
-
-    if skipped:
-        console.print("[dim]Already exists (skipped):[/dim]")
-        for s in skipped:
-            console.print(f"  [dim]{s}[/dim]")
+    display_created(created_dirs, created_files)
+    display_skipped(skipped)
 
     if not created_dirs and not created_files:
-        console.print("[green]Workspace already fully initialized.[/]")
+        print_already_initialized()
     else:
-        console.print(f"\n[green]Workspace ready at {root}[/]")
-        console.print("\n[dim]Next steps:[/dim]")
-        console.print("  1. Edit config/accounts.yml to define your bank accounts")
-        console.print("  2. Drop raw bank CSVs into ingest/")
-        console.print("  3. Run: gilt ingest --write")
-        console.print("  4. Run: gilt migrate-to-events --write")
+        print_next_steps(root)
 
     return 0
