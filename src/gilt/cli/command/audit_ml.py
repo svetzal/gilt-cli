@@ -17,7 +17,13 @@ from gilt.workspace import Workspace
 
 from ..console import console, print_error
 from ..event_sourcing_bootstrap import require_event_sourcing
-from .audit_ml_view import show_features, show_predictions, show_summary, show_training_data
+from .audit_ml_view import (
+    print_valid_modes,
+    show_features,
+    show_predictions,
+    show_summary,
+    show_training_data,
+)
 
 
 def run(
@@ -52,7 +58,7 @@ def run(
         return show_features(console, builder)
     else:
         print_error(f"Unknown mode '{mode}'")
-        console.print("Valid modes: summary, training, predictions, features")
+        print_valid_modes(console)
         return 1
 
 

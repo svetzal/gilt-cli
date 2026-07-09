@@ -65,3 +65,11 @@ class DescribeDisplayCategoriesTable:
         output = _capture(lambda: display_categories_table(config, {}))
         assert "Internet" in output
         assert "Phone" in output
+
+
+class DescribePrintNoCategories:
+    def it_should_mention_creating_categories_config(self):
+        from gilt.cli.command.categories_view import print_no_categories
+
+        output = _capture(print_no_categories)
+        assert "No categories defined" in output

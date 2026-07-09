@@ -12,6 +12,14 @@ from ..console import console
 from ..formatting import fmt_amount
 
 
+def print_no_transactions(account: str, the_year: int, compare: bool) -> None:
+    """Print the message shown when no transactions match the query."""
+    kind = "enriched " if compare else ""
+    console.print(
+        f"[yellow]No {kind}transactions for account[/] [bold]{account}[/] in {the_year}."
+    )
+
+
 def _build_display_notes(t: Transaction) -> str:
     """Build Rich-markup notes string from category, transfer, and user notes."""
     service = TransactionQueryService()

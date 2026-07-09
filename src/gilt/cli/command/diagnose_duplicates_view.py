@@ -9,6 +9,11 @@ from gilt.services.duplicate_diagnostics_service import DuplicateIssue
 from ..console import console
 
 
+def print_no_issues() -> None:
+    """Print the message shown when no duplicate-projection issues are found."""
+    console.print("[green]No duplicate-projection issues found.[/]")
+
+
 def display_issues(issues: list[DuplicateIssue]) -> None:
     """Display the duplicate issues table and a summary line."""
     sorted_issues = sorted(issues, key=lambda i: (i.issue_class, i.transaction_date))

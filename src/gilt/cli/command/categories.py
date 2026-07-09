@@ -11,8 +11,7 @@ from gilt.model.category_io import load_categories_config
 from gilt.model.ledger_repository import LedgerRepository
 from gilt.workspace import Workspace
 
-from ..console import console
-from .categories_view import display_categories_table
+from .categories_view import display_categories_table, print_no_categories
 
 
 def _count_category_usage(data_dir: Path) -> dict[tuple[str, str | None], tuple[int, float]]:
@@ -54,9 +53,7 @@ def run(
     category_config = load_categories_config(config)
 
     if not category_config.categories:
-        console.print(
-            "[yellow]No categories defined.[/] Create config/categories.yml to define categories."
-        )
+        print_no_categories()
         return 0
 
     usage = _count_category_usage(data_dir)

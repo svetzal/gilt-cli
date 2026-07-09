@@ -66,3 +66,14 @@ class DescribeShowPredictions:
         output = buf.getvalue()
         assert "not available" in output
         assert result == 0
+
+
+class DescribePrintValidModes:
+    def it_should_list_all_modes(self):
+        from gilt.cli.command.audit_ml_view import print_valid_modes
+
+        con, buf = _make_console()
+        print_valid_modes(con)
+        output = buf.getvalue()
+        assert "summary" in output
+        assert "predictions" in output

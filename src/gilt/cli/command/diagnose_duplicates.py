@@ -7,9 +7,8 @@ Diagnose duplicate-projection issues: orphan groups, stale primaries, self-refer
 from gilt.services.duplicate_diagnostics_service import DuplicateDiagnosticsService
 from gilt.workspace import Workspace
 
-from ..console import console
 from ..event_sourcing_bootstrap import require_projections
-from .diagnose_duplicates_view import display_issues
+from .diagnose_duplicates_view import display_issues, print_no_issues
 
 
 def run(
@@ -39,7 +38,7 @@ def run(
     issues = service.find_issues(rows)
 
     if not issues:
-        console.print("[green]No duplicate-projection issues found.[/]")
+        print_no_issues()
         return 0
 
     display_issues(issues)

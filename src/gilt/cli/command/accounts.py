@@ -7,8 +7,7 @@ from gilt.ingest import load_accounts_config
 from gilt.model.ledger_repository import LedgerRepository
 from gilt.workspace import Workspace
 
-from ..console import console
-from .accounts_view import display_accounts_table
+from .accounts_view import display_accounts_table, print_no_accounts
 
 logger = logging.getLogger(__name__)
 
@@ -56,9 +55,7 @@ def run(*, workspace: Workspace) -> int:
     mapping = _collect_accounts(workspace.accounts_config, workspace.ledger_data_dir)
 
     if not mapping:
-        console.print(
-            "[yellow]No accounts found.[/] Add entries to config/accounts.yml or ingest ledgers under data/accounts/."
-        )
+        print_no_accounts()
         return 0
 
     display_accounts_table(mapping)

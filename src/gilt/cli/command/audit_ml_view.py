@@ -11,6 +11,11 @@ from gilt.ml.training_data_builder import TrainingDataBuilder
 from ..formatting import fmt_amount_str
 
 
+def print_valid_modes(console: Console) -> None:
+    """Print the list of valid audit modes."""
+    console.print("Valid modes: summary, training, predictions, features")
+
+
 def show_summary(console: Console, builder: TrainingDataBuilder) -> int:
     """Show summary statistics of training data."""
     stats = builder.get_statistics()

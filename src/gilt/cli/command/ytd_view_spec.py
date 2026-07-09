@@ -103,3 +103,12 @@ class DescribeDisplayYtdTable:
             )
         )
         assert "EXAMPLE UTILITY" in output
+
+
+class DescribePrintNoTransactions:
+    def it_should_mention_the_account_and_year(self):
+        from gilt.cli.command.ytd_view import print_no_transactions
+
+        output = _capture(lambda: print_no_transactions("MYBANK_CHQ", 2025, compare=False))
+        assert "MYBANK_CHQ" in output
+        assert "2025" in output

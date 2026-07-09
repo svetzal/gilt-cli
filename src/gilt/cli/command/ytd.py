@@ -7,9 +7,8 @@ from gilt.ingest import load_accounts_config
 from gilt.services.transaction_query_service import TransactionQueryService
 from gilt.workspace import Workspace
 
-from ..console import console
 from ..loaders import load_all_transactions
-from .ytd_view import display_ytd_table
+from .ytd_view import display_ytd_table, print_no_transactions
 
 logger = logging.getLogger(__name__)
 
@@ -48,10 +47,7 @@ def run(
         primaries = [t for t in primaries if t.vendor]
 
     if not primaries:
-        kind = "enriched " if compare else ""
-        console.print(
-            f"[yellow]No {kind}transactions for account[/] [bold]{account}[/] in {the_year}."
-        )
+        print_no_transactions(account, the_year, compare)
         return 0
 
     display_ytd_table(primaries, account, the_year, acct_nature, compare, raw, query_service)

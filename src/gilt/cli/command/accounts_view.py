@@ -7,6 +7,14 @@ from rich.table import Table
 from ..console import console
 
 
+def print_no_accounts() -> None:
+    """Print the message shown when no accounts are found."""
+    console.print(
+        "[yellow]No accounts found.[/] Add entries to config/accounts.yml "
+        "or ingest ledgers under data/accounts/."
+    )
+
+
 def display_accounts_table(mapping: dict[str, str]) -> None:
     """Build and print the accounts Rich table."""
     table = Table(title="Available Accounts", show_lines=False)

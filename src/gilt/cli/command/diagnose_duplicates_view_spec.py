@@ -68,3 +68,11 @@ class DescribeDisplayIssues:
         issues = [_make_issue(account="MYBANK_CHQ")]
         output = _capture(lambda: display_issues(issues))
         assert "MYBANK_CHQ" in output
+
+
+class DescribePrintNoIssues:
+    def it_should_report_no_issues(self):
+        from gilt.cli.command.diagnose_duplicates_view import print_no_issues
+
+        output = _capture(print_no_issues)
+        assert "No duplicate-projection issues" in output

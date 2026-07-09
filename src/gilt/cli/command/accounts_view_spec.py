@@ -49,3 +49,11 @@ class DescribeDisplayAccountsTable:
 
         output = _capture(lambda: display_accounts_table({"MYBANK_CHQ": "Chequing"}))
         assert "Available Accounts" in output
+
+
+class DescribePrintNoAccounts:
+    def it_should_mention_config_and_ingest(self):
+        from gilt.cli.command.accounts_view import print_no_accounts
+
+        output = _capture(print_no_accounts)
+        assert "No accounts found" in output

@@ -8,6 +8,13 @@ from ..console import console
 from ..formatting import fmt_amount_str
 
 
+def print_no_categories() -> None:
+    """Print the message shown when no categories are defined."""
+    console.print(
+        "[yellow]No categories defined.[/] Create config/categories.yml to define categories."
+    )
+
+
 def add_category_with_subcategories(table: Table, cat, usage: dict) -> None:
     """Add a bold parent summary row plus indented rows for each subcategory."""
     cat_key = (cat.name, None)
