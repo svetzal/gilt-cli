@@ -18,11 +18,9 @@ Privacy: All processing is local-only. No network I/O.
 
 from __future__ import annotations
 
-import sqlite3
 from datetime import date
 from pathlib import Path
 
-from gilt.model.events import Event
 from gilt.storage.budget_projection_queries import (
     BudgetProjection,
     get_active_budgets,
@@ -33,6 +31,7 @@ from gilt.storage.budget_projection_queries import (
 from gilt.storage.budget_projection_reducer import apply_budget_events
 from gilt.storage.budget_projection_schema import ensure_budget_projection_schema
 from gilt.storage.event_store import EventStore
+from gilt.storage.sqlite_connection import connect
 
 
 class BudgetProjectionBuilder:
@@ -40,7 +39,8 @@ class BudgetProjectionBuilder:
 
     def __init__(self, db_path: Path):
         self.db_path = db_path
-        ensure_budget_projection_schema(db_path)
+        with connect(db_path) as conn:
+            ensure_budget_projection_schema(conn)
 
     def build_from_scratch(self, event_store: EventStore) -> int:
         """Build all budget projections from event store.
@@ -51,8 +51,7 @@ class BudgetProjectionBuilder:
         Returns:
             Number of events processed
         """
-        conn = sqlite3.connect(self.db_path)
-        try:
+        with connect(self.db_path) as conn:
             conn.execute("DELETE FROM budget_projections")
             conn.execute("DELETE FROM budget_history")
             conn.commit()
@@ -63,35 +62,6 @@ class BudgetProjectionBuilder:
             events.sort(key=lambda e: e.event_timestamp)
 
             return apply_budget_events(conn, events)
-        finally:
-            conn.close()
-
-    def build_incremental(self, event_store: EventStore, last_event_id: str) -> int:
-        """Apply only new budget events since last build.
-
-        Returns:
-            Number of new events processed
-        """
-        conn = sqlite3.connect(self.db_path)
-        try:
-            all_events: list[Event] = []
-            for event_type in ["BudgetCreated", "BudgetUpdated", "BudgetDeleted"]:
-                all_events.extend(event_store.get_events_by_type(event_type))
-            all_events.sort(key=lambda e: e.event_timestamp)
-
-            start_idx = 0
-            for i, event in enumerate(all_events):
-                if event.event_id == last_event_id:
-                    start_idx = i + 1
-                    break
-
-            new_events = all_events[start_idx:]
-            if not new_events:
-                return 0
-
-            return apply_budget_events(conn, new_events)
-        finally:
-            conn.close()
 
     def get_budget(self, budget_id: str) -> BudgetProjection | None:
         """Retrieve a single budget projection."""

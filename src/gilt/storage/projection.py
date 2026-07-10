@@ -19,7 +19,6 @@ Privacy: All processing is local-only. No network I/O.
 
 from __future__ import annotations
 
-import sqlite3
 from pathlib import Path
 
 from gilt.storage.duplicate_normalization import (
@@ -40,6 +39,7 @@ from gilt.storage.projection_queries import (
 )
 from gilt.storage.projection_reducer import apply_events
 from gilt.storage.projection_schema import ensure_projection_schema
+from gilt.storage.sqlite_connection import connect
 
 
 class ProjectionBuilder:
@@ -47,11 +47,8 @@ class ProjectionBuilder:
 
     def __init__(self, db_path: Path):
         self.db_path = db_path
-        conn = sqlite3.connect(self.db_path)
-        try:
+        with connect(db_path) as conn:
             ensure_projection_schema(conn)
-        finally:
-            conn.close()
 
     def build_from_scratch(self, event_store: EventStore) -> int:
         """Build all projections from event store.
@@ -62,8 +59,7 @@ class ProjectionBuilder:
         Returns:
             Number of events processed
         """
-        conn = sqlite3.connect(self.db_path)
-        try:
+        with connect(self.db_path) as conn:
             conn.execute("DELETE FROM transaction_projections")
             conn.execute("DELETE FROM projection_metadata")
             conn.commit()
@@ -73,8 +69,6 @@ class ProjectionBuilder:
             normalize_duplicate_groups(conn)
             conn.commit()
             return processed
-        finally:
-            conn.close()
 
     def build_incremental(self, event_store: EventStore) -> int:
         """Apply only new events since last build.
@@ -82,8 +76,7 @@ class ProjectionBuilder:
         Returns:
             Number of new events processed
         """
-        conn = sqlite3.connect(self.db_path)
-        try:
+        with connect(self.db_path) as conn:
             cursor = conn.execute(
                 "SELECT value FROM projection_metadata WHERE key = 'last_sequence'"
             )
@@ -98,8 +91,6 @@ class ProjectionBuilder:
             normalize_duplicate_groups(conn)
             conn.commit()
             return processed
-        finally:
-            conn.close()
 
     def delete_account_projections(self, account_id: str) -> int:
         """Delete all projection rows for a given account.
@@ -109,27 +100,21 @@ class ProjectionBuilder:
         """
         if not self.db_path.exists():
             return 0
-        conn = sqlite3.connect(self.db_path)
-        try:
+        with connect(self.db_path) as conn:
             cursor = conn.execute(
                 "DELETE FROM transaction_projections WHERE account_id = ?",
                 (account_id,),
             )
             conn.commit()
             return cursor.rowcount
-        finally:
-            conn.close()
 
     def reset_metadata(self) -> None:
         """Clear projection metadata so the next incremental rebuild replays all events."""
         if not self.db_path.exists():
             return
-        conn = sqlite3.connect(self.db_path)
-        try:
+        with connect(self.db_path) as conn:
             conn.execute("DELETE FROM projection_metadata")
             conn.commit()
-        finally:
-            conn.close()
 
     # --- Read-model delegations ---
 

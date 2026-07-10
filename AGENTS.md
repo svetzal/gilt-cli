@@ -305,34 +305,39 @@ The `find_projection_by_prefix` / `find_by_id_prefix` split in `TransactionOpera
 
 **Remediation history:** Commit `4eab73a` applied `scan_→find_` and `rebuild_→build_` conventions across storage and service layers. A subsequent refactor extended the full convention set (`filter_→find_`, `plan_→build_`, `apply_→run_`, `calculate_→get_`, `generate_→build_`, `resolve_→find_/build_/run_`, `parse_→build_/load_`) to all remaining layers (services, CLI commands, GUI views, transfer, ingest). All old verb prefixes have been eliminated from the codebase, except the event-sourcing reducer vocabulary (`apply_events`/`_apply_*` in `storage/projection_reducer.py` and `storage/budget_projection_reducer.py`), which is intentional — these names are part of the documented module layout and reflect the event-sourcing pattern.
 
-**Exception**: `apply_events` and `_apply_*` in event-sourcing reducer modules (`projection_reducer.py`, `budget_projection_reducer.py`) are exempt — they use event-sourcing vocabulary by design and are documented as canonical in the Storage/Budget Projection Module Layout sections.
+**Exception**: `apply_events` and `_apply_*` in event-sourcing reducer modules (`projection_reducer.py`, `budget_projection_reducer.py`) are exempt — they use event-sourcing vocabulary by design and are documented as canonical in the Projection Module Layout section.
 
-## Storage Projection Module Layout
+## Projection Module Layout
 
-The `projection.py` module fused schema, write-side reducer, and read-side queries into one class. It has been split into cohesive units following the **extract-collaborators-behind-facade** pattern:
+Both the transaction and budget projection subsystems follow the **extract-collaborators-behind-facade** pattern. Each stack has schema, reducer, queries, and facade modules; two shared modules serve both stacks.
+
+### Shared modules
 
 | Module | Responsibility |
 |---|---|
-| `projection_schema.py` | `ensure_projection_schema` — DDL, migrations |
-| `projection_reducer.py` | `apply_events` and per-event `_apply_*` functions — write side |
+| `sqlite_connection.py` | `connect(db_path)` context manager — all connection lifecycle goes through this; no `sqlite3.connect` / `try/finally/close` inline |
+| `event_dispatch.py` | `apply_event_handlers(conn, events, handlers)` — shared dispatch loop; new event types register a handler in the stack's `_HANDLERS` dict |
+
+### Transaction projection stack
+
+| Module | Responsibility |
+|---|---|
+| `projection_schema.py` | `ensure_projection_schema(conn)` — DDL, migrations |
+| `projection_reducer.py` | `apply_events` and per-event `_apply_*` functions — write side; `_HANDLERS` dict maps event types to handlers |
 | `projection_queries.py` | `get_transaction`, `get_all_transactions`, etc. — read side |
 | `duplicate_normalization.py` | Pure duplicate-group repair: `build_duplicate_corrections`, `find_root_primary`, `normalize_duplicate_groups` |
 | `projection.py` | `ProjectionBuilder` facade — orchestrates the above; re-exports all public names so existing callers need no changes |
 
-**Rule:** When adding new projection behaviour, place it in the appropriate collaborator module — not back into `projection.py`. Schema changes go to `projection_schema.py`, new event handlers to `projection_reducer.py`, new queries to `projection_queries.py`.
-
-## Budget Projection Module Layout
-
-The `budget_projection.py` module fused schema, write-side reducer, and read-side queries into one class (same pattern as `projection.py`). It has been split into cohesive units following the same **extract-collaborators-behind-facade** pattern:
+### Budget projection stack
 
 | Module | Responsibility |
 |---|---|
-| `budget_projection_schema.py` | `ensure_budget_projection_schema` — DDL for `budget_projections` and `budget_history` tables |
-| `budget_projection_reducer.py` | `apply_budget_events` and per-event `_apply_*` functions — write side |
+| `budget_projection_schema.py` | `ensure_budget_projection_schema(conn)` — DDL for `budget_projections` and `budget_history` tables |
+| `budget_projection_reducer.py` | `apply_budget_events` and per-event `_apply_*` functions — write side; `_HANDLERS` dict maps event types to handlers |
 | `budget_projection_queries.py` | `BudgetProjection` type, `get_budget`, `get_active_budgets`, `get_budgets_at_date`, `get_budget_history` — read side |
 | `budget_projection.py` | `BudgetProjectionBuilder` facade — orchestrates the above; re-exports `BudgetProjection` and `BudgetProjectionBuilder` so existing callers need no changes |
 
-**Rule:** When adding new budget projection behaviour, place it in the appropriate collaborator module — not back into `budget_projection.py`. Schema changes go to `budget_projection_schema.py`, new event handlers to `budget_projection_reducer.py`, new queries to `budget_projection_queries.py`.
+**Rule:** When adding new projection behaviour, place it in the appropriate collaborator module — not back into the facade. Schema changes go to the `*_schema.py` module, new event types add one entry to the stack's `_HANDLERS` dict in the `*_reducer.py` module, new queries go to the `*_queries.py` module.
 
 ## Ingest Module Layout
 

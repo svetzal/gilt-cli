@@ -5,6 +5,7 @@ from __future__ import annotations
 import sqlite3
 
 from gilt.model.events import BudgetCreated, BudgetDeleted, BudgetUpdated, Event
+from gilt.storage.event_dispatch import apply_event_handlers
 
 
 def apply_budget_events(conn: sqlite3.Connection, events: list[Event]) -> int:
@@ -13,15 +14,7 @@ def apply_budget_events(conn: sqlite3.Connection, events: list[Event]) -> int:
     Returns:
         Number of events processed
     """
-    processed = 0
-    for event in events:
-        if isinstance(event, BudgetCreated):
-            _apply_budget_created(conn, event)
-        elif isinstance(event, BudgetUpdated):
-            _apply_budget_updated(conn, event)
-        elif isinstance(event, BudgetDeleted):
-            _apply_budget_deleted(conn, event)
-        processed += 1
+    processed = apply_event_handlers(conn, events, _HANDLERS)
     conn.commit()
     return processed
 
@@ -222,5 +215,11 @@ def _apply_budget_deleted(conn: sqlite3.Connection, event: BudgetDeleted) -> Non
         ),
     )
 
+
+_HANDLERS = {
+    BudgetCreated: _apply_budget_created,
+    BudgetUpdated: _apply_budget_updated,
+    BudgetDeleted: _apply_budget_deleted,
+}
 
 __all__ = ["apply_budget_events"]

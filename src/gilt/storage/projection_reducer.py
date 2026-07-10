@@ -20,6 +20,7 @@ from gilt.model.events import (
     TransactionImported,
 )
 from gilt.storage.duplicate_normalization import find_root_primary
+from gilt.storage.event_dispatch import apply_event_handlers
 
 
 def apply_events(conn: sqlite3.Connection, events: list[Event], start_sequence: int) -> int:
@@ -33,23 +34,7 @@ def apply_events(conn: sqlite3.Connection, events: list[Event], start_sequence: 
     Returns:
         Number of events processed
     """
-    processed = 0
-
-    for event in events:
-        if isinstance(event, TransactionImported):
-            _apply_transaction_imported(conn, event)
-        elif isinstance(event, TransactionDescriptionObserved):
-            _apply_description_observed(conn, event)
-        elif isinstance(event, TransactionCategorized):
-            _apply_transaction_categorized(conn, event)
-        elif isinstance(event, TransactionEnriched):
-            _apply_transaction_enriched(conn, event)
-        elif isinstance(event, DuplicateConfirmed):
-            _apply_duplicate_confirmed(conn, event)
-        elif isinstance(event, DuplicateRejected):
-            _apply_duplicate_rejected(conn, event)
-
-        processed += 1
+    processed = apply_event_handlers(conn, events, _HANDLERS)
 
     if events:
         last_event_seq = start_sequence + processed
@@ -317,3 +302,13 @@ def _find_root_primary(
         return bool(row[0]), row[1]
 
     return find_root_primary(_lookup, txn_id, max_hops)
+
+
+_HANDLERS = {
+    TransactionImported: _apply_transaction_imported,
+    TransactionDescriptionObserved: _apply_description_observed,
+    TransactionCategorized: _apply_transaction_categorized,
+    TransactionEnriched: _apply_transaction_enriched,
+    DuplicateConfirmed: _apply_duplicate_confirmed,
+    DuplicateRejected: _apply_duplicate_rejected,
+}
