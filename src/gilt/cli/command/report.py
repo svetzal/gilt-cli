@@ -13,6 +13,7 @@ from pathlib import Path
 
 from gilt.model.account import Transaction
 from gilt.model.category_io import load_categories_config
+from gilt.services.budget_report_markdown import dump_budget_report_markdown
 from gilt.services.budget_reporting_service import BudgetReportingService
 from gilt.storage.projection import ProjectionBuilder
 from gilt.workspace import Workspace
@@ -167,7 +168,7 @@ def run(
     transactions = _load_transactions(workspace)
     service = BudgetReportingService(category_config)
     report = service.build_report(transactions, year=year, month=month)
-    markdown_content = service.render_markdown(report)
+    markdown_content = dump_budget_report_markdown(report)
 
     markdown_path, docx_path = _build_output_paths(output, workspace, year, month)
 

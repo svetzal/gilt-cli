@@ -356,6 +356,30 @@ The `ingest/__init__.py` module fused column detection, normalization, model map
 
 **Rule:** When adding new ingest behaviour, place it in the appropriate collaborator module — not back into `__init__.py`. New pure transforms (no I/O) go in the core modules (`column_mapping.py`, `normalization.py`, `transaction_mapping.py`, `account_matching.py`). New I/O or side-effect logic goes in the shell modules (`config_loader.py`, `events.py`, `ledger_pipeline.py`).
 
+## Services Module Layout
+
+Service modules must never import a UI library (`rich`, `typer`, `PySide6`) and must never render presentation (no `console.print`, no `Table(`, no `Prompt.ask`). Serialization to a string format belongs in a `dump_*` sibling module. The rule is enforced by `src/gilt/services/_module_layout_spec.py` — its allowlists are empty by design.
+
+**Module length alone is NOT a violation.** `category_management_service.py`, `duplicate_review_service.py`, and similar large pure-logic modules must not be split for size — only for genuine separation of concerns.
+
+### Budget reporting stack
+
+| Module | Responsibility |
+|---|---|
+| `budget_report_model.py` | Data structures (`ExpenseDetail`, `BudgetSummaryLine`, `BudgetReport`) — leaf, no local imports |
+| `budget_aggregation.py` | Pure aggregation and proration: `aggregate_spending`, `collect_expense_transactions`, `find_actual_for_category`, `get_budget_for_period` |
+| `budget_report_markdown.py` | Markdown serialization: `dump_budget_report_markdown(report) -> str` and private helpers |
+| `budget_reporting_service.py` | `BudgetReportingService` facade — `build_report` only; re-exports public names so existing callers need no changes |
+
+### Receipt stack
+
+| Module | Responsibility |
+|---|---|
+| `receipt_loading.py` | Shell — `ReceiptData` model, `load_receipt_file` (I/O), `find_receipt_files` (I/O) |
+| `receipt_ingestion_service.py` | Core + facade — pure matching logic (`match_receipt_to_transactions`, `batch_match_receipts`, etc.); imports and re-exports `ReceiptData`, `load_receipt_file`, `find_receipt_files` so existing callers need no changes |
+
+**Rule:** When adding new budget-report behaviour, place it in the appropriate collaborator — schema/model changes in `budget_report_model.py`, new aggregation in `budget_aggregation.py`, rendering in `budget_report_markdown.py`. When adding new receipt behaviour, pure matching goes in `receipt_ingestion_service.py`; new I/O goes in `receipt_loading.py`.
+
 ## Anti-Patterns
 
 - **No real financial data in tracked files** — no real bank names, account IDs, merchant names, employer names, budget amounts, or locations in source, tests, or docs

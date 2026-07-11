@@ -14,10 +14,10 @@ from pathlib import Path
 from gilt.model.category import Category
 from gilt.model.category_io import load_categories_config
 from gilt.model.ledger_repository import LedgerRepository
-from gilt.services.budget_reporting_service import (
+from gilt.services.budget_aggregation import (
     aggregate_spending as _aggregate_spending_pure,
 )
-from gilt.services.budget_reporting_service import (
+from gilt.services.budget_aggregation import (
     get_budget_for_period,
 )
 
