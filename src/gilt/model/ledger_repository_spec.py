@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from gilt.model.errors import LedgerLoadError
 from gilt.model.ledger_io import dump_ledger_csv
 from gilt.model.ledger_repository import LedgerRepository
 from gilt.testing.fixtures import make_group
@@ -87,16 +88,23 @@ class DescribeLedgerRepository:
         ids = {g.primary.transaction_id for g in all_groups}
         assert ids == {"txn005", "txn006"}
 
-    def it_should_skip_unparseable_files_when_loading_all(self, repo, data_dir):
+    def it_should_raise_for_unparseable_file_when_loading_all(self, repo, data_dir):
+        (data_dir / "CORRUPT.csv").write_text("not,valid,csv\nbad data here\n", encoding="utf-8")
+
+        with pytest.raises(LedgerLoadError) as exc_info:
+            repo.load_all()
+        assert "CORRUPT.csv" in str(exc_info.value)
+
+    def it_should_raise_for_unparseable_file_even_when_valid_ledger_also_present(
+        self, repo, data_dir
+    ):
         group = make_group(transaction_id="txn007", account_id="MYBANK_CHQ")
         (data_dir / "MYBANK_CHQ.csv").write_text(dump_ledger_csv([group]), encoding="utf-8")
         (data_dir / "CORRUPT.csv").write_text("not,valid,csv\nbad data here\n", encoding="utf-8")
 
-        all_groups = repo.load_all()
-
-        # MYBANK_CHQ should load; CORRUPT should be skipped silently
-        ids = {g.primary.transaction_id for g in all_groups}
-        assert "txn007" in ids
+        with pytest.raises(LedgerLoadError) as exc_info:
+            repo.load_all()
+        assert "CORRUPT.csv" in str(exc_info.value)
 
     def it_should_return_empty_list_when_directory_missing(self, tmp_path):
         repo = LedgerRepository(tmp_path / "nonexistent")

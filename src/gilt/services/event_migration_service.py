@@ -20,7 +20,7 @@ import io
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 logger = logging.getLogger(__name__)
 
@@ -157,7 +157,7 @@ class EventMigrationService:
                 )
                 row_events.append(cat_event)
 
-        except (ValueError, KeyError, TypeError, Exception) as e:
+        except (ValueError, KeyError, TypeError, InvalidOperation) as e:
             row_errors.append(f"{filename}:{row_num} - {str(e)}")
 
         return row_events, row_errors

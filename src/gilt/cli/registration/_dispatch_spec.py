@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from datetime import date
+from pathlib import Path
 
 import pytest
 import typer
 
 from gilt.cli.command._errors import CommandAbort
 from gilt.cli.registration._dispatch import build_fy_range, dispatch
+from gilt.model.errors import LedgerLoadError
 
 
 class DescribeDispatch:
@@ -38,6 +40,19 @@ class DescribeDispatch:
             dispatch(fake_run)
 
         assert exc_info.value.exit_code == 2
+
+    def it_should_print_error_and_exit_1_for_gilt_data_error(self, mocker):
+        mock_print_error = mocker.patch("gilt.cli.console.print_error")
+
+        def fake_run(**kwargs):
+            raise LedgerLoadError(Path("/data/accounts/MYBANK_CHQ.csv"))
+
+        with pytest.raises(typer.Exit) as exc_info:
+            dispatch(fake_run)
+
+        assert exc_info.value.exit_code == 1
+        mock_print_error.assert_called_once()
+        assert "MYBANK_CHQ.csv" in mock_print_error.call_args[0][0]
 
 
 class DescribeResolveFyRange:

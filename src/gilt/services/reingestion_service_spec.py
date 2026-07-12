@@ -16,6 +16,7 @@ from pathlib import Path
 
 import pytest
 
+from gilt.model.errors import IntelligenceCacheError
 from gilt.model.events import TransactionCategorized, TransactionImported
 from gilt.services.reingestion_service import (
     ReingestionService,
@@ -189,3 +190,23 @@ class DescribePurgeCacheEntries:
 
         assert count == 0
         assert filtered == {}
+
+
+class DescribePurgeIntelligenceCache(DescribeReingestionService):
+    """Tests for _purge_intelligence_cache behaviour after error-handling fix."""
+
+    def it_should_raise_intelligence_cache_error_for_corrupt_json(self, service, temp_dir):
+        cache_path = temp_dir / "intelligence_cache.json"
+        cache_path.write_text("this is not valid json {{{{", encoding="utf-8")
+
+        with pytest.raises(IntelligenceCacheError) as exc_info:
+            service._purge_intelligence_cache({"txn001"})
+        assert str(cache_path) in str(exc_info.value)
+
+    def it_should_return_zero_when_cache_file_is_missing(self, service, temp_dir):
+        cache_path = temp_dir / "intelligence_cache.json"
+        assert not cache_path.exists()
+
+        result = service._purge_intelligence_cache({"txn001"})
+
+        assert result == 0

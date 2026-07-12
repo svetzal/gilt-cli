@@ -8,6 +8,7 @@ from typing import Any, NoReturn
 import typer
 
 from gilt.cli.command._errors import CommandAbort
+from gilt.model.errors import GiltDataError
 
 HELP_WRITE = "Persist changes (default: dry-run)"
 
@@ -17,11 +18,20 @@ def dispatch(run: Callable[..., int], /, **kwargs: Any) -> NoReturn:
 
     Cross-cutting concerns (logging, error middleware, exit-code translation) belong here,
     not in each wrapper.
+
+    Raises:
+        typer.Exit: Always — with the returned exit code, or code=1 on CommandAbort
+            or GiltDataError.
     """
     try:
         code = run(**kwargs)
     except CommandAbort as exc:
         raise typer.Exit(code=exc.code) from exc
+    except GiltDataError as exc:
+        from gilt.cli.console import print_error
+
+        print_error(str(exc))
+        raise typer.Exit(code=1) from exc
     raise typer.Exit(code=code)
 
 

@@ -738,3 +738,38 @@ abc123,2025-01-15,Test,-100.00,CAD,CHQ,  Housing  ,  Rent  ,primary
         assert isinstance(cat_event, TransactionCategorized)
         assert cat_event.category == "Housing"
         assert cat_event.subcategory == "Rent"
+
+
+class DescribeRowErrorHandlingAfterCatchNarrowing:
+    """Specs that verify the narrowed except clause in _build_events_for_row."""
+
+    def it_should_yield_row_error_for_invalid_decimal_amount(self):
+        """amount='abc' must produce a row-error string naming the file and line, not crash."""
+        service = EventMigrationService()
+        content = (
+            "transaction_id,date,description,amount,currency,account_id,row_type\n"
+            "txn001,2025-01-15,Test,abc,CAD,CHQ,primary\n"
+        )
+
+        events, errors = service.build_transaction_events(content, "bad_amount.csv")
+
+        assert len(events) == 0
+        assert len(errors) == 1
+        assert "bad_amount.csv" in errors[0]
+        assert "2" in errors[0]  # row number (header=1, data starts at 2)
+
+    def it_should_propagate_attribute_error_rather_than_swallowing_it(self, mocker):
+        """AttributeError must not be swallowed into a row-error string."""
+        service = EventMigrationService()
+        content = (
+            "transaction_id,date,description,amount,currency,account_id,row_type\n"
+            "txn001,2025-01-15,Test,-50.00,CAD,CHQ,primary\n"
+        )
+        mocker.patch.object(
+            service,
+            "_infer_import_timestamp",
+            side_effect=AttributeError("injected attribute error"),
+        )
+
+        with pytest.raises(AttributeError, match="injected attribute error"):
+            service.build_transaction_events(content, "inject.csv")

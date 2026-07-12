@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 
 from gilt.model.account import TransactionGroup
+from gilt.model.errors import LedgerLoadError
 from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
 
 logger = logging.getLogger(__name__)
@@ -62,17 +63,20 @@ class LedgerRepository:
     def load_all(self) -> list[TransactionGroup]:
         """Load and combine all CSV ledger files from the data directory.
 
-        Returns empty list if directory doesn't exist. Silently skips
-        files that fail to parse.
+        Returns empty list if directory doesn't exist.
+
+        Raises:
+            LedgerLoadError: If any ledger file cannot be read or parsed.
+                The error names the offending file so the caller can surface
+                it to the user without inspecting the exception chain.
         """
         all_groups: list[TransactionGroup] = []
         for ledger_path in self.ledger_paths():
             try:
                 text = ledger_path.read_text(encoding="utf-8")
                 all_groups.extend(load_ledger_csv(text, default_currency=self._default_currency))
-            except LEDGER_IO_ERRORS:
-                logger.warning("Skipping unparseable ledger file: %s", ledger_path)
-                continue
+            except LEDGER_IO_ERRORS as exc:
+                raise LedgerLoadError(ledger_path) from exc
         return all_groups
 
     def available_account_ids(self) -> list[str]:

@@ -20,6 +20,7 @@ def _opt_str(v) -> str | None:
         if pd.isna(v):
             return None
     except (TypeError, ValueError):
+        # pd.isna raises on array-like inputs; str() is the correct fallback
         pass
     s = str(v).strip()
     return s if s else None

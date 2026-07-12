@@ -5,7 +5,10 @@ from __future__ import annotations
 import textwrap
 from pathlib import Path
 
+import pytest
+
 from gilt.ingest.config_loader import load_accounts_config
+from gilt.model.errors import ConfigLoadError
 
 
 def _write_yaml(tmp_path: Path, content: str, filename: str = "accounts.yml") -> Path:
@@ -72,3 +75,21 @@ class DescribeLoadAccountsConfig:
         assert result[0].institution == "MyBank"
         assert result[0].product == "Chequing"
         assert result[0].currency == "CAD"
+
+    def it_should_raise_for_invalid_yaml(self, tmp_path):
+        yml = _write_yaml(tmp_path, "invalid: yaml: content: [[[")
+
+        with pytest.raises(ConfigLoadError) as exc_info:
+            load_accounts_config(yml)
+        assert str(yml) in str(exc_info.value)
+
+    def it_should_raise_for_invalid_account_entry(self, tmp_path):
+        yml = _write_yaml(tmp_path, """\
+            accounts:
+              - account_id: MYBANK_CHQ
+                nature: not_a_valid_nature_value
+        """)
+
+        with pytest.raises(ConfigLoadError) as exc_info:
+            load_accounts_config(yml)
+        assert str(yml) in str(exc_info.value)

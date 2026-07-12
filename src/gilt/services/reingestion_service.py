@@ -27,6 +27,7 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from gilt.model.errors import IntelligenceCacheError
 from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
 
@@ -177,8 +178,8 @@ class ReingestionService:
 
         try:
             data = json.loads(self._intelligence_cache_path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            return 0
+        except (json.JSONDecodeError, OSError) as exc:
+            raise IntelligenceCacheError(self._intelligence_cache_path) from exc
 
         filtered, removed = purge_cache_entries(data, txn_ids)
 

@@ -21,19 +21,26 @@ except ImportError:  # pragma: no cover
 from pydantic import ValidationError
 
 from gilt.model.category import CategoryConfig
+from gilt.model.errors import ConfigLoadError
 
 
 def load_categories_config(path: Path) -> CategoryConfig:
     """Load categories config from YAML locally (safe loader).
 
-    Returns a CategoryConfig with list of Category models. If YAML is unavailable
-    or file missing, returns an empty CategoryConfig. No network access is performed.
+    Returns a CategoryConfig with list of Category models. Returns an empty
+    CategoryConfig only when YAML is unavailable (library import failed) or
+    the file does not exist. Raises ConfigLoadError for any parse or
+    validation failure so callers cannot silently receive empty data from a
+    corrupt config. No network access is performed.
 
     Args:
         path: Path to categories.yml file
 
     Returns:
-        CategoryConfig instance (empty if file missing or invalid)
+        CategoryConfig instance (empty only when file is missing or YAML unavailable)
+
+    Raises:
+        ConfigLoadError: If the file exists but cannot be parsed or validated
     """
     if yaml is None:
         # Proceed without config (return empty)
@@ -46,9 +53,8 @@ def load_categories_config(path: Path) -> CategoryConfig:
         data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         # Validate the entire config structure
         return CategoryConfig.model_validate(data)
-    except (yaml.YAMLError, ValidationError, OSError):  # pragma: no cover
-        # Swallow errors and return empty config for resilience
-        return CategoryConfig(categories=[])
+    except (yaml.YAMLError, ValidationError, OSError) as exc:
+        raise ConfigLoadError(path) from exc
 
 
 def save_categories_config(path: Path, config: CategoryConfig) -> None:

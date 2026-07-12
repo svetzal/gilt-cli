@@ -7,6 +7,8 @@ Tests for category I/O functions.
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
+
 from gilt.model.category import Budget, BudgetPeriod, Category, CategoryConfig, Subcategory
 from gilt.model.category_io import (
     build_category_from_path,
@@ -14,6 +16,7 @@ from gilt.model.category_io import (
     load_categories_config,
     save_categories_config,
 )
+from gilt.model.errors import ConfigLoadError
 
 
 class DescribeLoadCategoriesConfig:
@@ -51,15 +54,16 @@ categories:
         config = load_categories_config(Path("/nonexistent/categories.yml"))
         assert config.categories == []
 
-    def it_should_return_empty_config_for_invalid_yaml(self):
+    def it_should_raise_for_invalid_yaml(self):
         with TemporaryDirectory() as tmpdir:
             config_path = Path(tmpdir) / "categories.yml"
             config_path.write_text("invalid: yaml: content: [[[", encoding="utf-8")
 
-            config = load_categories_config(config_path)
-            assert config.categories == []
+            with pytest.raises(ConfigLoadError) as exc_info:
+                load_categories_config(config_path)
+            assert str(config_path) in str(exc_info.value)
 
-    def it_should_return_empty_config_for_invalid_structure(self):
+    def it_should_raise_for_invalid_structure(self):
         with TemporaryDirectory() as tmpdir:
             config_path = Path(tmpdir) / "categories.yml"
             config_path.write_text(
@@ -70,8 +74,9 @@ categories:
                 encoding="utf-8",
             )
 
-            config = load_categories_config(config_path)
-            assert config.categories == []
+            with pytest.raises(ConfigLoadError) as exc_info:
+                load_categories_config(config_path)
+            assert str(config_path) in str(exc_info.value)
 
 
 class DescribeSaveCategoriesConfig:
