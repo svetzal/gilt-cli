@@ -6,8 +6,6 @@ Tests for the summary command.
 
 from datetime import date
 from decimal import Decimal
-from pathlib import Path
-from tempfile import TemporaryDirectory
 
 import pytest
 from rich.console import Console
@@ -82,204 +80,190 @@ def _make_group(
 
 
 class DescribeSummaryCommand:
-    def it_should_return_error_when_projections_missing(self):
-        with TemporaryDirectory() as tmpdir:
-            workspace = Workspace(root=Path(tmpdir))
-            with pytest.raises(CommandAbort) as exc_info:
-                _run_capturing(workspace)
-            assert exc_info.value.code == 1
+    def it_should_return_error_when_projections_missing(self, tmp_path):
+        workspace = Workspace(root=tmp_path)
+        with pytest.raises(CommandAbort) as exc_info:
+            _run_capturing(workspace)
+        assert exc_info.value.code == 1
 
-    def it_should_show_category_table_with_defaults(self):
-        with TemporaryDirectory() as tmpdir:
-            workspace = Workspace(root=Path(tmpdir))
-            groups = [
-                _make_group("1", "1111111111111111", -1000.0, category="Housing"),
-                _make_group("2", "2222222222222222", -200.0, category="Food"),
-            ]
-            _build_projections(workspace, groups)
-            rc, output = _run_capturing(workspace, year=2026)
-            assert rc == 0
-            assert "Housing" in output
-            assert "Food" in output
+    def it_should_show_category_table_with_defaults(self, tmp_path):
+        workspace = Workspace(root=tmp_path)
+        groups = [
+            _make_group("1", "1111111111111111", -1000.0, category="Housing"),
+            _make_group("2", "2222222222222222", -200.0, category="Food"),
+        ]
+        _build_projections(workspace, groups)
+        rc, output = _run_capturing(workspace, year=2026)
+        assert rc == 0
+        assert "Housing" in output
+        assert "Food" in output
 
-    def it_should_sort_by_abs_net_descending(self):
-        with TemporaryDirectory() as tmpdir:
-            workspace = Workspace(root=Path(tmpdir))
-            groups = [
-                _make_group("1", "1111111111111111", -100.0, category="Food"),
-                _make_group("2", "2222222222222222", -1000.0, category="Housing"),
-            ]
-            _build_projections(workspace, groups)
-            rc, output = _run_capturing(workspace, year=2026)
-            assert rc == 0
-            # Housing (larger absolute) must appear before Food
-            assert output.index("Housing") < output.index("Food")
+    def it_should_sort_by_abs_net_descending(self, tmp_path):
+        workspace = Workspace(root=tmp_path)
+        groups = [
+            _make_group("1", "1111111111111111", -100.0, category="Food"),
+            _make_group("2", "2222222222222222", -1000.0, category="Housing"),
+        ]
+        _build_projections(workspace, groups)
+        rc, output = _run_capturing(workspace, year=2026)
+        assert rc == 0
+        # Housing (larger absolute) must appear before Food
+        assert output.index("Housing") < output.index("Food")
 
-    def it_should_filter_by_account(self):
-        with TemporaryDirectory() as tmpdir:
-            workspace = Workspace(root=Path(tmpdir))
-            groups = [
-                _make_group(
-                    "1",
-                    "1111111111111111",
-                    -500.0,
-                    account_id="MYBANK_CHQ",
-                    category="Housing",
-                ),
-                _make_group(
-                    "2",
-                    "2222222222222222",
-                    -100.0,
-                    account_id="MYBANK_CC",
-                    category="Food",
-                ),
-            ]
-            _build_projections(workspace, groups)
-            rc, output = _run_capturing(workspace, account="MYBANK_CHQ", year=2026)
-            assert rc == 0
-            assert "Housing" in output
-            assert "Food" not in output
+    def it_should_filter_by_account(self, tmp_path):
+        workspace = Workspace(root=tmp_path)
+        groups = [
+            _make_group(
+                "1",
+                "1111111111111111",
+                -500.0,
+                account_id="MYBANK_CHQ",
+                category="Housing",
+            ),
+            _make_group(
+                "2",
+                "2222222222222222",
+                -100.0,
+                account_id="MYBANK_CC",
+                category="Food",
+            ),
+        ]
+        _build_projections(workspace, groups)
+        rc, output = _run_capturing(workspace, account="MYBANK_CHQ", year=2026)
+        assert rc == 0
+        assert "Housing" in output
+        assert "Food" not in output
 
-    def it_should_filter_by_year(self):
-        with TemporaryDirectory() as tmpdir:
-            workspace = Workspace(root=Path(tmpdir))
-            groups = [
-                _make_group(
-                    "1", "1111111111111111", -500.0, category="Housing", txn_date="2025-06-01"
-                ),
-                _make_group(
-                    "2", "2222222222222222", -200.0, category="Food", txn_date="2026-03-01"
-                ),
-            ]
-            _build_projections(workspace, groups)
-            rc, output = _run_capturing(workspace, year=2026)
-            assert rc == 0
-            assert "Food" in output
-            assert "Housing" not in output
+    def it_should_filter_by_year(self, tmp_path):
+        workspace = Workspace(root=tmp_path)
+        groups = [
+            _make_group(
+                "1", "1111111111111111", -500.0, category="Housing", txn_date="2025-06-01"
+            ),
+            _make_group(
+                "2", "2222222222222222", -200.0, category="Food", txn_date="2026-03-01"
+            ),
+        ]
+        _build_projections(workspace, groups)
+        rc, output = _run_capturing(workspace, year=2026)
+        assert rc == 0
+        assert "Food" in output
+        assert "Housing" not in output
 
-    def it_should_filter_by_fy_range(self):
-        with TemporaryDirectory() as tmpdir:
-            workspace = Workspace(root=Path(tmpdir))
-            groups = [
-                _make_group(
-                    "1", "1111111111111111", -500.0, category="Housing", txn_date="2025-06-01"
-                ),
-                _make_group(
-                    "2", "2222222222222222", -200.0, category="Food", txn_date="2024-10-01"
-                ),
-            ]
-            _build_projections(workspace, groups)
-            fy_range = (date(2024, 11, 1), date(2025, 10, 31))
-            rc, output = _run_capturing(workspace, fy_range=fy_range, fy_label="FY25")
-            assert rc == 0
-            assert "Housing" in output
-            assert "Food" not in output
+    def it_should_filter_by_fy_range(self, tmp_path):
+        workspace = Workspace(root=tmp_path)
+        groups = [
+            _make_group(
+                "1", "1111111111111111", -500.0, category="Housing", txn_date="2025-06-01"
+            ),
+            _make_group(
+                "2", "2222222222222222", -200.0, category="Food", txn_date="2024-10-01"
+            ),
+        ]
+        _build_projections(workspace, groups)
+        fy_range = (date(2024, 11, 1), date(2025, 10, 31))
+        rc, output = _run_capturing(workspace, fy_range=fy_range, fy_label="FY25")
+        assert rc == 0
+        assert "Housing" in output
+        assert "Food" not in output
 
-    def it_should_include_fy_label_in_title(self):
-        with TemporaryDirectory() as tmpdir:
-            workspace = Workspace(root=Path(tmpdir))
-            groups = [
-                _make_group(
-                    "1", "1111111111111111", -500.0, category="Housing", txn_date="2025-06-01"
-                ),
-            ]
-            _build_projections(workspace, groups)
-            fy_range = (date(2024, 11, 1), date(2025, 10, 31))
-            rc, output = _run_capturing(workspace, fy_range=fy_range, fy_label="FY25")
-            assert rc == 0
-            assert "FY25" in output
+    def it_should_include_fy_label_in_title(self, tmp_path):
+        workspace = Workspace(root=tmp_path)
+        groups = [
+            _make_group(
+                "1", "1111111111111111", -500.0, category="Housing", txn_date="2025-06-01"
+            ),
+        ]
+        _build_projections(workspace, groups)
+        fy_range = (date(2024, 11, 1), date(2025, 10, 31))
+        rc, output = _run_capturing(workspace, fy_range=fy_range, fy_label="FY25")
+        assert rc == 0
+        assert "FY25" in output
 
-    def it_should_exclude_uncategorized_by_default(self):
-        with TemporaryDirectory() as tmpdir:
-            workspace = Workspace(root=Path(tmpdir))
-            groups = [
-                _make_group("1", "1111111111111111", -500.0, category="Housing"),
-                _make_group("2", "2222222222222222", -200.0, category=None),
-            ]
-            _build_projections(workspace, groups)
-            rc, output = _run_capturing(workspace, year=2026)
-            assert rc == 0
-            assert "Housing" in output
-            assert "uncategorized" not in output.lower()
+    def it_should_exclude_uncategorized_by_default(self, tmp_path):
+        workspace = Workspace(root=tmp_path)
+        groups = [
+            _make_group("1", "1111111111111111", -500.0, category="Housing"),
+            _make_group("2", "2222222222222222", -200.0, category=None),
+        ]
+        _build_projections(workspace, groups)
+        rc, output = _run_capturing(workspace, year=2026)
+        assert rc == 0
+        assert "Housing" in output
+        assert "uncategorized" not in output.lower()
 
-    def it_should_include_uncategorized_when_flag_set(self):
-        with TemporaryDirectory() as tmpdir:
-            workspace = Workspace(root=Path(tmpdir))
-            groups = [
-                _make_group("1", "1111111111111111", -500.0, category="Housing"),
-                _make_group("2", "2222222222222222", -200.0, category=None),
-            ]
-            _build_projections(workspace, groups)
-            rc, output = _run_capturing(workspace, year=2026, include_uncategorized=True)
-            assert rc == 0
-            assert "uncategorized" in output.lower()
+    def it_should_include_uncategorized_when_flag_set(self, tmp_path):
+        workspace = Workspace(root=tmp_path)
+        groups = [
+            _make_group("1", "1111111111111111", -500.0, category="Housing"),
+            _make_group("2", "2222222222222222", -200.0, category=None),
+        ]
+        _build_projections(workspace, groups)
+        rc, output = _run_capturing(workspace, year=2026, include_uncategorized=True)
+        assert rc == 0
+        assert "uncategorized" in output.lower()
 
-    def it_should_show_subcategory_table_when_category_given(self):
-        with TemporaryDirectory() as tmpdir:
-            workspace = Workspace(root=Path(tmpdir))
-            groups = [
-                _make_group(
-                    "1", "1111111111111111", -800.0, category="Housing", subcategory="Rent"
-                ),
-                _make_group(
-                    "2", "2222222222222222", -200.0, category="Housing", subcategory="Utilities"
-                ),
-                _make_group("3", "3333333333333333", -100.0, category="Food"),
-            ]
-            _build_projections(workspace, groups)
-            rc, output = _run_capturing(workspace, category="Housing", year=2026)
-            assert rc == 0
-            assert "Rent" in output
-            assert "Utilities" in output
-            # Food should not appear — it's a different category
-            assert "Food" not in output
+    def it_should_show_subcategory_table_when_category_given(self, tmp_path):
+        workspace = Workspace(root=tmp_path)
+        groups = [
+            _make_group(
+                "1", "1111111111111111", -800.0, category="Housing", subcategory="Rent"
+            ),
+            _make_group(
+                "2", "2222222222222222", -200.0, category="Housing", subcategory="Utilities"
+            ),
+            _make_group("3", "3333333333333333", -100.0, category="Food"),
+        ]
+        _build_projections(workspace, groups)
+        rc, output = _run_capturing(workspace, category="Housing", year=2026)
+        assert rc == 0
+        assert "Rent" in output
+        assert "Utilities" in output
+        # Food should not appear — it's a different category
+        assert "Food" not in output
 
-    def it_should_show_dash_for_none_subcategory(self):
-        with TemporaryDirectory() as tmpdir:
-            workspace = Workspace(root=Path(tmpdir))
-            groups = [
-                _make_group("1", "1111111111111111", -500.0, category="Housing", subcategory=None),
-            ]
-            _build_projections(workspace, groups)
-            rc, output = _run_capturing(workspace, category="Housing", year=2026)
-            assert rc == 0
-            assert "—" in output  # em-dash
+    def it_should_show_dash_for_none_subcategory(self, tmp_path):
+        workspace = Workspace(root=tmp_path)
+        groups = [
+            _make_group("1", "1111111111111111", -500.0, category="Housing", subcategory=None),
+        ]
+        _build_projections(workspace, groups)
+        rc, output = _run_capturing(workspace, category="Housing", year=2026)
+        assert rc == 0
+        assert "—" in output  # em-dash
 
-    def it_should_show_pct_of_category_in_drilldown(self):
-        with TemporaryDirectory() as tmpdir:
-            workspace = Workspace(root=Path(tmpdir))
-            groups = [
-                _make_group(
-                    "1", "1111111111111111", -600.0, category="Housing", subcategory="Rent"
-                ),
-                _make_group(
-                    "2", "2222222222222222", -400.0, category="Housing", subcategory="Utilities"
-                ),
-            ]
-            _build_projections(workspace, groups)
-            rc, output = _run_capturing(workspace, category="Housing", year=2026)
-            assert rc == 0
-            assert "60.0%" in output
-            assert "40.0%" in output
+    def it_should_show_pct_of_category_in_drilldown(self, tmp_path):
+        workspace = Workspace(root=tmp_path)
+        groups = [
+            _make_group(
+                "1", "1111111111111111", -600.0, category="Housing", subcategory="Rent"
+            ),
+            _make_group(
+                "2", "2222222222222222", -400.0, category="Housing", subcategory="Utilities"
+            ),
+        ]
+        _build_projections(workspace, groups)
+        rc, output = _run_capturing(workspace, category="Housing", year=2026)
+        assert rc == 0
+        assert "60.0%" in output
+        assert "40.0%" in output
 
-    def it_should_show_empty_message_for_unknown_category(self):
-        with TemporaryDirectory() as tmpdir:
-            workspace = Workspace(root=Path(tmpdir))
-            groups = [
-                _make_group("1", "1111111111111111", -500.0, category="Housing"),
-            ]
-            _build_projections(workspace, groups)
-            rc, output = _run_capturing(workspace, category="NonExistent", year=2026)
-            assert rc == 0
-            assert "No transactions found" in output
+    def it_should_show_empty_message_for_unknown_category(self, tmp_path):
+        workspace = Workspace(root=tmp_path)
+        groups = [
+            _make_group("1", "1111111111111111", -500.0, category="Housing"),
+        ]
+        _build_projections(workspace, groups)
+        rc, output = _run_capturing(workspace, category="NonExistent", year=2026)
+        assert rc == 0
+        assert "No transactions found" in output
 
-    def it_should_show_empty_message_when_no_categorized_transactions(self):
-        with TemporaryDirectory() as tmpdir:
-            workspace = Workspace(root=Path(tmpdir))
-            groups = [
-                _make_group("1", "1111111111111111", -500.0, category=None),
-            ]
-            _build_projections(workspace, groups)
-            rc, output = _run_capturing(workspace, year=2026)
-            assert rc == 0
-            assert "No categorized transactions" in output
+    def it_should_show_empty_message_when_no_categorized_transactions(self, tmp_path):
+        workspace = Workspace(root=tmp_path)
+        groups = [
+            _make_group("1", "1111111111111111", -500.0, category=None),
+        ]
+        _build_projections(workspace, groups)
+        rc, output = _run_capturing(workspace, year=2026)
+        assert rc == 0
+        assert "No categorized transactions" in output

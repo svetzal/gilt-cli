@@ -5,21 +5,13 @@ from __future__ import annotations
 import json
 from decimal import Decimal
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from gilt.cli.command.ingest_receipts import run
 from gilt.model.events import TransactionImported
 from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
-from gilt.workspace import Workspace
-
-
-def _setup_workspace(tmpdir: Path) -> Workspace:
-    """Create workspace with required directories."""
-    (tmpdir / "data").mkdir(parents=True)
-    (tmpdir / "config").mkdir(parents=True)
-    return Workspace(root=tmpdir)
+from gilt.testing import make_workspace
 
 
 def _add_transaction(
@@ -70,357 +62,344 @@ def _write_receipt(path: Path, overrides: dict | None = None) -> Path:
 
 
 class DescribeIngestReceiptsCommand:
-    def it_should_return_error_for_invalid_source_dir(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = _setup_workspace(Path(tmpdir))
-            rc = run(
-                workspace=ws,
-                source=Path("/nonexistent/dir"),
-                write=False,
-            )
-            assert rc == 1
+    def it_should_return_error_for_invalid_source_dir(self, tmp_path):
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
+        rc = run(
+            workspace=ws,
+            source=Path("/nonexistent/dir"),
+            write=False,
+        )
+        assert rc == 1
 
-    def it_should_return_zero_when_no_json_files(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = _setup_workspace(Path(tmpdir))
-            source = Path(tmpdir) / "receipts"
-            source.mkdir()
+    def it_should_return_zero_when_no_json_files(self, tmp_path):
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
+        source = tmp_path / "receipts"
+        source.mkdir()
 
-            rc = run(workspace=ws, source=source, write=False)
-            assert rc == 0
+        rc = run(workspace=ws, source=source, write=False)
+        assert rc == 0
 
-    def it_should_match_receipt_to_transaction_in_dry_run(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = _setup_workspace(Path(tmpdir))
-            store = EventStore(str(ws.event_store_path))
-            builder = ProjectionBuilder(ws.projections_path)
+    def it_should_match_receipt_to_transaction_in_dry_run(self, tmp_path):
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
+        store = EventStore(str(ws.event_store_path))
+        builder = ProjectionBuilder(ws.projections_path)
 
-            _add_transaction(store, builder)
+        _add_transaction(store, builder)
 
-            source = Path(tmpdir) / "receipts"
-            source.mkdir()
-            _write_receipt(source / "acme.json")
+        source = tmp_path / "receipts"
+        source.mkdir()
+        _write_receipt(source / "acme.json")
 
-            rc = run(workspace=ws, source=source, write=False)
-            assert rc == 0
+        rc = run(workspace=ws, source=source, write=False)
+        assert rc == 0
 
-            # Verify no events were written
-            enrichment_events = store.get_events_by_type("TransactionEnriched")
-            assert len(enrichment_events) == 0
+        # Verify no events were written
+        enrichment_events = store.get_events_by_type("TransactionEnriched")
+        assert len(enrichment_events) == 0
 
-    def it_should_write_enrichment_event_when_matched(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = _setup_workspace(Path(tmpdir))
-            store = EventStore(str(ws.event_store_path))
-            builder = ProjectionBuilder(ws.projections_path)
+    def it_should_write_enrichment_event_when_matched(self, tmp_path):
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
+        store = EventStore(str(ws.event_store_path))
+        builder = ProjectionBuilder(ws.projections_path)
 
-            _add_transaction(store, builder)
+        _add_transaction(store, builder)
 
-            source = Path(tmpdir) / "receipts"
-            source.mkdir()
-            _write_receipt(source / "acme.json")
+        source = tmp_path / "receipts"
+        source.mkdir()
+        _write_receipt(source / "acme.json")
 
-            rc = run(workspace=ws, source=source, write=True)
-            assert rc == 0
+        rc = run(workspace=ws, source=source, write=True)
+        assert rc == 0
 
-            enrichment_events = store.get_events_by_type("TransactionEnriched")
-            assert len(enrichment_events) == 1
-            event = enrichment_events[0]
-            assert event.transaction_id == "abcd1234abcd1234"
-            assert event.vendor == "Acme Corp"
-            assert event.service == "Widget Pro"
-            assert event.invoice_number == "INV001"
-            assert event.tax_amount == Decimal("4.03")
-            assert event.tax_type == "HST"
-            assert event.receipt_file == "Acme-INV001.pdf"
-            assert event.source_email == "billing@acme.example"
+        enrichment_events = store.get_events_by_type("TransactionEnriched")
+        assert len(enrichment_events) == 1
+        event = enrichment_events[0]
+        assert event.transaction_id == "abcd1234abcd1234"
+        assert event.vendor == "Acme Corp"
+        assert event.service == "Widget Pro"
+        assert event.invoice_number == "INV001"
+        assert event.tax_amount == Decimal("4.03")
+        assert event.tax_type == "HST"
+        assert event.receipt_file == "Acme-INV001.pdf"
+        assert event.source_email == "billing@acme.example"
 
-    def it_should_skip_already_ingested_invoices(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = _setup_workspace(Path(tmpdir))
-            store = EventStore(str(ws.event_store_path))
-            builder = ProjectionBuilder(ws.projections_path)
+    def it_should_skip_already_ingested_invoices(self, tmp_path):
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
+        store = EventStore(str(ws.event_store_path))
+        builder = ProjectionBuilder(ws.projections_path)
 
-            _add_transaction(store, builder)
+        _add_transaction(store, builder)
 
-            # First run: write enrichment
-            source = Path(tmpdir) / "receipts"
-            source.mkdir()
-            _write_receipt(source / "acme.json")
+        # First run: write enrichment
+        source = tmp_path / "receipts"
+        source.mkdir()
+        _write_receipt(source / "acme.json")
 
-            rc = run(workspace=ws, source=source, write=True)
-            assert rc == 0
-            assert len(store.get_events_by_type("TransactionEnriched")) == 1
+        rc = run(workspace=ws, source=source, write=True)
+        assert rc == 0
+        assert len(store.get_events_by_type("TransactionEnriched")) == 1
 
-            # Second run: should skip (same invoice_number)
-            rc = run(workspace=ws, source=source, write=True)
-            assert rc == 0
-            assert len(store.get_events_by_type("TransactionEnriched")) == 1
+        # Second run: should skip (same invoice_number)
+        rc = run(workspace=ws, source=source, write=True)
+        assert rc == 0
+        assert len(store.get_events_by_type("TransactionEnriched")) == 1
 
-    def it_should_report_unmatched_receipts(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = _setup_workspace(Path(tmpdir))
-            EventStore(str(ws.event_store_path))
-            ProjectionBuilder(ws.projections_path)
+    def it_should_report_unmatched_receipts(self, tmp_path):
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
+        EventStore(str(ws.event_store_path))
+        ProjectionBuilder(ws.projections_path)
 
-            # No transactions in the store
-            source = Path(tmpdir) / "receipts"
-            source.mkdir()
-            _write_receipt(source / "acme.json")
+        # No transactions in the store
+        source = tmp_path / "receipts"
+        source.mkdir()
+        _write_receipt(source / "acme.json")
 
-            rc = run(workspace=ws, source=source, write=False)
-            assert rc == 0
+        rc = run(workspace=ws, source=source, write=False)
+        assert rc == 0
 
-    def it_should_filter_by_account(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = _setup_workspace(Path(tmpdir))
-            store = EventStore(str(ws.event_store_path))
-            builder = ProjectionBuilder(ws.projections_path)
+    def it_should_filter_by_account(self, tmp_path):
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
+        store = EventStore(str(ws.event_store_path))
+        builder = ProjectionBuilder(ws.projections_path)
 
-            _add_transaction(
-                store,
-                builder,
-                transaction_id="aaaa111111111111",
-                account_id="MYBANK_CC",
-            )
-            _add_transaction(
-                store,
-                builder,
-                transaction_id="bbbb222222222222",
-                account_id="BANK2_CHQ",
-            )
+        _add_transaction(
+            store,
+            builder,
+            transaction_id="aaaa111111111111",
+            account_id="MYBANK_CC",
+        )
+        _add_transaction(
+            store,
+            builder,
+            transaction_id="bbbb222222222222",
+            account_id="BANK2_CHQ",
+        )
 
-            source = Path(tmpdir) / "receipts"
-            source.mkdir()
-            _write_receipt(source / "acme.json")
+        source = tmp_path / "receipts"
+        source.mkdir()
+        _write_receipt(source / "acme.json")
 
-            rc = run(workspace=ws, source=source, write=True, account="MYBANK_CC")
-            assert rc == 0
+        rc = run(workspace=ws, source=source, write=True, account="MYBANK_CC")
+        assert rc == 0
 
-            enrichment_events = store.get_events_by_type("TransactionEnriched")
-            assert len(enrichment_events) == 1
-            assert enrichment_events[0].transaction_id == "aaaa111111111111"
+        enrichment_events = store.get_events_by_type("TransactionEnriched")
+        assert len(enrichment_events) == 1
+        assert enrichment_events[0].transaction_id == "aaaa111111111111"
 
-    def it_should_filter_by_year(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = _setup_workspace(Path(tmpdir))
-            store = EventStore(str(ws.event_store_path))
-            builder = ProjectionBuilder(ws.projections_path)
+    def it_should_filter_by_year(self, tmp_path):
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
+        store = EventStore(str(ws.event_store_path))
+        builder = ProjectionBuilder(ws.projections_path)
 
-            _add_transaction(store, builder)
+        _add_transaction(store, builder)
 
-            source = Path(tmpdir) / "receipts"
-            source.mkdir()
-            _write_receipt(source / "2025.json", overrides={"date": "2025-06-15"})
-            _write_receipt(
-                source / "2024.json",
-                overrides={"date": "2024-06-15", "invoice_number": "INV002"},
-            )
+        source = tmp_path / "receipts"
+        source.mkdir()
+        _write_receipt(source / "2025.json", overrides={"date": "2025-06-15"})
+        _write_receipt(
+            source / "2024.json",
+            overrides={"date": "2024-06-15", "invoice_number": "INV002"},
+        )
 
-            rc = run(workspace=ws, source=source, write=False, year=2025)
-            assert rc == 0
+        rc = run(workspace=ws, source=source, write=False, year=2025)
+        assert rc == 0
 
-    def it_should_report_ambiguous_matches(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = _setup_workspace(Path(tmpdir))
-            store = EventStore(str(ws.event_store_path))
-            builder = ProjectionBuilder(ws.projections_path)
+    def it_should_report_ambiguous_matches(self, tmp_path):
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
+        store = EventStore(str(ws.event_store_path))
+        builder = ProjectionBuilder(ws.projections_path)
 
-            # Two transactions with same amount and date
-            _add_transaction(
-                store,
-                builder,
-                transaction_id="aaaa111111111111",
-                description="ACME PURCHASE 1",
-            )
-            _add_transaction(
-                store,
-                builder,
-                transaction_id="bbbb222222222222",
-                description="ACME PURCHASE 2",
-            )
+        # Two transactions with same amount and date
+        _add_transaction(
+            store,
+            builder,
+            transaction_id="aaaa111111111111",
+            description="ACME PURCHASE 1",
+        )
+        _add_transaction(
+            store,
+            builder,
+            transaction_id="bbbb222222222222",
+            description="ACME PURCHASE 2",
+        )
 
-            source = Path(tmpdir) / "receipts"
-            source.mkdir()
-            _write_receipt(source / "acme.json")
+        source = tmp_path / "receipts"
+        source.mkdir()
+        _write_receipt(source / "acme.json")
 
-            # In write mode, ambiguous receipts should not create events
-            rc = run(workspace=ws, source=source, write=True)
-            assert rc == 0
-            enrichment_events = store.get_events_by_type("TransactionEnriched")
-            assert len(enrichment_events) == 0
+        # In write mode, ambiguous receipts should not create events
+        rc = run(workspace=ws, source=source, write=True)
+        assert rc == 0
+        enrichment_events = store.get_events_by_type("TransactionEnriched")
+        assert len(enrichment_events) == 0
 
-    def it_should_not_prompt_for_ambiguous_without_interactive(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = _setup_workspace(Path(tmpdir))
-            store = EventStore(str(ws.event_store_path))
-            builder = ProjectionBuilder(ws.projections_path)
+    def it_should_not_prompt_for_ambiguous_without_interactive(self, tmp_path):
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
+        store = EventStore(str(ws.event_store_path))
+        builder = ProjectionBuilder(ws.projections_path)
 
-            _add_transaction(
-                store,
-                builder,
-                transaction_id="aaaa111111111111",
-                description="ACME PURCHASE 1",
-            )
-            _add_transaction(
-                store,
-                builder,
-                transaction_id="bbbb222222222222",
-                description="ACME PURCHASE 2",
-            )
+        _add_transaction(
+            store,
+            builder,
+            transaction_id="aaaa111111111111",
+            description="ACME PURCHASE 1",
+        )
+        _add_transaction(
+            store,
+            builder,
+            transaction_id="bbbb222222222222",
+            description="ACME PURCHASE 2",
+        )
 
-            source = Path(tmpdir) / "receipts"
-            source.mkdir()
-            _write_receipt(source / "acme.json")
+        source = tmp_path / "receipts"
+        source.mkdir()
+        _write_receipt(source / "acme.json")
 
-            # Without --interactive, ambiguous results are just reported (no prompt)
-            rc = run(workspace=ws, source=source, write=True, interactive=False)
-            assert rc == 0
-            enrichment_events = store.get_events_by_type("TransactionEnriched")
-            assert len(enrichment_events) == 0
+        # Without --interactive, ambiguous results are just reported (no prompt)
+        rc = run(workspace=ws, source=source, write=True, interactive=False)
+        assert rc == 0
+        enrichment_events = store.get_events_by_type("TransactionEnriched")
+        assert len(enrichment_events) == 0
 
-    def it_should_resolve_ambiguous_when_user_selects_candidate(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = _setup_workspace(Path(tmpdir))
-            store = EventStore(str(ws.event_store_path))
-            builder = ProjectionBuilder(ws.projections_path)
+    def it_should_resolve_ambiguous_when_user_selects_candidate(self, tmp_path):
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
+        store = EventStore(str(ws.event_store_path))
+        builder = ProjectionBuilder(ws.projections_path)
 
-            _add_transaction(
-                store,
-                builder,
-                transaction_id="aaaa111111111111",
-                description="ACME PURCHASE 1",
-            )
-            _add_transaction(
-                store,
-                builder,
-                transaction_id="bbbb222222222222",
-                description="ACME PURCHASE 2",
-            )
+        _add_transaction(
+            store,
+            builder,
+            transaction_id="aaaa111111111111",
+            description="ACME PURCHASE 1",
+        )
+        _add_transaction(
+            store,
+            builder,
+            transaction_id="bbbb222222222222",
+            description="ACME PURCHASE 2",
+        )
 
-            source = Path(tmpdir) / "receipts"
-            source.mkdir()
-            _write_receipt(source / "acme.json")
+        source = tmp_path / "receipts"
+        source.mkdir()
+        _write_receipt(source / "acme.json")
 
-            # User selects candidate 1
-            with patch("gilt.cli.command.ingest_receipts_review.Prompt.ask",return_value="1"):
-                rc = run(workspace=ws, source=source, write=True, interactive=True)
+        # User selects candidate 1
+        with patch("gilt.cli.command.ingest_receipts_review.Prompt.ask", return_value="1"):
+            rc = run(workspace=ws, source=source, write=True, interactive=True)
 
-            assert rc == 0
-            enrichment_events = store.get_events_by_type("TransactionEnriched")
-            assert len(enrichment_events) == 1
-            event = enrichment_events[0]
-            assert event.transaction_id == "aaaa111111111111"
-            assert event.match_confidence == "user-selected"
-            assert event.vendor == "Acme Corp"
+        assert rc == 0
+        enrichment_events = store.get_events_by_type("TransactionEnriched")
+        assert len(enrichment_events) == 1
+        event = enrichment_events[0]
+        assert event.transaction_id == "aaaa111111111111"
+        assert event.match_confidence == "user-selected"
+        assert event.vendor == "Acme Corp"
 
-    def it_should_select_second_candidate_when_user_picks_two(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = _setup_workspace(Path(tmpdir))
-            store = EventStore(str(ws.event_store_path))
-            builder = ProjectionBuilder(ws.projections_path)
+    def it_should_select_second_candidate_when_user_picks_two(self, tmp_path):
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
+        store = EventStore(str(ws.event_store_path))
+        builder = ProjectionBuilder(ws.projections_path)
 
-            _add_transaction(
-                store,
-                builder,
-                transaction_id="aaaa111111111111",
-                description="ACME PURCHASE 1",
-            )
-            _add_transaction(
-                store,
-                builder,
-                transaction_id="bbbb222222222222",
-                description="ACME PURCHASE 2",
-            )
+        _add_transaction(
+            store,
+            builder,
+            transaction_id="aaaa111111111111",
+            description="ACME PURCHASE 1",
+        )
+        _add_transaction(
+            store,
+            builder,
+            transaction_id="bbbb222222222222",
+            description="ACME PURCHASE 2",
+        )
 
-            source = Path(tmpdir) / "receipts"
-            source.mkdir()
-            _write_receipt(source / "acme.json")
+        source = tmp_path / "receipts"
+        source.mkdir()
+        _write_receipt(source / "acme.json")
 
-            # User selects candidate 2
-            with patch("gilt.cli.command.ingest_receipts_review.Prompt.ask",return_value="2"):
-                rc = run(workspace=ws, source=source, write=True, interactive=True)
+        # User selects candidate 2
+        with patch("gilt.cli.command.ingest_receipts_review.Prompt.ask", return_value="2"):
+            rc = run(workspace=ws, source=source, write=True, interactive=True)
 
-            assert rc == 0
-            enrichment_events = store.get_events_by_type("TransactionEnriched")
-            assert len(enrichment_events) == 1
-            assert enrichment_events[0].transaction_id == "bbbb222222222222"
+        assert rc == 0
+        enrichment_events = store.get_events_by_type("TransactionEnriched")
+        assert len(enrichment_events) == 1
+        assert enrichment_events[0].transaction_id == "bbbb222222222222"
 
-    def it_should_skip_ambiguous_when_user_presses_s(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = _setup_workspace(Path(tmpdir))
-            store = EventStore(str(ws.event_store_path))
-            builder = ProjectionBuilder(ws.projections_path)
+    def it_should_skip_ambiguous_when_user_presses_s(self, tmp_path):
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
+        store = EventStore(str(ws.event_store_path))
+        builder = ProjectionBuilder(ws.projections_path)
 
-            _add_transaction(
-                store,
-                builder,
-                transaction_id="aaaa111111111111",
-                description="ACME PURCHASE 1",
-            )
-            _add_transaction(
-                store,
-                builder,
-                transaction_id="bbbb222222222222",
-                description="ACME PURCHASE 2",
-            )
+        _add_transaction(
+            store,
+            builder,
+            transaction_id="aaaa111111111111",
+            description="ACME PURCHASE 1",
+        )
+        _add_transaction(
+            store,
+            builder,
+            transaction_id="bbbb222222222222",
+            description="ACME PURCHASE 2",
+        )
 
-            source = Path(tmpdir) / "receipts"
-            source.mkdir()
-            _write_receipt(source / "acme.json")
+        source = tmp_path / "receipts"
+        source.mkdir()
+        _write_receipt(source / "acme.json")
 
-            # User skips
-            with patch("gilt.cli.command.ingest_receipts_review.Prompt.ask",return_value="s"):
-                rc = run(workspace=ws, source=source, write=True, interactive=True)
+        # User skips
+        with patch("gilt.cli.command.ingest_receipts_review.Prompt.ask", return_value="s"):
+            rc = run(workspace=ws, source=source, write=True, interactive=True)
 
-            assert rc == 0
-            enrichment_events = store.get_events_by_type("TransactionEnriched")
-            assert len(enrichment_events) == 0
+        assert rc == 0
+        enrichment_events = store.get_events_by_type("TransactionEnriched")
+        assert len(enrichment_events) == 0
 
-    def it_should_warn_and_continue_when_receipt_file_is_malformed_during_year_filter(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = _setup_workspace(Path(tmpdir))
-            store = EventStore(str(ws.event_store_path))
-            builder = ProjectionBuilder(ws.projections_path)
-            _add_transaction(store, builder)
+    def it_should_warn_and_continue_when_receipt_file_is_malformed_during_year_filter(
+        self, tmp_path
+    ):
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
+        store = EventStore(str(ws.event_store_path))
+        builder = ProjectionBuilder(ws.projections_path)
+        _add_transaction(store, builder)
 
-            source = Path(tmpdir) / "receipts"
-            source.mkdir()
+        source = tmp_path / "receipts"
+        source.mkdir()
 
-            _write_receipt(source / "good.json", overrides={"date": "2025-06-15"})
-            (source / "bad.json").write_text("not valid json", encoding="utf-8")
+        _write_receipt(source / "good.json", overrides={"date": "2025-06-15"})
+        (source / "bad.json").write_text("not valid json", encoding="utf-8")
 
-            rc = run(workspace=ws, source=source, write=False, year=2025)
+        rc = run(workspace=ws, source=source, write=False, year=2025)
 
-            assert rc == 0
+        assert rc == 0
 
-    def it_should_not_persist_interactive_selection_in_dry_run(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = _setup_workspace(Path(tmpdir))
-            store = EventStore(str(ws.event_store_path))
-            builder = ProjectionBuilder(ws.projections_path)
+    def it_should_not_persist_interactive_selection_in_dry_run(self, tmp_path):
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
+        store = EventStore(str(ws.event_store_path))
+        builder = ProjectionBuilder(ws.projections_path)
 
-            _add_transaction(
-                store,
-                builder,
-                transaction_id="aaaa111111111111",
-                description="ACME PURCHASE 1",
-            )
-            _add_transaction(
-                store,
-                builder,
-                transaction_id="bbbb222222222222",
-                description="ACME PURCHASE 2",
-            )
+        _add_transaction(
+            store,
+            builder,
+            transaction_id="aaaa111111111111",
+            description="ACME PURCHASE 1",
+        )
+        _add_transaction(
+            store,
+            builder,
+            transaction_id="bbbb222222222222",
+            description="ACME PURCHASE 2",
+        )
 
-            source = Path(tmpdir) / "receipts"
-            source.mkdir()
-            _write_receipt(source / "acme.json")
+        source = tmp_path / "receipts"
+        source.mkdir()
+        _write_receipt(source / "acme.json")
 
-            # Interactive + dry-run: user selects but nothing is written
-            with patch("gilt.cli.command.ingest_receipts_review.Prompt.ask",return_value="1"):
-                rc = run(workspace=ws, source=source, write=False, interactive=True)
+        # Interactive + dry-run: user selects but nothing is written
+        with patch("gilt.cli.command.ingest_receipts_review.Prompt.ask", return_value="1"):
+            rc = run(workspace=ws, source=source, write=False, interactive=True)
 
-            assert rc == 0
-            enrichment_events = store.get_events_by_type("TransactionEnriched")
-            assert len(enrichment_events) == 0
+        assert rc == 0
+        enrichment_events = store.get_events_by_type("TransactionEnriched")
+        assert len(enrichment_events) == 0

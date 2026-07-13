@@ -7,7 +7,6 @@ Privacy: all data is synthetic — no real bank names, account IDs, or merchant 
 """
 
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 import pytest
 import yaml
@@ -19,7 +18,7 @@ from gilt.model.category import Budget, BudgetPeriod, Category, CategoryConfig
 from gilt.model.category_io import save_categories_config
 from gilt.model.ledger_io import dump_ledger_csv
 from gilt.storage.event_store import EventStore
-from gilt.workspace import Workspace
+from gilt.testing import make_workspace
 
 # ---------------------------------------------------------------------------
 # Setup helpers
@@ -85,56 +84,50 @@ def _write_accounts_yml(accounts_config_path: Path, account_id: str = "MYBANK_CH
 class DescribeMigrateToEventsPreconditions:
     """Specs for precondition checks before migration."""
 
-    def it_should_return_1_when_no_csv_files_in_data_dir(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = Workspace(root=Path(tmpdir))
-            ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
-            # No CSVs written
+    def it_should_return_1_when_no_csv_files_in_data_dir(self, tmp_path):
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
+        # No CSVs written
 
-            with pytest.raises(CommandAbort) as exc_info:
-                run(workspace=ws, write=False)
-            assert exc_info.value.code == 1
+        with pytest.raises(CommandAbort) as exc_info:
+            run(workspace=ws, write=False)
+        assert exc_info.value.code == 1
 
-    def it_should_return_1_even_in_dry_run_when_no_csv_files(self):
+    def it_should_return_1_even_in_dry_run_when_no_csv_files(self, tmp_path):
         """Preconditions are checked before dry-run logic executes."""
-        with TemporaryDirectory() as tmpdir:
-            ws = Workspace(root=Path(tmpdir))
-            ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
 
-            with pytest.raises(CommandAbort) as exc_info:
-                run(workspace=ws, write=False)
-            assert exc_info.value.code == 1
+        with pytest.raises(CommandAbort) as exc_info:
+            run(workspace=ws, write=False)
+        assert exc_info.value.code == 1
 
-    def it_should_return_1_when_event_store_already_has_events_and_no_force(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = Workspace(root=Path(tmpdir))
-            ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
-            _write_synthetic_ledger(ws.ledger_data_dir)
+    def it_should_return_1_when_event_store_already_has_events_and_no_force(self, tmp_path):
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
+        _write_synthetic_ledger(ws.ledger_data_dir)
 
-            # Pre-populate event store with at least one event
-            ws.event_store_path.parent.mkdir(parents=True, exist_ok=True)
-            store = EventStore(str(ws.event_store_path))
-            from decimal import Decimal
+        # Pre-populate event store with at least one event
+        ws.event_store_path.parent.mkdir(parents=True, exist_ok=True)
+        store = EventStore(str(ws.event_store_path))
+        from decimal import Decimal
 
-            from gilt.model.events import TransactionImported
+        from gilt.model.events import TransactionImported
 
-            store.append_event(
-                TransactionImported(
-                    transaction_id="bbbb0001bbbb0001",
-                    transaction_date="2025-01-01",
-                    source_file="existing.csv",
-                    source_account="MYBANK_CHQ",
-                    raw_description="ACME CORP",
-                    amount=Decimal("-10.00"),
-                    currency="CAD",
-                    raw_data={},
-                )
+        store.append_event(
+            TransactionImported(
+                transaction_id="bbbb0001bbbb0001",
+                transaction_date="2025-01-01",
+                source_file="existing.csv",
+                source_account="MYBANK_CHQ",
+                raw_description="ACME CORP",
+                amount=Decimal("-10.00"),
+                currency="CAD",
+                raw_data={},
             )
+        )
 
-            # Without --force, should refuse to overwrite
-            with pytest.raises(CommandAbort) as exc_info:
-                run(workspace=ws, write=True, force=False)
-            assert exc_info.value.code == 1
+        # Without --force, should refuse to overwrite
+        with pytest.raises(CommandAbort) as exc_info:
+            run(workspace=ws, write=True, force=False)
+        assert exc_info.value.code == 1
 
 
 # ---------------------------------------------------------------------------
@@ -145,34 +138,28 @@ class DescribeMigrateToEventsPreconditions:
 class DescribeMigrateToEventsDryRun:
     """Specs for dry-run mode (write=False)."""
 
-    def it_should_return_0_when_csv_files_exist_and_write_is_false(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = Workspace(root=Path(tmpdir))
-            ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
-            _write_synthetic_ledger(ws.ledger_data_dir)
+    def it_should_return_0_when_csv_files_exist_and_write_is_false(self, tmp_path):
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
+        _write_synthetic_ledger(ws.ledger_data_dir)
 
-            result = run(workspace=ws, write=False)
-            assert result == 0
+        result = run(workspace=ws, write=False)
+        assert result == 0
 
-    def it_should_not_create_event_store_db_in_dry_run(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = Workspace(root=Path(tmpdir))
-            ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
-            _write_synthetic_ledger(ws.ledger_data_dir)
+    def it_should_not_create_event_store_db_in_dry_run(self, tmp_path):
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
+        _write_synthetic_ledger(ws.ledger_data_dir)
 
-            run(workspace=ws, write=False)
+        run(workspace=ws, write=False)
 
-            assert not ws.event_store_path.exists()
+        assert not ws.event_store_path.exists()
 
-    def it_should_not_create_projections_db_in_dry_run(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = Workspace(root=Path(tmpdir))
-            ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
-            _write_synthetic_ledger(ws.ledger_data_dir)
+    def it_should_not_create_projections_db_in_dry_run(self, tmp_path):
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
+        _write_synthetic_ledger(ws.ledger_data_dir)
 
-            run(workspace=ws, write=False)
+        run(workspace=ws, write=False)
 
-            assert not ws.projections_path.exists()
+        assert not ws.projections_path.exists()
 
 
 # ---------------------------------------------------------------------------
@@ -183,61 +170,51 @@ class DescribeMigrateToEventsDryRun:
 class DescribeMigrateToEventsWriteMode:
     """Specs for write mode (write=True)."""
 
-    def it_should_return_0_and_create_event_store_when_csv_files_exist(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = Workspace(root=Path(tmpdir))
-            ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
-            _write_synthetic_ledger(ws.ledger_data_dir)
+    def it_should_return_0_and_create_event_store_when_csv_files_exist(self, tmp_path):
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
+        _write_synthetic_ledger(ws.ledger_data_dir)
 
-            result = run(workspace=ws, write=True)
-            assert result == 0
-            assert ws.event_store_path.exists()
+        result = run(workspace=ws, write=True)
+        assert result == 0
+        assert ws.event_store_path.exists()
 
-    def it_should_create_projections_db_after_successful_migration(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = Workspace(root=Path(tmpdir))
-            ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
-            _write_synthetic_ledger(ws.ledger_data_dir)
+    def it_should_create_projections_db_after_successful_migration(self, tmp_path):
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
+        _write_synthetic_ledger(ws.ledger_data_dir)
 
-            run(workspace=ws, write=True)
+        run(workspace=ws, write=True)
 
-            assert ws.projections_path.exists()
+        assert ws.projections_path.exists()
 
-    def it_should_backfill_events_matching_ledger_transactions(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = Workspace(root=Path(tmpdir))
-            ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
-            _write_synthetic_ledger(ws.ledger_data_dir)
+    def it_should_backfill_events_matching_ledger_transactions(self, tmp_path):
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
+        _write_synthetic_ledger(ws.ledger_data_dir)
 
-            run(workspace=ws, write=True)
+        run(workspace=ws, write=True)
 
-            store = EventStore(str(ws.event_store_path))
-            event_count = store.get_latest_sequence_number()
-            # 2 transactions → at least 2 events
-            assert event_count >= 2
+        store = EventStore(str(ws.event_store_path))
+        event_count = store.get_latest_sequence_number()
+        # 2 transactions → at least 2 events
+        assert event_count >= 2
 
-    def it_should_overwrite_existing_event_store_when_force_is_true(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = Workspace(root=Path(tmpdir))
-            ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
-            _write_synthetic_ledger(ws.ledger_data_dir)
+    def it_should_overwrite_existing_event_store_when_force_is_true(self, tmp_path):
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
+        _write_synthetic_ledger(ws.ledger_data_dir)
 
-            # First migration
-            run(workspace=ws, write=True)
+        # First migration
+        run(workspace=ws, write=True)
 
-            # Second migration with --force should succeed
-            result = run(workspace=ws, write=True, force=True)
-            assert result == 0
+        # Second migration with --force should succeed
+        result = run(workspace=ws, write=True, force=True)
+        assert result == 0
 
-    def it_should_succeed_with_categories_yml_present(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = Workspace(root=Path(tmpdir))
-            ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
-            _write_synthetic_ledger(ws.ledger_data_dir)
-            ws.categories_config.parent.mkdir(parents=True, exist_ok=True)
-            _write_synthetic_categories(ws.categories_config)
+    def it_should_succeed_with_categories_yml_present(self, tmp_path):
+        ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
+        _write_synthetic_ledger(ws.ledger_data_dir)
+        ws.categories_config.parent.mkdir(parents=True, exist_ok=True)
+        _write_synthetic_categories(ws.categories_config)
 
-            result = run(workspace=ws, write=True)
-            assert result == 0
-            assert ws.event_store_path.exists()
-            assert ws.projections_path.exists()
+        result = run(workspace=ws, write=True)
+        assert result == 0
+        assert ws.event_store_path.exists()
+        assert ws.projections_path.exists()
