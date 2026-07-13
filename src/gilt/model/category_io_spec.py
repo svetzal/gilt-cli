@@ -5,7 +5,6 @@ Tests for category I/O functions.
 """
 
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 import pytest
 
@@ -22,11 +21,10 @@ from gilt.model.errors import ConfigLoadError
 class DescribeLoadCategoriesConfig:
     """Tests for load_categories_config function."""
 
-    def it_should_load_valid_config(self):
-        with TemporaryDirectory() as tmpdir:
-            config_path = Path(tmpdir) / "categories.yml"
-            config_path.write_text(
-                """
+    def it_should_load_valid_config(self, tmp_path):
+        config_path = tmp_path / "categories.yml"
+        config_path.write_text(
+            """
 categories:
   - name: Housing
     description: Housing expenses
@@ -38,51 +36,49 @@ categories:
       - name: Fuel
       - name: Maintenance
 """,
-                encoding="utf-8",
-            )
+            encoding="utf-8",
+        )
 
-            config = load_categories_config(config_path)
-            assert len(config.categories) == 2
-            assert config.categories[0].name == "Housing"
-            assert config.categories[0].description == "Housing expenses"
-            assert config.categories[0].budget is not None
-            assert config.categories[0].budget.amount == 2500.0
-            assert config.categories[1].name == "Transportation"
-            assert len(config.categories[1].subcategories) == 2
+        config = load_categories_config(config_path)
+        assert len(config.categories) == 2
+        assert config.categories[0].name == "Housing"
+        assert config.categories[0].description == "Housing expenses"
+        assert config.categories[0].budget is not None
+        assert config.categories[0].budget.amount == 2500.0
+        assert config.categories[1].name == "Transportation"
+        assert len(config.categories[1].subcategories) == 2
 
     def it_should_return_empty_config_for_missing_file(self):
         config = load_categories_config(Path("/nonexistent/categories.yml"))
         assert config.categories == []
 
-    def it_should_raise_for_invalid_yaml(self):
-        with TemporaryDirectory() as tmpdir:
-            config_path = Path(tmpdir) / "categories.yml"
-            config_path.write_text("invalid: yaml: content: [[[", encoding="utf-8")
+    def it_should_raise_for_invalid_yaml(self, tmp_path):
+        config_path = tmp_path / "categories.yml"
+        config_path.write_text("invalid: yaml: content: [[[", encoding="utf-8")
 
-            with pytest.raises(ConfigLoadError) as exc_info:
-                load_categories_config(config_path)
-            assert str(config_path) in str(exc_info.value)
+        with pytest.raises(ConfigLoadError) as exc_info:
+            load_categories_config(config_path)
+        assert str(config_path) in str(exc_info.value)
 
-    def it_should_raise_for_invalid_structure(self):
-        with TemporaryDirectory() as tmpdir:
-            config_path = Path(tmpdir) / "categories.yml"
-            config_path.write_text(
-                """
+    def it_should_raise_for_invalid_structure(self, tmp_path):
+        config_path = tmp_path / "categories.yml"
+        config_path.write_text(
+            """
 categories:
   - name: ""  # Invalid: empty name
 """,
-                encoding="utf-8",
-            )
+            encoding="utf-8",
+        )
 
-            with pytest.raises(ConfigLoadError) as exc_info:
-                load_categories_config(config_path)
-            assert str(config_path) in str(exc_info.value)
+        with pytest.raises(ConfigLoadError) as exc_info:
+            load_categories_config(config_path)
+        assert str(config_path) in str(exc_info.value)
 
 
 class DescribeSaveCategoriesConfig:
     """Tests for save_categories_config function."""
 
-    def it_should_save_valid_config(self):
+    def it_should_save_valid_config(self, tmp_path):
         config = CategoryConfig(
             categories=[
                 Category(
@@ -98,48 +94,45 @@ class DescribeSaveCategoriesConfig:
             ]
         )
 
-        with TemporaryDirectory() as tmpdir:
-            config_path = Path(tmpdir) / "categories.yml"
-            save_categories_config(config_path, config)
+        config_path = tmp_path / "categories.yml"
+        save_categories_config(config_path, config)
 
-            assert config_path.exists()
+        assert config_path.exists()
 
-            # Reload and verify
-            loaded = load_categories_config(config_path)
-            assert len(loaded.categories) == 2
-            assert loaded.categories[0].name == "Housing"
-            assert loaded.categories[0].budget is not None
-            assert loaded.categories[0].budget.amount == 2500.0
-            assert len(loaded.categories[0].subcategories) == 2
-            assert loaded.categories[1].name == "Transportation"
+        # Reload and verify
+        loaded = load_categories_config(config_path)
+        assert len(loaded.categories) == 2
+        assert loaded.categories[0].name == "Housing"
+        assert loaded.categories[0].budget is not None
+        assert loaded.categories[0].budget.amount == 2500.0
+        assert len(loaded.categories[0].subcategories) == 2
+        assert loaded.categories[1].name == "Transportation"
 
-    def it_should_create_parent_directory(self):
+    def it_should_create_parent_directory(self, tmp_path):
         config = CategoryConfig(categories=[Category(name="Test")])
 
-        with TemporaryDirectory() as tmpdir:
-            config_path = Path(tmpdir) / "config" / "categories.yml"
-            assert not config_path.parent.exists()
+        config_path = tmp_path / "config" / "categories.yml"
+        assert not config_path.parent.exists()
 
-            save_categories_config(config_path, config)
+        save_categories_config(config_path, config)
 
-            assert config_path.exists()
-            assert config_path.parent.exists()
+        assert config_path.exists()
+        assert config_path.parent.exists()
 
-    def it_should_exclude_none_values(self):
+    def it_should_exclude_none_values(self, tmp_path):
         config = CategoryConfig(
             categories=[
                 Category(name="Simple"),  # No description, budget, subcategories
             ]
         )
 
-        with TemporaryDirectory() as tmpdir:
-            config_path = Path(tmpdir) / "categories.yml"
-            save_categories_config(config_path, config)
+        config_path = tmp_path / "categories.yml"
+        save_categories_config(config_path, config)
 
-            content = config_path.read_text(encoding="utf-8")
-            # Should not contain explicit null/None values for optional fields
-            assert "description: null" not in content.lower()
-            assert "budget: null" not in content.lower()
+        content = config_path.read_text(encoding="utf-8")
+        # Should not contain explicit null/None values for optional fields
+        assert "description: null" not in content.lower()
+        assert "budget: null" not in content.lower()
 
 
 class DescribeParseCategoryPath:
