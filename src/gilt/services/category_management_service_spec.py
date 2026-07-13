@@ -18,40 +18,18 @@ import pytest
 
 from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.category import (
-    Budget,
     BudgetPeriod,
     Category,
     CategoryConfig,
     Subcategory,
 )
 from gilt.services.category_management_service import CategoryManagementService
+from gilt.testing import make_category_config
 
 
 @pytest.fixture
 def sample_category_config() -> CategoryConfig:
-    """Sample category configuration for testing."""
-    return CategoryConfig(
-        categories=[
-            Category(
-                name="Housing",
-                description="Housing expenses",
-                subcategories=[
-                    Subcategory(name="Rent", description="Monthly rent"),
-                    Subcategory(name="Utilities", description="Utilities"),
-                ],
-                budget=Budget(amount=2000.0, period=BudgetPeriod.monthly),
-            ),
-            Category(
-                name="Groceries",
-                description="Food and groceries",
-                budget=Budget(amount=500.0, period=BudgetPeriod.monthly),
-            ),
-            Category(
-                name="Transportation",
-                description="Transport costs",
-            ),
-        ]
-    )
+    return make_category_config()
 
 
 @pytest.fixture

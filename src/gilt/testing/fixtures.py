@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 from gilt.model.account import Transaction, TransactionGroup
+from gilt.model.category import Budget, BudgetPeriod, Category, CategoryConfig, Subcategory
 from gilt.model.duplicate import DuplicateAssessment, DuplicateMatch, TransactionPair
 
 
@@ -125,9 +126,40 @@ def make_match(**kwargs) -> DuplicateMatch:
     return DuplicateMatch(pair=pair, assessment=assessment)
 
 
+def make_category_config(**kwargs) -> CategoryConfig:
+    """Factory for CategoryConfig with sensible synthetic defaults.
+
+    Accepts keyword arguments to override any CategoryConfig field.
+    Accepts categories= kwarg to override the categories list.
+    """
+    default_categories = [
+        Category(
+            name="Housing",
+            description="Housing expenses",
+            subcategories=[
+                Subcategory(name="Rent", description="Monthly rent"),
+                Subcategory(name="Utilities", description="Utilities"),
+            ],
+            budget=Budget(amount=2000.0, period=BudgetPeriod.monthly),
+        ),
+        Category(
+            name="Groceries",
+            description="Food and groceries",
+            budget=Budget(amount=500.0, period=BudgetPeriod.monthly),
+        ),
+        Category(
+            name="Transportation",
+            description="Transport costs",
+        ),
+    ]
+    categories = kwargs.pop("categories", default_categories)
+    return CategoryConfig(categories=categories, **kwargs)
+
+
 __all__ = [
     "make_transaction",
     "make_group",
     "make_pair",
     "make_match",
+    "make_category_config",
 ]

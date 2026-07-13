@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from datetime import date
 
-from gilt.testing.fixtures import make_group, make_match, make_pair, make_transaction
+from gilt.model.category import Category
+from gilt.testing.fixtures import (
+    make_category_config,
+    make_group,
+    make_match,
+    make_pair,
+    make_transaction,
+)
 
 
 class DescribeFixtures:
@@ -84,3 +91,29 @@ class DescribeFixtures:
         assert match.assessment.is_duplicate is False
         assert match.assessment.confidence == 0.45
         assert match.assessment.reasoning == "Different amounts"
+
+
+class DescribeMakeCategoryConfig:
+    def it_should_create_default_category_config(self):
+        config = make_category_config()
+        assert len(config.categories) == 3
+        housing = config.find_category("Housing")
+        assert housing is not None
+        assert len(housing.subcategories) == 2
+        assert housing.budget is not None
+        assert housing.budget.amount == 2000.0
+        from gilt.model.category import BudgetPeriod
+        assert housing.budget.period == BudgetPeriod.monthly
+        groceries = config.find_category("Groceries")
+        assert groceries is not None
+        assert groceries.budget is not None
+        assert groceries.budget.amount == 500.0
+        assert groceries.budget.period == BudgetPeriod.monthly
+        transportation = config.find_category("Transportation")
+        assert transportation is not None
+        assert transportation.budget is None
+
+    def it_should_override_categories_list(self):
+        config = make_category_config(categories=[Category(name="Custom")])
+        assert len(config.categories) == 1
+        assert config.categories[0].name == "Custom"
