@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
-from pathlib import Path
-from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 import pytest
@@ -18,17 +16,20 @@ from gilt.cli.command.auto_categorize import (
     _review_and_persist,
     run,
 )
-from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.category import Category, CategoryConfig
-from gilt.model.category_io import save_categories_config
 from gilt.model.events import TransactionCategorized, TransactionImported
-from gilt.model.ledger_io import dump_ledger_csv
 from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
-from gilt.workspace import Workspace
+from gilt.testing import (
+    build_workspace_with_ledger,
+    make_group,
+    make_transaction,
+    make_workspace,
+    write_ledger,
+)
 
 
-def _build_projections(event_store: EventStore, projections_path: Path):
+def _build_projections(event_store: EventStore, projections_path):
     """Build projections from event store."""
     builder = ProjectionBuilder(projections_path)
     builder.build_from_scratch(event_store)
@@ -51,7 +52,7 @@ def _add_uncategorized_transaction(
     store.append_event(txn)
 
 
-def _create_event_store_with_training_data(store_path: Path) -> EventStore:
+def _create_event_store_with_training_data(store_path) -> EventStore:
     """Create event store with sufficient training data for testing."""
     store = EventStore(str(store_path))
 
@@ -104,312 +105,243 @@ def _create_event_store_with_training_data(store_path: Path) -> EventStore:
 class DescribeAutoCategorize:
     """Tests for auto-categorize command."""
 
-    def it_should_require_event_store(self):
+    def it_should_require_event_store(self, tmp_path):
         """Should error if projections database doesn't exist."""
-        with TemporaryDirectory() as tmpdir:
-            config_dir = Path(tmpdir) / "config"
-            config_dir.mkdir()
-            config_path = config_dir / "categories.yml"
-            data_dir = Path(tmpdir) / "data" / "accounts"
-            data_dir.mkdir(parents=True)
-            workspace = Workspace(root=Path(tmpdir))
+        config = CategoryConfig(
+            categories=[
+                Category(name="Entertainment"),
+                Category(name="Groceries"),
+            ]
+        )
+        ws = build_workspace_with_ledger(tmp_path, config=config)
 
-            # Create category config
-            config = CategoryConfig(
-                categories=[
-                    Category(name="Entertainment"),
-                    Category(name="Groceries"),
-                ]
+        # Run without projections database
+        with pytest.raises(CommandAbort) as exc_info:
+            run(
+                workspace=ws,
+                write=False,
             )
-            save_categories_config(config_path, config)
 
-            # Run without projections database
-            with pytest.raises(CommandAbort) as exc_info:
-                run(
-                    workspace=workspace,
-                    write=False,
-                )
+        # Should fail with error about missing projections database
+        assert exc_info.value.code == 1
 
-            # Should fail with error about missing projections database
-            assert exc_info.value.code == 1
-
-    def it_should_train_classifier_and_predict(self):
+    def it_should_train_classifier_and_predict(self, tmp_path):
         """Should train classifier and predict categories."""
-        with TemporaryDirectory() as tmpdir:
-            config_dir = Path(tmpdir) / "config"
-            config_dir.mkdir()
-            config_path = config_dir / "categories.yml"
-            data_dir = Path(tmpdir) / "data" / "accounts"
-            data_dir.mkdir(parents=True)
-            workspace = Workspace(root=Path(tmpdir))
-
-            # Create event store at workspace path
-            store = _create_event_store_with_training_data(workspace.event_store_path)
-
-            # Add uncategorized transaction to event store
-            _add_uncategorized_transaction(store, "new1", "SPOTIFY SUBSCRIPTION", "-12.99")
-
-            # Build projections
-            _build_projections(store, workspace.projections_path)
-
-            # Create category config
-            config = CategoryConfig(
-                categories=[
-                    Category(name="Entertainment"),
-                    Category(name="Groceries"),
-                ]
-            )
-            save_categories_config(config_path, config)
-
-            # Create ledger with uncategorized transaction
-            ledger_path = data_dir / "TEST.csv"
-            groups = [
-                TransactionGroup(
-                    group_id="1",
-                    primary=Transaction(
-                        transaction_id="new1",
-                        date=date(2025, 2, 1),
-                        description="SPOTIFY SUBSCRIPTION",
-                        amount=-12.99,
-                        currency="CAD",
-                        account_id="TEST",
-                    ),
-                ),
+        config = CategoryConfig(
+            categories=[
+                Category(name="Entertainment"),
+                Category(name="Groceries"),
             ]
-            csv_content = dump_ledger_csv(groups)
-            ledger_path.write_text(csv_content, encoding="utf-8")
+        )
+        ws = build_workspace_with_ledger(tmp_path, config=config)
 
-            # Run auto-categorize (dry-run)
-            rc = run(
-                workspace=workspace,
-                confidence=0.5,
-                write=False,
-            )
+        # Create event store at workspace path
+        store = _create_event_store_with_training_data(ws.event_store_path)
 
-            # Should succeed (dry-run shows predictions)
-            assert rc == 0
+        # Add uncategorized transaction to event store
+        _add_uncategorized_transaction(store, "new1", "SPOTIFY SUBSCRIPTION", "-12.99")
 
-    def it_should_handle_no_uncategorized_transactions(self):
+        # Build projections
+        _build_projections(store, ws.projections_path)
+
+        # Create ledger with uncategorized transaction
+        write_ledger(
+            ws.ledger_data_dir / "TEST.csv",
+            [
+                make_group(
+                    group_id="1",
+                    transaction_id="new1",
+                    date=date(2025, 2, 1),
+                    description="SPOTIFY SUBSCRIPTION",
+                    amount=-12.99,
+                    account_id="TEST",
+                ),
+            ],
+        )
+
+        # Run auto-categorize (dry-run)
+        rc = run(
+            workspace=ws,
+            confidence=0.5,
+            write=False,
+        )
+
+        # Should succeed (dry-run shows predictions)
+        assert rc == 0
+
+    def it_should_handle_no_uncategorized_transactions(self, tmp_path):
         """Should handle gracefully when no uncategorized transactions exist."""
-        with TemporaryDirectory() as tmpdir:
-            config_dir = Path(tmpdir) / "config"
-            config_dir.mkdir()
-            config_path = config_dir / "categories.yml"
-            data_dir = Path(tmpdir) / "data" / "accounts"
-            data_dir.mkdir(parents=True)
-            workspace = Workspace(root=Path(tmpdir))
-
-            # Create event store at workspace path and build projections
-            store = _create_event_store_with_training_data(workspace.event_store_path)
-            _build_projections(store, workspace.projections_path)
-
-            # Create category config
-            config = CategoryConfig(
-                categories=[
-                    Category(name="Entertainment"),
-                    Category(name="Groceries"),
-                ]
-            )
-            save_categories_config(config_path, config)
-
-            # Create ledger with already categorized transaction
-            ledger_path = data_dir / "TEST.csv"
-            groups = [
-                TransactionGroup(
-                    group_id="1",
-                    primary=Transaction(
-                        transaction_id="cat1",
-                        date=date(2025, 2, 1),
-                        description="SPOTIFY SUBSCRIPTION",
-                        amount=-12.99,
-                        currency="CAD",
-                        account_id="TEST",
-                        category="Entertainment",
-                        subcategory="Music",
-                    ),
-                ),
+        config = CategoryConfig(
+            categories=[
+                Category(name="Entertainment"),
+                Category(name="Groceries"),
             ]
-            csv_content = dump_ledger_csv(groups)
-            ledger_path.write_text(csv_content, encoding="utf-8")
+        )
+        ws = build_workspace_with_ledger(tmp_path, config=config)
 
-            # Run auto-categorize
-            rc = run(
-                workspace=workspace,
-                write=False,
-            )
+        # Create event store at workspace path and build projections
+        store = _create_event_store_with_training_data(ws.event_store_path)
+        _build_projections(store, ws.projections_path)
 
-            assert rc == 0  # Success, just nothing to do
+        # Create ledger with already categorized transaction
+        write_ledger(
+            ws.ledger_data_dir / "TEST.csv",
+            [
+                make_group(
+                    group_id="1",
+                    transaction_id="cat1",
+                    date=date(2025, 2, 1),
+                    description="SPOTIFY SUBSCRIPTION",
+                    amount=-12.99,
+                    account_id="TEST",
+                    category="Entertainment",
+                    subcategory="Music",
+                ),
+            ],
+        )
 
-    def it_should_apply_categorizations_with_write_flag(self):
+        # Run auto-categorize
+        rc = run(
+            workspace=ws,
+            write=False,
+        )
+
+        assert rc == 0  # Success, just nothing to do
+
+    def it_should_apply_categorizations_with_write_flag(self, tmp_path):
         """Should handle write flag (note: actual writing tested in integration tests)."""
-        with TemporaryDirectory() as tmpdir:
-            config_dir = Path(tmpdir) / "config"
-            config_dir.mkdir()
-            config_path = config_dir / "categories.yml"
-            data_dir = Path(tmpdir) / "data" / "accounts"
-            data_dir.mkdir(parents=True)
-            workspace = Workspace(root=Path(tmpdir))
-
-            # Create event store at workspace path
-            store = _create_event_store_with_training_data(workspace.event_store_path)
-
-            # Add uncategorized transaction to event store
-            _add_uncategorized_transaction(store, "new1", "SPOTIFY MUSIC SUBSCRIPTION", "-12.99")
-
-            # Build projections
-            _build_projections(store, workspace.projections_path)
-
-            # Create category config
-            config = CategoryConfig(
-                categories=[
-                    Category(name="Entertainment"),
-                    Category(name="Groceries"),
-                ]
-            )
-            save_categories_config(config_path, config)
-
-            # Create ledger with uncategorized transaction
-            ledger_path = data_dir / "TEST.csv"
-            groups = [
-                TransactionGroup(
-                    group_id="1",
-                    primary=Transaction(
-                        transaction_id="new1",
-                        date=date(2025, 2, 1),
-                        description="SPOTIFY MUSIC SUBSCRIPTION",
-                        amount=-12.99,
-                        currency="CAD",
-                        account_id="TEST",
-                    ),
-                ),
+        config = CategoryConfig(
+            categories=[
+                Category(name="Entertainment"),
+                Category(name="Groceries"),
             ]
-            csv_content = dump_ledger_csv(groups)
-            ledger_path.write_text(csv_content, encoding="utf-8")
+        )
+        ws = build_workspace_with_ledger(tmp_path, config=config)
 
-            # Run auto-categorize with write (dry-run for testing)
-            # Note: Full integration test would require mocking EventSourcingService
-            rc = run(
-                workspace=workspace,
-                confidence=0.5,
-                write=False,  # Use False to avoid writing in test
-            )
+        # Create event store at workspace path
+        store = _create_event_store_with_training_data(ws.event_store_path)
 
-            # Should succeed
-            assert rc == 0
+        # Add uncategorized transaction to event store
+        _add_uncategorized_transaction(store, "new1", "SPOTIFY MUSIC SUBSCRIPTION", "-12.99")
 
-    def it_should_respect_confidence_threshold(self):
+        # Build projections
+        _build_projections(store, ws.projections_path)
+
+        # Create ledger with uncategorized transaction
+        write_ledger(
+            ws.ledger_data_dir / "TEST.csv",
+            [
+                make_group(
+                    group_id="1",
+                    transaction_id="new1",
+                    date=date(2025, 2, 1),
+                    description="SPOTIFY MUSIC SUBSCRIPTION",
+                    amount=-12.99,
+                    account_id="TEST",
+                ),
+            ],
+        )
+
+        # Run auto-categorize with write (dry-run for testing)
+        # Note: Full integration test would require mocking EventSourcingService
+        rc = run(
+            workspace=ws,
+            confidence=0.5,
+            write=False,  # Use False to avoid writing in test
+        )
+
+        # Should succeed
+        assert rc == 0
+
+    def it_should_respect_confidence_threshold(self, tmp_path):
         """Should only suggest predictions above confidence threshold."""
-        with TemporaryDirectory() as tmpdir:
-            config_dir = Path(tmpdir) / "config"
-            config_dir.mkdir()
-            config_path = config_dir / "categories.yml"
-            data_dir = Path(tmpdir) / "data" / "accounts"
-            data_dir.mkdir(parents=True)
-            workspace = Workspace(root=Path(tmpdir))
-
-            # Create event store at workspace path
-            store = _create_event_store_with_training_data(workspace.event_store_path)
-
-            # Add ambiguous transaction to event store
-            _add_uncategorized_transaction(store, "ambig1", "RANDOM UNKNOWN MERCHANT", "-50.00")
-
-            # Build projections
-            _build_projections(store, workspace.projections_path)
-
-            # Create category config
-            config = CategoryConfig(
-                categories=[
-                    Category(name="Entertainment"),
-                    Category(name="Groceries"),
-                ]
-            )
-            save_categories_config(config_path, config)
-
-            # Create ledger with ambiguous transaction
-            ledger_path = data_dir / "TEST.csv"
-            groups = [
-                TransactionGroup(
-                    group_id="1",
-                    primary=Transaction(
-                        transaction_id="ambig1",
-                        date=date(2025, 2, 1),
-                        description="RANDOM UNKNOWN MERCHANT",
-                        amount=-50.00,
-                        currency="CAD",
-                        account_id="TEST",
-                    ),
-                ),
+        config = CategoryConfig(
+            categories=[
+                Category(name="Entertainment"),
+                Category(name="Groceries"),
             ]
-            csv_content = dump_ledger_csv(groups)
-            ledger_path.write_text(csv_content, encoding="utf-8")
+        )
+        ws = build_workspace_with_ledger(tmp_path, config=config)
 
-            # Run with very high threshold
-            rc = run(
-                workspace=workspace,
-                confidence=0.95,
-                write=False,
-            )
+        # Create event store at workspace path
+        store = _create_event_store_with_training_data(ws.event_store_path)
 
-            # Should succeed but have no predictions
-            assert rc == 0
+        # Add ambiguous transaction to event store
+        _add_uncategorized_transaction(store, "ambig1", "RANDOM UNKNOWN MERCHANT", "-50.00")
 
-    def it_should_respect_limit_parameter(self):
+        # Build projections
+        _build_projections(store, ws.projections_path)
+
+        # Create ledger with ambiguous transaction
+        write_ledger(
+            ws.ledger_data_dir / "TEST.csv",
+            [
+                make_group(
+                    group_id="1",
+                    transaction_id="ambig1",
+                    date=date(2025, 2, 1),
+                    description="RANDOM UNKNOWN MERCHANT",
+                    amount=-50.00,
+                    account_id="TEST",
+                ),
+            ],
+        )
+
+        # Run with very high threshold
+        rc = run(
+            workspace=ws,
+            confidence=0.95,
+            write=False,
+        )
+
+        # Should succeed but have no predictions
+        assert rc == 0
+
+    def it_should_respect_limit_parameter(self, tmp_path):
         """Should limit number of transactions processed."""
-        with TemporaryDirectory() as tmpdir:
-            config_dir = Path(tmpdir) / "config"
-            config_dir.mkdir()
-            config_path = config_dir / "categories.yml"
-            data_dir = Path(tmpdir) / "data" / "accounts"
-            data_dir.mkdir(parents=True)
-            workspace = Workspace(root=Path(tmpdir))
+        config = CategoryConfig(
+            categories=[
+                Category(name="Entertainment"),
+                Category(name="Groceries"),
+            ]
+        )
+        ws = build_workspace_with_ledger(tmp_path, config=config)
 
-            # Create event store at workspace path
-            store = _create_event_store_with_training_data(workspace.event_store_path)
+        # Create event store at workspace path
+        store = _create_event_store_with_training_data(ws.event_store_path)
 
-            # Add multiple uncategorized transactions to event store
-            for i in range(10):
-                _add_uncategorized_transaction(store, f"new{i}", f"SPOTIFY {i}", "-12.99")
+        # Add multiple uncategorized transactions to event store
+        for i in range(10):
+            _add_uncategorized_transaction(store, f"new{i}", f"SPOTIFY {i}", "-12.99")
 
-            # Build projections
-            _build_projections(store, workspace.projections_path)
+        # Build projections
+        _build_projections(store, ws.projections_path)
 
-            # Create category config
-            config = CategoryConfig(
-                categories=[
-                    Category(name="Entertainment"),
-                    Category(name="Groceries"),
-                ]
-            )
-            save_categories_config(config_path, config)
-
-            # Create ledger with multiple uncategorized transactions
-            ledger_path = data_dir / "TEST.csv"
-            groups = [
-                TransactionGroup(
+        # Create ledger with multiple uncategorized transactions
+        write_ledger(
+            ws.ledger_data_dir / "TEST.csv",
+            [
+                make_group(
                     group_id=str(i),
-                    primary=Transaction(
-                        transaction_id=f"new{i}",
-                        date=date(2025, 2, 1),
-                        description=f"SPOTIFY {i}",
-                        amount=-12.99,
-                        currency="CAD",
-                        account_id="TEST",
-                    ),
+                    transaction_id=f"new{i}",
+                    date=date(2025, 2, 1),
+                    description=f"SPOTIFY {i}",
+                    amount=-12.99,
+                    account_id="TEST",
                 )
                 for i in range(10)
-            ]
-            csv_content = dump_ledger_csv(groups)
-            ledger_path.write_text(csv_content, encoding="utf-8")
+            ],
+        )
 
-            # Run with limit
-            rc = run(
-                workspace=workspace,
-                limit=3,
-                confidence=0.5,
-                write=False,
-            )
+        # Run with limit
+        rc = run(
+            workspace=ws,
+            limit=3,
+            confidence=0.5,
+            write=False,
+        )
 
-            assert rc == 0
+        assert rc == 0
 
 
 class DescribeInteractiveReview:
@@ -418,12 +350,11 @@ class DescribeInteractiveReview:
     def _make_prediction(
         self, txn_id: str = "txn001", description: str = "SAMPLE STORE"
     ) -> Prediction:
-        txn = Transaction(
+        txn = make_transaction(
             transaction_id=txn_id,
             date=date(2025, 2, 1),
             description=description,
             amount=-50.0,
-            currency="CAD",
             account_id="MYBANK_CHQ",
         )
         return Prediction(
@@ -548,105 +479,85 @@ class DescribeHandleModifyChoice:
 class DescribeAutoCategorizeIdempotency:
     """Tests for auto-categorize idempotency behavior."""
 
-    def it_should_not_show_already_categorized_transactions_on_subsequent_runs(self):
+    def it_should_not_show_already_categorized_transactions_on_subsequent_runs(self, tmp_path):
         """Should exclude transactions already categorized in previous runs."""
-        with TemporaryDirectory() as tmpdir:
-            config_dir = Path(tmpdir) / "config"
-            config_dir.mkdir()
-            config_path = config_dir / "categories.yml"
-            data_dir = Path(tmpdir) / "data" / "accounts"
-            data_dir.mkdir(parents=True)
-            workspace = Workspace(root=Path(tmpdir))
-
-            # Create event store at workspace path
-            store = _create_event_store_with_training_data(workspace.event_store_path)
-
-            # Add uncategorized transactions to event store
-            _add_uncategorized_transaction(store, "spotify1", "SPOTIFY PREMIUM", "-12.99")
-
-            txn2 = TransactionImported(
-                transaction_id="spotify2",
-                transaction_date="2025-02-02",
-                source_file="test.csv",
-                source_account="TEST",
-                raw_description="SPOTIFY MUSIC",
-                amount=Decimal("-12.99"),
-                currency="CAD",
-                raw_data={},
-            )
-            store.append_event(txn2)
-
-            # Build projections
-            _build_projections(store, workspace.projections_path)
-
-            # Create category config
-            config = CategoryConfig(
-                categories=[
-                    Category(name="Entertainment"),
-                    Category(name="Groceries"),
-                ]
-            )
-            save_categories_config(config_path, config)
-
-            # Create ledger with uncategorized transactions
-            ledger_path = data_dir / "TEST.csv"
-            groups = [
-                TransactionGroup(
-                    group_id="1",
-                    primary=Transaction(
-                        transaction_id="spotify1",
-                        date=date(2025, 2, 1),
-                        description="SPOTIFY PREMIUM",
-                        amount=-12.99,
-                        currency="CAD",
-                        account_id="TEST",
-                    ),
-                ),
-                TransactionGroup(
-                    group_id="2",
-                    primary=Transaction(
-                        transaction_id="spotify2",
-                        date=date(2025, 2, 2),
-                        description="SPOTIFY MUSIC",
-                        amount=-12.99,
-                        currency="CAD",
-                        account_id="TEST",
-                    ),
-                ),
+        config = CategoryConfig(
+            categories=[
+                Category(name="Entertainment"),
+                Category(name="Groceries"),
             ]
-            csv_content = dump_ledger_csv(groups)
-            ledger_path.write_text(csv_content, encoding="utf-8")
+        )
+        ws = build_workspace_with_ledger(tmp_path, config=config)
 
-            # First run: categorize transactions with write
-            rc1 = run(
-                workspace=workspace,
-                confidence=0.5,
-                write=True,
-            )
-            assert rc1 == 0
+        # Create event store at workspace path
+        store = _create_event_store_with_training_data(ws.event_store_path)
 
-            # Second run: should find no uncategorized transactions
-            rc2 = run(
-                workspace=workspace,
-                confidence=0.5,
-                write=True,
-            )
-            assert rc2 == 0
+        # Add uncategorized transactions to event store
+        _add_uncategorized_transaction(store, "spotify1", "SPOTIFY PREMIUM", "-12.99")
+
+        txn2 = TransactionImported(
+            transaction_id="spotify2",
+            transaction_date="2025-02-02",
+            source_file="test.csv",
+            source_account="TEST",
+            raw_description="SPOTIFY MUSIC",
+            amount=Decimal("-12.99"),
+            currency="CAD",
+            raw_data={},
+        )
+        store.append_event(txn2)
+
+        # Build projections
+        _build_projections(store, ws.projections_path)
+
+        # Create ledger with uncategorized transactions
+        write_ledger(
+            ws.ledger_data_dir / "TEST.csv",
+            [
+                make_group(
+                    group_id="1",
+                    transaction_id="spotify1",
+                    date=date(2025, 2, 1),
+                    description="SPOTIFY PREMIUM",
+                    amount=-12.99,
+                    account_id="TEST",
+                ),
+                make_group(
+                    group_id="2",
+                    transaction_id="spotify2",
+                    date=date(2025, 2, 2),
+                    description="SPOTIFY MUSIC",
+                    amount=-12.99,
+                    account_id="TEST",
+                ),
+            ],
+        )
+
+        # First run: categorize transactions with write
+        rc1 = run(
+            workspace=ws,
+            confidence=0.5,
+            write=True,
+        )
+        assert rc1 == 0
+
+        # Second run: should find no uncategorized transactions
+        rc2 = run(
+            workspace=ws,
+            confidence=0.5,
+            write=True,
+        )
+        assert rc2 == 0
 
 
 class DescribeReviewAndPersist:
     """Specs for _review_and_persist dry-run behaviour."""
 
     def _make_prediction(self, txn_id: str = "txn001") -> Prediction:
-        from gilt.model.account import Transaction
-
-        txn = Transaction(
+        txn = make_transaction(
             transaction_id=txn_id,
             date=date(2025, 1, 15),
             description="EXAMPLE UTILITY",
-            amount=-42.50,
-            currency="CAD",
-            account_id="MYBANK_CHQ",
         )
         return Prediction(
             account_id="MYBANK_CHQ",
@@ -657,27 +568,25 @@ class DescribeReviewAndPersist:
             source="ml",
         )
 
-    def it_should_not_persist_categorizations_in_dry_run(self):
+    def it_should_not_persist_categorizations_in_dry_run(self, tmp_path):
         """Dry-run (write=False) must print message and not call persist."""
         from unittest.mock import MagicMock
 
         from gilt.model.category import Category, CategoryConfig
-        from gilt.workspace import Workspace
 
         category_config = CategoryConfig(categories=[Category(name="Utilities")])
         predictions = [self._make_prediction()]
         mock_ready = MagicMock()
 
-        with TemporaryDirectory() as tmpdir:
-            workspace = Workspace(root=Path(tmpdir))
-            rc = _review_and_persist(
-                all_predictions=predictions,
-                category_config=category_config,
-                workspace=workspace,
-                ready=mock_ready,
-                write=False,
-                interactive=False,
-            )
+        ws = make_workspace(tmp_path)
+        rc = _review_and_persist(
+            all_predictions=predictions,
+            category_config=category_config,
+            workspace=ws,
+            ready=mock_ready,
+            write=False,
+            interactive=False,
+        )
 
         assert rc == 0
         # persist_row_categorizations must NOT have been called

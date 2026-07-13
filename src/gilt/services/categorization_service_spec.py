@@ -14,8 +14,6 @@ Tests cover:
 from __future__ import annotations
 
 from datetime import date
-from pathlib import Path
-from tempfile import TemporaryDirectory
 from unittest.mock import Mock
 
 import pytest
@@ -578,22 +576,24 @@ class DescribeCategorizationEventEmission:
             assert event.subcategory == "Utilities"
 
     def it_should_write_events_to_real_event_store(
-        self, sample_category_config: CategoryConfig, sample_transactions: list[TransactionGroup]
+        self,
+        tmp_path,
+        sample_category_config: CategoryConfig,
+        sample_transactions: list[TransactionGroup],
     ):
         # Arrange
-        with TemporaryDirectory() as tmpdir:
-            store_path = Path(tmpdir) / "events.db"
-            event_store = EventStore(str(store_path))
+        store_path = tmp_path / "events.db"
+        event_store = EventStore(str(store_path))
 
-            service = CategorizationService(sample_category_config, event_store=event_store)
-            txn = sample_transactions[0]
+        service = CategorizationService(sample_category_config, event_store=event_store)
+        txn = sample_transactions[0]
 
-            # Act
-            service.run_categorization([txn], "Housing", "Rent")
+        # Act
+        service.run_categorization([txn], "Housing", "Rent")
 
-            # Assert - Events should be persisted
-            events = event_store.get_events_by_type("TransactionCategorized")
-            assert len(events) == 1
-            assert events[0].transaction_id == txn.primary.transaction_id
-            assert events[0].category == "Housing"
-            assert events[0].subcategory == "Rent"
+        # Assert - Events should be persisted
+        events = event_store.get_events_by_type("TransactionCategorized")
+        assert len(events) == 1
+        assert events[0].transaction_id == txn.primary.transaction_id
+        assert events[0].category == "Housing"
+        assert events[0].subcategory == "Rent"
