@@ -48,9 +48,7 @@ class DescribePrintEventStoreExistsWarning:
     def it_should_show_count_path_and_options(self):
         from gilt.cli.command.migrate_to_events_view import print_event_store_exists_warning
 
-        output = _capture(
-            lambda: print_event_store_exists_warning(7, Path("data/events.db"))
-        )
+        output = _capture(lambda: print_event_store_exists_warning(7, Path("data/events.db")))
         assert "7" in output
         assert "data/events.db" in output
         assert "--force" in output

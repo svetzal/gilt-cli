@@ -59,7 +59,9 @@ class DescribeDisplayBudgetReport:
         from gilt.cli.command.budget_view import display_budget_report
 
         summary = _make_summary()
-        output = _capture(lambda: display_budget_report(summary, year=None, month=None, category_filter=None))
+        output = _capture(
+            lambda: display_budget_report(summary, year=None, month=None, category_filter=None)
+        )
         assert "Budget Report" in output
 
     def it_should_include_category_filter_in_title(self):

@@ -49,9 +49,7 @@ class DescribeDisplayRebuildHeader:
         from gilt.cli.command.rebuild_projections_view import display_rebuild_header
 
         output = _capture(
-            lambda: display_rebuild_header(
-                "incremental", Path("events.db"), Path("projections.db")
-            )
+            lambda: display_rebuild_header("incremental", Path("events.db"), Path("projections.db"))
         )
         assert "incremental" in output
         assert "events.db" in output

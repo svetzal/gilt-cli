@@ -103,6 +103,7 @@ class DescribeMakeCategoryConfig:
         assert housing.budget is not None
         assert housing.budget.amount == 2000.0
         from gilt.model.category import BudgetPeriod
+
         assert housing.budget.period == BudgetPeriod.monthly
         groceries = config.find_category("Groceries")
         assert groceries is not None

@@ -138,7 +138,9 @@ def _confirm_and_apply(
 
     return run_persisted_mutation(
         matches=all_matches,
-        display=lambda: categorize_view.display_categorization_matches(all_matches, category, subcategory),
+        display=lambda: categorize_view.display_categorization_matches(
+            all_matches, category, subcategory
+        ),
         confirm_prompt=f"Categorize {total_matched} transaction(s)?",
         assume_yes=auto_yes,
         write=write,
@@ -292,9 +294,7 @@ def _run_file_batch(
     all_transactions = load_account_transactions(workspace, account)
     svc, cat_svc = _init_services(workspace, service, categorization_service)
 
-    resolved, resolve_errors = _find_batch_entries(
-        entries, all_transactions, account, cat_svc, svc
-    )
+    resolved, resolve_errors = _find_batch_entries(entries, all_transactions, account, cat_svc, svc)
     if resolve_errors:
         for err in resolve_errors:
             print_error(err)
@@ -409,7 +409,9 @@ def _run_single_batch(
         workspace,
         categorization_service,
     )
-    return categorize_view.report_categorization_result(all_matches, result, recategorized_count, write)
+    return categorize_view.report_categorization_result(
+        all_matches, result, recategorized_count, write
+    )
 
 
 def run(

@@ -17,9 +17,7 @@ class DescribeCategoryAdd:
     """Tests for category --add command."""
 
     def it_should_add_new_category_with_write(self, tmp_path):
-        ws = build_workspace_with_ledger(
-            tmp_path, config=CategoryConfig(categories=[])
-        )
+        ws = build_workspace_with_ledger(tmp_path, config=CategoryConfig(categories=[]))
 
         # Dry-run should not modify
         rc = run(
@@ -65,9 +63,7 @@ class DescribeCategoryAdd:
         assert config.categories[0].subcategories[0].name == "Utilities"
 
     def it_should_error_when_adding_subcategory_without_parent(self, tmp_path, capsys):
-        ws = build_workspace_with_ledger(
-            tmp_path, config=CategoryConfig(categories=[])
-        )
+        ws = build_workspace_with_ledger(tmp_path, config=CategoryConfig(categories=[]))
 
         with pytest.raises(CommandAbort) as exc_info:
             run(
@@ -268,9 +264,7 @@ class DescribeCategorySetBudget:
         assert config.categories[0].budget.period == BudgetPeriod.yearly
 
     def it_should_error_when_setting_budget_for_nonexistent_category(self, tmp_path):
-        ws = build_workspace_with_ledger(
-            tmp_path, config=CategoryConfig(categories=[])
-        )
+        ws = build_workspace_with_ledger(tmp_path, config=CategoryConfig(categories=[]))
 
         with pytest.raises(CommandAbort) as exc_info:
             run(

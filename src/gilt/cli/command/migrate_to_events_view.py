@@ -20,9 +20,7 @@ def print_step_preconditions() -> None:
 
 def print_event_store_exists_warning(event_count: int, path: Path) -> None:
     """Print the warning shown when an event store already exists with events."""
-    console.print(
-        f"[yellow]Warning:[/yellow] Event store already exists with {event_count} events"
-    )
+    console.print(f"[yellow]Warning:[/yellow] Event store already exists with {event_count} events")
     console.print(f"[dim]{path}[/dim]")
     console.print()
     console.print("Options:")

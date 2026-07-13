@@ -128,7 +128,9 @@ def _run_backfill(
     )
 
     print_transaction_step()
-    ledger_count = backfill_transactions_with_progress(data_dir, event_store, service, stats, dry_run)
+    ledger_count = backfill_transactions_with_progress(
+        data_dir, event_store, service, stats, dry_run
+    )
     if ledger_count == 0:
         print_no_ledgers()
 

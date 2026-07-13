@@ -135,7 +135,9 @@ class DescribeDisplaySummary:
             errors=0,
         )
         output = _capture(
-            lambda: display_summary(stats, dry_run=True, effective_event_store_path=Path("/tmp/events.db"))
+            lambda: display_summary(
+                stats, dry_run=True, effective_event_store_path=Path("/tmp/events.db")
+            )
         )
         assert "5" in output
         assert "3" in output
@@ -152,7 +154,9 @@ class DescribeDisplaySummary:
             errors=0,
         )
         output = _capture(
-            lambda: display_summary(stats, dry_run=True, effective_event_store_path=Path("/tmp/events.db"))
+            lambda: display_summary(
+                stats, dry_run=True, effective_event_store_path=Path("/tmp/events.db")
+            )
         )
         assert "dry run" in output.lower()
 

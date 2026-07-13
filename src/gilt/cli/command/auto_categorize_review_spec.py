@@ -52,7 +52,9 @@ class DescribeHandleModifyChoice:
         from gilt.cli.command.auto_categorize_review import handle_modify_choice
 
         config = _make_category_config()
-        with patch("gilt.cli.command.auto_categorize_review.Prompt.ask", return_value="NonExistent"):
+        with patch(
+            "gilt.cli.command.auto_categorize_review.Prompt.ask", return_value="NonExistent"
+        ):
             result = handle_modify_choice(config, "Utilities")
         assert result is None
 

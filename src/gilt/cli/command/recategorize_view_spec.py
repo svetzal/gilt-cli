@@ -62,18 +62,14 @@ class DescribeDisplayRecategorizeMatches:
     def it_should_display_transactions_to_recategorize_table(self):
         txn = _make_transaction()
         matches = [("MYBANK_CHQ", _make_group(txn))]
-        output = _capture(
-            lambda: display_recategorize_matches(matches, "Food", "Groceries")
-        )
+        output = _capture(lambda: display_recategorize_matches(matches, "Food", "Groceries"))
         assert "Transactions to Recategorize" in output
         assert "EXAMPLE UTILITY" in output
 
     def it_should_use_none_from_label_in_selection_mode(self):
         txn = _make_transaction()
         matches = [("MYBANK_CHQ", _make_group(txn))]
-        output = _capture(
-            lambda: display_recategorize_matches(matches, None, "Groceries")
-        )
+        output = _capture(lambda: display_recategorize_matches(matches, None, "Groceries"))
         assert "Transactions to Recategorize" in output
 
 

@@ -92,8 +92,7 @@ def display_set_budget_preview(
     console.print(f"  Amount: {fmt_amount_str(amount)}/{period}")
     if previous_budget:
         console.print(
-            f"  Previous: {fmt_amount_str(previous_budget.amount)}/"
-            f"{previous_budget.period.value}"
+            f"  Previous: {fmt_amount_str(previous_budget.amount)}/{previous_budget.period.value}"
         )
 
 

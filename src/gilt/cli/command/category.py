@@ -234,9 +234,7 @@ def _handle_remove(
     if plan.has_subcategories:
         cat = category_config.find_category(cat_name)
         subcat_count = len(cat.subcategories)
-    display_remove_preview(
-        cat_name, subcat_name, plan.usage.transaction_count, subcat_count
-    )
+    display_remove_preview(cat_name, subcat_name, plan.usage.transaction_count, subcat_count)
 
     # Check if removal is blocked
     if not plan.can_remove:

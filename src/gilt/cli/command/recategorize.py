@@ -285,7 +285,9 @@ def _run_selection_mode(
     total_matched = len(all_matches)
 
     def display() -> None:
-        recategorize_view.display_recategorize_matches(all_matches, from_category or None, to_category)
+        recategorize_view.display_recategorize_matches(
+            all_matches, from_category or None, to_category
+        )
         print_match_total(total_matched)
 
     return run_persisted_mutation(

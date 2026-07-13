@@ -9,9 +9,7 @@ from ..console import console
 
 def print_pandoc_warning() -> None:
     """Print the warning shown when pandoc is not installed."""
-    console.print(
-        "[yellow]Warning:[/] pandoc not found. Install pandoc to generate .docx files."
-    )
+    console.print("[yellow]Warning:[/] pandoc not found. Install pandoc to generate .docx files.")
     console.print("  macOS: brew install pandoc")
     console.print("  Linux: apt-get install pandoc or yum install pandoc")
     console.print("\nContinuing with markdown generation only...")

@@ -53,9 +53,7 @@ class DescribeLedgerCountDisplays:
     def it_should_display_post_counts_with_delta(self):
         from gilt.cli.command.ingest_view import display_post_counts
 
-        output = _capture(
-            lambda: display_post_counts({"MYBANK_CHQ.csv": 7}, {"MYBANK_CHQ.csv": 5})
-        )
+        output = _capture(lambda: display_post_counts({"MYBANK_CHQ.csv": 7}, {"MYBANK_CHQ.csv": 5}))
         assert "+2" in output
 
 

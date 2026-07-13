@@ -102,6 +102,8 @@ class DescribeShowStatusMessages:
     def it_should_display_transaction_detail_header(self):
         from gilt.cli.command.show_view import display_transaction_detail
 
-        output = _capture(lambda: display_transaction_detail({"transaction_id": "aabbccdd11223344"}))
+        output = _capture(
+            lambda: display_transaction_detail({"transaction_id": "aabbccdd11223344"})
+        )
         assert "Transaction Detail" in output
         assert "aabbccdd" in output

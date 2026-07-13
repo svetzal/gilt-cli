@@ -137,9 +137,7 @@ class DescribeMutationFlowConvention:
             if name in MUTATION_FLOW_ALLOWLIST:
                 continue
             if not any(helper in source for helper in MUTATION_HELPERS):
-                failures.append(
-                    f"{name}.py has `write: bool` but does not call a mutation helper"
-                )
+                failures.append(f"{name}.py has `write: bool` but does not call a mutation helper")
 
         assert not failures, (
             "Write commands must route through mutations.run_confirmed_mutation / "
@@ -159,9 +157,8 @@ class DescribeMutationFlowConvention:
                 if wording in source:
                     failures.append(f"{name}.py inlines dry-run wording '{wording}'")
 
-        assert not failures, (
-            "Dry-run wording lives only in print_dry_run_message:\n"
-            + "\n".join(f"  {f}" for f in failures)
+        assert not failures, "Dry-run wording lives only in print_dry_run_message:\n" + "\n".join(
+            f"  {f}" for f in failures
         )
 
 
@@ -187,7 +184,6 @@ class DescribeSpecCoverage:
             if not spec_path.exists():
                 missing_specs.append(f"{module_stem}_spec.py")
 
-        assert not missing_specs, (
-            "Missing spec files for view/review modules:\n"
-            + "\n".join(f"  {s}" for s in missing_specs)
+        assert not missing_specs, "Missing spec files for view/review modules:\n" + "\n".join(
+            f"  {s}" for s in missing_specs
         )

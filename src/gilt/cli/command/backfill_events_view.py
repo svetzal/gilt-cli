@@ -73,9 +73,7 @@ def print_all_validations_passed() -> None:
     console.print("\n[green]✓ All validations passed[/]")
 
 
-def display_summary(
-    stats: MigrationStats, dry_run: bool, effective_event_store_path: Path
-) -> None:
+def display_summary(stats: MigrationStats, dry_run: bool, effective_event_store_path: Path) -> None:
     """Print the migration summary and dry-run/completion message."""
     console.print("\n[bold cyan]Migration Summary[/]")
     console.print(f"TransactionImported events: {stats.transaction_imported}")

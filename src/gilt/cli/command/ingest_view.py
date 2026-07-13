@@ -44,8 +44,7 @@ def display_post_counts(counts: dict[str, int], pre_counts: dict[str, int]) -> N
 def print_skip(name: str) -> None:
     """Print the skip notice for a file whose account could not be inferred."""
     console.print(
-        f"[yellow][skip][/yellow] Could not infer account for {name}; "
-        "update config/accounts.yml"
+        f"[yellow][skip][/yellow] Could not infer account for {name}; update config/accounts.yml"
     )
 
 
@@ -79,9 +78,7 @@ def print_projection_total(total_transactions: int) -> None:
 
 def print_auto_categorized(count: int) -> None:
     """Print how many transactions were auto-categorized via rules."""
-    console.print(
-        f"[green][ok][/green] Auto-categorized {count} transaction(s) via rules"
-    )
+    console.print(f"[green][ok][/green] Auto-categorized {count} transaction(s) via rules")
 
 
 def print_event_store_total(latest_event_sequence: int) -> None:

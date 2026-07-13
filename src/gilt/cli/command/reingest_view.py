@@ -24,9 +24,7 @@ def display_reingest_plan(
     console.print(f"  Source files: {len(account_files)}")
     for p, _ in account_files:
         console.print(f"    - {p.name}")
-    console.print(
-        f"  Ledger file: {ledger_path.name} ({'exists' if ledger_exists else 'missing'})"
-    )
+    console.print(f"  Ledger file: {ledger_path.name} ({'exists' if ledger_exists else 'missing'})")
     console.print(f"  Events to purge: {len(purge_plan.event_ids)}")
     console.print(f"  Transactions to purge: {len(purge_plan.transaction_ids)}")
 

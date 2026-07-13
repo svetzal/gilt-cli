@@ -25,7 +25,14 @@ def _capture(fn) -> str:
     return buf.getvalue()
 
 
-def _make_rule(description="EXAMPLE UTILITY", category="Utilities", subcategory=None, evidence_count=5, total_count=5, confidence=1.0):
+def _make_rule(
+    description="EXAMPLE UTILITY",
+    category="Utilities",
+    subcategory=None,
+    evidence_count=5,
+    total_count=5,
+    confidence=1.0,
+):
     from gilt.services.rule_inference_service import InferredRule
 
     return InferredRule(

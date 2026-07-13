@@ -35,9 +35,7 @@ from .prompt_stats_view import (
 )
 
 
-def _build_and_emit_update(
-    learning_service: PromptLearningService, event_store
-) -> None:
+def _build_and_emit_update(learning_service: PromptLearningService, event_store) -> None:
     """Generate a prompt update from learned patterns and emit it to the event store."""
     print_generating_update()
 

@@ -6,8 +6,6 @@ Tests for status command.
 
 from datetime import date
 from decimal import Decimal
-from pathlib import Path
-from tempfile import TemporaryDirectory
 
 import pytest
 from rich.console import Console
@@ -59,219 +57,214 @@ def _run_capturing(workspace: Workspace, **kwargs) -> tuple[int, str]:
 class DescribeStatusCommand:
     """Tests for status command."""
 
-    def it_should_aggregate_per_account(self):
-        with TemporaryDirectory() as tmpdir:
-            workspace = Workspace(root=Path(tmpdir))
-            groups = [
-                TransactionGroup(
-                    group_id="1",
-                    primary=Transaction(
-                        transaction_id="1111111111111111",
-                        date="2025-01-10",
-                        description="Housing payment",
-                        amount=-1500.0,
-                        currency="CAD",
-                        account_id="MYBANK_CHQ",
-                        category="Housing",
-                    ),
+    def it_should_aggregate_per_account(self, tmp_path):
+        workspace = Workspace(root=tmp_path)
+        groups = [
+            TransactionGroup(
+                group_id="1",
+                primary=Transaction(
+                    transaction_id="1111111111111111",
+                    date="2025-01-10",
+                    description="Housing payment",
+                    amount=-1500.0,
+                    currency="CAD",
+                    account_id="MYBANK_CHQ",
+                    category="Housing",
                 ),
-                TransactionGroup(
-                    group_id="2",
-                    primary=Transaction(
-                        transaction_id="2222222222222222",
-                        date="2025-01-11",
-                        description="Unknown purchase",
-                        amount=-50.0,
-                        currency="CAD",
-                        account_id="MYBANK_CHQ",
-                    ),
+            ),
+            TransactionGroup(
+                group_id="2",
+                primary=Transaction(
+                    transaction_id="2222222222222222",
+                    date="2025-01-11",
+                    description="Unknown purchase",
+                    amount=-50.0,
+                    currency="CAD",
+                    account_id="MYBANK_CHQ",
                 ),
-                TransactionGroup(
-                    group_id="3",
-                    primary=Transaction(
-                        transaction_id="3333333333333333",
-                        date="2025-01-05",
-                        description="Example consultation",
-                        amount=-200.0,
-                        currency="CAD",
-                        account_id="MYBANK_CC",
-                        category="Mojility",
-                    ),
+            ),
+            TransactionGroup(
+                group_id="3",
+                primary=Transaction(
+                    transaction_id="3333333333333333",
+                    date="2025-01-05",
+                    description="Example consultation",
+                    amount=-200.0,
+                    currency="CAD",
+                    account_id="MYBANK_CC",
+                    category="Mojility",
                 ),
-                TransactionGroup(
-                    group_id="4",
-                    primary=Transaction(
-                        transaction_id="4444444444444444",
-                        date="2025-01-06",
-                        description="Another item",
-                        amount=-30.0,
-                        currency="CAD",
-                        account_id="MYBANK_CC",
-                    ),
+            ),
+            TransactionGroup(
+                group_id="4",
+                primary=Transaction(
+                    transaction_id="4444444444444444",
+                    date="2025-01-06",
+                    description="Another item",
+                    amount=-30.0,
+                    currency="CAD",
+                    account_id="MYBANK_CC",
                 ),
-            ]
-            _build_projections(workspace, groups)
+            ),
+        ]
+        _build_projections(workspace, groups)
 
-            rc, output = _run_capturing(workspace, today=date(2026, 1, 15))
+        rc, output = _run_capturing(workspace, today=date(2026, 1, 15))
 
-            assert rc == 0
-            assert "MYBANK_CHQ" in output
-            assert "MYBANK_CC" in output
-            # total_txns: MYBANK_CHQ=2, MYBANK_CC=2
-            # uncategorized: MYBANK_CHQ=1, MYBANK_CC=1
-            # mojility_txns: MYBANK_CC=1, MYBANK_CHQ=0
-            assert "2" in output  # total txns
+        assert rc == 0
+        assert "MYBANK_CHQ" in output
+        assert "MYBANK_CC" in output
+        # total_txns: MYBANK_CHQ=2, MYBANK_CC=2
+        # uncategorized: MYBANK_CHQ=1, MYBANK_CC=1
+        # mojility_txns: MYBANK_CC=1, MYBANK_CHQ=0
+        assert "2" in output  # total txns
 
-    def it_should_compute_days_since_latest_relative_to_today(self):
-        with TemporaryDirectory() as tmpdir:
-            workspace = Workspace(root=Path(tmpdir))
-            groups = [
-                TransactionGroup(
-                    group_id="1",
-                    primary=Transaction(
-                        transaction_id="1111111111111111",
-                        date="2026-01-01",
-                        description="Sample payment",
-                        amount=-100.0,
-                        currency="CAD",
-                        account_id="MYBANK_CHQ",
-                        category="Housing",
-                    ),
+    def it_should_compute_days_since_latest_relative_to_today(self, tmp_path):
+        workspace = Workspace(root=tmp_path)
+        groups = [
+            TransactionGroup(
+                group_id="1",
+                primary=Transaction(
+                    transaction_id="1111111111111111",
+                    date="2026-01-01",
+                    description="Sample payment",
+                    amount=-100.0,
+                    currency="CAD",
+                    account_id="MYBANK_CHQ",
+                    category="Housing",
                 ),
-            ]
-            _build_projections(workspace, groups)
+            ),
+        ]
+        _build_projections(workspace, groups)
 
-            rc, output = _run_capturing(workspace, today=date(2026, 1, 15))
+        rc, output = _run_capturing(workspace, today=date(2026, 1, 15))
 
-            assert rc == 0
-            assert "14" in output
-            # No "d" suffix
-            assert "14d" not in output
+        assert rc == 0
+        assert "14" in output
+        # No "d" suffix
+        assert "14d" not in output
 
-    def it_should_highlight_stale_accounts(self):
-        with TemporaryDirectory() as tmpdir:
-            workspace = Workspace(root=Path(tmpdir))
-            # MYBANK_CHQ: 30 days stale (stale with default threshold of 14)
-            # MYBANK_CC: 5 days (not stale)
-            groups = [
-                TransactionGroup(
-                    group_id="1",
-                    primary=Transaction(
-                        transaction_id="1111111111111111",
-                        date="2025-12-16",
-                        description="Old payment",
-                        amount=-100.0,
-                        currency="CAD",
-                        account_id="MYBANK_CHQ",
-                        category="Housing",
-                    ),
+    def it_should_highlight_stale_accounts(self, tmp_path):
+        workspace = Workspace(root=tmp_path)
+        # MYBANK_CHQ: 30 days stale (stale with default threshold of 14)
+        # MYBANK_CC: 5 days (not stale)
+        groups = [
+            TransactionGroup(
+                group_id="1",
+                primary=Transaction(
+                    transaction_id="1111111111111111",
+                    date="2025-12-16",
+                    description="Old payment",
+                    amount=-100.0,
+                    currency="CAD",
+                    account_id="MYBANK_CHQ",
+                    category="Housing",
                 ),
-                TransactionGroup(
-                    group_id="2",
-                    primary=Transaction(
-                        transaction_id="2222222222222222",
-                        date="2026-01-10",
-                        description="Recent purchase",
-                        amount=-50.0,
-                        currency="CAD",
-                        account_id="MYBANK_CC",
-                        category="Shopping",
-                    ),
+            ),
+            TransactionGroup(
+                group_id="2",
+                primary=Transaction(
+                    transaction_id="2222222222222222",
+                    date="2026-01-10",
+                    description="Recent purchase",
+                    amount=-50.0,
+                    currency="CAD",
+                    account_id="MYBANK_CC",
+                    category="Shopping",
                 ),
-            ]
-            _build_projections(workspace, groups)
+            ),
+        ]
+        _build_projections(workspace, groups)
 
-            rc, output = _run_capturing(workspace, today=date(2026, 1, 15), stale_threshold=14)
+        rc, output = _run_capturing(workspace, today=date(2026, 1, 15), stale_threshold=14)
 
-            assert rc == 0
-            # Stale account gets warning marker
-            assert "⚠" in output
-            # Both accounts appear
-            assert "MYBANK_CHQ" in output
-            assert "MYBANK_CC" in output
+        assert rc == 0
+        # Stale account gets warning marker
+        assert "⚠" in output
+        # Both accounts appear
+        assert "MYBANK_CHQ" in output
+        assert "MYBANK_CC" in output
 
-    def it_should_restrict_mojility_counts_to_fy_range(self):
-        with TemporaryDirectory() as tmpdir:
-            workspace = Workspace(root=Path(tmpdir))
-            groups = [
-                # Inside FY25 (Nov 1 2024 – Oct 31 2025)
-                TransactionGroup(
-                    group_id="1",
-                    primary=Transaction(
-                        transaction_id="1111111111111111",
-                        date="2025-01-15",
-                        description="In-range consulting",
-                        amount=-200.0,
-                        currency="CAD",
-                        account_id="MYBANK_CHQ",
-                        category="Mojility",
-                    ),
+    def it_should_restrict_mojility_counts_to_fy_range(self, tmp_path):
+        workspace = Workspace(root=tmp_path)
+        groups = [
+            # Inside FY25 (Nov 1 2024 – Oct 31 2025)
+            TransactionGroup(
+                group_id="1",
+                primary=Transaction(
+                    transaction_id="1111111111111111",
+                    date="2025-01-15",
+                    description="In-range consulting",
+                    amount=-200.0,
+                    currency="CAD",
+                    account_id="MYBANK_CHQ",
+                    category="Mojility",
                 ),
-                # Outside FY25 — Nov 1 2025 is after Oct 31 2025
-                TransactionGroup(
-                    group_id="2",
-                    primary=Transaction(
-                        transaction_id="2222222222222222",
-                        date="2025-11-05",
-                        description="Out-of-range consulting",
-                        amount=-300.0,
-                        currency="CAD",
-                        account_id="MYBANK_CHQ",
-                        category="Mojility",
-                    ),
+            ),
+            # Outside FY25 — Nov 1 2025 is after Oct 31 2025
+            TransactionGroup(
+                group_id="2",
+                primary=Transaction(
+                    transaction_id="2222222222222222",
+                    date="2025-11-05",
+                    description="Out-of-range consulting",
+                    amount=-300.0,
+                    currency="CAD",
+                    account_id="MYBANK_CHQ",
+                    category="Mojility",
                 ),
-                # Another in-range, uncategorized
-                TransactionGroup(
-                    group_id="3",
-                    primary=Transaction(
-                        transaction_id="3333333333333333",
-                        date="2024-12-01",
-                        description="Grocery run",
-                        amount=-80.0,
-                        currency="CAD",
-                        account_id="MYBANK_CHQ",
-                    ),
+            ),
+            # Another in-range, uncategorized
+            TransactionGroup(
+                group_id="3",
+                primary=Transaction(
+                    transaction_id="3333333333333333",
+                    date="2024-12-01",
+                    description="Grocery run",
+                    amount=-80.0,
+                    currency="CAD",
+                    account_id="MYBANK_CHQ",
                 ),
-            ]
-            _build_projections(workspace, groups)
+            ),
+        ]
+        _build_projections(workspace, groups)
 
-            fy_range = (date(2024, 11, 1), date(2025, 10, 31))
-            rc, output = _run_capturing(
-                workspace, fy_range=fy_range, fy_label="FY25", today=date(2026, 1, 1)
-            )
+        fy_range = (date(2024, 11, 1), date(2025, 10, 31))
+        rc, output = _run_capturing(
+            workspace, fy_range=fy_range, fy_label="FY25", today=date(2026, 1, 1)
+        )
 
-            assert rc == 0
-            # FY label appears in column header
-            assert "FY25" in output
-            # total_txns counts all 3 rows (no FY filter)
-            assert "3" in output
-            # mojility_txns should be 1 (only the in-range one), not 2
-            # We check "1" is present and "2" is NOT the mojility count
-            # (indirect: mojility_receipt_pct would be "—" if moj_txns=0, or a number)
+        assert rc == 0
+        # FY label appears in column header
+        assert "FY25" in output
+        # total_txns counts all 3 rows (no FY filter)
+        assert "3" in output
+        # mojility_txns should be 1 (only the in-range one), not 2
+        # We check "1" is present and "2" is NOT the mojility count
+        # (indirect: mojility_receipt_pct would be "—" if moj_txns=0, or a number)
 
-    def it_should_show_em_dash_for_mojility_receipt_pct_when_no_mojility_txns(self):
-        with TemporaryDirectory() as tmpdir:
-            workspace = Workspace(root=Path(tmpdir))
-            groups = [
-                TransactionGroup(
-                    group_id="1",
-                    primary=Transaction(
-                        transaction_id="1111111111111111",
-                        date="2025-06-01",
-                        description="Groceries",
-                        amount=-75.0,
-                        currency="CAD",
-                        account_id="MYBANK_CHQ",
-                        category="Food",
-                    ),
+    def it_should_show_em_dash_for_mojility_receipt_pct_when_no_mojility_txns(self, tmp_path):
+        workspace = Workspace(root=tmp_path)
+        groups = [
+            TransactionGroup(
+                group_id="1",
+                primary=Transaction(
+                    transaction_id="1111111111111111",
+                    date="2025-06-01",
+                    description="Groceries",
+                    amount=-75.0,
+                    currency="CAD",
+                    account_id="MYBANK_CHQ",
+                    category="Food",
                 ),
-            ]
-            _build_projections(workspace, groups)
+            ),
+        ]
+        _build_projections(workspace, groups)
 
-            rc, output = _run_capturing(workspace, today=date(2025, 6, 15))
+        rc, output = _run_capturing(workspace, today=date(2025, 6, 15))
 
-            assert rc == 0
-            assert "—" in output
+        assert rc == 0
+        assert "—" in output
 
     def it_should_show_em_dash_for_latest_txn_when_account_has_no_rows(self):
         """An account with no transactions shows — for latest_txn."""
@@ -285,23 +278,21 @@ class DescribeStatusCommand:
         result = _aggregate(rows, None, date(2025, 1, 1))
         assert result == []
 
-    def it_should_handle_empty_database(self):
-        with TemporaryDirectory() as tmpdir:
-            workspace = Workspace(root=Path(tmpdir))
-            _build_projections(workspace, [])
+    def it_should_handle_empty_database(self, tmp_path):
+        workspace = Workspace(root=tmp_path)
+        _build_projections(workspace, [])
 
-            rc, output = _run_capturing(workspace, today=date(2025, 1, 1))
+        rc, output = _run_capturing(workspace, today=date(2025, 1, 1))
 
-            assert rc == 0
-            assert "No transactions" in output
+        assert rc == 0
+        assert "No transactions" in output
 
-    def it_should_return_error_when_projections_missing(self):
-        with TemporaryDirectory() as tmpdir:
-            workspace = Workspace(root=Path(tmpdir))
-            # Do NOT build projections — projections_path does not exist
+    def it_should_return_error_when_projections_missing(self, tmp_path):
+        workspace = Workspace(root=tmp_path)
+        # Do NOT build projections — projections_path does not exist
 
-            cap = Console(record=True)
-            with pytest.raises(CommandAbort) as exc_info:
-                run(workspace=workspace, _console=cap, today=date(2025, 1, 1))
+        cap = Console(record=True)
+        with pytest.raises(CommandAbort) as exc_info:
+            run(workspace=workspace, _console=cap, today=date(2025, 1, 1))
 
-            assert exc_info.value.code == 1
+        assert exc_info.value.code == 1

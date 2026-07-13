@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import json
-import tempfile
 from datetime import date
-from pathlib import Path
 
 import pytest
 
@@ -13,9 +11,8 @@ from gilt.transfer.prompt_manager import PromptManager, _confusion_counts
 
 class DescribePromptManagerInitialization:
     @pytest.fixture
-    def temp_dir(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield Path(tmpdir)
+    def temp_dir(self, tmp_path):
+        yield tmp_path
 
     def it_should_initialize_with_empty_history_when_no_file_exists(self, temp_dir):
         manager = PromptManager(temp_dir)
@@ -55,22 +52,20 @@ class DescribePromptManagerInitialization:
         assert len(manager2.feedback_history) == 1
         assert manager2.feedback_history[0]["llm_said_duplicate"] is True
 
-    def it_should_create_directory_if_not_exists_on_save(self):
-        with tempfile.TemporaryDirectory() as base:
-            nested_dir = Path(base) / "subdir" / "deeper"
-            manager = PromptManager(nested_dir)
-            pair = make_pair()
-            manager.add_feedback(
-                pair, llm_said_duplicate=True, llm_confidence=0.8, user_confirmed=False
-            )
-            assert (nested_dir / "duplicate_detection_prompt.json").exists()
+    def it_should_create_directory_if_not_exists_on_save(self, tmp_path):
+        nested_dir = tmp_path / "subdir" / "deeper"
+        manager = PromptManager(nested_dir)
+        pair = make_pair()
+        manager.add_feedback(
+            pair, llm_said_duplicate=True, llm_confidence=0.8, user_confirmed=False
+        )
+        assert (nested_dir / "duplicate_detection_prompt.json").exists()
 
 
 class DescribePromptManagerFeedback:
     @pytest.fixture
-    def temp_dir(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield Path(tmpdir)
+    def temp_dir(self, tmp_path):
+        yield tmp_path
 
     @pytest.fixture
     def manager(self, temp_dir):
@@ -118,9 +113,8 @@ class DescribePromptManagerFeedback:
 
 class DescribePromptManagerLearnedPatterns:
     @pytest.fixture
-    def temp_dir(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield Path(tmpdir)
+    def temp_dir(self, tmp_path):
+        yield tmp_path
 
     @pytest.fixture
     def manager(self, temp_dir):
@@ -169,9 +163,8 @@ class DescribePromptManagerLearnedPatterns:
 
 class DescribePromptManagerStats:
     @pytest.fixture
-    def temp_dir(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield Path(tmpdir)
+    def temp_dir(self, tmp_path):
+        yield tmp_path
 
     @pytest.fixture
     def manager(self, temp_dir):
@@ -249,9 +242,8 @@ class DescribePromptManagerStats:
 
 class DescribePromptManagerPromptAssembly:
     @pytest.fixture
-    def temp_dir(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield Path(tmpdir)
+    def temp_dir(self, tmp_path):
+        yield tmp_path
 
     @pytest.fixture
     def manager(self, temp_dir):

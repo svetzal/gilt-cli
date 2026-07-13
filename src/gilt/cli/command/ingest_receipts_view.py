@@ -15,9 +15,7 @@ def print_parse_warnings(warnings: list[str]) -> None:
     for w in warnings:
         console.print(f"[yellow]Warning: {w}[/yellow]")
     if warnings:
-        console.print(
-            f"[yellow]Skipped {len(warnings)} receipt file(s) due to errors.[/yellow]"
-        )
+        console.print(f"[yellow]Skipped {len(warnings)} receipt file(s) due to errors.[/yellow]")
 
 
 def print_no_receipts() -> None:

@@ -180,7 +180,5 @@ def run(
         confirm_prompt="",
         assume_yes=True,
         write=write,
-        apply=lambda: _write_report_files(
-            markdown_content, markdown_path, docx_path, has_pandoc
-        ),
+        apply=lambda: _write_report_files(markdown_content, markdown_path, docx_path, has_pandoc),
     )

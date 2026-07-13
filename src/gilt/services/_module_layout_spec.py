@@ -80,9 +80,8 @@ class DescribeServicesModuleLayout:
             hits = _scan(path, UI_IMPORT_PATTERNS)
             for hit in hits:
                 violations.append(f"{path.name}: {hit}")
-        assert violations == [], (
-            "Service modules must not import UI libraries.\n"
-            + "\n".join(violations)
+        assert violations == [], "Service modules must not import UI libraries.\n" + "\n".join(
+            violations
         )
 
     def it_should_not_emit_console_output(self):
@@ -94,7 +93,6 @@ class DescribeServicesModuleLayout:
             hits = _scan(path, CONSOLE_PATTERNS)
             for hit in hits:
                 violations.append(f"{path.name}: {hit}")
-        assert violations == [], (
-            "Service modules must not emit console output.\n"
-            + "\n".join(violations)
+        assert violations == [], "Service modules must not emit console output.\n" + "\n".join(
+            violations
         )

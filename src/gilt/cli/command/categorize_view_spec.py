@@ -74,9 +74,7 @@ class DescribeDisplayCategorizationMatches:
     def it_should_show_new_category_in_table(self):
         txn = _make_transaction(category="Food")
         matches = [("MYBANK_CHQ", _make_group(txn))]
-        output = _capture(
-            lambda: display_categorization_matches(matches, "Utilities", "Electric")
-        )
+        output = _capture(lambda: display_categorization_matches(matches, "Utilities", "Electric"))
         assert "Utilities" in output
 
 

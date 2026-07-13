@@ -262,9 +262,7 @@ class DescribeGetBudgetSummary:
 
         config = CategoryConfig(
             categories=[
-                Category(
-                    name="Housing", budget=Budget(amount=1000.0, period=BudgetPeriod.monthly)
-                )
+                Category(name="Housing", budget=Budget(amount=1000.0, period=BudgetPeriod.monthly))
             ]
         )
         save_categories_config(cats_path, config)
@@ -297,9 +295,7 @@ class DescribeGetBudgetSummary:
         # Monthly budget of 1000 → yearly report expects 12000
         config = CategoryConfig(
             categories=[
-                Category(
-                    name="Housing", budget=Budget(amount=1000.0, period=BudgetPeriod.monthly)
-                )
+                Category(name="Housing", budget=Budget(amount=1000.0, period=BudgetPeriod.monthly))
             ]
         )
         save_categories_config(cats_path, config)
@@ -318,9 +314,7 @@ class DescribeGetBudgetSummary:
         # Yearly budget of 6000 → monthly report expects 500
         config = CategoryConfig(
             categories=[
-                Category(
-                    name="Utilities", budget=Budget(amount=6000.0, period=BudgetPeriod.yearly)
-                )
+                Category(name="Utilities", budget=Budget(amount=6000.0, period=BudgetPeriod.yearly))
             ]
         )
         save_categories_config(cats_path, config)
@@ -338,9 +332,7 @@ class DescribeGetBudgetSummary:
 
         config = CategoryConfig(
             categories=[
-                Category(
-                    name="Housing", budget=Budget(amount=500.0, period=BudgetPeriod.monthly)
-                )
+                Category(name="Housing", budget=Budget(amount=500.0, period=BudgetPeriod.monthly))
             ]
         )
         save_categories_config(cats_path, config)
@@ -455,12 +447,8 @@ class DescribeGetBudgetSummary:
 
         config = CategoryConfig(
             categories=[
-                Category(
-                    name="Housing", budget=Budget(amount=1000.0, period=BudgetPeriod.monthly)
-                ),
-                Category(
-                    name="Shopping", budget=Budget(amount=300.0, period=BudgetPeriod.monthly)
-                ),
+                Category(name="Housing", budget=Budget(amount=1000.0, period=BudgetPeriod.monthly)),
+                Category(name="Shopping", budget=Budget(amount=300.0, period=BudgetPeriod.monthly)),
             ]
         )
         save_categories_config(cats_path, config)

@@ -137,12 +137,8 @@ class DescribeSummaryCommand:
     def it_should_filter_by_year(self, tmp_path):
         workspace = Workspace(root=tmp_path)
         groups = [
-            _make_group(
-                "1", "1111111111111111", -500.0, category="Housing", txn_date="2025-06-01"
-            ),
-            _make_group(
-                "2", "2222222222222222", -200.0, category="Food", txn_date="2026-03-01"
-            ),
+            _make_group("1", "1111111111111111", -500.0, category="Housing", txn_date="2025-06-01"),
+            _make_group("2", "2222222222222222", -200.0, category="Food", txn_date="2026-03-01"),
         ]
         _build_projections(workspace, groups)
         rc, output = _run_capturing(workspace, year=2026)
@@ -153,12 +149,8 @@ class DescribeSummaryCommand:
     def it_should_filter_by_fy_range(self, tmp_path):
         workspace = Workspace(root=tmp_path)
         groups = [
-            _make_group(
-                "1", "1111111111111111", -500.0, category="Housing", txn_date="2025-06-01"
-            ),
-            _make_group(
-                "2", "2222222222222222", -200.0, category="Food", txn_date="2024-10-01"
-            ),
+            _make_group("1", "1111111111111111", -500.0, category="Housing", txn_date="2025-06-01"),
+            _make_group("2", "2222222222222222", -200.0, category="Food", txn_date="2024-10-01"),
         ]
         _build_projections(workspace, groups)
         fy_range = (date(2024, 11, 1), date(2025, 10, 31))
@@ -170,9 +162,7 @@ class DescribeSummaryCommand:
     def it_should_include_fy_label_in_title(self, tmp_path):
         workspace = Workspace(root=tmp_path)
         groups = [
-            _make_group(
-                "1", "1111111111111111", -500.0, category="Housing", txn_date="2025-06-01"
-            ),
+            _make_group("1", "1111111111111111", -500.0, category="Housing", txn_date="2025-06-01"),
         ]
         _build_projections(workspace, groups)
         fy_range = (date(2024, 11, 1), date(2025, 10, 31))
@@ -206,9 +196,7 @@ class DescribeSummaryCommand:
     def it_should_show_subcategory_table_when_category_given(self, tmp_path):
         workspace = Workspace(root=tmp_path)
         groups = [
-            _make_group(
-                "1", "1111111111111111", -800.0, category="Housing", subcategory="Rent"
-            ),
+            _make_group("1", "1111111111111111", -800.0, category="Housing", subcategory="Rent"),
             _make_group(
                 "2", "2222222222222222", -200.0, category="Housing", subcategory="Utilities"
             ),
@@ -235,9 +223,7 @@ class DescribeSummaryCommand:
     def it_should_show_pct_of_category_in_drilldown(self, tmp_path):
         workspace = Workspace(root=tmp_path)
         groups = [
-            _make_group(
-                "1", "1111111111111111", -600.0, category="Housing", subcategory="Rent"
-            ),
+            _make_group("1", "1111111111111111", -600.0, category="Housing", subcategory="Rent"),
             _make_group(
                 "2", "2222222222222222", -400.0, category="Housing", subcategory="Utilities"
             ),

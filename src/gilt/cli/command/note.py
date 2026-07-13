@@ -130,9 +130,7 @@ def run(
         )
 
     def apply() -> int:
-        count = _save_notes(
-            service, groups, groups_to_update, note_text, ledger_repo, account
-        )
+        count = _save_notes(service, groups, groups_to_update, note_text, ledger_repo, account)
         print_notes_saved(count)
         return 0
 

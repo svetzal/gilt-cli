@@ -59,9 +59,7 @@ class DescribeDisplayReportPreview:
 
         content = "x" * 600
         output = _capture(
-            lambda: display_report_preview(
-                Path("out.md"), Path("out.docx"), True, content
-            )
+            lambda: display_report_preview(Path("out.md"), Path("out.docx"), True, content)
         )
         assert "out.md" in output
         assert "out.docx" in output

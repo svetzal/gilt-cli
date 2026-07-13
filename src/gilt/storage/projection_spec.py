@@ -5,9 +5,7 @@ These tests verify that projections can be correctly built from events
 and that the rebuild process is idempotent and accurate.
 """
 
-import tempfile
 from decimal import Decimal
-from pathlib import Path
 
 import pytest
 
@@ -32,10 +30,9 @@ class DescribeProjectionBuilder:
     """Tests for ProjectionBuilder class."""
 
     @pytest.fixture
-    def temp_dir(self):
+    def temp_dir(self, tmp_path):
         """Create temporary directory for test databases."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield Path(tmpdir)
+        yield tmp_path
 
     @pytest.fixture
     def event_store(self, temp_dir):

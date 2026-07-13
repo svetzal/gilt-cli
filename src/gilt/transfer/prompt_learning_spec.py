@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
-
 import pytest
 
 from gilt.model.events import (
@@ -140,9 +137,8 @@ class DescribeAccuracyMetrics:
 
 class DescribePromptLearningServiceAccuracy:
     @pytest.fixture
-    def temp_dir(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield Path(tmpdir)
+    def temp_dir(self, tmp_path):
+        yield tmp_path
 
     @pytest.fixture
     def event_store(self, temp_dir):
@@ -233,9 +229,8 @@ class DescribePromptLearningServiceAccuracy:
 
 class DescribePromptLearningServiceDescriptionPreferences:
     @pytest.fixture
-    def temp_dir(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield Path(tmpdir)
+    def temp_dir(self, tmp_path):
+        yield tmp_path
 
     @pytest.fixture
     def event_store(self, temp_dir):
@@ -320,9 +315,8 @@ class DescribePromptLearningServiceDescriptionPreferences:
 
 class DescribePromptLearningServicePatternIdentification:
     @pytest.fixture
-    def temp_dir(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield Path(tmpdir)
+    def temp_dir(self, tmp_path):
+        yield tmp_path
 
     @pytest.fixture
     def event_store(self, temp_dir):
@@ -370,9 +364,8 @@ class DescribePromptLearningServicePatternIdentification:
 
 class DescribePromptLearningServicePromptGeneration:
     @pytest.fixture
-    def temp_dir(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield Path(tmpdir)
+    def temp_dir(self, tmp_path):
+        yield tmp_path
 
     @pytest.fixture
     def event_store(self, temp_dir):

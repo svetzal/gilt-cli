@@ -15,9 +15,7 @@ from ..formatting import fmt_amount
 def print_no_transactions(account: str, the_year: int, compare: bool) -> None:
     """Print the message shown when no transactions match the query."""
     kind = "enriched " if compare else ""
-    console.print(
-        f"[yellow]No {kind}transactions for account[/] [bold]{account}[/] in {the_year}."
-    )
+    console.print(f"[yellow]No {kind}transactions for account[/] [bold]{account}[/] in {the_year}.")
 
 
 def _build_display_notes(t: Transaction) -> str:
@@ -29,7 +27,7 @@ def _build_display_notes(t: Transaction) -> str:
         cat_display = t.category
         if t.subcategory:
             cat_display += f":{t.subcategory}"
-        plain_rest = plain[len(cat_display):]
+        plain_rest = plain[len(cat_display) :]
         return f"[yellow]{cat_display}[/yellow]{plain_rest}"
 
     return plain

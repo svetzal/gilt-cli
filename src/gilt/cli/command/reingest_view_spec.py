@@ -60,9 +60,7 @@ class DescribeReingestProgressMessages:
     def it_should_print_purge_results(self):
         from gilt.cli.command.reingest_view import print_purge_results
 
-        result = SimpleNamespace(
-            events_purged=5, projections_purged=4, cache_entries_purged=1
-        )
+        result = SimpleNamespace(events_purged=5, projections_purged=4, cache_entries_purged=1)
         output = _capture(lambda: print_purge_results(result))
         assert "5" in output
         assert "4" in output
