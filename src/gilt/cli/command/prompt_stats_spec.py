@@ -7,7 +7,6 @@ Mocks at service/event-store boundaries, not at library internals.
 """
 
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -48,136 +47,128 @@ class DescribePromptStatsCommand:
 
         assert exc_info.value.code == 1
 
-    def it_should_return_error_when_event_store_not_found(self):
-        with TemporaryDirectory() as tmpdir:
-            tmp = Path(tmpdir)
-            data_dir = tmp / "accounts"
-            data_dir.mkdir()
+    def it_should_return_error_when_event_store_not_found(self, tmp_path):
+        data_dir = tmp_path / "accounts"
+        data_dir.mkdir()
 
-            workspace = MagicMock()
-            workspace.ledger_data_dir = data_dir
-            workspace.event_store_path = tmp / "events.db"
+        workspace = MagicMock()
+        workspace.ledger_data_dir = data_dir
+        workspace.event_store_path = tmp_path / "events.db"
 
-            with patch("gilt.cli.event_sourcing_bootstrap.EventSourcingService") as mock_es_cls:
-                mock_es = MagicMock()
-                mock_es.ensure_ready.return_value = EventSourcingReadyResult(
-                    ready=False,
-                    error="no_data",
-                )
-                mock_es_cls.return_value = mock_es
+        with patch("gilt.cli.event_sourcing_bootstrap.EventSourcingService") as mock_es_cls:
+            mock_es = MagicMock()
+            mock_es.ensure_ready.return_value = EventSourcingReadyResult(
+                ready=False,
+                error="no_data",
+            )
+            mock_es_cls.return_value = mock_es
 
-                with pytest.raises(CommandAbort) as exc_info:
-                    run(workspace=workspace)
+            with pytest.raises(CommandAbort) as exc_info:
+                run(workspace=workspace)
 
-            assert exc_info.value.code == 1
+        assert exc_info.value.code == 1
 
-    def it_should_show_no_feedback_message_when_no_feedback(self):
-        with TemporaryDirectory() as tmpdir:
-            tmp = Path(tmpdir)
-            data_dir = tmp / "accounts"
-            data_dir.mkdir()
+    def it_should_show_no_feedback_message_when_no_feedback(self, tmp_path):
+        data_dir = tmp_path / "accounts"
+        data_dir.mkdir()
 
-            workspace = MagicMock()
-            workspace.ledger_data_dir = data_dir
-            workspace.event_store_path = tmp / "events.db"
+        workspace = MagicMock()
+        workspace.ledger_data_dir = data_dir
+        workspace.event_store_path = tmp_path / "events.db"
 
-            with (
-                patch("gilt.cli.event_sourcing_bootstrap.EventSourcingService") as mock_es_cls,
-                patch("gilt.cli.command.prompt_stats.PromptLearningService") as mock_learning_cls,
-            ):
-                mock_event_store = MagicMock()
-                mock_event_store.get_events_by_type.return_value = []
-                mock_es = MagicMock()
-                mock_es.ensure_ready.return_value = EventSourcingReadyResult(
-                    ready=True,
-                    event_store=mock_event_store,
-                    projection_builder=MagicMock(),
-                )
-                mock_es_cls.return_value = mock_es
+        with (
+            patch("gilt.cli.event_sourcing_bootstrap.EventSourcingService") as mock_es_cls,
+            patch("gilt.cli.command.prompt_stats.PromptLearningService") as mock_learning_cls,
+        ):
+            mock_event_store = MagicMock()
+            mock_event_store.get_events_by_type.return_value = []
+            mock_es = MagicMock()
+            mock_es.ensure_ready.return_value = EventSourcingReadyResult(
+                ready=True,
+                event_store=mock_event_store,
+                projection_builder=MagicMock(),
+            )
+            mock_es_cls.return_value = mock_es
 
-                mock_learning = MagicMock()
-                mock_learning.get_accuracy.return_value = _make_accuracy_metrics(total_feedback=0)
-                mock_learning_cls.return_value = mock_learning
+            mock_learning = MagicMock()
+            mock_learning.get_accuracy.return_value = _make_accuracy_metrics(total_feedback=0)
+            mock_learning_cls.return_value = mock_learning
 
-                result = run(workspace=workspace)
+            result = run(workspace=workspace)
 
-            assert result == 0
-            mock_learning.get_accuracy.assert_called_once()
+        assert result == 0
+        mock_learning.get_accuracy.assert_called_once()
 
-    def it_should_display_accuracy_metrics_when_feedback_exists(self):
-        with TemporaryDirectory() as tmpdir:
-            tmp = Path(tmpdir)
-            data_dir = tmp / "accounts"
-            data_dir.mkdir()
+    def it_should_display_accuracy_metrics_when_feedback_exists(self, tmp_path):
+        data_dir = tmp_path / "accounts"
+        data_dir.mkdir()
 
-            workspace = MagicMock()
-            workspace.ledger_data_dir = data_dir
-            workspace.event_store_path = tmp / "events.db"
+        workspace = MagicMock()
+        workspace.ledger_data_dir = data_dir
+        workspace.event_store_path = tmp_path / "events.db"
 
-            with (
-                patch("gilt.cli.event_sourcing_bootstrap.EventSourcingService") as mock_es_cls,
-                patch("gilt.cli.command.prompt_stats.PromptLearningService") as mock_learning_cls,
-            ):
-                mock_event_store = MagicMock()
-                mock_event_store.get_events_by_type.return_value = []
-                mock_es = MagicMock()
-                mock_es.ensure_ready.return_value = EventSourcingReadyResult(
-                    ready=True,
-                    event_store=mock_event_store,
-                    projection_builder=MagicMock(),
-                )
-                mock_es_cls.return_value = mock_es
+        with (
+            patch("gilt.cli.event_sourcing_bootstrap.EventSourcingService") as mock_es_cls,
+            patch("gilt.cli.command.prompt_stats.PromptLearningService") as mock_learning_cls,
+        ):
+            mock_event_store = MagicMock()
+            mock_event_store.get_events_by_type.return_value = []
+            mock_es = MagicMock()
+            mock_es.ensure_ready.return_value = EventSourcingReadyResult(
+                ready=True,
+                event_store=mock_event_store,
+                projection_builder=MagicMock(),
+            )
+            mock_es_cls.return_value = mock_es
 
-                mock_learning = MagicMock()
-                mock_learning.get_accuracy.return_value = _make_accuracy_metrics(total_feedback=10)
-                mock_learning.identify_learned_patterns.return_value = []
-                mock_learning_cls.return_value = mock_learning
+            mock_learning = MagicMock()
+            mock_learning.get_accuracy.return_value = _make_accuracy_metrics(total_feedback=10)
+            mock_learning.identify_learned_patterns.return_value = []
+            mock_learning_cls.return_value = mock_learning
 
-                result = run(workspace=workspace)
+            result = run(workspace=workspace)
 
-            assert result == 0
-            mock_learning.get_accuracy.assert_called_once()
-            mock_learning.identify_learned_patterns.assert_called_once()
+        assert result == 0
+        mock_learning.get_accuracy.assert_called_once()
+        mock_learning.identify_learned_patterns.assert_called_once()
 
-    def it_should_display_prompt_history(self):
-        with TemporaryDirectory() as tmpdir:
-            tmp = Path(tmpdir)
-            data_dir = tmp / "accounts"
-            data_dir.mkdir()
+    def it_should_display_prompt_history(self, tmp_path):
+        data_dir = tmp_path / "accounts"
+        data_dir.mkdir()
 
-            workspace = MagicMock()
-            workspace.ledger_data_dir = data_dir
-            workspace.event_store_path = tmp / "events.db"
+        workspace = MagicMock()
+        workspace.ledger_data_dir = data_dir
+        workspace.event_store_path = tmp_path / "events.db"
 
-            with (
-                patch("gilt.cli.event_sourcing_bootstrap.EventSourcingService") as mock_es_cls,
-                patch("gilt.cli.command.prompt_stats.PromptLearningService") as mock_learning_cls,
-            ):
-                from datetime import datetime
+        with (
+            patch("gilt.cli.event_sourcing_bootstrap.EventSourcingService") as mock_es_cls,
+            patch("gilt.cli.command.prompt_stats.PromptLearningService") as mock_learning_cls,
+        ):
+            from datetime import datetime
 
-                from gilt.model.events import PromptUpdated
+            from gilt.model.events import PromptUpdated
 
-                prompt_event = MagicMock(spec=PromptUpdated)
-                prompt_event.prompt_version = "v2"
-                prompt_event.accuracy_metrics = {"accuracy": 0.85}
-                prompt_event.learned_patterns = ["pattern_a", "pattern_b"]
-                prompt_event.event_timestamp = datetime(2025, 10, 1, 12, 0)
+            prompt_event = MagicMock(spec=PromptUpdated)
+            prompt_event.prompt_version = "v2"
+            prompt_event.accuracy_metrics = {"accuracy": 0.85}
+            prompt_event.learned_patterns = ["pattern_a", "pattern_b"]
+            prompt_event.event_timestamp = datetime(2025, 10, 1, 12, 0)
 
-                mock_event_store = MagicMock()
-                mock_event_store.get_events_by_type.return_value = [prompt_event]
-                mock_es = MagicMock()
-                mock_es.ensure_ready.return_value = EventSourcingReadyResult(
-                    ready=True,
-                    event_store=mock_event_store,
-                    projection_builder=MagicMock(),
-                )
-                mock_es_cls.return_value = mock_es
+            mock_event_store = MagicMock()
+            mock_event_store.get_events_by_type.return_value = [prompt_event]
+            mock_es = MagicMock()
+            mock_es.ensure_ready.return_value = EventSourcingReadyResult(
+                ready=True,
+                event_store=mock_event_store,
+                projection_builder=MagicMock(),
+            )
+            mock_es_cls.return_value = mock_es
 
-                mock_learning = MagicMock()
-                mock_learning.get_accuracy.return_value = _make_accuracy_metrics(total_feedback=5)
-                mock_learning.identify_learned_patterns.return_value = []
-                mock_learning_cls.return_value = mock_learning
+            mock_learning = MagicMock()
+            mock_learning.get_accuracy.return_value = _make_accuracy_metrics(total_feedback=5)
+            mock_learning.identify_learned_patterns.return_value = []
+            mock_learning_cls.return_value = mock_learning
 
-                result = run(workspace=workspace)
+            result = run(workspace=workspace)
 
-            assert result == 0
+        assert result == 0

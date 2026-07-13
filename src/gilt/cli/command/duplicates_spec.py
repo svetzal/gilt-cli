@@ -10,7 +10,6 @@ Privacy: all data is synthetic — no real bank names, account IDs, or merchant 
 
 from decimal import Decimal
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -26,14 +25,13 @@ from gilt.cli.command.duplicates import (
     run,
 )
 from gilt.cli.event_sourcing_bootstrap import require_event_sourcing
-from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.duplicate import DuplicateAssessment, DuplicateMatch, TransactionPair
 from gilt.model.events import DuplicateConfirmed, DuplicateRejected, TransactionImported
-from gilt.model.ledger_io import dump_ledger_csv
 from gilt.services.duplicate_review_service import UserDecision
 from gilt.services.event_sourcing_service import EventSourcingReadyResult
 from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
+from gilt.testing import make_group, write_ledger
 from gilt.workspace import Workspace
 
 # ---------------------------------------------------------------------------
@@ -49,19 +47,15 @@ def _quiet_console() -> Console:  # noqa: F401 (kept for potential future use)
 def _write_synthetic_ledger(data_dir: Path, account_id: str = "MYBANK_CHQ") -> None:
     """Write a minimal synthetic ledger CSV."""
     groups = [
-        TransactionGroup(
-            group_id="grp001",
-            primary=Transaction(
-                transaction_id="aaaa0001aaaa0001",
-                date="2025-01-10",
-                description="SAMPLE STORE",
-                amount=-50.0,
-                currency="CAD",
-                account_id=account_id,
-            ),
+        make_group(
+            transaction_id="aaaa0001aaaa0001",
+            date="2025-01-10",
+            description="SAMPLE STORE",
+            amount=-50.0,
+            account_id=account_id,
         ),
     ]
-    (data_dir / f"{account_id}.csv").write_text(dump_ledger_csv(groups), encoding="utf-8")
+    write_ledger(data_dir / f"{account_id}.csv", groups)
 
 
 def _build_event_store_and_projections(ws: Workspace) -> None:
@@ -92,76 +86,73 @@ def _build_event_store_and_projections(ws: Workspace) -> None:
 class DescribeSetupEventSourcing:
     """Specs for require_event_sourcing guard checks (formerly _setup_event_sourcing)."""
 
-    def it_should_return_none_when_data_dir_does_not_exist(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = Workspace(root=Path(tmpdir))
-            # data dir intentionally NOT created
-            with pytest.raises(CommandAbort):
-                require_event_sourcing(ws)
+    def it_should_return_none_when_data_dir_does_not_exist(self, tmp_path):
+        ws = Workspace(root=tmp_path)
+        # data dir intentionally NOT created
+        with pytest.raises(CommandAbort):
+            require_event_sourcing(ws)
 
-    def it_should_return_none_when_data_dir_exists_but_no_event_store_and_csvs_present(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = Workspace(root=Path(tmpdir))
-            ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
-            # Put CSV file(s) but no event store
-            _write_synthetic_ledger(ws.ledger_data_dir)
-            # No event store created
+    def it_should_return_none_when_data_dir_exists_but_no_event_store_and_csvs_present(
+        self, tmp_path
+    ):
+        ws = Workspace(root=tmp_path)
+        ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
+        # Put CSV file(s) but no event store
+        _write_synthetic_ledger(ws.ledger_data_dir)
+        # No event store created
 
-            with pytest.raises(CommandAbort):
-                require_event_sourcing(ws)
+        with pytest.raises(CommandAbort):
+            require_event_sourcing(ws)
 
-    def it_should_return_none_when_data_dir_exists_but_no_event_store_and_no_csvs(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = Workspace(root=Path(tmpdir))
-            ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
-            # No CSVs, no event store
+    def it_should_return_none_when_data_dir_exists_but_no_event_store_and_no_csvs(self, tmp_path):
+        ws = Workspace(root=tmp_path)
+        ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
+        # No CSVs, no event store
 
-            with pytest.raises(CommandAbort):
-                require_event_sourcing(ws)
+        with pytest.raises(CommandAbort):
+            require_event_sourcing(ws)
 
-    def it_should_return_ready_result_when_event_store_and_projections_exist(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = Workspace(root=Path(tmpdir))
-            ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
-            _write_synthetic_ledger(ws.ledger_data_dir)
-            _build_event_store_and_projections(ws)
+    def it_should_return_ready_result_when_event_store_and_projections_exist(self, tmp_path):
+        ws = Workspace(root=tmp_path)
+        ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
+        _write_synthetic_ledger(ws.ledger_data_dir)
+        _build_event_store_and_projections(ws)
 
-            result = require_event_sourcing(ws)
-            assert isinstance(result, EventSourcingReadyResult)
-            assert result.ready is True
-            assert result.event_store is not None
-            assert result.projection_builder is not None
+        result = require_event_sourcing(ws)
+        assert isinstance(result, EventSourcingReadyResult)
+        assert result.ready is True
+        assert result.event_store is not None
+        assert result.projection_builder is not None
 
-    def it_should_rebuild_projections_when_they_do_not_yet_exist(self):
+    def it_should_rebuild_projections_when_they_do_not_yet_exist(self, tmp_path):
         """When the event store exists but projections are missing,
         require_event_sourcing should rebuild them and return a ready result."""
-        with TemporaryDirectory() as tmpdir:
-            ws = Workspace(root=Path(tmpdir))
-            ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
-            _write_synthetic_ledger(ws.ledger_data_dir)
+        ws = Workspace(root=tmp_path)
+        ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
+        _write_synthetic_ledger(ws.ledger_data_dir)
 
-            # Create event store but NOT projections
-            ws.event_store_path.parent.mkdir(parents=True, exist_ok=True)
-            store = EventStore(str(ws.event_store_path))
-            store.append_event(
-                TransactionImported(
-                    transaction_id="bbbb0001bbbb0001",
-                    transaction_date="2025-02-01",
-                    source_file="mybank_export.csv",
-                    source_account="MYBANK_CHQ",
-                    raw_description="ACME CORP",
-                    amount=Decimal("-75.00"),
-                    currency="CAD",
-                    raw_data={},
-                )
+        # Create event store but NOT projections
+        ws.event_store_path.parent.mkdir(parents=True, exist_ok=True)
+        store = EventStore(str(ws.event_store_path))
+        store.append_event(
+            TransactionImported(
+                transaction_id="bbbb0001bbbb0001",
+                transaction_date="2025-02-01",
+                source_file="mybank_export.csv",
+                source_account="MYBANK_CHQ",
+                raw_description="ACME CORP",
+                amount=Decimal("-75.00"),
+                currency="CAD",
+                raw_data={},
             )
-            # Projections deliberately NOT built
+        )
+        # Projections deliberately NOT built
 
-            result = require_event_sourcing(ws)
-            assert isinstance(result, EventSourcingReadyResult)
-            assert result.ready is True
-            # Projections should now exist
-            assert ws.projections_path.exists()
+        result = require_event_sourcing(ws)
+        assert isinstance(result, EventSourcingReadyResult)
+        assert result.ready is True
+        # Projections should now exist
+        assert ws.projections_path.exists()
 
 
 # ---------------------------------------------------------------------------
@@ -424,56 +415,51 @@ class DescribeRunReviewLoop:
 class DescribeDuplicatesRun:
     """Specs for the duplicates run() function."""
 
-    def it_should_return_1_when_data_dir_does_not_exist(self):
-        with TemporaryDirectory() as tmpdir:
-            ws = Workspace(root=Path(tmpdir))
-            # Data dir intentionally absent
+    def it_should_return_1_when_data_dir_does_not_exist(self, tmp_path):
+        ws = Workspace(root=tmp_path)
+        # Data dir intentionally absent
 
-            with pytest.raises(CommandAbort) as exc_info:
-                run(workspace=ws)
-            assert exc_info.value.code == 1
+        with pytest.raises(CommandAbort) as exc_info:
+            run(workspace=ws)
+        assert exc_info.value.code == 1
 
-    def it_should_return_0_when_no_candidate_pairs_found(self):
+    def it_should_return_0_when_no_candidate_pairs_found(self, tmp_path):
         """With a single unique transaction there are no duplicates to detect."""
-        with TemporaryDirectory() as tmpdir:
-            ws = Workspace(root=Path(tmpdir))
-            ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
-            _write_synthetic_ledger(ws.ledger_data_dir)
-            _build_event_store_and_projections(ws)
+        ws = Workspace(root=tmp_path)
+        ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
+        _write_synthetic_ledger(ws.ledger_data_dir)
+        _build_event_store_and_projections(ws)
 
-            result = run(workspace=ws)
-            assert result == 0
+        result = run(workspace=ws)
+        assert result == 0
 
-    def it_should_display_matches_without_prompting_in_non_interactive_mode(self):
+    def it_should_display_matches_without_prompting_in_non_interactive_mode(self, tmp_path):
         """In non-interactive mode, matches are displayed without user prompts."""
-        with TemporaryDirectory() as tmpdir:
-            ws = Workspace(root=Path(tmpdir))
-            ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
-            _build_event_store_and_projections(ws)
+        ws = Workspace(root=tmp_path)
+        ws.ledger_data_dir.mkdir(parents=True, exist_ok=True)
+        _build_event_store_and_projections(ws)
 
-            pair = _make_pair()
-            match = DuplicateMatch(pair=pair, assessment=_make_assessment())
-            ready = MagicMock()
-            ready.event_store = MagicMock()
-            ready.projection_builder = MagicMock()
+        pair = _make_pair()
+        match = DuplicateMatch(pair=pair, assessment=_make_assessment())
+        ready = MagicMock()
+        ready.event_store = MagicMock()
+        ready.projection_builder = MagicMock()
 
-            with (
-                patch("gilt.cli.command.duplicates.require_event_sourcing", return_value=ready),
-                patch(
-                    "gilt.cli.command.duplicates._find_candidates", return_value=([], [pair])
-                ),
-                patch("gilt.cli.command.duplicates._find_matches", return_value=([match], 0)),
-                patch("gilt.cli.command.duplicates._run_review_loop"),
-                patch("gilt.cli.command.duplicates._display_summary"),
-                patch("gilt.cli.command.duplicates.build_event_sourcing_service"),
-                patch("gilt.cli.command.duplicates.DuplicateReviewService"),
-                patch("gilt.cli.command.duplicates._init_detector") as mock_init,
-                patch("gilt.cli.command.duplicates._print_detection_info"),
-            ):
-                mock_detector = MagicMock()
-                mock_detector.prompt_manager = None
-                mock_init.return_value = (mock_detector, "ML")
+        with (
+            patch("gilt.cli.command.duplicates.require_event_sourcing", return_value=ready),
+            patch("gilt.cli.command.duplicates._find_candidates", return_value=([], [pair])),
+            patch("gilt.cli.command.duplicates._find_matches", return_value=([match], 0)),
+            patch("gilt.cli.command.duplicates._run_review_loop"),
+            patch("gilt.cli.command.duplicates._display_summary"),
+            patch("gilt.cli.command.duplicates.build_event_sourcing_service"),
+            patch("gilt.cli.command.duplicates.DuplicateReviewService"),
+            patch("gilt.cli.command.duplicates._init_detector") as mock_init,
+            patch("gilt.cli.command.duplicates._print_detection_info"),
+        ):
+            mock_detector = MagicMock()
+            mock_detector.prompt_manager = None
+            mock_init.return_value = (mock_detector, "ML")
 
-                result = run(workspace=ws, interactive=False)
+            result = run(workspace=ws, interactive=False)
 
-            assert result == 0
+        assert result == 0
