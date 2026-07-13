@@ -14,7 +14,6 @@ from __future__ import annotations
 
 from decimal import Decimal
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 import pytest
 
@@ -134,13 +133,12 @@ def _build_event_store(tmpdir: str) -> EventStore:
 
 
 @pytest.fixture
-def trained_classifier():
+def trained_classifier(tmp_path):
     """Classifier trained on synthetic corpus."""
-    with TemporaryDirectory() as tmpdir:
-        store = _build_event_store(tmpdir)
-        clf = CategorizationClassifier(store, min_samples_per_category=3)
-        clf.train()
-        yield clf
+    store = _build_event_store(str(tmp_path))
+    clf = CategorizationClassifier(store, min_samples_per_category=3)
+    clf.train()
+    yield clf
 
 
 class DescribeCategorizationBenchmark:

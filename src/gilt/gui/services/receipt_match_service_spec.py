@@ -6,7 +6,6 @@ import json
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 from gilt.gui.services.receipt_match_service import (
     ReceiptMatchService,
@@ -70,152 +69,145 @@ class DescribeTransactionGroupToDict:
 
 
 class DescribeReceiptMatchServiceCandidates:
-    def it_should_find_candidates_for_matching_transaction(self):
-        with TemporaryDirectory() as tmpdir:
-            receipts_dir = Path(tmpdir) / "receipts"
-            receipts_dir.mkdir()
-            _write_receipt_json(receipts_dir / "acme.json")
+    def it_should_find_candidates_for_matching_transaction(self, tmp_path):
+        receipts_dir = tmp_path / "receipts"
+        receipts_dir.mkdir()
+        _write_receipt_json(receipts_dir / "acme.json")
 
-            db_path = Path(tmpdir) / "events.db"
-            store = EventStore(str(db_path))
+        db_path = tmp_path / "events.db"
+        store = EventStore(str(db_path))
 
-            svc = ReceiptMatchService(receipts_dir, store)
-            candidates = svc.find_candidates_for_transaction(
-                txn_id="abcd1234abcd1234",
-                txn_amount=Decimal("-39.04"),
-                txn_date=date(2025, 6, 15),
-                txn_description="ACME CORP PURCHASE",
-                txn_account_id="MYBANK_CC",
-            )
+        svc = ReceiptMatchService(receipts_dir, store)
+        candidates = svc.find_candidates_for_transaction(
+            txn_id="abcd1234abcd1234",
+            txn_amount=Decimal("-39.04"),
+            txn_date=date(2025, 6, 15),
+            txn_description="ACME CORP PURCHASE",
+            txn_account_id="MYBANK_CC",
+        )
 
-            assert len(candidates) == 1
-            assert candidates[0].vendor == "Acme Corp"
+        assert len(candidates) == 1
+        assert candidates[0].vendor == "Acme Corp"
 
-    def it_should_return_empty_when_no_receipts_match(self):
-        with TemporaryDirectory() as tmpdir:
-            receipts_dir = Path(tmpdir) / "receipts"
-            receipts_dir.mkdir()
-            _write_receipt_json(
-                receipts_dir / "acme.json",
-                overrides={"amount": 999.99},
-            )
+    def it_should_return_empty_when_no_receipts_match(self, tmp_path):
+        receipts_dir = tmp_path / "receipts"
+        receipts_dir.mkdir()
+        _write_receipt_json(
+            receipts_dir / "acme.json",
+            overrides={"amount": 999.99},
+        )
 
-            db_path = Path(tmpdir) / "events.db"
-            store = EventStore(str(db_path))
+        db_path = tmp_path / "events.db"
+        store = EventStore(str(db_path))
 
-            svc = ReceiptMatchService(receipts_dir, store)
-            candidates = svc.find_candidates_for_transaction(
-                txn_id="abcd1234abcd1234",
-                txn_amount=Decimal("-39.04"),
-                txn_date=date(2025, 6, 15),
-            )
+        svc = ReceiptMatchService(receipts_dir, store)
+        candidates = svc.find_candidates_for_transaction(
+            txn_id="abcd1234abcd1234",
+            txn_amount=Decimal("-39.04"),
+            txn_date=date(2025, 6, 15),
+        )
 
-            assert candidates == []
+        assert candidates == []
 
-    def it_should_return_empty_when_receipts_dir_empty(self):
-        with TemporaryDirectory() as tmpdir:
-            receipts_dir = Path(tmpdir) / "receipts"
-            receipts_dir.mkdir()
+    def it_should_return_empty_when_receipts_dir_empty(self, tmp_path):
+        receipts_dir = tmp_path / "receipts"
+        receipts_dir.mkdir()
 
-            db_path = Path(tmpdir) / "events.db"
-            store = EventStore(str(db_path))
+        db_path = tmp_path / "events.db"
+        store = EventStore(str(db_path))
 
-            svc = ReceiptMatchService(receipts_dir, store)
-            candidates = svc.find_candidates_for_transaction(
-                txn_id="abcd1234abcd1234",
-                txn_amount=Decimal("-39.04"),
-                txn_date=date(2025, 6, 15),
-            )
+        svc = ReceiptMatchService(receipts_dir, store)
+        candidates = svc.find_candidates_for_transaction(
+            txn_id="abcd1234abcd1234",
+            txn_amount=Decimal("-39.04"),
+            txn_date=date(2025, 6, 15),
+        )
 
-            assert candidates == []
+        assert candidates == []
 
 
 class DescribeReceiptMatchServiceBatch:
-    def it_should_categorize_results_as_matched_ambiguous_unmatched(self):
-        with TemporaryDirectory() as tmpdir:
-            receipts_dir = Path(tmpdir) / "receipts"
-            receipts_dir.mkdir()
+    def it_should_categorize_results_as_matched_ambiguous_unmatched(self, tmp_path):
+        receipts_dir = tmp_path / "receipts"
+        receipts_dir.mkdir()
 
-            # Receipt that matches one transaction
-            _write_receipt_json(
-                receipts_dir / "match.json",
-                overrides={"invoice_number": "INV_MATCH"},
-            )
+        # Receipt that matches one transaction
+        _write_receipt_json(
+            receipts_dir / "match.json",
+            overrides={"invoice_number": "INV_MATCH"},
+        )
 
-            # Receipt that matches nothing
-            _write_receipt_json(
-                receipts_dir / "nomatch.json",
-                overrides={
-                    "amount": 999.99,
-                    "invoice_number": "INV_NOMATCH",
-                    "date": "2020-01-01",
-                },
-            )
+        # Receipt that matches nothing
+        _write_receipt_json(
+            receipts_dir / "nomatch.json",
+            overrides={
+                "amount": 999.99,
+                "invoice_number": "INV_NOMATCH",
+                "date": "2020-01-01",
+            },
+        )
 
-            db_path = Path(tmpdir) / "events.db"
-            store = EventStore(str(db_path))
+        db_path = tmp_path / "events.db"
+        store = EventStore(str(db_path))
 
-            svc = ReceiptMatchService(receipts_dir, store)
-            transactions = [_make_transaction_group()]
+        svc = ReceiptMatchService(receipts_dir, store)
+        transactions = [_make_transaction_group()]
 
-            result = svc.run_batch_matching(transactions)
+        result = svc.run_batch_matching(transactions)
 
-            assert isinstance(result, BatchMatchResult)
-            assert len(result.matched) == 1
-            assert len(result.unmatched) == 1
+        assert isinstance(result, BatchMatchResult)
+        assert len(result.matched) == 1
+        assert len(result.unmatched) == 1
 
-    def it_should_return_empty_when_no_receipt_files_exist(self):
-        with TemporaryDirectory() as tmpdir:
-            receipts_dir = Path(tmpdir) / "receipts"
-            receipts_dir.mkdir()
+    def it_should_return_empty_when_no_receipt_files_exist(self, tmp_path):
+        receipts_dir = tmp_path / "receipts"
+        receipts_dir.mkdir()
 
-            db_path = Path(tmpdir) / "events.db"
-            store = EventStore(str(db_path))
+        db_path = tmp_path / "events.db"
+        store = EventStore(str(db_path))
 
-            svc = ReceiptMatchService(receipts_dir, store)
-            result = svc.run_batch_matching([_make_transaction_group()])
+        svc = ReceiptMatchService(receipts_dir, store)
+        result = svc.run_batch_matching([_make_transaction_group()])
 
-            assert result.matched == []
-            assert result.ambiguous == []
-            assert result.unmatched == []
+        assert result.matched == []
+        assert result.ambiguous == []
+        assert result.unmatched == []
 
 
 class DescribeReceiptMatchServiceApplyMatch:
-    def it_should_write_transaction_enriched_event(self):
-        with TemporaryDirectory() as tmpdir:
-            receipts_dir = Path(tmpdir) / "receipts"
-            receipts_dir.mkdir()
-            _write_receipt_json(receipts_dir / "acme.json")
+    def it_should_write_transaction_enriched_event(self, tmp_path):
+        receipts_dir = tmp_path / "receipts"
+        receipts_dir.mkdir()
+        _write_receipt_json(receipts_dir / "acme.json")
 
-            db_path = Path(tmpdir) / "events.db"
-            store = EventStore(str(db_path))
+        db_path = tmp_path / "events.db"
+        store = EventStore(str(db_path))
 
-            svc = ReceiptMatchService(receipts_dir, store)
+        svc = ReceiptMatchService(receipts_dir, store)
 
-            # Find candidate and apply
-            receipt = load_receipt_file(receipts_dir / "acme.json")
-            svc.run_match(receipt, "abcd1234abcd1234")
+        # Find candidate and apply
+        receipt = load_receipt_file(receipts_dir / "acme.json")
+        svc.run_match(receipt, "abcd1234abcd1234")
 
-            # Verify event was written
-            events = store.get_events_by_type("TransactionEnriched")
-            assert len(events) == 1
-            assert events[0].transaction_id == "abcd1234abcd1234"
-            assert events[0].vendor == "Acme Corp"
-            assert events[0].match_confidence == "user-selected"
+        # Verify event was written
+        events = store.get_events_by_type("TransactionEnriched")
+        assert len(events) == 1
+        assert events[0].transaction_id == "abcd1234abcd1234"
+        assert events[0].vendor == "Acme Corp"
+        assert events[0].match_confidence == "user-selected"
 
-    def it_should_use_provided_confidence(self):
-        with TemporaryDirectory() as tmpdir:
-            receipts_dir = Path(tmpdir) / "receipts"
-            receipts_dir.mkdir()
-            _write_receipt_json(receipts_dir / "acme.json")
+    def it_should_use_provided_confidence(self, tmp_path):
+        receipts_dir = tmp_path / "receipts"
+        receipts_dir.mkdir()
+        _write_receipt_json(receipts_dir / "acme.json")
 
-            db_path = Path(tmpdir) / "events.db"
-            store = EventStore(str(db_path))
+        db_path = tmp_path / "events.db"
+        store = EventStore(str(db_path))
 
-            svc = ReceiptMatchService(receipts_dir, store)
+        svc = ReceiptMatchService(receipts_dir, store)
 
-            receipt = load_receipt_file(receipts_dir / "acme.json")
-            svc.run_match(receipt, "abcd1234abcd1234", match_confidence="exact")
+        receipt = load_receipt_file(receipts_dir / "acme.json")
+        svc.run_match(receipt, "abcd1234abcd1234", match_confidence="exact")
 
-            events = store.get_events_by_type("TransactionEnriched")
-            assert events[0].match_confidence == "exact"
+        events = store.get_events_by_type("TransactionEnriched")
+        assert events[0].match_confidence == "exact"

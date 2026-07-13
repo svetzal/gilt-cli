@@ -8,10 +8,8 @@ respects the is_duplicate flag, and correctly converts projection rows
 to TransactionGroup objects.
 """
 
-import tempfile
 from datetime import date
 from decimal import Decimal
-from pathlib import Path
 
 import pytest
 
@@ -52,9 +50,8 @@ class DescribeTransactionServiceProjectionLoading:
     """Tests for loading transactions from the projections database."""
 
     @pytest.fixture
-    def temp_dir(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield Path(tmpdir)
+    def temp_dir(self, tmp_path):
+        yield tmp_path
 
     @pytest.fixture
     def data_dir(self, temp_dir):

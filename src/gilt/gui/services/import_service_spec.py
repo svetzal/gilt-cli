@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import tempfile
 from datetime import date
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -59,9 +58,8 @@ def _make_parse_row(txn_id: str = "txn001", description: str = "SAMPLE STORE") -
 
 class DescribeImportServiceAccountDetection:
     @pytest.fixture
-    def temp_dir(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield Path(tmpdir)
+    def temp_dir(self, tmp_path):
+        yield tmp_path
 
     @pytest.fixture
     def data_dir(self, temp_dir):
@@ -112,9 +110,8 @@ class DescribeImportServiceAccountDetection:
 
 class DescribeImportServiceDuplicateScanning:
     @pytest.fixture
-    def temp_dir(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield Path(tmpdir)
+    def temp_dir(self, tmp_path):
+        yield tmp_path
 
     @pytest.fixture
     def data_dir(self, temp_dir):
@@ -293,9 +290,8 @@ class DescribeImportServiceDuplicateScanning:
 
 class DescribeImportServiceCategorizationScanning:
     @pytest.fixture
-    def temp_dir(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield Path(tmpdir)
+    def temp_dir(self, tmp_path):
+        yield tmp_path
 
     @pytest.fixture
     def data_dir(self, temp_dir):
@@ -366,9 +362,8 @@ class DescribeImportServiceCategorizationScanning:
 
 class DescribeImportServiceImportExecution:
     @pytest.fixture
-    def temp_dir(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield Path(tmpdir)
+    def temp_dir(self, tmp_path):
+        yield tmp_path
 
     @pytest.fixture
     def data_dir(self, temp_dir):

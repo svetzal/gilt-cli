@@ -1,8 +1,6 @@
 """Tests for training data builder that extracts pairs from events."""
 
 from datetime import date
-from pathlib import Path
-from tempfile import TemporaryDirectory
 
 import pytest
 
@@ -13,11 +11,10 @@ from gilt.storage.event_store import EventStore
 
 
 @pytest.fixture
-def temp_event_store():
+def temp_event_store(tmp_path):
     """Create a temporary event store for testing."""
-    with TemporaryDirectory() as tmpdir:
-        store_path = Path(tmpdir) / "test_events.db"
-        yield EventStore(str(store_path))
+    store_path = tmp_path / "test_events.db"
+    yield EventStore(str(store_path))
 
 
 @pytest.fixture

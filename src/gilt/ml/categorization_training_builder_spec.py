@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from pathlib import Path
-from tempfile import TemporaryDirectory
 
 import numpy as np
 import pytest
@@ -15,11 +13,10 @@ from gilt.storage.event_store import EventStore
 
 
 @pytest.fixture
-def temp_event_store():
+def temp_event_store(tmp_path):
     """Create temporary event store for testing."""
-    with TemporaryDirectory() as tmpdir:
-        store_path = Path(tmpdir) / "events.db"
-        yield EventStore(str(store_path))
+    store_path = tmp_path / "events.db"
+    yield EventStore(str(store_path))
 
 
 class DescribeCategorizationTrainingBuilder:

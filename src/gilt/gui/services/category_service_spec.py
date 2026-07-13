@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import tempfile
 from datetime import date
 from pathlib import Path
 
@@ -35,9 +34,8 @@ def _write_config(path: Path) -> None:
 
 class DescribeCategoryServiceLoading:
     @pytest.fixture
-    def temp_dir(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield Path(tmpdir)
+    def temp_dir(self, tmp_path):
+        yield tmp_path
 
     @pytest.fixture
     def config_path(self, temp_dir):
@@ -83,9 +81,8 @@ class DescribeCategoryServiceLoading:
 
 class DescribeCategoryServiceCategoryManagement:
     @pytest.fixture
-    def temp_dir(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield Path(tmpdir)
+    def temp_dir(self, tmp_path):
+        yield tmp_path
 
     @pytest.fixture
     def config_path(self, temp_dir):
@@ -176,9 +173,8 @@ class DescribeCategoryServiceCategoryManagement:
 
 class DescribeCategoryServiceSubcategoryManagement:
     @pytest.fixture
-    def temp_dir(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield Path(tmpdir)
+    def temp_dir(self, tmp_path):
+        yield tmp_path
 
     @pytest.fixture
     def config_path(self, temp_dir):
@@ -221,9 +217,8 @@ class DescribeCategoryServiceSubcategoryManagement:
 
 class DescribeCategoryServiceUsageStats:
     @pytest.fixture
-    def temp_dir(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield Path(tmpdir)
+    def temp_dir(self, tmp_path):
+        yield tmp_path
 
     @pytest.fixture
     def config_path(self, temp_dir):
@@ -288,9 +283,8 @@ class DescribeCategoryServiceUsageStats:
 
 class DescribeCategoryServiceValidation:
     @pytest.fixture
-    def temp_dir(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield Path(tmpdir)
+    def temp_dir(self, tmp_path):
+        yield tmp_path
 
     @pytest.fixture
     def config_path(self, temp_dir):

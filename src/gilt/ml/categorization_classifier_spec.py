@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from pathlib import Path
-from tempfile import TemporaryDirectory
 
 import pytest
 
@@ -14,75 +12,74 @@ from gilt.storage.event_store import EventStore
 
 
 @pytest.fixture
-def event_store_with_training_data():
+def event_store_with_training_data(tmp_path):
     """Create event store with sufficient training data."""
-    with TemporaryDirectory() as tmpdir:
-        store_path = Path(tmpdir) / "events.db"
-        store = EventStore(str(store_path))
+    store_path = tmp_path / "events.db"
+    store = EventStore(str(store_path))
 
-        # Create training data for two categories
-        # Category 1: Entertainment (Spotify/Netflix patterns)
-        entertainment_patterns = [
-            "SPOTIFY PREMIUM",
-            "SPOTIFY MUSIC",
-            "SPOTIFY MONTHLY",
-            "NETFLIX STREAMING",
-            "NETFLIX SUBSCRIPTION",
-            "NETFLIX MONTHLY",
-        ]
+    # Create training data for two categories
+    # Category 1: Entertainment (Spotify/Netflix patterns)
+    entertainment_patterns = [
+        "SPOTIFY PREMIUM",
+        "SPOTIFY MUSIC",
+        "SPOTIFY MONTHLY",
+        "NETFLIX STREAMING",
+        "NETFLIX SUBSCRIPTION",
+        "NETFLIX MONTHLY",
+    ]
 
-        for i, desc in enumerate(entertainment_patterns):
-            txn = TransactionImported(
-                transaction_id=f"ent{i}",
-                transaction_date="2025-01-15",
-                source_file="test.csv",
-                source_account="MC",
-                raw_description=desc,
-                amount=Decimal("-12.99"),
-                currency="CAD",
-                raw_data={},
-            )
-            store.append_event(txn)
+    for i, desc in enumerate(entertainment_patterns):
+        txn = TransactionImported(
+            transaction_id=f"ent{i}",
+            transaction_date="2025-01-15",
+            source_file="test.csv",
+            source_account="MC",
+            raw_description=desc,
+            amount=Decimal("-12.99"),
+            currency="CAD",
+            raw_data={},
+        )
+        store.append_event(txn)
 
-            cat = TransactionCategorized(
-                transaction_id=f"ent{i}",
-                category="Entertainment",
-                subcategory="Streaming",
-                source="user",
-            )
-            store.append_event(cat)
+        cat = TransactionCategorized(
+            transaction_id=f"ent{i}",
+            category="Entertainment",
+            subcategory="Streaming",
+            source="user",
+        )
+        store.append_event(cat)
 
-        # Category 2: Groceries (Loblaws/Sobeys patterns)
-        grocery_patterns = [
-            "LOBLAWS STORE #123",
-            "LOBLAWS GROCERY",
-            "LOBLAWS SUPERMARKET",
-            "SOBEYS GROCERY",
-            "SOBEYS STORE",
-            "SOBEYS SUPERMARKET",
-        ]
+    # Category 2: Groceries (Loblaws/Sobeys patterns)
+    grocery_patterns = [
+        "LOBLAWS STORE #123",
+        "LOBLAWS GROCERY",
+        "LOBLAWS SUPERMARKET",
+        "SOBEYS GROCERY",
+        "SOBEYS STORE",
+        "SOBEYS SUPERMARKET",
+    ]
 
-        for i, desc in enumerate(grocery_patterns):
-            txn = TransactionImported(
-                transaction_id=f"groc{i}",
-                transaction_date="2025-01-16",
-                source_file="test.csv",
-                source_account="CHQ",
-                raw_description=desc,
-                amount=Decimal("-45.67"),
-                currency="CAD",
-                raw_data={},
-            )
-            store.append_event(txn)
+    for i, desc in enumerate(grocery_patterns):
+        txn = TransactionImported(
+            transaction_id=f"groc{i}",
+            transaction_date="2025-01-16",
+            source_file="test.csv",
+            source_account="CHQ",
+            raw_description=desc,
+            amount=Decimal("-45.67"),
+            currency="CAD",
+            raw_data={},
+        )
+        store.append_event(txn)
 
-            cat = TransactionCategorized(
-                transaction_id=f"groc{i}",
-                category="Groceries",
-                source="user",
-            )
-            store.append_event(cat)
+        cat = TransactionCategorized(
+            transaction_id=f"groc{i}",
+            category="Groceries",
+            source="user",
+        )
+        store.append_event(cat)
 
-        yield store
+    yield store
 
 
 class DescribeCategorizationClassifier:
