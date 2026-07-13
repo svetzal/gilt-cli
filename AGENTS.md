@@ -126,6 +126,24 @@ Config: `python_files = "*_spec.py"`, `python_classes = "Describe*"`, `python_fu
 
 Use `pytest-mock` for isolation, `pytest-cov` for coverage.
 
+### Test Fixtures
+
+All specs must use the helpers in `gilt.testing` rather than hand-rolling model construction or temporary directories:
+
+| Instead of | Use |
+|---|---|
+| `Transaction(...)` | `make_transaction(...)` from `gilt.testing` |
+| `TransactionGroup(...)` | `make_group(...)` from `gilt.testing` |
+| `TransactionPair(...)` | `make_pair(...)` from `gilt.testing` |
+| `DuplicateMatch(...)` | `make_match(...)` from `gilt.testing` |
+| Manual `CategoryConfig` setup | `make_category_config()` from `gilt.testing` |
+| `with TemporaryDirectory() as tmpdir:` | pytest's `tmp_path` fixture parameter |
+| Manual workspace + ledger setup | `build_workspace_with_ledger(tmp_path, groups=..., projections=True)` |
+
+Never restate the ledger schema in test fixtures — write groups via `write_ledger` or pass them to `build_workspace_with_ledger`.
+
+`src/gilt/testing/_spec_hygiene_spec.py` enforces these rules statically.  It walks every `*_spec.py` under `src/` and fails the build when a file uses `TemporaryDirectory` or constructs `Transaction` / `TransactionGroup` directly.  Files not yet migrated are listed in the spec's allowlists, which are scaffolding that should trend to empty.
+
 ## GUI Patterns
 
 GUI business logic lives in `src/gilt/gui/services/`:
