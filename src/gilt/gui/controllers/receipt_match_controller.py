@@ -10,6 +10,7 @@ from gilt.gui.dialogs.settings_dialog import SettingsDialog
 from gilt.gui.services.enrichment_service import EnrichmentService
 from gilt.gui.services.receipt_match_service import ReceiptMatchService
 from gilt.model.account import TransactionGroup
+from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.storage.event_store import EventStore
 
 logger = logging.getLogger(__name__)
@@ -19,10 +20,24 @@ class ReceiptMatchController(QObject):
     data_changed = Signal(object)  # restore_transaction_id (str | None)
     status_message = Signal(str)
 
-    def __init__(self, event_store: EventStore | None, parent_widget=None):
+    def __init__(
+        self,
+        event_store: EventStore | None,
+        es_service: EventSourcingService | None = None,
+        parent_widget=None,
+    ):
         super().__init__(parent_widget)
         self._event_store = event_store
+        self._es_service = es_service
         self._parent = parent_widget
+
+    def _sync_projections(self):
+        if not self._es_service or not self._event_store:
+            return
+        try:
+            self._es_service.ensure_projections_up_to_date(self._event_store)
+        except (OSError, ValueError):
+            self.status_message.emit("Warning: projections sync failed — view may be stale")
 
     def get_service(self) -> ReceiptMatchService | None:
         """Create a ReceiptMatchService if event_store and receipts_dir are available."""
@@ -82,6 +97,7 @@ class ReceiptMatchController(QObject):
             receipt = dialog.get_selected_receipt()
             if receipt:
                 svc.run_match(receipt, txn.transaction_id)
+                self._sync_projections()
                 self.data_changed.emit(None)
                 QMessageBox.information(self._parent, "Success", "Receipt matched successfully.")
 
@@ -127,6 +143,7 @@ class ReceiptMatchController(QObject):
                 svc.run_match(match.receipt, match.transaction_id, confidence)
                 written += 1
             if written:
+                self._sync_projections()
                 self.data_changed.emit(None)
                 QMessageBox.information(
                     self._parent, "Success", f"{written} receipt(s) matched successfully."
@@ -140,6 +157,7 @@ class ReceiptMatchController(QObject):
             return
         try:
             svc.run_match(receipt, transaction_id)
+            self._sync_projections()
             self.data_changed.emit(transaction_id)
         except (OSError, ValueError, UnicodeDecodeError) as e:
             QMessageBox.critical(self._parent, "Error", f"Failed to apply receipt match:\n{str(e)}")

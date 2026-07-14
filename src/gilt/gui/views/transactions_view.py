@@ -106,6 +106,7 @@ class TransactionsView(QWidget):
         )
         self._receipt_controller = ReceiptMatchController(
             self.event_store,
+            self.es_service,
             parent_widget=self,
         )
         self._mutation_controller = TransactionMutationController(
