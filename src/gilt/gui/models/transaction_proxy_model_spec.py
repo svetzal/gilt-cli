@@ -16,6 +16,7 @@ from PySide6.QtWidgets import QApplication
 from gilt.gui.models.transaction_model import TransactionTableModel
 from gilt.gui.models.transaction_proxy_model import TransactionSortFilterProxyModel
 from gilt.model.account import Transaction, TransactionGroup
+from gilt.testing import make_group, make_transaction
 
 # ---------------------------------------------------------------------------
 # QApplication singleton
@@ -35,22 +36,13 @@ def _get_app():
 
 
 def _make_txn(**kwargs) -> Transaction:
-    defaults = dict(
-        transaction_id="aabbccdd11223344",
-        date=date(2025, 3, 10),
-        description="SAMPLE STORE ANYTOWN",
-        amount=-42.50,
-        currency="CAD",
-        account_id="MYBANK_CHQ",
-    )
-    defaults.update(kwargs)
-    return Transaction(**defaults)
+    return make_transaction(**kwargs)
 
 
 def _make_group(txn: Transaction | None = None, **kwargs) -> TransactionGroup:
     if txn is None:
-        txn = _make_txn(**kwargs)
-    return TransactionGroup(group_id=txn.transaction_id, primary=txn)
+        return make_group(**kwargs)
+    return make_group(primary=txn)
 
 
 def _make_proxy_with_groups(groups: list[TransactionGroup]) -> TransactionSortFilterProxyModel:

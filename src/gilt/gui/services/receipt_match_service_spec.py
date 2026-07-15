@@ -11,9 +11,10 @@ from gilt.gui.services.receipt_match_service import (
     ReceiptMatchService,
     _transaction_group_to_dict,
 )
-from gilt.model.account import Transaction, TransactionGroup
+from gilt.model.account import TransactionGroup
 from gilt.services.receipt_ingestion_service import BatchMatchResult, load_receipt_file
 from gilt.storage.event_store import EventStore
+from gilt.testing import make_group
 
 
 def _make_transaction_group(
@@ -25,7 +26,7 @@ def _make_transaction_group(
     description: str = "ACME CORP PURCHASE",
     currency: str = "CAD",
 ) -> TransactionGroup:
-    txn = Transaction(
+    return make_group(
         transaction_id=transaction_id,
         date=date.fromisoformat(txn_date),
         description=description,
@@ -33,7 +34,6 @@ def _make_transaction_group(
         currency=currency,
         account_id=account_id,
     )
-    return TransactionGroup(group_id=txn.transaction_id, primary=txn)
 
 
 def _write_receipt_json(path: Path, overrides: dict | None = None) -> Path:

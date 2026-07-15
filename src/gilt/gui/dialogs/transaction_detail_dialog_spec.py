@@ -1,24 +1,23 @@
 from __future__ import annotations
 
-from datetime import date
 from decimal import Decimal
 
 from gilt.gui.services.enrichment_service import EnrichmentData
-from gilt.model.account import Transaction, TransactionGroup
+from gilt.model.account import TransactionGroup
+from gilt.testing import make_group
 
 
 def _make_group(**kwargs) -> TransactionGroup:
     defaults = dict(
         transaction_id="abc12345deadbeef",
-        date=date(2025, 3, 15),
+        date="2025-03-15",
         description="SAMPLE STORE ANYTOWN",
         amount=-42.50,
         currency="CAD",
         account_id="MYBANK_CHQ",
     )
     defaults.update(kwargs)
-    txn = Transaction(**defaults)
-    return TransactionGroup(group_id=txn.transaction_id, primary=txn)
+    return make_group(**defaults)
 
 
 class DescribeTransactionDetailDialog:

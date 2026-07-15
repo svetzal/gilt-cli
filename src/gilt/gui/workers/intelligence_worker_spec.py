@@ -6,22 +6,22 @@ from datetime import date
 from unittest.mock import Mock
 
 from gilt.gui.workers.intelligence_worker import IntelligenceWorker
-from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.duplicate import DuplicateAssessment, DuplicateMatch, TransactionPair
 from gilt.services.duplicate_service import DuplicateService
 from gilt.services.smart_category_service import SmartCategoryService
+from gilt.testing import make_group, make_transaction
 
 
 class DescribeIntelligenceWorker:
     def it_should_find_duplicates_and_categories(self):
-        txn1 = Transaction(
+        txn1 = make_transaction(
             transaction_id="t1",
             date=date(2023, 1, 1),
             amount=10.0,
             description="Test 1",
             account_id="acc1",
         )
-        txn2 = Transaction(
+        txn2 = make_transaction(
             transaction_id="t2",
             date=date(2023, 1, 1),
             amount=10.0,
@@ -29,8 +29,8 @@ class DescribeIntelligenceWorker:
             account_id="acc2",
         )
         groups = [
-            TransactionGroup(group_id="g1", primary=txn1),
-            TransactionGroup(group_id="g2", primary=txn2),
+            make_group(group_id="g1", primary=txn1),
+            make_group(group_id="g2", primary=txn2),
         ]
 
         mock_dup_service = Mock(spec=DuplicateService)

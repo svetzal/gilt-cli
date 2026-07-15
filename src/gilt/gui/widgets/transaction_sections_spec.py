@@ -18,6 +18,7 @@ from gilt.gui.widgets.transaction_sections import (
     build_transfer_section,
 )
 from gilt.model.account import Transaction
+from gilt.testing import make_transaction
 from gilt.transfer import (
     TRANSFER_COUNTERPARTY_ACCOUNT_ID,
     TRANSFER_METHOD,
@@ -46,7 +47,7 @@ def _make_txn(**kwargs) -> Transaction:
         account_id="MYBANK_CHQ",
     )
     defaults.update(kwargs)
-    return Transaction(**defaults)
+    return make_transaction(**defaults)
 
 
 def _form_rows(group: QGroupBox) -> list[tuple[str, str]]:
