@@ -20,6 +20,7 @@ from gilt.cli.command.categorize_view import (
     report_categorization_result,
 )
 from gilt.model.account import Transaction, TransactionGroup
+from gilt.testing import make_group, make_transaction
 
 
 def _make_transaction(
@@ -29,19 +30,18 @@ def _make_transaction(
     account_id: str = "MYBANK_CHQ",
     category: str | None = None,
 ) -> Transaction:
-    return Transaction(
+    return make_transaction(
         transaction_id=txn_id,
         date=date(2025, 1, 15),
         description=description,
         amount=amount,
-        currency="CAD",
         account_id=account_id,
         category=category,
     )
 
 
 def _make_group(txn: Transaction) -> TransactionGroup:
-    return TransactionGroup(group_id=txn.transaction_id, primary=txn)
+    return make_group(primary=txn)
 
 
 def _capture(fn) -> str:

@@ -9,7 +9,8 @@ import pandas as pd
 import pytest
 
 from gilt.ingest.ledger_pipeline import _merge_with_existing_ledger, load_file
-from gilt.model.ledger_io import STANDARD_FIELDS
+from gilt.model.ledger_io import STANDARD_FIELDS, dump_ledger_csv
+from gilt.testing import make_group, make_transaction
 
 
 def _write_csv(tmp_path: Path, content: str, filename: str = "mybank.csv") -> Path:
@@ -89,12 +90,9 @@ class DescribeMergeWithExistingLedger:
         assert len(existing) == 0
 
     def it_should_deduplicate_rows_with_same_transaction_id(self, tmp_path):
-        from gilt.model.ledger_io import dump_ledger_csv
-        from gilt.model.account import Transaction, TransactionGroup
-
         # Write an existing ledger with one transaction
         ledger_dir = tmp_path
-        txn = Transaction(
+        txn = make_transaction(
             transaction_id="abc1234567890000",
             date="2024-01-15",
             description="EXAMPLE UTILITY",
@@ -103,7 +101,7 @@ class DescribeMergeWithExistingLedger:
             account_id="MYBANK_CHQ",
             metadata={},
         )
-        group = TransactionGroup(group_id=txn.transaction_id, primary=txn)
+        group = make_group(primary=txn)
         ledger_path = ledger_dir / "MYBANK_CHQ.csv"
         ledger_path.write_text(dump_ledger_csv([group]), encoding="utf-8")
 
@@ -113,10 +111,7 @@ class DescribeMergeWithExistingLedger:
         assert count == 1
 
     def it_should_add_new_rows_not_present_in_existing_ledger(self, tmp_path):
-        from gilt.model.ledger_io import dump_ledger_csv
-        from gilt.model.account import Transaction, TransactionGroup
-
-        txn = Transaction(
+        txn = make_transaction(
             transaction_id="abc1234567890000",
             date="2024-01-15",
             description="EXAMPLE UTILITY",
@@ -125,7 +120,7 @@ class DescribeMergeWithExistingLedger:
             account_id="MYBANK_CHQ",
             metadata={},
         )
-        group = TransactionGroup(group_id=txn.transaction_id, primary=txn)
+        group = make_group(primary=txn)
         ledger_path = tmp_path / "MYBANK_CHQ.csv"
         ledger_path.write_text(dump_ledger_csv([group]), encoding="utf-8")
 

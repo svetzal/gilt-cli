@@ -13,6 +13,7 @@ from gilt.ingest.transaction_mapping import (
 )
 from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.ledger_io import STANDARD_FIELDS
+from gilt.testing import make_group, make_transaction
 
 
 def _make_transaction(**kwargs) -> Transaction:
@@ -31,12 +32,12 @@ def _make_transaction(**kwargs) -> Transaction:
         metadata={},
     )
     defaults.update(kwargs)
-    return Transaction(**defaults)
+    return make_transaction(**defaults)
 
 
 def _make_group(**kwargs) -> TransactionGroup:
     txn = _make_transaction(**kwargs)
-    return TransactionGroup(group_id=txn.transaction_id, primary=txn)
+    return make_group(primary=txn)
 
 
 class DescribeOptStr:

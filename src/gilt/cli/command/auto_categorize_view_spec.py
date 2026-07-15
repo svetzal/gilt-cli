@@ -14,6 +14,7 @@ from gilt.cli.command.auto_categorize_view import (
     print_train_success,
 )
 from gilt.model.account import Transaction
+from gilt.testing import make_transaction
 
 
 def _make_transaction(
@@ -22,12 +23,11 @@ def _make_transaction(
     amount: float = -42.50,
     account_id: str = "MYBANK_CHQ",
 ) -> Transaction:
-    return Transaction(
+    return make_transaction(
         transaction_id=txn_id,
         date=date(2025, 1, 15),
         description=description,
         amount=amount,
-        currency="CAD",
         account_id=account_id,
     )
 

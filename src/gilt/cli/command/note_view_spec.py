@@ -8,7 +8,8 @@ from pathlib import Path
 
 from rich.console import Console
 
-from gilt.model.account import Transaction, TransactionGroup
+from gilt.model.account import TransactionGroup
+from gilt.testing import make_group
 
 
 def _capture(fn) -> str:
@@ -35,16 +36,14 @@ def _group(
     amount: float = -12.5,
     notes: str | None = None,
 ) -> TransactionGroup:
-    txn = Transaction(
+    return make_group(
         transaction_id=tid,
         date=dt_date(2025, 4, 4),
         description=description,
         amount=amount,
-        currency="CAD",
         account_id="MYBANK_CHQ",
         notes=notes,
     )
-    return TransactionGroup(group_id=tid, primary=txn)
 
 
 class DescribeHighlightPrefix:

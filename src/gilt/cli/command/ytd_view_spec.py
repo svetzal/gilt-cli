@@ -8,6 +8,8 @@ from unittest.mock import MagicMock
 
 from rich.console import Console
 
+from gilt.testing import make_transaction
+
 
 def _capture(fn) -> str:
     buf = StringIO()
@@ -28,14 +30,11 @@ def _capture(fn) -> str:
 
 
 def _make_transaction(account_id="MYBANK_CHQ", amount=-50.0, category="Utilities"):
-    from gilt.model.account import Transaction
-
-    return Transaction(
+    return make_transaction(
         transaction_id="abcd1234efgh5678",
         date=date(2025, 6, 1),
         description="EXAMPLE UTILITY PAYMENT",
         amount=amount,
-        currency="CAD",
         account_id=account_id,
         category=category,
         subcategory=None,

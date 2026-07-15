@@ -30,47 +30,7 @@ TEMPORARY_DIRECTORY_ALLOWLIST: set[str] = set()
 # directly instead of using make_transaction / make_group.
 # Goal: zero entries.  Remove each file after migrating it to the helpers.
 # ---------------------------------------------------------------------------
-DIRECT_MODEL_CONSTRUCTION_ALLOWLIST: set[str] = {
-    # ingest layer
-    "gilt/ingest/ledger_pipeline_spec.py",
-    "gilt/ingest/transaction_mapping_spec.py",
-    # cli shared
-    "gilt/cli/console_spec.py",
-    "gilt/cli/formatting_spec.py",
-    "gilt/cli/mutations_spec.py",
-    # cli commands
-    "gilt/cli/command/auto_categorize_review_spec.py",
-    "gilt/cli/command/auto_categorize_view_spec.py",
-    "gilt/cli/command/categorize_view_spec.py",
-    "gilt/cli/command/duplicates_spec.py",
-    "gilt/cli/command/history_spec.py",
-    "gilt/cli/command/ingest_spec.py",
-    "gilt/cli/command/migrate_to_events_spec.py",
-    "gilt/cli/command/note_spec.py",
-    "gilt/cli/command/note_view_spec.py",
-    "gilt/cli/command/recategorize_view_spec.py",
-    "gilt/cli/command/receipts_spec.py",
-    "gilt/cli/command/report_spec.py",
-    "gilt/cli/command/show_spec.py",
-    "gilt/cli/command/status_spec.py",
-    "gilt/cli/command/summary_spec.py",
-    "gilt/cli/command/summary_view_spec.py",
-    "gilt/cli/command/uncategorized_spec.py",
-    "gilt/cli/command/uncategorized_view_spec.py",
-    "gilt/cli/command/ytd_spec.py",
-    "gilt/cli/command/ytd_view_spec.py",
-    # gui
-    "gilt/gui/dialogs/transaction_detail_dialog_spec.py",
-    "gilt/gui/models/transaction_proxy_model_spec.py",
-    "gilt/gui/services/receipt_match_service_spec.py",
-    "gilt/gui/widgets/transaction_sections_spec.py",
-    "gilt/gui/workers/intelligence_worker_spec.py",
-    # services
-    "gilt/services/categorization_service_spec.py",
-    "gilt/services/category_management_service_spec.py",
-    "gilt/services/summary_service_spec.py",
-    "gilt/services/transaction_operations_service_spec.py",
-}
+DIRECT_MODEL_CONSTRUCTION_ALLOWLIST: set[str] = set()
 
 # Spec files under the testing package itself are permitted to construct models
 # directly — they test the factory helpers.

@@ -7,6 +7,8 @@ from io import StringIO
 
 from rich.console import Console
 
+from gilt.testing import make_transaction
+
 
 def _make_console() -> tuple[Console, StringIO]:
     buf = StringIO()
@@ -15,14 +17,11 @@ def _make_console() -> tuple[Console, StringIO]:
 
 
 def _make_transaction(category="Utilities", subcategory=None, amount=-50.0):
-    from gilt.model.account import Transaction
-
-    return Transaction(
+    return make_transaction(
         transaction_id="abcd1234efgh5678",
         date=date(2025, 6, 1),
         description="EXAMPLE UTILITY",
         amount=amount,
-        currency="CAD",
         account_id="MYBANK_CHQ",
         category=category,
         subcategory=subcategory,
