@@ -7,8 +7,8 @@ import pytest
 
 from gilt.cli.command._errors import CommandAbort
 from gilt.cli.command.note import run
-from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
+from gilt.testing import make_group, make_transaction
 from gilt.workspace import Workspace
 
 
@@ -16,7 +16,7 @@ def _write_simple_ledger(path: Path, rows: list[dict]):
     """Write a ledger CSV using the modern format via dump_ledger_csv."""
     groups = []
     for r in rows:
-        txn = Transaction(
+        txn = make_transaction(
             transaction_id=r["transaction_id"],
             date=dt_date.fromisoformat(r["date"]),
             description=r.get("description", ""),
@@ -29,7 +29,7 @@ def _write_simple_ledger(path: Path, rows: list[dict]):
             notes=r.get("notes"),
             source_file=r.get("source_file"),
         )
-        groups.append(TransactionGroup(group_id=r["transaction_id"], primary=txn))
+        groups.append(make_group(group_id=r["transaction_id"], primary=txn))
     csv_text = dump_ledger_csv(groups)
     path.write_text(csv_text, encoding="utf-8")
 

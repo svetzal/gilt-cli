@@ -12,10 +12,11 @@ from rich.console import Console
 
 from gilt.cli.command._errors import CommandAbort
 from gilt.cli.command.summary import run
-from gilt.model.account import Transaction, TransactionGroup
+from gilt.model.account import TransactionGroup
 from gilt.model.events import TransactionCategorized, TransactionImported
 from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
+from gilt.testing import make_group, make_transaction
 from gilt.workspace import Workspace
 
 
@@ -64,9 +65,9 @@ def _make_group(
     txn_date: str = "2026-03-01",
     description: str = "SAMPLE STORE",
 ) -> TransactionGroup:
-    return TransactionGroup(
+    return make_group(
         group_id=group_id,
-        primary=Transaction(
+        primary=make_transaction(
             transaction_id=txn_id,
             date=date.fromisoformat(txn_date),
             description=description,

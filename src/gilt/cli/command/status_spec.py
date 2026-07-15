@@ -12,10 +12,11 @@ from rich.console import Console
 
 from gilt.cli.command._errors import CommandAbort
 from gilt.cli.command.status import run
-from gilt.model.account import Transaction, TransactionGroup
+from gilt.model.account import TransactionGroup
 from gilt.model.events import TransactionCategorized, TransactionImported
 from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
+from gilt.testing import make_group, make_transaction
 from gilt.workspace import Workspace
 
 
@@ -60,9 +61,9 @@ class DescribeStatusCommand:
     def it_should_aggregate_per_account(self, tmp_path):
         workspace = Workspace(root=tmp_path)
         groups = [
-            TransactionGroup(
+            make_group(
                 group_id="1",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="1111111111111111",
                     date="2025-01-10",
                     description="Housing payment",
@@ -72,9 +73,9 @@ class DescribeStatusCommand:
                     category="Housing",
                 ),
             ),
-            TransactionGroup(
+            make_group(
                 group_id="2",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="2222222222222222",
                     date="2025-01-11",
                     description="Unknown purchase",
@@ -83,9 +84,9 @@ class DescribeStatusCommand:
                     account_id="MYBANK_CHQ",
                 ),
             ),
-            TransactionGroup(
+            make_group(
                 group_id="3",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="3333333333333333",
                     date="2025-01-05",
                     description="Example consultation",
@@ -95,9 +96,9 @@ class DescribeStatusCommand:
                     category="Mojility",
                 ),
             ),
-            TransactionGroup(
+            make_group(
                 group_id="4",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="4444444444444444",
                     date="2025-01-06",
                     description="Another item",
@@ -122,9 +123,9 @@ class DescribeStatusCommand:
     def it_should_compute_days_since_latest_relative_to_today(self, tmp_path):
         workspace = Workspace(root=tmp_path)
         groups = [
-            TransactionGroup(
+            make_group(
                 group_id="1",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="1111111111111111",
                     date="2026-01-01",
                     description="Sample payment",
@@ -149,9 +150,9 @@ class DescribeStatusCommand:
         # MYBANK_CHQ: 30 days stale (stale with default threshold of 14)
         # MYBANK_CC: 5 days (not stale)
         groups = [
-            TransactionGroup(
+            make_group(
                 group_id="1",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="1111111111111111",
                     date="2025-12-16",
                     description="Old payment",
@@ -161,9 +162,9 @@ class DescribeStatusCommand:
                     category="Housing",
                 ),
             ),
-            TransactionGroup(
+            make_group(
                 group_id="2",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="2222222222222222",
                     date="2026-01-10",
                     description="Recent purchase",
@@ -189,9 +190,9 @@ class DescribeStatusCommand:
         workspace = Workspace(root=tmp_path)
         groups = [
             # Inside FY25 (Nov 1 2024 – Oct 31 2025)
-            TransactionGroup(
+            make_group(
                 group_id="1",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="1111111111111111",
                     date="2025-01-15",
                     description="In-range consulting",
@@ -202,9 +203,9 @@ class DescribeStatusCommand:
                 ),
             ),
             # Outside FY25 — Nov 1 2025 is after Oct 31 2025
-            TransactionGroup(
+            make_group(
                 group_id="2",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="2222222222222222",
                     date="2025-11-05",
                     description="Out-of-range consulting",
@@ -215,9 +216,9 @@ class DescribeStatusCommand:
                 ),
             ),
             # Another in-range, uncategorized
-            TransactionGroup(
+            make_group(
                 group_id="3",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="3333333333333333",
                     date="2024-12-01",
                     description="Grocery run",
@@ -246,9 +247,9 @@ class DescribeStatusCommand:
     def it_should_show_em_dash_for_mojility_receipt_pct_when_no_mojility_txns(self, tmp_path):
         workspace = Workspace(root=tmp_path)
         groups = [
-            TransactionGroup(
+            make_group(
                 group_id="1",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="1111111111111111",
                     date="2025-06-01",
                     description="Groceries",

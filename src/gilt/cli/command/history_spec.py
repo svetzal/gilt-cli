@@ -15,6 +15,7 @@ from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.events import TransactionImported
 from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
+from gilt.testing import make_group, make_transaction
 from gilt.workspace import Workspace
 
 
@@ -50,7 +51,7 @@ def _make_txn(
     subcategory: str | None = None,
     currency: str = "CAD",
 ) -> Transaction:
-    return Transaction(
+    return make_transaction(
         transaction_id=txn_id,
         date=date,
         description=description,
@@ -63,7 +64,7 @@ def _make_txn(
 
 
 def _make_group(txn: Transaction) -> TransactionGroup:
-    return TransactionGroup(group_id=txn.transaction_id, primary=txn)
+    return make_group(primary=txn)
 
 
 def _apply_category(

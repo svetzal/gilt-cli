@@ -13,12 +13,11 @@ import yaml
 
 from gilt.cli.command._errors import CommandAbort
 from gilt.cli.command.migrate_to_events import run
-from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.category import Budget, BudgetPeriod, Category, CategoryConfig
 from gilt.model.category_io import save_categories_config
 from gilt.model.ledger_io import dump_ledger_csv
 from gilt.storage.event_store import EventStore
-from gilt.testing import make_workspace
+from gilt.testing import make_group, make_transaction, make_workspace
 
 # ---------------------------------------------------------------------------
 # Setup helpers
@@ -28,9 +27,9 @@ from gilt.testing import make_workspace
 def _write_synthetic_ledger(data_dir: Path, account_id: str = "MYBANK_CHQ") -> Path:
     """Write a minimal synthetic ledger CSV and return its path."""
     groups = [
-        TransactionGroup(
+        make_group(
             group_id="grp001",
-            primary=Transaction(
+            primary=make_transaction(
                 transaction_id="aaaa0001aaaa0001",
                 date="2025-01-10",
                 description="SAMPLE STORE",
@@ -40,9 +39,9 @@ def _write_synthetic_ledger(data_dir: Path, account_id: str = "MYBANK_CHQ") -> P
                 category="Shopping",
             ),
         ),
-        TransactionGroup(
+        make_group(
             group_id="grp002",
-            primary=Transaction(
+            primary=make_transaction(
                 transaction_id="aaaa0002aaaa0002",
                 date="2025-01-15",
                 description="EXAMPLE UTILITY",

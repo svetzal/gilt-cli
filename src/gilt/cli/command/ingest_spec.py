@@ -11,8 +11,8 @@ from gilt.cli.command.ingest import (
     _load_ledger_counts,
     run,
 )
-from gilt.model.account import Transaction, TransactionGroup
 from gilt.model.ledger_io import dump_ledger_csv
+from gilt.testing import make_group, make_transaction
 from gilt.workspace import Workspace
 
 # ---------------------------------------------------------------------------
@@ -36,9 +36,9 @@ class DescribeLoadLedgerCounts:
     def it_should_count_groups_per_file(self, tmp_path):
         data_dir = tmp_path
         groups = [
-            TransactionGroup(
+            make_group(
                 group_id=f"g{i}",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id=f"txid{i:012d}",
                     date="2025-01-10",
                     description="SAMPLE STORE",

@@ -12,11 +12,11 @@ from rich.console import Console
 
 from gilt.cli.command._errors import CommandAbort
 from gilt.cli.command.uncategorized import run
-from gilt.model.account import Transaction, TransactionGroup
+from gilt.model.account import TransactionGroup
 from gilt.model.events import TransactionCategorized, TransactionImported
 from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
-from gilt.testing import make_workspace, write_ledger
+from gilt.testing import make_group, make_transaction, make_workspace, write_ledger
 from gilt.workspace import Workspace
 
 
@@ -61,9 +61,9 @@ class DescribeUncategorizedCommand:
     def it_should_display_message_when_all_categorized(self, tmp_path):
         workspace = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
         groups = [
-            TransactionGroup(
+            make_group(
                 group_id="1",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="1111111111111111",
                     date="2025-01-01",
                     description="Rent",
@@ -83,9 +83,9 @@ class DescribeUncategorizedCommand:
     def it_should_list_uncategorized_transactions(self, tmp_path):
         workspace = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
         groups = [
-            TransactionGroup(
+            make_group(
                 group_id="1",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="1111111111111111",
                     date="2025-01-01",
                     description="Rent",
@@ -95,9 +95,9 @@ class DescribeUncategorizedCommand:
                     category="Housing",
                 ),
             ),
-            TransactionGroup(
+            make_group(
                 group_id="2",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="2222222222222222",
                     date="2025-01-02",
                     description="Unknown Transaction",
@@ -118,9 +118,9 @@ class DescribeUncategorizedCommand:
         all_groups = []
         for account in ["ACCOUNT1", "ACCOUNT2"]:
             groups = [
-                TransactionGroup(
+                make_group(
                     group_id="1",
-                    primary=Transaction(
+                    primary=make_transaction(
                         transaction_id=f"{account}1111111111",
                         date="2025-01-01",
                         description="Uncategorized",
@@ -140,9 +140,9 @@ class DescribeUncategorizedCommand:
     def it_should_filter_by_year(self, tmp_path):
         workspace = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
         groups = [
-            TransactionGroup(
+            make_group(
                 group_id="1",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="1111111111111111",
                     date="2024-01-01",
                     description="Last Year",
@@ -151,9 +151,9 @@ class DescribeUncategorizedCommand:
                     account_id="TEST",
                 ),
             ),
-            TransactionGroup(
+            make_group(
                 group_id="2",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="2222222222222222",
                     date="2025-01-01",
                     description="This Year",
@@ -172,9 +172,9 @@ class DescribeUncategorizedCommand:
     def it_should_filter_by_min_amount(self, tmp_path):
         workspace = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
         groups = [
-            TransactionGroup(
+            make_group(
                 group_id="1",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="1111111111111111",
                     date="2025-01-01",
                     description="Small",
@@ -183,9 +183,9 @@ class DescribeUncategorizedCommand:
                     account_id="TEST",
                 ),
             ),
-            TransactionGroup(
+            make_group(
                 group_id="2",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="2222222222222222",
                     date="2025-01-02",
                     description="Large",
@@ -204,9 +204,9 @@ class DescribeUncategorizedCommand:
     def it_should_apply_limit(self, tmp_path):
         workspace = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
         groups = [
-            TransactionGroup(
+            make_group(
                 group_id=str(i),
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id=f"{i:016d}",
                     date="2025-01-01",
                     description=f"Transaction {i}",
@@ -244,9 +244,9 @@ class DescribeUncategorizedCommand:
     def it_should_combine_filters(self, tmp_path):
         workspace = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
         groups = [
-            TransactionGroup(
+            make_group(
                 group_id="1",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="1111111111111111",
                     date="2024-01-01",
                     description="Wrong Year",
@@ -255,9 +255,9 @@ class DescribeUncategorizedCommand:
                     account_id="TEST",
                 ),
             ),
-            TransactionGroup(
+            make_group(
                 group_id="2",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="2222222222222222",
                     date="2025-01-01",
                     description="Too Small",
@@ -266,9 +266,9 @@ class DescribeUncategorizedCommand:
                     account_id="TEST",
                 ),
             ),
-            TransactionGroup(
+            make_group(
                 group_id="3",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="3333333333333333",
                     date="2025-01-02",
                     description="Match",
@@ -287,9 +287,9 @@ class DescribeUncategorizedCommand:
     def it_should_sort_by_account_then_date(self, tmp_path):
         workspace = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
         groups = [
-            TransactionGroup(
+            make_group(
                 group_id="1",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="1111111111111111",
                     date="2025-01-02",
                     description="Item A",
@@ -298,9 +298,9 @@ class DescribeUncategorizedCommand:
                     account_id="BANK_B",
                 ),
             ),
-            TransactionGroup(
+            make_group(
                 group_id="2",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="2222222222222222",
                     date="2025-01-01",
                     description="Item B",
@@ -309,9 +309,9 @@ class DescribeUncategorizedCommand:
                     account_id="BANK_A",
                 ),
             ),
-            TransactionGroup(
+            make_group(
                 group_id="3",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="3333333333333333",
                     date="2025-01-03",
                     description="Item C",
@@ -339,9 +339,9 @@ class DescribeUncategorizedCommand:
     def it_should_show_all_accounts_by_default(self, tmp_path):
         workspace = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
         groups = [
-            TransactionGroup(
+            make_group(
                 group_id="1",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="1111111111111111",
                     date="2025-01-01",
                     description="Alpha",
@@ -350,9 +350,9 @@ class DescribeUncategorizedCommand:
                     account_id="ACCT_ALPHA",
                 ),
             ),
-            TransactionGroup(
+            make_group(
                 group_id="2",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="2222222222222222",
                     date="2025-01-01",
                     description="Beta",
@@ -378,9 +378,9 @@ class DescribeUncategorizedCommand:
     def it_should_show_per_account_summary(self, tmp_path):
         workspace = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
         groups = [
-            TransactionGroup(
+            make_group(
                 group_id="1",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="1111111111111111",
                     date="2025-01-01",
                     description="First",
@@ -389,9 +389,9 @@ class DescribeUncategorizedCommand:
                     account_id="ACCT_ALPHA",
                 ),
             ),
-            TransactionGroup(
+            make_group(
                 group_id="2",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="2222222222222222",
                     date="2025-01-02",
                     description="Second",
@@ -400,9 +400,9 @@ class DescribeUncategorizedCommand:
                     account_id="ACCT_ALPHA",
                 ),
             ),
-            TransactionGroup(
+            make_group(
                 group_id="3",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="3333333333333333",
                     date="2025-01-01",
                     description="Third",
@@ -434,9 +434,9 @@ class DescribeUncategorizedCommand:
         workspace = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
         groups = [
             # Just before FY25 start — excluded
-            TransactionGroup(
+            make_group(
                 group_id="1",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="1111111111111111",
                     date="2024-10-31",
                     description="Before FY25",
@@ -446,9 +446,9 @@ class DescribeUncategorizedCommand:
                 ),
             ),
             # FY25 start boundary — included
-            TransactionGroup(
+            make_group(
                 group_id="2",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="2222222222222222",
                     date="2024-11-01",
                     description="FY25 start",
@@ -458,9 +458,9 @@ class DescribeUncategorizedCommand:
                 ),
             ),
             # FY25 end boundary — included
-            TransactionGroup(
+            make_group(
                 group_id="3",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="3333333333333333",
                     date="2025-10-31",
                     description="FY25 end",
@@ -470,9 +470,9 @@ class DescribeUncategorizedCommand:
                 ),
             ),
             # Just after FY25 end — excluded
-            TransactionGroup(
+            make_group(
                 group_id="4",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="4444444444444444",
                     date="2025-11-01",
                     description="After FY25",
@@ -499,9 +499,9 @@ class DescribeUncategorizedCommand:
     def it_should_include_fy_label_in_title(self, tmp_path):
         workspace = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
         groups = [
-            TransactionGroup(
+            make_group(
                 group_id="1",
-                primary=Transaction(
+                primary=make_transaction(
                     transaction_id="1111111111111111",
                     date="2025-01-01",
                     description="Item",
