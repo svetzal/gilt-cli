@@ -13,7 +13,7 @@ from gilt.cli.console import (
     print_transaction_table,
     print_warning,
 )
-from gilt.model.account import Transaction, TransactionGroup
+from gilt.testing import make_group, make_transaction
 
 
 class DescribePrintError:
@@ -199,17 +199,15 @@ class DescribeConfirmInteractively:
 
 class DescribeDisplayCategoryChangeMatches:
     def _make_match(self, category=None, subcategory=None):
-        t = Transaction(
+        t = make_transaction(
             transaction_id="abcd1234abcd1234",
             date=date(2025, 3, 1),
             description="EXAMPLE UTILITY",
             amount=-50.0,
-            currency="CAD",
-            account_id="MYBANK_CHQ",
             category=category,
             subcategory=subcategory,
         )
-        group = TransactionGroup(group_id=t.transaction_id, primary=t)
+        group = make_group(primary=t)
         return ("MYBANK_CHQ", group)
 
     def it_should_render_from_and_to_category_columns_with_fixed_from_label(self, mocker):

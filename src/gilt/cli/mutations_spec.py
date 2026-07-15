@@ -15,7 +15,6 @@ from gilt.cli.mutations import (
     search_by_criteria,
     validate_single_vs_batch_mode,
 )
-from gilt.model.account import Transaction, TransactionGroup
 from gilt.services.categorization_persistence_service import (
     CategorizationPersistenceResult,
     CategorizationUpdate,
@@ -27,22 +26,17 @@ from gilt.services.transaction_operations_service import (
     SearchCriteria,
     TransactionOperationsService,
 )
+from gilt.testing import make_group
 from gilt.workspace import Workspace
 
 
-def _make_group(
-    transaction_id: str, description: str = "Test", amount: float = -10.0
-) -> TransactionGroup:
-    return TransactionGroup(
-        group_id=transaction_id,
-        primary=Transaction(
-            transaction_id=transaction_id,
-            date=date(2025, 1, 1),
-            description=description,
-            amount=amount,
-            currency="CAD",
-            account_id="TEST_CHQ",
-        ),
+def _make_group(transaction_id: str, description: str = "Test", amount: float = -10.0):
+    return make_group(
+        transaction_id=transaction_id,
+        date=date(2025, 1, 1),
+        description=description,
+        amount=amount,
+        account_id="TEST_CHQ",
     )
 
 

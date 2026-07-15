@@ -9,8 +9,8 @@ from gilt.cli.formatting import (
     fmt_colored_amount,
     format_prefix_lookup_error,
 )
-from gilt.model.account import Transaction
 from gilt.services.transaction_operations_service import TransactionLookupResult
+from gilt.testing import make_transaction
 
 
 class DescribeFmtColoredAmount:
@@ -91,13 +91,10 @@ class DescribeFormatPrefixLookupError:
 
 class DescribeBaseMatchRow:
     def it_should_return_five_element_tuple(self):
-        t = Transaction(
+        t = make_transaction(
             transaction_id="abcd1234abcd1234",
             date=date(2025, 1, 15),
             description="EXAMPLE UTILITY PAYMENT",
-            amount=-42.50,
-            currency="CAD",
-            account_id="MYBANK_CHQ",
         )
 
         result = base_match_row("MYBANK_CHQ", t)
@@ -111,12 +108,11 @@ class DescribeBaseMatchRow:
         )
 
     def it_should_truncate_transaction_id_to_eight_chars(self):
-        t = Transaction(
+        t = make_transaction(
             transaction_id="abcd1234efgh5678",
             date=date(2025, 1, 1),
             description="Test",
             amount=-10.0,
-            currency="CAD",
             account_id="ACC",
         )
 
@@ -125,12 +121,11 @@ class DescribeBaseMatchRow:
         assert result[1] == "abcd1234"
 
     def it_should_truncate_description_to_forty_chars(self):
-        t = Transaction(
+        t = make_transaction(
             transaction_id="abcd1234abcd1234",
             date=date(2025, 1, 1),
             description="A" * 50,
             amount=-10.0,
-            currency="CAD",
             account_id="ACC",
         )
 
@@ -139,12 +134,11 @@ class DescribeBaseMatchRow:
         assert result[3] == "A" * 40
 
     def it_should_handle_empty_description(self):
-        t = Transaction(
+        t = make_transaction(
             transaction_id="abcd1234abcd1234",
             date=date(2025, 1, 1),
             description="",
             amount=-10.0,
-            currency="CAD",
             account_id="ACC",
         )
 
@@ -155,13 +149,10 @@ class DescribeBaseMatchRow:
 
 class DescribeCategoryPreviewRow:
     def it_should_return_six_element_tuple_with_category_appended(self):
-        t = Transaction(
+        t = make_transaction(
             transaction_id="abcd1234abcd1234",
             date=date(2025, 1, 15),
             description="EXAMPLE UTILITY PAYMENT",
-            amount=-42.50,
-            currency="CAD",
-            account_id="MYBANK_CHQ",
         )
 
         result = category_preview_row("MYBANK_CHQ", t, "Utilities:Electricity")
@@ -170,12 +161,11 @@ class DescribeCategoryPreviewRow:
         assert result[5] == "Utilities:Electricity"
 
     def it_should_include_base_row_fields_as_first_five_elements(self):
-        t = Transaction(
+        t = make_transaction(
             transaction_id="abcd1234abcd1234",
             date=date(2025, 2, 1),
             description="ACME CORP",
             amount=-99.00,
-            currency="CAD",
             account_id="MYBANK_CC",
         )
 
@@ -184,13 +174,11 @@ class DescribeCategoryPreviewRow:
         assert result[:5] == base_match_row("MYBANK_CC", t)
 
     def it_should_accept_empty_category_path(self):
-        t = Transaction(
+        t = make_transaction(
             transaction_id="abcd1234abcd1234",
             date=date(2025, 3, 1),
             description="SAMPLE STORE",
             amount=-10.00,
-            currency="CAD",
-            account_id="MYBANK_CHQ",
         )
 
         result = category_preview_row("MYBANK_CHQ", t, "")
