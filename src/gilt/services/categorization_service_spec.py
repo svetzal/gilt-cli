@@ -18,13 +18,13 @@ from unittest.mock import Mock
 
 import pytest
 
-from gilt.model.account import Transaction, TransactionGroup
+from gilt.model.account import TransactionGroup
 from gilt.model.category import CategoryConfig
 from gilt.model.events import TransactionCategorized
 from gilt.services.categorization_service import CategorizationService
 from gilt.services.transaction_operations_service import SearchCriteria
 from gilt.storage.event_store import EventStore
-from gilt.testing import make_category_config
+from gilt.testing import make_category_config, make_group
 
 
 @pytest.fixture
@@ -36,51 +36,43 @@ def sample_category_config() -> CategoryConfig:
 def sample_transactions() -> list[TransactionGroup]:
     """Sample transactions for testing."""
     return [
-        TransactionGroup(
+        make_group(
             group_id="group1",
-            primary=Transaction(
-                transaction_id="txn00001",
-                date=date(2025, 1, 15),
-                description="Rent payment",
-                amount=-1500.00,
-                currency="CAD",
-                account_id="CHQ",
-            ),
+            transaction_id="txn00001",
+            date=date(2025, 1, 15),
+            description="Rent payment",
+            amount=-1500.00,
+            currency="CAD",
+            account_id="CHQ",
         ),
-        TransactionGroup(
+        make_group(
             group_id="group2",
-            primary=Transaction(
-                transaction_id="txn00002",
-                date=date(2025, 1, 16),
-                description="SPOTIFY Premium",
-                amount=-10.99,
-                currency="CAD",
-                account_id="MC",
-            ),
+            transaction_id="txn00002",
+            date=date(2025, 1, 16),
+            description="SPOTIFY Premium",
+            amount=-10.99,
+            currency="CAD",
+            account_id="MC",
         ),
-        TransactionGroup(
+        make_group(
             group_id="group3",
-            primary=Transaction(
-                transaction_id="txn00003",
-                date=date(2025, 1, 17),
-                description="Example Utility Payment",
-                amount=-85.50,
-                currency="CAD",
-                account_id="CHQ",
-            ),
+            transaction_id="txn00003",
+            date=date(2025, 1, 17),
+            description="Example Utility Payment",
+            amount=-85.50,
+            currency="CAD",
+            account_id="CHQ",
         ),
-        TransactionGroup(
+        make_group(
             group_id="group4",
-            primary=Transaction(
-                transaction_id="txn00004",
-                date=date(2025, 1, 18),
-                description="SPOTIFY Premium",
-                amount=-10.99,
-                currency="CAD",
-                account_id="MC",
-                category="Entertainment",
-                subcategory="Music",
-            ),
+            transaction_id="txn00004",
+            date=date(2025, 1, 18),
+            description="SPOTIFY Premium",
+            amount=-10.99,
+            currency="CAD",
+            account_id="MC",
+            category="Entertainment",
+            subcategory="Music",
         ),
     ]
 

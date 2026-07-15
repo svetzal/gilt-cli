@@ -16,7 +16,7 @@ from datetime import date
 
 import pytest
 
-from gilt.model.account import Transaction, TransactionGroup
+from gilt.model.account import TransactionGroup
 from gilt.model.category import (
     BudgetPeriod,
     Category,
@@ -24,7 +24,7 @@ from gilt.model.category import (
     Subcategory,
 )
 from gilt.services.category_management_service import CategoryManagementService
-from gilt.testing import make_category_config
+from gilt.testing import make_category_config, make_group
 
 
 @pytest.fixture
@@ -36,66 +36,56 @@ def sample_category_config() -> CategoryConfig:
 def sample_transactions() -> list[TransactionGroup]:
     """Sample transactions with various categorizations."""
     return [
-        TransactionGroup(
+        make_group(
             group_id="group1",
-            primary=Transaction(
-                transaction_id="txn00001",
-                date=date(2025, 1, 15),
-                description="Rent payment",
-                amount=-1500.00,
-                currency="CAD",
-                account_id="CHQ",
-                category="Housing",
-                subcategory="Rent",
-            ),
+            transaction_id="txn00001",
+            date=date(2025, 1, 15),
+            description="Rent payment",
+            amount=-1500.00,
+            currency="CAD",
+            account_id="CHQ",
+            category="Housing",
+            subcategory="Rent",
         ),
-        TransactionGroup(
+        make_group(
             group_id="group2",
-            primary=Transaction(
-                transaction_id="txn00002",
-                date=date(2025, 1, 16),
-                description="Example Utility Payment",
-                amount=-85.50,
-                currency="CAD",
-                account_id="CHQ",
-                category="Housing",
-                subcategory="Utilities",
-            ),
+            transaction_id="txn00002",
+            date=date(2025, 1, 16),
+            description="Example Utility Payment",
+            amount=-85.50,
+            currency="CAD",
+            account_id="CHQ",
+            category="Housing",
+            subcategory="Utilities",
         ),
-        TransactionGroup(
+        make_group(
             group_id="group3",
-            primary=Transaction(
-                transaction_id="txn00003",
-                date=date(2025, 1, 17),
-                description="Grocery store",
-                amount=-120.00,
-                currency="CAD",
-                account_id="MC",
-                category="Groceries",
-            ),
+            transaction_id="txn00003",
+            date=date(2025, 1, 17),
+            description="Grocery store",
+            amount=-120.00,
+            currency="CAD",
+            account_id="MC",
+            category="Groceries",
         ),
-        TransactionGroup(
+        make_group(
             group_id="group4",
-            primary=Transaction(
-                transaction_id="txn00004",
-                date=date(2025, 1, 18),
-                description="Transit pass",
-                amount=-150.00,
-                currency="CAD",
-                account_id="MC",
-                category="Transportation",
-            ),
+            transaction_id="txn00004",
+            date=date(2025, 1, 18),
+            description="Transit pass",
+            amount=-150.00,
+            currency="CAD",
+            account_id="MC",
+            category="Transportation",
         ),
-        TransactionGroup(
+        make_group(
             group_id="group5",
-            primary=Transaction(
-                transaction_id="txn00005",
-                date=date(2025, 1, 19),
-                description="Uncategorized transaction",
-                amount=-50.00,
-                currency="CAD",
-                account_id="CHQ",
-            ),
+            transaction_id="txn00005",
+            date=date(2025, 1, 19),
+            description="Uncategorized transaction",
+            amount=-50.00,
+            currency="CAD",
+            account_id="CHQ",
         ),
     ]
 
@@ -679,29 +669,25 @@ class DescribeEdgeCases:
         # Arrange
         service = CategoryManagementService(sample_category_config)
         transactions = [
-            TransactionGroup(
+            make_group(
                 group_id="g1",
-                primary=Transaction(
-                    transaction_id="t1",
-                    date=date(2025, 1, 1),
-                    description="Test",
-                    amount=-100.0,
-                    currency="CAD",
-                    account_id="CHQ",
-                    category="Housing",
-                ),
+                transaction_id="t1",
+                date=date(2025, 1, 1),
+                description="Test",
+                amount=-100.0,
+                currency="CAD",
+                account_id="CHQ",
+                category="Housing",
             ),
-            TransactionGroup(
+            make_group(
                 group_id="g2",
-                primary=Transaction(
-                    transaction_id="t2",
-                    date=date(2025, 1, 2),
-                    description="Test",
-                    amount=-100.0,
-                    currency="CAD",
-                    account_id="CHQ",
-                    category="HousingOther",  # Different category
-                ),
+                transaction_id="t2",
+                date=date(2025, 1, 2),
+                description="Test",
+                amount=-100.0,
+                currency="CAD",
+                account_id="CHQ",
+                category="HousingOther",  # Different category
             ),
         ]
 

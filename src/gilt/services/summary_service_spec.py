@@ -11,6 +11,7 @@ from gilt.services.summary_service import (
     build_category_summary,
     build_subcategory_summary,
 )
+from gilt.testing import make_transaction
 
 
 def _txn(
@@ -20,7 +21,7 @@ def _txn(
     subcategory: str | None = None,
     txn_date: str = "2026-01-15",
 ) -> Transaction:
-    return Transaction(
+    return make_transaction(
         transaction_id=txn_id,
         date=date.fromisoformat(txn_date),
         description="SAMPLE STORE",

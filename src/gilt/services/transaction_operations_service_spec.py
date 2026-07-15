@@ -11,12 +11,12 @@ from datetime import date
 
 import pytest
 
-from gilt.model.account import Transaction, TransactionGroup
 from gilt.services.transaction_operations_service import (
     NoteMode,
     SearchCriteria,
     TransactionOperationsService,
 )
+from gilt.testing import make_group
 
 
 class DescribeTransactionOperationsService:
@@ -31,55 +31,45 @@ class DescribeTransactionOperationsService:
     def sample_groups(self):
         """Create sample transaction groups for testing."""
         return [
-            TransactionGroup(
+            make_group(
                 group_id="g1",
-                primary=Transaction(
-                    transaction_id="abc123def456",
-                    date=date(2025, 11, 1),
-                    description="SPOTIFY PREMIUM",
-                    amount=-10.99,
-                    account_id="MYBANK_CHQ",
-                ),
+                transaction_id="abc123def456",
+                date=date(2025, 11, 1),
+                description="SPOTIFY PREMIUM",
+                amount=-10.99,
+                account_id="MYBANK_CHQ",
             ),
-            TransactionGroup(
+            make_group(
                 group_id="g2",
-                primary=Transaction(
-                    transaction_id="abc999xyz888",
-                    date=date(2025, 11, 2),
-                    description="SPOTIFY PREMIUM SUBSCRIPTION",
-                    amount=-10.99,
-                    account_id="MYBANK_CHQ",
-                ),
+                transaction_id="abc999xyz888",
+                date=date(2025, 11, 2),
+                description="SPOTIFY PREMIUM SUBSCRIPTION",
+                amount=-10.99,
+                account_id="MYBANK_CHQ",
             ),
-            TransactionGroup(
+            make_group(
                 group_id="g3",
-                primary=Transaction(
-                    transaction_id="def456ghi789",
-                    date=date(2025, 11, 3),
-                    description="NETFLIX SUBSCRIPTION",
-                    amount=-15.99,
-                    account_id="MYBANK_CHQ",
-                ),
+                transaction_id="def456ghi789",
+                date=date(2025, 11, 3),
+                description="NETFLIX SUBSCRIPTION",
+                amount=-15.99,
+                account_id="MYBANK_CHQ",
             ),
-            TransactionGroup(
+            make_group(
                 group_id="g4",
-                primary=Transaction(
-                    transaction_id="xyz789uvw012",
-                    date=date(2025, 11, 15),
-                    description="EXAMPLE UTILITY PAYMENT",
-                    amount=-125.00,
-                    account_id="MYBANK_CHQ",
-                ),
+                transaction_id="xyz789uvw012",
+                date=date(2025, 11, 15),
+                description="EXAMPLE UTILITY PAYMENT",
+                amount=-125.00,
+                account_id="MYBANK_CHQ",
             ),
-            TransactionGroup(
+            make_group(
                 group_id="g5",
-                primary=Transaction(
-                    transaction_id="mno345pqr678",
-                    date=date(2025, 11, 20),
-                    description="SALARY DEPOSIT",
-                    amount=2500.00,
-                    account_id="MYBANK_CHQ",
-                ),
+                transaction_id="mno345pqr678",
+                date=date(2025, 11, 20),
+                description="SALARY DEPOSIT",
+                amount=2500.00,
+                account_id="MYBANK_CHQ",
             ),
         ]
 
@@ -263,30 +253,26 @@ class DescribeAddNote(DescribeTransactionOperationsService):
     @pytest.fixture
     def group_with_note(self):
         """Create group with existing note."""
-        return TransactionGroup(
+        return make_group(
             group_id="g1",
-            primary=Transaction(
-                transaction_id="abc123def456",
-                date=date(2025, 11, 1),
-                description="TEST",
-                amount=-10.0,
-                account_id="TEST_ACC",
-                notes="Existing note",
-            ),
+            transaction_id="abc123def456",
+            date=date(2025, 11, 1),
+            description="TEST",
+            amount=-10.0,
+            account_id="TEST_ACC",
+            notes="Existing note",
         )
 
     @pytest.fixture
     def group_without_note(self):
         """Create group without note."""
-        return TransactionGroup(
+        return make_group(
             group_id="g2",
-            primary=Transaction(
-                transaction_id="xyz789uvw012",
-                date=date(2025, 11, 2),
-                description="TEST2",
-                amount=-20.0,
-                account_id="TEST_ACC",
-            ),
+            transaction_id="xyz789uvw012",
+            date=date(2025, 11, 2),
+            description="TEST2",
+            amount=-20.0,
+            account_id="TEST_ACC",
         )
 
     def it_should_replace_note(self, service, group_with_note):
@@ -359,37 +345,31 @@ class DescribePreviewBatchUpdate(DescribeTransactionOperationsService):
     def groups_for_batch(self):
         """Create groups for batch testing."""
         return [
-            TransactionGroup(
+            make_group(
                 group_id="g1",
-                primary=Transaction(
-                    transaction_id="t1",
-                    date=date(2025, 11, 1),
-                    description="DESC1",
-                    amount=-10.0,
-                    account_id="ACC",
-                    notes="Old note 1",
-                ),
+                transaction_id="t1",
+                date=date(2025, 11, 1),
+                description="DESC1",
+                amount=-10.0,
+                account_id="ACC",
+                notes="Old note 1",
             ),
-            TransactionGroup(
+            make_group(
                 group_id="g2",
-                primary=Transaction(
-                    transaction_id="t2",
-                    date=date(2025, 11, 2),
-                    description="DESC2",
-                    amount=-20.0,
-                    account_id="ACC",
-                    notes="Old note 2",
-                ),
+                transaction_id="t2",
+                date=date(2025, 11, 2),
+                description="DESC2",
+                amount=-20.0,
+                account_id="ACC",
+                notes="Old note 2",
             ),
-            TransactionGroup(
+            make_group(
                 group_id="g3",
-                primary=Transaction(
-                    transaction_id="t3",
-                    date=date(2025, 11, 3),
-                    description="DESC3",
-                    amount=-30.0,
-                    account_id="ACC",
-                ),
+                transaction_id="t3",
+                date=date(2025, 11, 3),
+                description="DESC3",
+                amount=-30.0,
+                account_id="ACC",
             ),
         ]
 
@@ -451,25 +431,21 @@ class DescribeEdgeCases(DescribeTransactionOperationsService):
     def it_should_handle_groups_with_empty_descriptions(self, service):
         """Should handle groups with empty or None descriptions."""
         groups = [
-            TransactionGroup(
+            make_group(
                 group_id="g1",
-                primary=Transaction(
-                    transaction_id="t1",
-                    date=date(2025, 11, 1),
-                    description="",
-                    amount=-10.0,
-                    account_id="ACC",
-                ),
+                transaction_id="t1",
+                date=date(2025, 11, 1),
+                description="",
+                amount=-10.0,
+                account_id="ACC",
             ),
-            TransactionGroup(
+            make_group(
                 group_id="g2",
-                primary=Transaction(
-                    transaction_id="t2",
-                    date=date(2025, 11, 2),
-                    description="VALID DESC",
-                    amount=-20.0,
-                    account_id="ACC",
-                ),
+                transaction_id="t2",
+                date=date(2025, 11, 2),
+                description="VALID DESC",
+                amount=-20.0,
+                account_id="ACC",
             ),
         ]
 
@@ -482,15 +458,13 @@ class DescribeEdgeCases(DescribeTransactionOperationsService):
     def it_should_handle_amount_comparison_with_floating_point(self, service):
         """Should handle floating point comparison correctly."""
         groups = [
-            TransactionGroup(
+            make_group(
                 group_id="g1",
-                primary=Transaction(
-                    transaction_id="t1",
-                    date=date(2025, 11, 1),
-                    description="TEST",
-                    amount=-10.999,
-                    account_id="ACC",
-                ),
+                transaction_id="t1",
+                date=date(2025, 11, 1),
+                description="TEST",
+                amount=-10.999,
+                account_id="ACC",
             ),
         ]
 
@@ -503,15 +477,13 @@ class DescribeEdgeCases(DescribeTransactionOperationsService):
     def it_should_strip_whitespace_from_descriptions(self, service):
         """Should strip whitespace when comparing descriptions."""
         groups = [
-            TransactionGroup(
+            make_group(
                 group_id="g1",
-                primary=Transaction(
-                    transaction_id="t1",
-                    date=date(2025, 11, 1),
-                    description="  TEST DESC  ",
-                    amount=-10.0,
-                    account_id="ACC",
-                ),
+                transaction_id="t1",
+                date=date(2025, 11, 1),
+                description="  TEST DESC  ",
+                amount=-10.0,
+                account_id="ACC",
             ),
         ]
 
@@ -563,28 +535,22 @@ class DescribeResolveTransactionTargets(DescribeTransactionOperationsService):
         # prefix that matches multiple — use the service directly with min_length=3
         # For the public API the minimum is 8, so we fabricate groups with
         # an 8-char shared prefix.
-        from datetime import date
-
         shared_prefix_groups = [
-            TransactionGroup(
+            make_group(
                 group_id="ga",
-                primary=Transaction(
-                    transaction_id="aabbccdd1111",
-                    date=date(2025, 1, 1),
-                    description="A",
-                    amount=-1.0,
-                    account_id="ACC",
-                ),
+                transaction_id="aabbccdd1111",
+                date=date(2025, 1, 1),
+                description="A",
+                amount=-1.0,
+                account_id="ACC",
             ),
-            TransactionGroup(
+            make_group(
                 group_id="gb",
-                primary=Transaction(
-                    transaction_id="aabbccdd2222",
-                    date=date(2025, 1, 2),
-                    description="B",
-                    amount=-2.0,
-                    account_id="ACC",
-                ),
+                transaction_id="aabbccdd2222",
+                date=date(2025, 1, 2),
+                description="B",
+                amount=-2.0,
+                account_id="ACC",
             ),
         ]
         result = service.find_transaction_targets(shared_prefix_groups, txid="aabbccdd")
