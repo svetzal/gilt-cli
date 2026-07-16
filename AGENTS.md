@@ -50,6 +50,7 @@ Columns in order (source of truth: `gilt.model.ledger_io.STANDARD_FIELDS`):
 - `amount`: signed float; debits negative, credits positive
 - `currency`: default CAD
 - All ledger I/O goes through `gilt.model.ledger_io.{load_ledger_csv, dump_ledger_csv}`
+- Account-filtered ledger path discovery goes through `LedgerRepository.ledger_paths_for(account_id)` — pass `None` for all accounts, a string for one specific account. Never hand-roll the "exists or empty-list" pattern inline.
 
 ## Transaction ID (Do Not Change)
 
@@ -193,6 +194,8 @@ Complex CLI commands are split into three cohesive modules following the **funct
 **Mutation flow rule**: every preview → confirm → dry-run → persist sequence routes through `mutations.run_confirmed_mutation` or `mutations.run_persisted_mutation`. Never hand-roll this pattern inline. Every command with a `write: bool` parameter must route through one of these helpers.
 
 **Dry-run contract**: when `write=False`, the command MUST call `print_dry_run_message()` (provided by the mutation helpers) and return without emitting any events or modifying any files. The dry-run wording lives **solely** in `gilt.cli.console.print_dry_run_message` — never inline the strings `"Use --write"`, `"use --write"`, or `"DRY RUN MODE"` in a command module.
+
+**Date parsing and formatting**: CLI commands that accept `YYYY-MM-DD` string arguments must parse them with `parse_iso_date` from `gilt.util.dates`, and format `date` objects back to strings with `format_iso_date` from the same module. Never call `date.fromisoformat` or `date.strftime("%Y-%m-%d")` inline — the expected format and error wording live in exactly one place.
 
 **Executable enforcement**: `src/gilt/cli/command/_module_layout_spec.py` is the static guard for all of the above. It fails the build when an orchestration module embeds `console.print` / `Table(` / `Prompt` / `rich.progress`, when a print-heavy module lacks a view sibling, or when a `write: bool` command skips the mutation helpers or inlines dry-run wording. Add new commands in compliance rather than expanding its allowlists (the allowlists exist only as temporary scaffolding and should trend to empty).
 

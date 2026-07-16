@@ -7,6 +7,7 @@ from rich.text import Text
 
 from gilt.model.account import Transaction
 from gilt.services.transaction_query_service import TransactionQueryService
+from gilt.util.dates import format_iso_date
 
 from ..console import console
 from ..formatting import fmt_amount
@@ -39,7 +40,7 @@ def _add_table_row(table: Table, t: Transaction, compare: bool, raw: bool) -> No
 
     if compare:
         table.add_row(
-            t.date.strftime("%Y-%m-%d"),
+            format_iso_date(t.date),
             t.description or "",
             t.vendor or "",
             t.service or "",
@@ -54,7 +55,7 @@ def _add_table_row(table: Table, t: Transaction, compare: bool, raw: bool) -> No
             display_desc = f"{t.vendor} - {t.service}" if t.service else t.vendor
 
         table.add_row(
-            t.date.strftime("%Y-%m-%d"),
+            format_iso_date(t.date),
             display_desc,
             fmt_amount(t.amount),
             t.currency or "",

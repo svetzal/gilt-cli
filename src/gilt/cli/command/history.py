@@ -2,8 +2,7 @@ from __future__ import annotations
 
 """CLI command: show categorization history for a description pattern."""
 
-from datetime import date
-
+from gilt.util.dates import parse_iso_date
 from gilt.workspace import Workspace
 
 from ..event_sourcing_bootstrap import require_projections
@@ -30,14 +29,14 @@ def run(
     """
     if date_from is not None:
         try:
-            date.fromisoformat(date_from)
+            parse_iso_date(date_from)
         except ValueError:
             print_invalid_date("date-from", date_from)
             return 2
 
     if date_to is not None:
         try:
-            date.fromisoformat(date_to)
+            parse_iso_date(date_to)
         except ValueError:
             print_invalid_date("date-to", date_to)
             return 2

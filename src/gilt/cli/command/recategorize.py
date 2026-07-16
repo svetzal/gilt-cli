@@ -24,6 +24,7 @@ from gilt.services.transaction_operations_service import (
     TransactionOperationsService,
 )
 from gilt.services.transaction_query_service import TransactionFilter, TransactionQueryService
+from gilt.util.dates import parse_iso_date
 from gilt.workspace import Workspace
 
 from ..console import print_error, print_match_total
@@ -448,14 +449,14 @@ def build_date_selection(
     date_from: date | None = None
     if date_from_str is not None:
         try:
-            date_from = date.fromisoformat(date_from_str)
+            date_from = parse_iso_date(date_from_str)
         except ValueError:
             return f"Invalid --date-from value: {date_from_str!r}. Expected YYYY-MM-DD"
 
     date_to: date | None = None
     if date_to_str is not None:
         try:
-            date_to = date.fromisoformat(date_to_str)
+            date_to = parse_iso_date(date_to_str)
         except ValueError:
             return f"Invalid --date-to value: {date_to_str!r}. Expected YYYY-MM-DD"
 

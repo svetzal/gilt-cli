@@ -145,6 +145,29 @@ class DescribeLedgerRepository:
 
         assert repo.ledger_paths() == []
 
+    def it_should_return_all_paths_when_no_account_id_given(self, repo, data_dir):
+        group_a = make_group(transaction_id="txn014", account_id="MYBANK_CHQ")
+        group_b = make_group(transaction_id="txn015", account_id="MYBANK_CC")
+        (data_dir / "MYBANK_CHQ.csv").write_text(dump_ledger_csv([group_a]), encoding="utf-8")
+        (data_dir / "MYBANK_CC.csv").write_text(dump_ledger_csv([group_b]), encoding="utf-8")
+
+        paths = repo.ledger_paths_for(None)
+
+        assert paths == [data_dir / "MYBANK_CC.csv", data_dir / "MYBANK_CHQ.csv"]
+
+    def it_should_return_single_path_for_existing_account(self, repo, data_dir):
+        group = make_group(transaction_id="txn016", account_id="MYBANK_CHQ")
+        (data_dir / "MYBANK_CHQ.csv").write_text(dump_ledger_csv([group]), encoding="utf-8")
+
+        paths = repo.ledger_paths_for("MYBANK_CHQ")
+
+        assert paths == [data_dir / "MYBANK_CHQ.csv"]
+
+    def it_should_return_empty_list_for_missing_account(self, repo):
+        paths = repo.ledger_paths_for("NO_SUCH_ACCT")
+
+        assert paths == []
+
     def it_should_load_raw_texts_keyed_by_filename(self, repo, data_dir):
         group_a = make_group(transaction_id="txn012", account_id="MYBANK_CHQ")
         group_b = make_group(transaction_id="txn013", account_id="BANK2_BIZ")

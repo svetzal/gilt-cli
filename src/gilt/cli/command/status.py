@@ -9,6 +9,7 @@ from datetime import date
 
 from rich.console import Console
 
+from gilt.util.dates import parse_iso_date
 from gilt.workspace import Workspace
 
 from ..console import console as _default_console
@@ -46,7 +47,7 @@ def _build_account_buckets(rows: list[dict], fy_range: tuple[date, date] | None)
         txn_date: date | None = None
         with contextlib.suppress(ValueError):
             if txn_date_str:
-                txn_date = date.fromisoformat(txn_date_str)
+                txn_date = parse_iso_date(txn_date_str)
                 bucket["dates"].append(txn_date)
 
         bucket["total_txns"] += 1

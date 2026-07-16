@@ -9,7 +9,6 @@ from pathlib import Path
 
 from gilt.model.account import TransactionGroup
 from gilt.model.category_io import load_categories_config
-from gilt.model.ledger_repository import LedgerRepository
 from gilt.services.categorization_service import CategorizationService
 from gilt.services.transaction_operations_service import (
     SearchCriteria,
@@ -49,16 +48,6 @@ class ResolvedEntry:
     category: str
     subcategory: str | None
 
-
-def _find_account_ledgers(data_dir: Path, account: str | None) -> list[Path]:
-    """Find ledger files to process."""
-    repo = LedgerRepository(data_dir)
-    if account:
-        if not repo.exists(account):
-            return []
-        return [repo.ledger_path(account)]
-    else:
-        return repo.ledger_paths()
 
 
 def _find_single_txid(

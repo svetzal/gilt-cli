@@ -56,6 +56,20 @@ class LedgerRepository:
             return []
         return sorted(self._data_dir.glob("*.csv"))
 
+    def ledger_paths_for(self, account_id: str | None) -> list[Path]:
+        """Return ledger paths for a single account or all accounts.
+
+        When ``account_id`` is falsy, returns all ledger paths (same as
+        ``ledger_paths()``). When ``account_id`` is given and the ledger
+        exists, returns a one-element list. Returns an empty list when the
+        ledger does not exist.
+        """
+        if not account_id:
+            return self.ledger_paths()
+        if self.exists(account_id):
+            return [self.ledger_path(account_id)]
+        return []
+
     def load_all_raw_texts(self) -> dict[str, str]:
         """Return mapping of filename to raw UTF-8 text for all ledger CSVs."""
         return {p.name: p.read_text(encoding="utf-8") for p in self.ledger_paths()}

@@ -104,6 +104,25 @@ class DescribeDisplayYtdTable:
         assert "EXAMPLE UTILITY" in output
 
 
+class DescribeAddTableRow:
+    def it_should_render_date_as_yyyy_mm_dd(self):
+        from gilt.cli.command.ytd_view import display_ytd_table
+
+        txns = [_make_transaction()]
+        output = _capture(
+            lambda: display_ytd_table(
+                txns,
+                account="MYBANK_CHQ",
+                the_year=2025,
+                acct_nature="asset",
+                compare=False,
+                raw=True,
+                query_service=_make_query_service(),
+            )
+        )
+        assert "2025-06-01" in output
+
+
 class DescribePrintNoTransactions:
     def it_should_mention_the_account_and_year(self):
         from gilt.cli.command.ytd_view import print_no_transactions
