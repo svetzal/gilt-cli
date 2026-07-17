@@ -49,6 +49,21 @@ class ResolvedEntry:
     subcategory: str | None
 
 
+@dataclass(frozen=True)
+class CategorizeRequest:
+    account: str | None
+    txid: str | None
+    description: str | None
+    desc_prefix: str | None
+    pattern: str | None
+    amount: float | None
+    category: str
+    subcategory: str | None
+    assume_yes: bool
+    write: bool
+    service: TransactionOperationsService | None
+    categorization_service: CategorizationService | None
+
 
 def _find_single_txid(
     all_transactions: list[dict],
@@ -74,25 +89,21 @@ def _find_single_txid(
 def _find_targets(
     all_transactions: list[dict],
     single_mode: bool,
-    txid: str | None,
-    description: str | None,
-    desc_prefix: str | None,
-    pattern: str | None,
-    amount: float | None,
+    request: CategorizeRequest,
     service: TransactionOperationsService,
 ) -> list[tuple[str, TransactionGroup]] | None:
     """Build groups, apply search criteria, and return matched (account_id, group) pairs.
 
     Returns None on error (invalid pattern, ambiguous ID, etc.).
     """
-    if single_mode and txid is not None:
-        return _find_single_txid(all_transactions, txid, service)
+    if single_mode and request.txid is not None:
+        return _find_single_txid(all_transactions, request.txid, service)
 
     criteria = SearchCriteria(
-        description=description,
-        desc_prefix=desc_prefix,
-        pattern=pattern,
-        amount=amount,
+        description=request.description,
+        desc_prefix=request.desc_prefix,
+        pattern=request.pattern,
+        amount=request.amount,
     )
     groups_by_account = group_by_account(all_transactions)
     return find_matches_by_criteria(groups_by_account, criteria, service, txid=None)
@@ -100,23 +111,19 @@ def _find_targets(
 
 def _confirm_and_apply(
     all_matches: list[tuple[str, TransactionGroup]],
-    category: str,
-    subcategory: str | None,
     single_mode: bool,
-    assume_yes: bool,
-    write: bool,
+    request: CategorizeRequest,
     workspace: Workspace,
-    categorization_service: CategorizationService,
 ) -> int:
     """Display matches, confirm, apply categorization, and write back. Returns exit code."""
     total_matched = len(all_matches)
-    auto_yes = single_mode or total_matched <= 1 or assume_yes
+    auto_yes = single_mode or total_matched <= 1 or request.assume_yes
 
     def persist(ready) -> None:
-        result = categorization_service.run_categorization(
+        result = request.categorization_service.run_categorization(
             [group for _, group in all_matches],
-            category,
-            subcategory,
+            request.category,
+            request.subcategory,
         )
         account_by_txn_id = {group.primary.transaction_id: acct for acct, group in all_matches}
         updated_pairs = [
@@ -128,11 +135,11 @@ def _confirm_and_apply(
     return run_persisted_mutation(
         matches=all_matches,
         display=lambda: categorize_view.display_categorization_matches(
-            all_matches, category, subcategory
+            all_matches, request.category, request.subcategory
         ),
         confirm_prompt=f"Categorize {total_matched} transaction(s)?",
         assume_yes=auto_yes,
-        write=write,
+        write=request.write,
         workspace=workspace,
         persist=persist,
     )
@@ -342,39 +349,28 @@ def _run_batch_persist(persist, workspace: Workspace) -> int:
     return 0
 
 
-def _run_single_batch(
-    *,
-    workspace: Workspace,
-    account: str | None,
-    txid: str | None,
-    description: str | None,
-    desc_prefix: str | None,
-    pattern: str | None,
-    amount: float | None,
-    category: str,
-    subcategory: str | None,
-    assume_yes: bool,
-    write: bool,
-    service: TransactionOperationsService | None,
-    categorization_service: CategorizationService | None,
-) -> int:
+def _run_single_batch(request: CategorizeRequest, workspace: Workspace) -> int:
     """Validate inputs, resolve matching transactions, confirm, and apply categorization."""
     service, categorization_service, category, subcategory, single_mode = _validate_inputs(
-        workspace,
-        service,
-        categorization_service,
-        category,
-        subcategory,
-        txid,
-        description,
-        desc_prefix,
-        pattern,
+        request, workspace
+    )
+    request = CategorizeRequest(
+        account=request.account,
+        txid=request.txid,
+        description=request.description,
+        desc_prefix=request.desc_prefix,
+        pattern=request.pattern,
+        amount=request.amount,
+        category=category,
+        subcategory=subcategory,
+        assume_yes=request.assume_yes,
+        write=request.write,
+        service=service,
+        categorization_service=categorization_service,
     )
 
-    all_transactions = load_account_transactions(workspace, account)
-    all_matches = _find_targets(
-        all_transactions, single_mode, txid, description, desc_prefix, pattern, amount, service
-    )
+    all_transactions = load_account_transactions(workspace, request.account)
+    all_matches = _find_targets(all_transactions, single_mode, request, service)
     if all_matches is None:
         raise CommandAbort(1)
 
@@ -385,21 +381,12 @@ def _run_single_batch(
     recategorized_count = sum(
         1 for _, g in all_matches if g.primary.category is not None and g.primary.category != ""
     )
-    if not single_mode and len(all_matches) > 1 and not assume_yes and not write:
+    if not single_mode and len(all_matches) > 1 and not request.assume_yes and not request.write:
         categorize_view.print_batch_mode_notice(len(all_matches))
 
-    result = _confirm_and_apply(
-        all_matches,
-        category,
-        subcategory,
-        single_mode,
-        assume_yes,
-        write,
-        workspace,
-        categorization_service,
-    )
+    result = _confirm_and_apply(all_matches, single_mode, request, workspace)
     return categorize_view.report_categorization_result(
-        all_matches, result, recategorized_count, write
+        all_matches, result, recategorized_count, request.write
     )
 
 
@@ -471,8 +458,7 @@ def run(
         )
         raise CommandAbort(1)
 
-    return _run_single_batch(
-        workspace=workspace,
+    request = CategorizeRequest(
         account=account,
         txid=txid,
         description=description,
@@ -486,26 +472,24 @@ def run(
         service=service,
         categorization_service=categorization_service,
     )
+    return _run_single_batch(request, workspace)
 
 
 def _validate_inputs(
+    request: CategorizeRequest,
     workspace: Workspace,
-    service: TransactionOperationsService | None,
-    categorization_service: CategorizationService | None,
-    category: str,
-    subcategory: str | None,
-    txid: str | None,
-    description: str | None,
-    desc_prefix: str | None,
-    pattern: str | None,
 ) -> tuple[TransactionOperationsService, CategorizationService, str, str | None, bool]:
     """Initialize services and validate inputs. Returns initialized tuple or raises CommandAbort(1)."""
-    service, categorization_service = _init_services(workspace, service, categorization_service)
-    category, subcategory, cat_warning = build_category_path(category, subcategory)
+    service, categorization_service = _init_services(
+        workspace, request.service, request.categorization_service
+    )
+    category, subcategory, cat_warning = build_category_path(request.category, request.subcategory)
     if cat_warning:
         categorize_view.print_category_warning(cat_warning)
 
-    mode_result = validate_single_vs_batch_mode(txid, description, desc_prefix, pattern)
+    mode_result = validate_single_vs_batch_mode(
+        request.txid, request.description, request.desc_prefix, request.pattern
+    )
     if mode_result is None:
         raise CommandAbort(1)
     single_mode = mode_result

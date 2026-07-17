@@ -15,6 +15,7 @@ Two operating modes:
 """
 
 import re
+from dataclasses import dataclass
 from datetime import date
 
 from gilt.model.account import Transaction, TransactionGroup
@@ -38,6 +39,26 @@ from ..mutations import (
 )
 from . import recategorize_view
 from ._errors import CommandAbort
+
+
+@dataclass(frozen=True)
+class RecategorizeSelection:
+    from_category: str | None
+    to_category: str
+    to_cat: str
+    to_subcat: str | None
+    account: str | None
+    desc_prefix: str | None
+    pattern: str | None
+    amount_eq: float | None
+    amount_min: float | None
+    amount_max: float | None
+    date_from: date | None
+    date_to: date | None
+    fy_range: tuple[date, date] | None
+    write: bool
+    service: TransactionOperationsService | None
+
 
 # ---------------------------------------------------------------------------
 # Validation helpers
@@ -216,35 +237,23 @@ def _build_text_matches(
     return find_matches_by_criteria(groups_by_account, criteria, service)
 
 
-def _run_selection_mode(
-    *,
-    from_category: str | None,
-    to_category: str,
-    to_cat: str,
-    to_subcat: str | None,
-    account: str | None,
-    desc_prefix: str | None,
-    pattern: str | None,
-    amount_eq: float | None,
-    amount_min: float | None,
-    amount_max: float | None,
-    date_from: date | None,
-    date_to: date | None,
-    fy_range: tuple[date, date] | None,
-    workspace: Workspace,
-    write: bool,
-    service: TransactionOperationsService | None,
-) -> int:
+def _run_selection_mode(selection: RecategorizeSelection, workspace: Workspace) -> int:
     """Handle selection mode: filter rows then apply to_category."""
-    flag_error = _validate_selection_flags(desc_prefix, pattern, amount_eq, amount_min, amount_max)
+    flag_error = _validate_selection_flags(
+        selection.desc_prefix,
+        selection.pattern,
+        selection.amount_eq,
+        selection.amount_min,
+        selection.amount_max,
+    )
     if flag_error is not None:
         print_error(flag_error)
         raise CommandAbort(1)
 
     from_cat: str | None = None
     from_subcat: str | None = None
-    if from_category:
-        from_cat, from_subcat, _ = build_category_path(from_category)
+    if selection.from_category:
+        from_cat, from_subcat, _ = build_category_path(selection.from_category)
         if not from_cat:
             print_error("--from category cannot be empty")
             raise CommandAbort(1)
@@ -252,13 +261,13 @@ def _run_selection_mode(
     all_rows = load_account_transactions(workspace, None)
 
     criteria = _build_transaction_filter(
-        account=account,
-        date_from=date_from,
-        date_to=date_to,
-        fy_range=fy_range,
-        amount_eq=amount_eq,
-        amount_min=amount_min,
-        amount_max=amount_max,
+        account=selection.account,
+        date_from=selection.date_from,
+        date_to=selection.date_to,
+        fy_range=selection.fy_range,
+        amount_eq=selection.amount_eq,
+        amount_min=selection.amount_min,
+        amount_max=selection.amount_max,
         from_cat=from_cat,
         from_subcat=from_subcat,
     )
@@ -269,8 +278,10 @@ def _run_selection_mode(
         recategorize_view.print_no_filter_matches()
         return 0
 
-    if desc_prefix is not None or pattern is not None:
-        all_matches = _build_text_matches(filtered_transactions, desc_prefix, pattern, service)
+    if selection.desc_prefix is not None or selection.pattern is not None:
+        all_matches = _build_text_matches(
+            filtered_transactions, selection.desc_prefix, selection.pattern, selection.service
+        )
         if all_matches is None:
             raise CommandAbort(1)
     else:
@@ -287,19 +298,19 @@ def _run_selection_mode(
 
     def display() -> None:
         recategorize_view.display_recategorize_matches(
-            all_matches, from_category or None, to_category
+            all_matches, selection.from_category or None, selection.to_category
         )
         print_match_total(total_matched)
 
     return run_persisted_mutation(
         matches=all_matches,
         display=display,
-        confirm_prompt=f"Recategorize {total_matched} transaction(s) to '{format_category_path(to_cat, to_subcat)}'?",
+        confirm_prompt=f"Recategorize {total_matched} transaction(s) to '{format_category_path(selection.to_cat, selection.to_subcat)}'?",
         assume_yes=False,
-        write=write,
+        write=selection.write,
         workspace=workspace,
         persist=lambda ready: persist_categorization_matches(
-            all_matches, to_cat, to_subcat, ready, workspace, source="user"
+            all_matches, selection.to_cat, selection.to_subcat, ready, workspace, source="user"
         ),
         on_success=lambda: recategorize_view.print_recategorized_success(total_matched),
     )
@@ -406,7 +417,7 @@ def run(
             write=write,
         )
 
-    return _run_selection_mode(
+    selection = RecategorizeSelection(
         from_category=from_category,
         to_category=to_category,
         to_cat=to_cat,
@@ -420,10 +431,10 @@ def run(
         date_from=date_from,
         date_to=date_to,
         fy_range=fy_range,
-        workspace=workspace,
         write=write,
         service=service,
     )
+    return _run_selection_mode(selection, workspace)
 
 
 def build_date_selection(
