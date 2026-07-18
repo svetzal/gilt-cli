@@ -177,6 +177,8 @@ Improper worker lifecycle causes segfaults when a worker emits signals to a widg
 
 **Reference implementation**: worker interrupt handling in `src/gilt/gui/controllers/intelligence_scan_controller.py`; `cleanupPage` in `src/gilt/gui/views/categorization_review_page.py` and `src/gilt/gui/views/import_wizard/pages/execute_page.py`; `ImportWizard.reject` in `src/gilt/gui/views/import_wizard/wizard.py`.
 
+**Executable enforcement**: `src/gilt/gui/_module_layout_spec.py` is the static guard for the GUI shell layer. It fails the build when a UI module (views, dialogs, widgets, delegates, workers) calls ledger/file I/O directly instead of routing through the service layer, when a QThread-owning module calls `requestInterruption()` without a safe worker guard (`| None = None` declaration or `hasattr` check), or when a `QWizardPage` subclass starts a worker without implementing `cleanupPage`. It also asserts that every shell module has a companion `*_spec.py`. All allowlists are empty by design and must trend to empty.
+
 ## CLI Command Module Layout
 
 Complex CLI commands are split into three cohesive modules following the **functional core, imperative shell** pattern:
