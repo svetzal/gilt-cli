@@ -1,6 +1,41 @@
 from __future__ import annotations
 
-from gilt.cli.filtering import find_by_account, find_uncategorized
+from gilt.cli.filtering import (
+    find_by_account,
+    find_uncategorized,
+    match_from_row,
+    match_from_transaction,
+)
+from gilt.testing import make_transaction
+
+
+class DescribeMatchFromRow:
+    def it_should_return_account_id_and_group_from_row(self):
+        row = {
+            "transaction_id": "aabbccdd11223344",
+            "transaction_date": "2025-03-10",
+            "canonical_description": "SAMPLE STORE ANYTOWN",
+            "amount": "-42.50",
+            "currency": "CAD",
+            "account_id": "MYBANK_CHQ",
+        }
+
+        account_id, group = match_from_row(row)
+
+        assert account_id == "MYBANK_CHQ"
+        assert group.group_id == "aabbccdd11223344"
+        assert group.primary.account_id == "MYBANK_CHQ"
+
+
+class DescribeMatchFromTransaction:
+    def it_should_return_account_id_and_group_from_transaction(self):
+        txn = make_transaction(account_id="MYBANK_CHQ", transaction_id="aabbccdd11223344")
+
+        account_id, group = match_from_transaction(txn)
+
+        assert account_id == "MYBANK_CHQ"
+        assert group.group_id == "aabbccdd11223344"
+        assert group.primary is txn
 
 
 class DescribeFilterUncategorized:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from gilt.model.account import TransactionGroup
+from gilt.model.account import Transaction, TransactionGroup
 
 
 def group_by_account(rows: list[dict]) -> dict[str, list[TransactionGroup]]:
@@ -14,6 +14,16 @@ def group_by_account(rows: list[dict]) -> dict[str, list[TransactionGroup]]:
     return groups_by_account
 
 
+def match_from_row(row: dict) -> tuple[str, TransactionGroup]:
+    """Build a (account_id, TransactionGroup) match tuple from a projection row dict."""
+    return (row["account_id"], TransactionGroup.from_projection_row(row))
+
+
+def match_from_transaction(t: Transaction) -> tuple[str, TransactionGroup]:
+    """Build a (account_id, TransactionGroup) match tuple from a Transaction object."""
+    return (t.account_id, TransactionGroup(group_id=t.transaction_id, primary=t))
+
+
 def find_uncategorized(rows: list[dict]) -> list[dict]:
     return [row for row in rows if not row.get("category")]
 
@@ -24,4 +34,4 @@ def find_by_account(rows: list[dict], account: str | None) -> list[dict]:
     return [row for row in rows if row.get("account_id") == account]
 
 
-__all__ = ["group_by_account", "find_uncategorized", "find_by_account"]
+__all__ = ["group_by_account", "match_from_row", "match_from_transaction", "find_uncategorized", "find_by_account"]

@@ -18,11 +18,12 @@ from gilt.workspace import Workspace
 
 from ..console import print_error
 from ..event_sourcing_bootstrap import load_event_store, require_event_sourcing
-from ..filtering import group_by_account
+from ..filtering import group_by_account, match_from_row
 from ..formatting import build_category_path, format_prefix_lookup_error
 from ..loaders import load_account_transactions
 from ..mutations import (
     find_matches_by_criteria,
+    persist_categorization_matches,
     persist_row_categorizations,
     run_confirmed_mutation,
     run_persisted_mutation,
@@ -81,9 +82,7 @@ def _find_single_txid(
     if result.error is not None:
         print_error(format_prefix_lookup_error(result, normalized))
         return None
-    row = result.transaction
-    group = TransactionGroup.from_projection_row(row)
-    return [(row["account_id"], group)]
+    return [match_from_row(result.transaction)]
 
 
 def _find_targets(
@@ -120,17 +119,9 @@ def _confirm_and_apply(
     auto_yes = single_mode or total_matched <= 1 or request.assume_yes
 
     def persist(ready) -> None:
-        result = request.categorization_service.run_categorization(
-            [group for _, group in all_matches],
-            request.category,
-            request.subcategory,
+        persist_categorization_matches(
+            all_matches, request.category, request.subcategory, ready, workspace, source="user"
         )
-        account_by_txn_id = {group.primary.transaction_id: acct for acct, group in all_matches}
-        updated_pairs = [
-            (account_by_txn_id.get(group.primary.transaction_id, ""), group)
-            for group in result.updated_transactions
-        ]
-        _persist_categorizations(updated_pairs, ready, workspace)
 
     return run_persisted_mutation(
         matches=all_matches,
@@ -142,23 +133,6 @@ def _confirm_and_apply(
         write=request.write,
         workspace=workspace,
         persist=persist,
-    )
-
-
-def _persist_categorizations(
-    updated_pairs: list[tuple[str, TransactionGroup]],
-    ready,
-    workspace: Workspace,
-) -> None:
-    """Emit events, update CSVs, and rebuild projections for categorized transactions."""
-    persist_row_categorizations(
-        (
-            (g.primary.transaction_id, acct, g.primary.category or "", g.primary.subcategory, 1.0)
-            for acct, g in updated_pairs
-        ),
-        ready,
-        workspace,
-        source="user",
     )
 
 
@@ -312,16 +286,15 @@ def _persist_file_batch(
         row = txn_by_id.get(entry.transaction_id)
         if row is None:
             continue
-        group = TransactionGroup.from_projection_row(row)
+        _, group = match_from_row(row)
         updated_txn = group.primary.model_copy(
             update={"category": entry.category, "subcategory": entry.subcategory}
         )
-        updated_group = TransactionGroup(
+        preview_matches.append((entry.account_id, TransactionGroup(
             group_id=group.group_id,
             primary=updated_txn,
             splits=group.splits,
-        )
-        preview_matches.append((entry.account_id, updated_group))
+        )))
 
     def persist(ready) -> None:
         persist_row_categorizations(

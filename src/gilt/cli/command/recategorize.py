@@ -30,6 +30,7 @@ from gilt.workspace import Workspace
 
 from ..console import print_error, print_match_total
 from ..event_sourcing_bootstrap import require_persistence_service
+from ..filtering import match_from_row, match_from_transaction
 from ..formatting import build_category_path
 from ..loaders import load_account_transactions
 from ..mutations import (
@@ -149,8 +150,7 @@ def _find_matching_transactions(
             continue
         if from_subcat is not None and row.get("subcategory") != from_subcat:
             continue
-        group = TransactionGroup.from_projection_row(row)
-        matches.append((row["account_id"], group))
+        matches.append(match_from_row(row))
     return matches
 
 
@@ -231,9 +231,8 @@ def _build_text_matches(
     criteria = SearchCriteria(desc_prefix=desc_prefix, pattern=pattern)
     groups_by_account: dict[str, list[TransactionGroup]] = {}
     for t in filtered_transactions:
-        groups_by_account.setdefault(t.account_id, []).append(
-            TransactionGroup(group_id=t.transaction_id, primary=t)
-        )
+        acct_id, group = match_from_transaction(t)
+        groups_by_account.setdefault(acct_id, []).append(group)
     return find_matches_by_criteria(groups_by_account, criteria, service)
 
 
@@ -285,10 +284,7 @@ def _run_selection_mode(selection: RecategorizeSelection, workspace: Workspace) 
         if all_matches is None:
             raise CommandAbort(1)
     else:
-        all_matches = [
-            (t.account_id, TransactionGroup(group_id=t.transaction_id, primary=t))
-            for t in filtered_transactions
-        ]
+        all_matches = [match_from_transaction(t) for t in filtered_transactions]
 
     if not all_matches:
         recategorize_view.print_no_filter_matches()
