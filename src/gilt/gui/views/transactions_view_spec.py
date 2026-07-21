@@ -157,3 +157,210 @@ class DescribeClearFilters:
         view.category_combo.setCurrentIndex.assert_called_once_with(0)
         view.search_edit.clear.assert_called_once()
         view.uncategorized_check.setChecked.assert_called_once_with(False)
+
+
+class DescribeOnDateRangeChanged:
+    def it_should_show_custom_dates_and_skip_run_filters_for_custom_preset(self):
+        view = MagicMock()
+        view.date_range_combo.currentText.return_value = "Custom"
+
+        TransactionsView._on_date_range_changed(view, 0)
+
+        view._set_custom_dates_visible.assert_called_once_with(True)
+        view.run_filters.assert_not_called()
+
+    def it_should_hide_custom_dates_and_run_filters_without_touching_edits_for_all_preset(self):
+        view = MagicMock()
+        view.date_range_combo.currentText.return_value = "All"
+
+        TransactionsView._on_date_range_changed(view, 0)
+
+        view._set_custom_dates_visible.assert_called_once_with(False)
+        view.run_filters.assert_called_once()
+        view.start_date_edit.setDate.assert_not_called()
+        view.end_date_edit.setDate.assert_not_called()
+
+    def it_should_set_date_edits_and_run_filters_for_concrete_preset(self):
+        view = MagicMock()
+        view.date_range_combo.currentText.return_value = "This Month"
+
+        with patch(
+            "gilt.gui.views.transactions_view.get_date_range",
+            return_value=(date(2025, 6, 1), date(2025, 6, 30)),
+        ):
+            TransactionsView._on_date_range_changed(view, 0)
+
+        view._set_custom_dates_visible.assert_called_once_with(False)
+        view.start_date_edit.setDate.assert_called_once()
+        view.end_date_edit.setDate.assert_called_once()
+        view.run_filters.assert_called_once()
+
+
+class DescribeUpdateAccountCombo:
+    def it_should_clear_and_repopulate_with_all_accounts_first(self):
+        view = MagicMock()
+        view.account_combo.currentData.return_value = None
+        view.service.load_available_accounts.return_value = ["MYBANK_CHQ", "BANK2_BIZ"]
+
+        TransactionsView._update_account_combo(view)
+
+        view.account_combo.clear.assert_called_once()
+        calls = view.account_combo.addItem.call_args_list
+        assert calls[0].args == ("All Accounts", None)
+        assert calls[1].args == ("MYBANK_CHQ", "MYBANK_CHQ")
+        assert calls[2].args == ("BANK2_BIZ", "BANK2_BIZ")
+
+    def it_should_restore_selection_when_still_present(self):
+        view = MagicMock()
+        view.account_combo.currentData.return_value = "MYBANK_CHQ"
+        view.account_combo.findData.return_value = 1
+        view.service.load_available_accounts.return_value = ["MYBANK_CHQ"]
+
+        TransactionsView._update_account_combo(view)
+
+        view.account_combo.setCurrentIndex.assert_called_once_with(1)
+
+    def it_should_not_restore_selection_when_absent(self):
+        view = MagicMock()
+        view.account_combo.currentData.return_value = "GONE_ACCOUNT"
+        view.account_combo.findData.return_value = -1
+        view.service.load_available_accounts.return_value = ["MYBANK_CHQ"]
+
+        TransactionsView._update_account_combo(view)
+
+        view.account_combo.setCurrentIndex.assert_not_called()
+
+
+class DescribeUpdateCategoryCombo:
+    def it_should_clear_and_repopulate_with_all_categories_first(self):
+        view = MagicMock()
+        view.category_combo.currentData.return_value = None
+        view.service.get_unique_categories.return_value = ["Groceries", "Work"]
+
+        TransactionsView._update_category_combo(view)
+
+        view.category_combo.clear.assert_called_once()
+        calls = view.category_combo.addItem.call_args_list
+        assert calls[0].args == ("All Categories", None)
+        assert calls[1].args == ("Groceries", "Groceries")
+        assert calls[2].args == ("Work", "Work")
+
+    def it_should_restore_selection_when_still_present(self):
+        view = MagicMock()
+        view.category_combo.currentData.return_value = "Groceries"
+        view.category_combo.findData.return_value = 1
+        view.service.get_unique_categories.return_value = ["Groceries"]
+
+        TransactionsView._update_category_combo(view)
+
+        view.category_combo.setCurrentIndex.assert_called_once_with(1)
+
+    def it_should_not_restore_selection_when_absent(self):
+        view = MagicMock()
+        view.category_combo.currentData.return_value = "Gone"
+        view.category_combo.findData.return_value = -1
+        view.service.get_unique_categories.return_value = ["Groceries"]
+
+        TransactionsView._update_category_combo(view)
+
+        view.category_combo.setCurrentIndex.assert_not_called()
+
+
+class DescribeUpdateStatus:
+    def it_should_show_total_count_when_displayed_equals_total(self):
+        view = MagicMock()
+        view.table.get_row_count.return_value = 5
+        view._all_transactions = [MagicMock() for _ in range(5)]
+        view.table.get_selected_transactions.return_value = []
+
+        TransactionsView._update_status(view)
+
+        view.status_label.setText.assert_called_once_with("Showing 5 transactions")
+
+    def it_should_show_displayed_of_total_when_filtered(self):
+        view = MagicMock()
+        view.table.get_row_count.return_value = 2
+        view._all_transactions = [MagicMock() for _ in range(5)]
+        view.table.get_selected_transactions.return_value = []
+
+        TransactionsView._update_status(view)
+
+        view.status_label.setText.assert_called_once_with("Showing 2 of 5 transactions")
+
+    def it_should_append_selected_count_when_selection_present(self):
+        view = MagicMock()
+        view.table.get_row_count.return_value = 5
+        view._all_transactions = [MagicMock() for _ in range(5)]
+        view.table.get_selected_transactions.return_value = [MagicMock(), MagicMock()]
+
+        TransactionsView._update_status(view)
+
+        view.status_label.setText.assert_called_once_with("Showing 5 transactions | 2 selected")
+
+
+class DescribeOnResolveDuplicateRequested:
+    def it_should_do_nothing_when_no_selection(self):
+        view = MagicMock()
+        view.table.get_selected_transactions.return_value = []
+
+        TransactionsView._on_resolve_duplicate_requested(view)
+
+        view._mutation_controller.run_duplicate_resolution.assert_not_called()
+
+    def it_should_do_nothing_when_multiple_selected(self):
+        view = MagicMock()
+        view.table.get_selected_transactions.return_value = [MagicMock(), MagicMock()]
+
+        TransactionsView._on_resolve_duplicate_requested(view)
+
+        view._mutation_controller.run_duplicate_resolution.assert_not_called()
+
+    def it_should_call_controller_when_exactly_one_selected(self):
+        view = MagicMock()
+        txn = MagicMock()
+        view.table.get_selected_transactions.return_value = [txn]
+        view.table.transaction_model.get_metadata.return_value = {"foo": "bar"}
+
+        TransactionsView._on_resolve_duplicate_requested(view)
+
+        view.table.transaction_model.get_metadata.assert_called_once_with(
+            txn.primary.transaction_id
+        )
+        view._mutation_controller.run_duplicate_resolution.assert_called_once_with(
+            txn, {"foo": "bar"}
+        )
+
+
+class DescribeOnSelectionChanged:
+    def it_should_return_early_when_detail_panel_hidden(self):
+        view = MagicMock()
+        view.detail_panel.isVisible.return_value = False
+
+        TransactionsView._on_selection_changed(view)
+
+        view.detail_panel.update_transaction.assert_not_called()
+
+    def it_should_skip_receipt_candidates_when_enrichment_found(self):
+        view = MagicMock()
+        view.detail_panel.isVisible.return_value = True
+        txn = MagicMock()
+        view.table.get_current_transaction.return_value = txn
+        view.enrichment_service.get_enrichment.return_value = {"category": "Groceries"}
+
+        TransactionsView._on_selection_changed(view)
+
+        view._receipt_controller.find_candidates.assert_not_called()
+        view.detail_panel.update_transaction.assert_called_once()
+
+    def it_should_look_up_receipt_candidates_when_no_enrichment(self):
+        view = MagicMock()
+        view.detail_panel.isVisible.return_value = True
+        txn = MagicMock()
+        view.table.get_current_transaction.return_value = txn
+        view.enrichment_service.get_enrichment.return_value = None
+        view._receipt_controller.find_candidates.return_value = ["candidate"]
+
+        TransactionsView._on_selection_changed(view)
+
+        view._receipt_controller.find_candidates.assert_called_once_with(txn)
+        view.detail_panel.update_transaction.assert_called_once()

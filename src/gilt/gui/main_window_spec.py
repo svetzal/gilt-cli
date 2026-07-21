@@ -131,3 +131,61 @@ class DescribeShowImportWizard:
             MainWindow._show_import_wizard(window)
 
         window.transactions_view.reload_transactions.assert_not_called()
+
+
+class DescribeShowSettings:
+    def it_should_refresh_and_show_message_after_dialog_accepted(self):
+        window = MagicMock()
+
+        with (
+            patch("gilt.gui.main_window.SettingsDialog") as mock_dialog_cls,
+            patch("gilt.gui.main_window.Workspace") as mock_workspace_cls,
+        ):
+            mock_dialog_cls.return_value.exec.return_value = True
+
+            MainWindow._show_settings(window)
+
+        mock_workspace_cls.resolve.assert_called_once()
+        window._refresh_current_view.assert_called_once()
+        window.statusBar.return_value.showMessage.assert_called_once_with("Settings saved", 3000)
+
+    def it_should_not_refresh_when_dialog_rejected(self):
+        window = MagicMock()
+
+        with (
+            patch("gilt.gui.main_window.SettingsDialog") as mock_dialog_cls,
+            patch("gilt.gui.main_window.Workspace"),
+        ):
+            mock_dialog_cls.return_value.exec.return_value = False
+
+            MainWindow._show_settings(window)
+
+        window._refresh_current_view.assert_not_called()
+
+
+class DescribeShowEvent:
+    def it_should_apply_dark_theme_when_app_property_is_dark(self):
+        window = MagicMock(spec=MainWindow)
+        mock_app = MagicMock()
+        mock_app.property.return_value = "dark"
+
+        with (
+            patch("PySide6.QtWidgets.QMainWindow.showEvent"),
+            patch("PySide6.QtWidgets.QApplication.instance", return_value=mock_app),
+        ):
+            MainWindow.showEvent(window, MagicMock())
+
+        window._run_nav_theme.assert_called_once_with("dark")
+
+    def it_should_fall_back_to_light_theme_when_no_property_set(self):
+        window = MagicMock(spec=MainWindow)
+        mock_app = MagicMock()
+        mock_app.property.return_value = None
+
+        with (
+            patch("PySide6.QtWidgets.QMainWindow.showEvent"),
+            patch("PySide6.QtWidgets.QApplication.instance", return_value=mock_app),
+        ):
+            MainWindow.showEvent(window, MagicMock())
+
+        window._run_nav_theme.assert_called_once_with("light")
