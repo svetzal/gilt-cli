@@ -13,6 +13,7 @@ from pathlib import Path
 
 from gilt.model.account import TransactionGroup
 from gilt.model.ledger_repository import LEDGER_IO_ERRORS, LedgerRepository
+from gilt.services.transaction_query_service import TransactionFilter, TransactionQueryService
 from gilt.storage.projection import ProjectionBuilder
 
 logger = logging.getLogger(__name__)
@@ -153,47 +154,21 @@ class TransactionService:
         Returns:
             Filtered list of transaction groups
         """
-        filtered = transactions
-
-        # Account filter
-        if account_filter:
-            filtered = [g for g in filtered if g.primary.account_id in account_filter]
-
-        # Date range filter
-        if start_date:
-            filtered = [g for g in filtered if g.primary.date >= start_date]
-        if end_date:
-            filtered = [g for g in filtered if g.primary.date <= end_date]
-
-        # Amount range filter
-        if min_amount is not None:
-            filtered = [g for g in filtered if abs(g.primary.amount) >= min_amount]
-        if max_amount is not None:
-            filtered = [g for g in filtered if abs(g.primary.amount) <= max_amount]
-
-        # Category filter
-        if category_filter:
-            filtered = [g for g in filtered if g.primary.category in category_filter]
-
-        # Uncategorized filter
-        if uncategorized_only:
-            filtered = [
-                g for g in filtered if not g.primary.category or g.primary.category.strip() == ""
-            ]
-
-        # Search text filter
-        if search_text:
-            search_lower = search_text.lower()
-            filtered = [
-                g
-                for g in filtered
-                if (
-                    search_lower in (g.primary.description or "").lower()
-                    or search_lower in (g.primary.counterparty or "").lower()
-                )
-            ]
-
-        return filtered
+        criteria = TransactionFilter(
+            account_ids=tuple(account_filter) if account_filter else None,
+            date_start=start_date,
+            date_end=end_date,
+            min_abs_amount=min_amount,
+            max_abs_amount=max_amount,
+            categories=tuple(category_filter) if category_filter else None,
+            uncategorized_only=uncategorized_only,
+            search_text=search_text or None,
+        )
+        by_id = {g.primary.transaction_id: g for g in transactions}
+        matched = TransactionQueryService().find_matching(
+            [g.primary for g in transactions], criteria
+        )
+        return [by_id[t.transaction_id] for t in matched]
 
     def clear_cache(self):
         """Clear the transaction cache."""

@@ -32,25 +32,39 @@ class TransactionFilter:
 
     Fields:
         account_id: Exact match on transaction account_id.
+        account_ids: Match if account_id is any of these values.
         year: Calendar year of transaction date (transaction.date.year == year).
         fy_range: Inclusive date range (start, end); overrides year when both supplied.
+        date_start: Inclusive lower bound on transaction date.
+        date_end: Inclusive upper bound on transaction date.
         amount_eq: Exact signed amount within 0.01 tolerance.
         amount_min: Signed lower bound (inclusive).
         amount_max: Signed upper bound (inclusive).
         min_abs_amount: Absolute-value lower bound; matches |amount| >= min_abs_amount.
+        max_abs_amount: Absolute-value upper bound; matches |amount| <= max_abs_amount.
         category: Case-insensitive category match.
+        categories: Case-insensitive match against any of these categories.
         subcategory: Case-insensitive subcategory match.
+        uncategorized_only: Match only transactions with a blank category.
+        search_text: Case-insensitive substring match against description or counterparty.
     """
 
     account_id: str | None = None
+    account_ids: tuple[str, ...] | None = None
     year: int | None = None
     fy_range: tuple[date, date] | None = None
+    date_start: date | None = None
+    date_end: date | None = None
     amount_eq: float | None = None
     amount_min: float | None = None
     amount_max: float | None = None
     min_abs_amount: float | None = None
+    max_abs_amount: float | None = None
     category: str | None = None
+    categories: tuple[str, ...] | None = None
     subcategory: str | None = None
+    uncategorized_only: bool = False
+    search_text: str | None = None
 
 
 @dataclass
@@ -60,6 +74,64 @@ class TransactionTotals:
     credits: float
     debits: float
     net: float
+
+
+def _passes_account_filter(t: Transaction, criteria: TransactionFilter) -> bool:
+    if criteria.account_id is not None and t.account_id != criteria.account_id:
+        return False
+    return not (criteria.account_ids is not None and t.account_id not in criteria.account_ids)
+
+
+def _passes_date_filter(t: Transaction, criteria: TransactionFilter) -> bool:
+    if criteria.fy_range is not None:
+        if not (criteria.fy_range[0] <= t.date <= criteria.fy_range[1]):
+            return False
+    elif criteria.year is not None and t.date.year != criteria.year:
+        return False
+    if criteria.date_start is not None and t.date < criteria.date_start:
+        return False
+    return not (criteria.date_end is not None and t.date > criteria.date_end)
+
+
+def _passes_amount_filter(t: Transaction, criteria: TransactionFilter) -> bool:
+    if criteria.amount_eq is not None and abs(t.amount - criteria.amount_eq) > 0.01:
+        return False
+    if criteria.amount_min is not None and t.amount < criteria.amount_min:
+        return False
+    if criteria.amount_max is not None and t.amount > criteria.amount_max:
+        return False
+    if criteria.min_abs_amount is not None and abs(t.amount) < criteria.min_abs_amount:
+        return False
+    return not (
+        criteria.max_abs_amount is not None and abs(t.amount) > criteria.max_abs_amount
+    )
+
+
+def _passes_category_filter(t: Transaction, criteria: TransactionFilter) -> bool:
+    if (
+        criteria.category is not None
+        and (t.category or "").lower() != criteria.category.lower()
+    ):
+        return False
+    if criteria.categories is not None and (t.category or "").lower() not in {
+        c.lower() for c in criteria.categories
+    }:
+        return False
+    if (
+        criteria.subcategory is not None
+        and (t.subcategory or "").lower() != criteria.subcategory.lower()
+    ):
+        return False
+    return not (criteria.uncategorized_only and (t.category or "").strip())
+
+
+def _passes_text_filter(t: Transaction, criteria: TransactionFilter) -> bool:
+    if criteria.search_text is None:
+        return True
+    needle = criteria.search_text.lower()
+    return needle in (t.description or "").lower() or needle in (
+        t.counterparty or ""
+    ).lower()
 
 
 class TransactionQueryService:
@@ -85,35 +157,15 @@ class TransactionQueryService:
         Returns:
             Subset of transactions matching all active criteria.
         """
-        result: list[Transaction] = []
-        for t in transactions:
-            if criteria.account_id is not None and t.account_id != criteria.account_id:
-                continue
-            if criteria.fy_range is not None:
-                if not (criteria.fy_range[0] <= t.date <= criteria.fy_range[1]):
-                    continue
-            elif criteria.year is not None and t.date.year != criteria.year:
-                continue
-            if criteria.amount_eq is not None and abs(t.amount - criteria.amount_eq) > 0.01:
-                continue
-            if criteria.amount_min is not None and t.amount < criteria.amount_min:
-                continue
-            if criteria.amount_max is not None and t.amount > criteria.amount_max:
-                continue
-            if criteria.min_abs_amount is not None and abs(t.amount) < criteria.min_abs_amount:
-                continue
-            if (
-                criteria.category is not None
-                and (t.category or "").lower() != criteria.category.lower()
-            ):
-                continue
-            if (
-                criteria.subcategory is not None
-                and (t.subcategory or "").lower() != criteria.subcategory.lower()
-            ):
-                continue
-            result.append(t)
-        return result
+        return [
+            t
+            for t in transactions
+            if _passes_account_filter(t, criteria)
+            and _passes_date_filter(t, criteria)
+            and _passes_amount_filter(t, criteria)
+            and _passes_category_filter(t, criteria)
+            and _passes_text_filter(t, criteria)
+        ]
 
     def find_transactions(
         self,
