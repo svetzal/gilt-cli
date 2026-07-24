@@ -11,6 +11,7 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
+from gilt.model.errors import DATA_IO_ERRORS
 from gilt.model.events import TransactionEnriched
 from gilt.services.receipt_ingestion_service import (
     DEFAULT_VENDOR_PATTERNS,
@@ -84,7 +85,7 @@ class ReceiptMatchService:
         for path in json_paths:
             try:
                 receipt = load_receipt_file(path)
-            except (ValueError, Exception):
+            except DATA_IO_ERRORS:
                 continue
             if receipt.amount is None:
                 continue

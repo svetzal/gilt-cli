@@ -9,9 +9,9 @@ Dry-run by default; pass --write to persist events.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
+from gilt.model.errors import DATA_IO_ERRORS
 from gilt.services.receipt_ingestion_service import (
     DEFAULT_VENDOR_PATTERNS,
     MatchResult,
@@ -67,7 +67,7 @@ def _find_paths_by_year(json_paths: list[Path], year: int) -> tuple[list[Path], 
     for p in json_paths:
         try:
             all_receipts.append(load_receipt_file(p))
-        except (json.JSONDecodeError, OSError, ValueError) as e:
+        except DATA_IO_ERRORS as e:
             parse_warnings.append(f"skipping {p.name} — {e}")
     return [r.source_path for r in find_receipts_by_year(all_receipts, year)], parse_warnings
 

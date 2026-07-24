@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from gilt.model.category_io import load_categories_config
+from gilt.model.errors import DATA_IO_ERRORS
 from gilt.services.event_migration_service import EventMigrationService, MigrationStats
 from gilt.storage.budget_projection import BudgetProjectionBuilder
 from gilt.workspace import Workspace
@@ -196,7 +197,7 @@ def _backfill_budgets(
     """Backfill budget events from categories.yml. Returns display lines for each budget processed."""
     try:
         config = load_categories_config(categories_config)
-    except (OSError, ValueError) as e:
+    except DATA_IO_ERRORS as e:
         print_error(f"Error loading categories config: {e}")
         stats.errors += 1
         return []
@@ -249,7 +250,7 @@ def _validate_projections(
 
     try:
         config = load_categories_config(categories_config)
-    except (OSError, ValueError) as e:
+    except DATA_IO_ERRORS as e:
         print_error(f"Error loading categories config: {e}")
         return _ValidationResult(passed=False, tx_count=tx_count, budget_count=budget_count)
 

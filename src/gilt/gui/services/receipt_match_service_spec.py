@@ -125,6 +125,51 @@ class DescribeReceiptMatchServiceCandidates:
 
         assert candidates == []
 
+    def it_should_skip_unparseable_receipt_files(self, tmp_path):
+        receipts_dir = tmp_path / "receipts"
+        receipts_dir.mkdir()
+        (receipts_dir / "broken.json").write_text("{not valid json", encoding="utf-8")
+        _write_receipt_json(receipts_dir / "acme.json")
+
+        db_path = tmp_path / "events.db"
+        store = EventStore(str(db_path))
+
+        svc = ReceiptMatchService(receipts_dir, store)
+        candidates = svc.find_candidates_for_transaction(
+            txn_id="abcd1234abcd1234",
+            txn_amount=Decimal("-39.04"),
+            txn_date=date(2025, 6, 15),
+            txn_description="ACME CORP PURCHASE",
+            txn_account_id="MYBANK_CC",
+        )
+
+        assert len(candidates) == 1
+        assert candidates[0].vendor == "Acme Corp"
+
+    def it_should_not_swallow_programming_errors(self, tmp_path, mocker):
+        receipts_dir = tmp_path / "receipts"
+        receipts_dir.mkdir()
+        _write_receipt_json(receipts_dir / "acme.json")
+
+        db_path = tmp_path / "events.db"
+        store = EventStore(str(db_path))
+
+        mocker.patch(
+            "gilt.gui.services.receipt_match_service.load_receipt_file",
+            side_effect=AttributeError("boom"),
+        )
+
+        svc = ReceiptMatchService(receipts_dir, store)
+        try:
+            svc.find_candidates_for_transaction(
+                txn_id="abcd1234abcd1234",
+                txn_amount=Decimal("-39.04"),
+                txn_date=date(2025, 6, 15),
+            )
+            raise AssertionError("Expected AttributeError to propagate")
+        except AttributeError:
+            pass
+
 
 class DescribeReceiptMatchServiceBatch:
     def it_should_categorize_results_as_matched_ambiguous_unmatched(self, tmp_path):

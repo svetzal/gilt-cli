@@ -15,7 +15,7 @@ except ImportError:  # pragma: no cover
     yaml = None
 
 from gilt.model.account import Account
-from gilt.model.errors import ConfigLoadError
+from gilt.model.errors import CONFIG_IO_ERRORS, ConfigLoadError
 
 
 def load_accounts_config(path: Path) -> list[Account]:
@@ -39,7 +39,7 @@ def load_accounts_config(path: Path) -> list[Account]:
 
     try:
         data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    except (yaml.YAMLError, OSError) as exc:
+    except CONFIG_IO_ERRORS as exc:
         raise ConfigLoadError(path) from exc
 
     accounts: list[Account] = []

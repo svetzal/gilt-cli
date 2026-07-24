@@ -34,6 +34,7 @@ from gilt.gui.services.transaction_service import TransactionService, get_date_r
 from gilt.gui.widgets.transaction_detail_panel import TransactionDetailPanel
 from gilt.gui.widgets.transaction_table import TransactionTableWidget
 from gilt.model.account import TransactionGroup
+from gilt.model.errors import DATA_IO_ERRORS
 from gilt.services.duplicate_service import DuplicateService
 from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.services.smart_category_service import SmartCategoryService
@@ -136,7 +137,7 @@ class TransactionsView(QWidget):
         try:
             events = self.event_store.get_events_by_type("TransactionEnriched")
             self.enrichment_service = EnrichmentService(events)
-        except (OSError, ValueError) as e:
+        except DATA_IO_ERRORS as e:
             logger.warning("Enrichment data unavailable: %s", e)
             self.enrichment_service = None
 

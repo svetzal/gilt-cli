@@ -10,6 +10,7 @@ from gilt.gui.dialogs.settings_dialog import SettingsDialog
 from gilt.gui.services.enrichment_service import EnrichmentService
 from gilt.gui.services.receipt_match_service import ReceiptMatchService
 from gilt.model.account import TransactionGroup
+from gilt.model.errors import DATA_IO_ERRORS
 from gilt.services.event_sourcing_service import EventSourcingService
 from gilt.storage.event_store import EventStore
 
@@ -36,7 +37,7 @@ class ReceiptMatchController(QObject):
             return
         try:
             self._es_service.ensure_projections_up_to_date(self._event_store)
-        except (OSError, ValueError):
+        except DATA_IO_ERRORS:
             self.status_message.emit("Warning: projections sync failed — view may be stale")
 
     def get_service(self) -> ReceiptMatchService | None:
@@ -159,5 +160,5 @@ class ReceiptMatchController(QObject):
             svc.run_match(receipt, transaction_id)
             self._sync_projections()
             self.data_changed.emit(transaction_id)
-        except (OSError, ValueError, UnicodeDecodeError) as e:
+        except DATA_IO_ERRORS as e:
             QMessageBox.critical(self._parent, "Error", f"Failed to apply receipt match:\n{str(e)}")

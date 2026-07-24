@@ -7,6 +7,7 @@ from pathlib import Path
 from PySide6.QtCore import QThread, Signal
 
 from gilt.model.account import TransactionGroup
+from gilt.model.errors import DATA_IO_ERRORS
 from gilt.services.duplicate_service import DuplicateService
 from gilt.services.intelligence_scan_service import IntelligenceScanService
 from gilt.services.smart_category_service import SmartCategoryService
@@ -66,7 +67,7 @@ class IntelligenceWorker(QThread):
                     fragment = scan_service.run_inferred_rules(all_txns, self.projections_path)
                     metadata.update(fragment)
                     rule_matched_ids = set(fragment.keys())
-                except (OSError, ValueError, sqlite3.OperationalError) as e:
+                except DATA_IO_ERRORS + (sqlite3.OperationalError,) as e:
                     self.status.emit(f"Rule inference skipped: {e}")
                 completed += 1
                 self.progress.emit(completed, total_units)
@@ -83,7 +84,7 @@ class IntelligenceWorker(QThread):
 
             if not self.isInterruptionRequested():
                 self.finished.emit(metadata)
-        except (OSError, ValueError, UnicodeDecodeError, RuntimeError) as e:
+        except DATA_IO_ERRORS as e:
             logger.error("Intelligence scan failed", exc_info=True)
             self.error.emit(f"Intelligence scan failed: {e}")
 

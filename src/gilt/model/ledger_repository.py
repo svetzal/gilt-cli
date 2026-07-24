@@ -4,12 +4,10 @@ import logging
 from pathlib import Path
 
 from gilt.model.account import TransactionGroup
-from gilt.model.errors import LedgerLoadError
+from gilt.model.errors import LEDGER_IO_ERRORS, LedgerLoadError
 from gilt.model.ledger_io import dump_ledger_csv, load_ledger_csv
 
 logger = logging.getLogger(__name__)
-
-LEDGER_IO_ERRORS: tuple[type[Exception], ...] = (OSError, ValueError, UnicodeDecodeError)
 
 
 class LedgerRepository:

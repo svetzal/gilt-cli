@@ -16,6 +16,7 @@ Options:
 
 from pathlib import Path
 
+from gilt.model.errors import DATA_IO_ERRORS
 from gilt.workspace import Workspace
 
 from ..console import print_error
@@ -94,7 +95,7 @@ def _build_and_report(
 
         return 0
 
-    except (OSError, ValueError) as e:
+    except DATA_IO_ERRORS as e:
         print_error(f"Error rebuilding projections: {e}")
         raise CommandAbort(1) from None
 

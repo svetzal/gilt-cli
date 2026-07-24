@@ -22,6 +22,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from gilt.model.category_io import load_categories_config
+from gilt.model.errors import DATA_IO_ERRORS
 from gilt.model.ledger_repository import LEDGER_IO_ERRORS, LedgerRepository
 from gilt.services.event_migration_service import EventMigrationService
 from gilt.services.event_sourcing_service import EventSourcingService
@@ -120,7 +121,7 @@ def _backfill_events(
             for event in budget_event_list:
                 event_store.append_event(event)
                 budget_events += 1
-        except (OSError, ValueError) as e:
+        except DATA_IO_ERRORS as e:
             print_error(f"Error creating budget events: {e}")
             errors += 1
 
@@ -138,7 +139,7 @@ def _build_projections(
     try:
         tx_builder = es_service.get_projection_builder()
         tx_count = tx_builder.build_from_scratch(event_store)
-    except (OSError, ValueError) as e:
+    except DATA_IO_ERRORS as e:
         print_error(f"Error building transaction projections: {e}")
         raise CommandAbort(1) from None
 
@@ -148,7 +149,7 @@ def _build_projections(
         try:
             budget_builder = BudgetProjectionBuilder(effective_budget_projections_db_path)
             budget_count = budget_builder.build_from_scratch(event_store)
-        except (OSError, ValueError) as e:
+        except DATA_IO_ERRORS as e:
             print_error(f"Error building budget projections: {e}")
             raise CommandAbort(1) from None
 
@@ -282,7 +283,7 @@ def _run_migration(
             tx_builder,
             budget_builder,
         )
-    except (OSError, ValueError) as e:
+    except DATA_IO_ERRORS as e:
         print_error(f"Validation failed: {e}")
         raise CommandAbort(1) from None
     if display_validation_result(validation_result, has_categories) != 0:

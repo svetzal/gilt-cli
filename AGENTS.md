@@ -52,6 +52,14 @@ Columns in order (source of truth: `gilt.model.ledger_io.STANDARD_FIELDS`):
 - All ledger I/O goes through `gilt.model.ledger_io.{load_ledger_csv, dump_ledger_csv}`
 - Account-filtered ledger path discovery goes through `LedgerRepository.ledger_paths_for(account_id)` — pass `None` for all accounts, a string for one specific account. Never hand-roll the "exists or empty-list" pattern inline.
 
+## Error Handling
+
+The domain error hierarchy lives in `gilt.model.errors`: `GiltDataError` and its subclasses (`ConfigLoadError`, `LedgerLoadError`, `IntelligenceCacheError`) are raised at boundaries where data load or parsing can fail.
+
+Callers catching recoverable I/O/parse failures at those boundaries use the shared vocabulary from `gilt.model.errors` — `DATA_IO_ERRORS`, `CONFIG_IO_ERRORS` (adds `yaml.YAMLError`), or `LEDGER_IO_ERRORS` (alias of `DATA_IO_ERRORS`) — rather than hand-rolling an equivalent tuple of `OSError`/`ValueError`/`UnicodeDecodeError` inline. Never catch bare `Exception` to `pass` or `continue` — it hides programming errors alongside genuine I/O failures.
+
+**Executable enforcement**: `src/gilt/model/_error_vocabulary_spec.py` is the static guard. It fails the build when an `except` clause hand-rolls a tuple duplicating the shared vocabulary, or blanket-swallows `Exception`. Its allowlist is empty by design and must trend to empty.
+
 ## Transaction ID (Do Not Change)
 
 Deterministic SHA-256 hash, first 16 hex chars:

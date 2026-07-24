@@ -25,6 +25,7 @@ from gilt.model.duplicate import (
     DuplicateMatch,
     TransactionPair,
 )
+from gilt.model.errors import DATA_IO_ERRORS
 from gilt.model.events import PromptUpdated
 from gilt.storage.event_store import EventStore
 from gilt.transfer.prompt_manager import PromptManager
@@ -136,7 +137,8 @@ class DuplicateDetector:
         except ImportError:
             # ML dependencies not installed, fall back to LLM
             return None
-        except (RuntimeError, ValueError, OSError):
+        except DATA_IO_ERRORS + (RuntimeError,):
+            # RuntimeError: torch/scikit-learn training libraries can raise it directly
             logger.warning("ML classifier training failed, falling back to LLM", exc_info=True)
             return None
 
@@ -156,7 +158,7 @@ class DuplicateDetector:
                 if isinstance(latest_event, PromptUpdated):
                     self.prompt_version = latest_event.prompt_version
                     self.learned_patterns = latest_event.learned_patterns
-        except (OSError, ValueError, TypeError):
+        except DATA_IO_ERRORS + (TypeError,):
             logger.warning(
                 "Failed to load learned patterns from event store, using defaults", exc_info=True
             )

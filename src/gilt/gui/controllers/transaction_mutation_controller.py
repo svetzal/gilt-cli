@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 
-import yaml
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QMessageBox
 
@@ -12,6 +11,7 @@ from gilt.gui.dialogs.note_dialog import NoteDialog
 from gilt.gui.dialogs.settings_dialog import SettingsDialog
 from gilt.model.account import TransactionGroup
 from gilt.model.duplicate import DuplicateAssessment, DuplicateMatch, TransactionPair
+from gilt.model.errors import CONFIG_IO_ERRORS, DATA_IO_ERRORS
 from gilt.model.ledger_repository import LedgerRepository
 from gilt.services.categorization_persistence_service import (
     CategorizationPersistenceService,
@@ -51,7 +51,7 @@ class TransactionMutationController(QObject):
             return
         try:
             self._es_service.ensure_projections_up_to_date(self._event_store)
-        except (OSError, ValueError):
+        except DATA_IO_ERRORS:
             self.status_message.emit("Warning: projections sync failed — view may be stale")
 
     def _run_prediction(self, transaction: TransactionGroup, predicted: str):
@@ -91,7 +91,7 @@ class TransactionMutationController(QObject):
             if dialog.exec():
                 category, subcategory = dialog.get_selected_category()
                 self._run_categorization(selected_transactions, category, subcategory)
-        except (OSError, ValueError, yaml.YAMLError) as e:
+        except CONFIG_IO_ERRORS as e:
             QMessageBox.critical(self._parent, "Error", f"Failed to open categorize dialog:\n{e}")
 
     def _run_categorization(
@@ -142,7 +142,7 @@ class TransactionMutationController(QObject):
                         previous_subcategory=txn.subcategory,
                     )
             self.data_changed.emit(restore_transaction_id)
-        except (OSError, ValueError, UnicodeDecodeError) as e:
+        except DATA_IO_ERRORS as e:
             QMessageBox.critical(
                 self._parent, "Error", f"Failed to categorize transactions:\n{str(e)}"
             )
@@ -174,7 +174,7 @@ class TransactionMutationController(QObject):
             self._sync_projections()
             self.data_changed.emit(None)
             QMessageBox.information(self._parent, "Success", "Note updated successfully")
-        except (FileNotFoundError, OSError, ValueError, UnicodeDecodeError) as e:
+        except DATA_IO_ERRORS as e:
             QMessageBox.critical(self._parent, "Error", f"Failed to update note:\n{str(e)}")
 
     def run_duplicate_resolution(self, txn_group: TransactionGroup, meta: dict):
@@ -207,7 +207,7 @@ class TransactionMutationController(QObject):
                     QMessageBox.information(self._parent, "Success", "Marked as not a duplicate.")
                 self._sync_projections()
                 self.data_changed.emit(None)
-            except (ValueError, OSError, UnicodeDecodeError) as e:
+            except DATA_IO_ERRORS as e:
                 QMessageBox.critical(
                     self._parent, "Error", f"Failed to resolve duplicate:\n{str(e)}"
                 )
@@ -260,7 +260,7 @@ class TransactionMutationController(QObject):
                         )
                 self._sync_projections()
                 self.data_changed.emit(None)
-            except (ValueError, OSError, UnicodeDecodeError) as e:
+            except DATA_IO_ERRORS as e:
                 QMessageBox.critical(
                     self._parent, "Error", f"Failed to merge transactions:\n{str(e)}"
                 )

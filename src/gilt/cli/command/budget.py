@@ -6,6 +6,7 @@ Budget reporting: compare actual spending vs budgeted amounts.
 
 from datetime import date
 
+from gilt.model.errors import DATA_IO_ERRORS
 from gilt.services.budget_service import BudgetService
 from gilt.workspace import Workspace
 
@@ -54,7 +55,7 @@ def run(
             month=month,
             category_filter=category,
         )
-    except (OSError, ValueError) as e:
+    except DATA_IO_ERRORS as e:
         print_error(f"Failed to generate budget report: {e}")
         raise CommandAbort(1) from None
 

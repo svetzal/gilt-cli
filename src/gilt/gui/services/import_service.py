@@ -26,6 +26,7 @@ from gilt.ingest import (
 )
 from gilt.model.account import Account, Transaction
 from gilt.model.duplicate import DuplicateMatch, TransactionPair
+from gilt.model.errors import DATA_IO_ERRORS
 from gilt.model.ledger_repository import LEDGER_IO_ERRORS, LedgerRepository
 from gilt.model.raw_csv import load_raw_csv
 from gilt.services.duplicate_service import DuplicateService
@@ -320,7 +321,7 @@ class ImportService:
             new_ids = {t.transaction_id for t in new_transactions}
             return self._find_relevant_matches(matches, new_ids)
 
-        except (OSError, ValueError) as e:
+        except DATA_IO_ERRORS as e:
             _logger.error("Error scanning for duplicates: %s", e)
             return []
 
@@ -373,7 +374,7 @@ class ImportService:
 
             return items
 
-        except (OSError, ValueError) as e:
+        except DATA_IO_ERRORS as e:
             _logger.error("Error scanning for categorization: %s", e)
             return []
 

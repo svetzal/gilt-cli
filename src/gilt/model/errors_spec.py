@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from gilt.model.errors import (
+    CONFIG_IO_ERRORS,
+    DATA_IO_ERRORS,
     ConfigLoadError,
     GiltDataError,
     IntelligenceCacheError,
@@ -57,6 +59,22 @@ class DescribeIntelligenceCacheError:
         path = Path("/data/private/intelligence_cache.json")
         exc = IntelligenceCacheError(path)
         assert str(path) in str(exc)
+
+
+class DescribeErrorVocabulary:
+    def it_should_expose_data_io_errors_covering_os_and_value_failures(self):
+        assert isinstance(DATA_IO_ERRORS, tuple)
+        assert all(isinstance(t, type) and issubclass(t, Exception) for t in DATA_IO_ERRORS)
+        assert OSError in DATA_IO_ERRORS
+        assert ValueError in DATA_IO_ERRORS
+
+    def it_should_expose_config_io_errors_including_yaml_failures(self):
+        assert isinstance(CONFIG_IO_ERRORS, tuple)
+        assert all(isinstance(t, type) and issubclass(t, Exception) for t in CONFIG_IO_ERRORS)
+        assert set(DATA_IO_ERRORS).issubset(set(CONFIG_IO_ERRORS))
+        import yaml
+
+        assert yaml.YAMLError in CONFIG_IO_ERRORS
 
 
 import contextlib

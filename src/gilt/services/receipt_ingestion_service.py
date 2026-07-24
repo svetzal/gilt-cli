@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
     from pathlib import Path
 
+from gilt.model.errors import DATA_IO_ERRORS
 from gilt.services.receipt_loading import (
     ReceiptData,
     find_receipt_files,
@@ -316,7 +317,7 @@ def batch_match_receipts(
     for path in json_paths:
         try:
             receipt = load_receipt_file(path)
-        except (ValueError, OSError, UnicodeDecodeError):
+        except DATA_IO_ERRORS:
             # ValueError covers json.JSONDecodeError (its subclass) and schema errors
             skipped_parse_errors += 1
             continue

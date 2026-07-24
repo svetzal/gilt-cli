@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import QThread, Signal
 
 from gilt.gui.services.import_service import ImportFileMapping, ImportResult, ImportService
+from gilt.model.errors import DATA_IO_ERRORS
 
 
 def compute_file_progress_window(i: int, total: int) -> tuple[int, int]:
@@ -86,5 +87,5 @@ class ImportWorker(QThread):
                 )
             )
 
-        except (OSError, ValueError, UnicodeDecodeError) as e:
+        except DATA_IO_ERRORS as e:
             self.error.emit(str(e))

@@ -24,6 +24,7 @@ from gilt.gui.services.import_service import (
 )
 from gilt.gui.theme import Theme
 from gilt.gui.widgets.smart_category_combo import SmartCategoryComboBox
+from gilt.model.errors import DATA_IO_ERRORS
 
 
 class CategorizationScanWorker(QThread):
@@ -62,7 +63,7 @@ class CategorizationScanWorker(QThread):
             self.progress.emit(100)
             self.finished.emit(all_items)
 
-        except (OSError, ValueError, UnicodeDecodeError) as e:
+        except DATA_IO_ERRORS as e:
             self.error.emit(str(e))
 
 

@@ -23,11 +23,11 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from yaml import YAMLError
 
 from gilt.gui.services.category_service import CategoryService
 from gilt.gui.theme import Theme
 from gilt.model.category import BudgetPeriod
+from gilt.model.errors import CONFIG_IO_ERRORS
 
 
 class CategoriesView(QWidget):
@@ -231,7 +231,7 @@ class CategoriesView(QWidget):
             self.categories_modified.emit()
 
             QMessageBox.information(self, "Success", f"Category '{name}' added successfully")
-        except (ValueError, OSError, YAMLError, RuntimeError) as e:
+        except CONFIG_IO_ERRORS as e:
             QMessageBox.critical(self, "Error", f"Failed to add category:\n{str(e)}")
 
     def _on_add_subcategory(self):
@@ -284,7 +284,7 @@ class CategoriesView(QWidget):
                 "Success",
                 f"Subcategory '{name}' added to '{category_name}' successfully",
             )
-        except (ValueError, OSError, YAMLError, RuntimeError) as e:
+        except CONFIG_IO_ERRORS as e:
             QMessageBox.critical(self, "Error", f"Failed to add subcategory:\n{str(e)}")
 
     def _on_set_budget(self):
@@ -355,7 +355,7 @@ class CategoriesView(QWidget):
                 "Success",
                 f"Budget for '{category_name}' set to ${amount:,.2f} per {period}",
             )
-        except (ValueError, OSError, YAMLError, RuntimeError) as e:
+        except CONFIG_IO_ERRORS as e:
             QMessageBox.critical(self, "Error", f"Failed to set budget:\n{str(e)}")
 
     def _on_remove(self):
@@ -393,5 +393,5 @@ class CategoriesView(QWidget):
             self.categories_modified.emit()
 
             QMessageBox.information(self, "Success", "Removed successfully")
-        except (ValueError, OSError, YAMLError, RuntimeError) as e:
+        except CONFIG_IO_ERRORS as e:
             QMessageBox.critical(self, "Error", f"Failed to remove:\n{str(e)}")
