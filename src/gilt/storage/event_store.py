@@ -12,7 +12,6 @@ networks as they contain sensitive financial data.
 from __future__ import annotations
 
 import json
-import sqlite3
 from pathlib import Path
 from typing import TypeVar
 
@@ -31,6 +30,7 @@ from gilt.model.events import (
     TransactionEnriched,
     TransactionImported,
 )
+from gilt.storage.sqlite_connection import connect
 
 # Type variable for generic event types
 TEvent = TypeVar("TEvent", bound=Event)
@@ -83,8 +83,7 @@ class EventStore:
 
     def _init_schema(self) -> None:
         """Initialize database schema if not exists."""
-        conn = sqlite3.connect(self.db_path)
-        try:
+        with connect(self.db_path) as conn:
             cursor = conn.cursor()
 
             # Core event log (append-only)
@@ -126,8 +125,6 @@ class EventStore:
             """)
 
             conn.commit()
-        finally:
-            conn.close()
 
     def append_event(self, event: Event) -> None:
         """Append an event to the store.
@@ -138,8 +135,7 @@ class EventStore:
         Events are immutable after appending. The event is serialized to JSON
         and stored with its metadata.
         """
-        conn = sqlite3.connect(self.db_path)
-        try:
+        with connect(self.db_path) as conn:
             cursor = conn.cursor()
 
             # Serialize event data (full event as JSON)
@@ -174,8 +170,6 @@ class EventStore:
             )
 
             conn.commit()
-        finally:
-            conn.close()
 
     def get_all_events(self) -> list[Event]:
         """Retrieve all events in sequence order.
@@ -183,8 +177,7 @@ class EventStore:
         Returns:
             List of events in the order they were appended.
         """
-        conn = sqlite3.connect(self.db_path)
-        try:
+        with connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT e.event_data
@@ -199,8 +192,6 @@ class EventStore:
                 events.append(event)
 
             return events
-        finally:
-            conn.close()
 
     def get_events(self, aggregate_type: str, aggregate_id: str) -> list[Event]:
         """Retrieve all events for a specific aggregate.
@@ -212,8 +203,7 @@ class EventStore:
         Returns:
             List of events for the aggregate in sequence order.
         """
-        conn = sqlite3.connect(self.db_path)
-        try:
+        with connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
@@ -232,8 +222,6 @@ class EventStore:
                 events.append(event)
 
             return events
-        finally:
-            conn.close()
 
     def get_events_by_type(self, event_type: str) -> list[Event]:
         """Retrieve all events of a specific type.
@@ -244,8 +232,7 @@ class EventStore:
         Returns:
             List of events of that type in sequence order.
         """
-        conn = sqlite3.connect(self.db_path)
-        try:
+        with connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
@@ -264,8 +251,6 @@ class EventStore:
                 events.append(event)
 
             return events
-        finally:
-            conn.close()
 
     def get_events_since(self, sequence_number: int) -> list[Event]:
         """Retrieve events after a specific sequence number.
@@ -278,8 +263,7 @@ class EventStore:
         Returns:
             List of events after the sequence number.
         """
-        conn = sqlite3.connect(self.db_path)
-        try:
+        with connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
@@ -298,8 +282,6 @@ class EventStore:
                 events.append(event)
 
             return events
-        finally:
-            conn.close()
 
     def get_latest_sequence_number(self) -> int:
         """Get the latest sequence number in the store.
@@ -307,16 +289,13 @@ class EventStore:
         Returns:
             Latest sequence number, or 0 if store is empty.
         """
-        conn = sqlite3.connect(self.db_path)
-        try:
+        with connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT MAX(sequence_number) FROM event_sequence
             """)
             result = cursor.fetchone()
             return result[0] if result[0] is not None else 0
-        finally:
-            conn.close()
 
     def delete_events(self, event_ids: set[str]) -> int:
         """Delete events from the store by event_id.
@@ -332,16 +311,13 @@ class EventStore:
         """
         if not event_ids:
             return 0
-        conn = sqlite3.connect(self.db_path)
-        try:
+        with connect(self.db_path) as conn:
             placeholders = ",".join("?" for _ in event_ids)
             ids = list(event_ids)
             conn.execute(f"DELETE FROM event_sequence WHERE event_id IN ({placeholders})", ids)
             conn.execute(f"DELETE FROM events WHERE event_id IN ({placeholders})", ids)
             conn.commit()
             return len(event_ids)
-        finally:
-            conn.close()
 
     def _deserialize_event(self, event_data: str) -> Event:
         """Deserialize event from JSON.

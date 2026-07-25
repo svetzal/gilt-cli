@@ -11,11 +11,11 @@ Usage:
 """
 
 import argparse
-import sqlite3
 
 from gilt.model.events import DuplicateSuggested
 from gilt.storage.event_store import EventStore
 from gilt.storage.projection import ProjectionBuilder
+from gilt.storage.sqlite_connection import connect
 from gilt.workspace import Workspace
 
 
@@ -138,23 +138,21 @@ def migrate_events(dry_run: bool = True):
         print("\nNo migration needed - all events already have pair data!")
         return
 
-    conn = sqlite3.connect(str(workspace.event_store_path))
-    cursor = conn.cursor()
-
     migrated_count = 0
     skipped_count = 0
 
-    for event in suggestions:
-        new_migrated, new_skipped = _migrate_single_event(
-            cursor, event, txn_by_id, dry_run, migrated_count
-        )
-        migrated_count += new_migrated
-        skipped_count += new_skipped
+    with connect(workspace.event_store_path) as conn:
+        cursor = conn.cursor()
 
-    if not dry_run:
-        conn.commit()
+        for event in suggestions:
+            new_migrated, new_skipped = _migrate_single_event(
+                cursor, event, txn_by_id, dry_run, migrated_count
+            )
+            migrated_count += new_migrated
+            skipped_count += new_skipped
 
-    conn.close()
+        if not dry_run:
+            conn.commit()
 
     print(f"\n{'Would migrate' if dry_run else 'Migrated'} {migrated_count} events")
     if skipped_count > 0:

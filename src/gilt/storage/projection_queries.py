@@ -1,8 +1,7 @@
 """
 Read-model queries for transaction projections.
 
-Module-level functions that query the projection database. Each opens and closes
-its own connection, matching the existing per-call connect/close pattern.
+Module-level functions that query the projection database.
 """
 
 from __future__ import annotations
@@ -10,6 +9,8 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
+
+from gilt.storage.sqlite_connection import connect
 
 
 @dataclass
@@ -27,23 +28,19 @@ class CategoryHistoryRow:
 
 def get_transaction(db_path: Path, transaction_id: str) -> dict | None:
     """Retrieve a single transaction projection."""
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    try:
+    with connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
         cursor = conn.execute(
             "SELECT * FROM transaction_projections WHERE transaction_id = ?", (transaction_id,)
         )
         row = cursor.fetchone()
         return dict(row) if row else None
-    finally:
-        conn.close()
 
 
 def get_all_transactions(db_path: Path, include_duplicates: bool = False) -> list[dict]:
     """Retrieve all transaction projections."""
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    try:
+    with connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
         if include_duplicates:
             cursor = conn.execute(
                 "SELECT * FROM transaction_projections ORDER BY transaction_date, account_id"
@@ -57,32 +54,24 @@ def get_all_transactions(db_path: Path, include_duplicates: bool = False) -> lis
                 """
             )
         return [dict(row) for row in cursor.fetchall()]
-    finally:
-        conn.close()
 
 
 def get_current_sequence(db_path: Path) -> int:
     """Get the last event sequence number that was processed."""
-    conn = sqlite3.connect(db_path)
-    try:
+    with connect(db_path) as conn:
         cursor = conn.execute("SELECT value FROM projection_metadata WHERE key = 'last_sequence'")
         row = cursor.fetchone()
         return int(row[0]) if row else 0
-    finally:
-        conn.close()
 
 
 def get_distinct_account_ids(db_path: Path) -> list[str]:
     """Return sorted list of non-duplicate account IDs from the projections database."""
-    conn = sqlite3.connect(db_path)
-    try:
+    with connect(db_path) as conn:
         cursor = conn.execute(
             "SELECT DISTINCT account_id FROM transaction_projections "
             "WHERE is_duplicate = 0 ORDER BY account_id"
         )
         return [row[0] for row in cursor.fetchall()]
-    finally:
-        conn.close()
 
 
 def find_category_history(
@@ -96,8 +85,7 @@ def find_category_history(
     date_to: str | None = None,
 ) -> list[CategoryHistoryRow]:
     """Aggregate categorization history for transactions matching a description pattern."""
-    conn = sqlite3.connect(db_path)
-    try:
+    with connect(db_path) as conn:
         sql_parts = [
             "SELECT category, subcategory,",
             "       COUNT(*) AS cnt,",
@@ -147,5 +135,3 @@ def find_category_history(
             )
             for row in rows
         ]
-    finally:
-        conn.close()

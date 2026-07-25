@@ -7,54 +7,32 @@ from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
 
+from pydantic import BaseModel
 
-class BudgetProjection:
+from gilt.storage.sqlite_connection import connect
+
+
+class BudgetProjection(BaseModel):
     """Represents the current state of a budget.
 
     Derived from budget events; a materialized view at a specific point in time.
     """
 
-    def __init__(
-        self,
-        budget_id: str,
-        category: str,
-        subcategory: str | None,
-        amount: Decimal,
-        period_type: str,
-        start_date: str,
-        currency: str,
-        is_deleted: bool,
-        created_at: datetime,
-        updated_at: datetime,
-        last_event_id: str,
-    ):
-        self.budget_id = budget_id
-        self.category = category
-        self.subcategory = subcategory
-        self.amount = amount
-        self.period_type = period_type
-        self.start_date = start_date
-        self.currency = currency
-        self.is_deleted = is_deleted
-        self.created_at = created_at
-        self.updated_at = updated_at
-        self.last_event_id = last_event_id
+    budget_id: str
+    category: str
+    subcategory: str | None
+    amount: Decimal
+    period_type: str
+    start_date: str
+    currency: str
+    is_deleted: bool
+    created_at: datetime
+    updated_at: datetime
+    last_event_id: str
 
     def to_dict(self) -> dict:
         """Convert to dictionary for serialization."""
-        return {
-            "budget_id": self.budget_id,
-            "category": self.category,
-            "subcategory": self.subcategory,
-            "amount": str(self.amount),
-            "period_type": self.period_type,
-            "start_date": self.start_date,
-            "currency": self.currency,
-            "is_deleted": self.is_deleted,
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat(),
-            "last_event_id": self.last_event_id,
-        }
+        return self.model_dump(mode="json")
 
 
 def _row_to_budget_projection(row: sqlite3.Row) -> BudgetProjection:
@@ -75,21 +53,17 @@ def _row_to_budget_projection(row: sqlite3.Row) -> BudgetProjection:
 
 def get_budget(db_path: Path, budget_id: str) -> BudgetProjection | None:
     """Retrieve a single budget projection."""
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    try:
+    with connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
         cursor = conn.execute("SELECT * FROM budget_projections WHERE budget_id = ?", (budget_id,))
         row = cursor.fetchone()
         return _row_to_budget_projection(row) if row else None
-    finally:
-        conn.close()
 
 
 def get_active_budgets(db_path: Path, category: str | None = None) -> list[BudgetProjection]:
     """Retrieve all active (non-deleted) budgets, optionally filtered by category."""
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    try:
+    with connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
         if category:
             cursor = conn.execute(
                 """
@@ -108,8 +82,6 @@ def get_active_budgets(db_path: Path, category: str | None = None) -> list[Budge
                 """
             )
         return [_row_to_budget_projection(row) for row in cursor.fetchall()]
-    finally:
-        conn.close()
 
 
 def get_budgets_at_date(
@@ -119,9 +91,8 @@ def get_budgets_at_date(
 
     Enables queries like "what was my transportation budget in October 2024?"
     """
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    try:
+    with connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
         target_iso = target_date.isoformat()
 
         if category:
@@ -170,15 +141,12 @@ def get_budgets_at_date(
                 )
             )
         return results
-    finally:
-        conn.close()
 
 
 def get_budget_history(db_path: Path, budget_id: str) -> list[dict]:
     """Get complete history of a budget's changes, ordered by timestamp."""
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    try:
+    with connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
         cursor = conn.execute(
             """
             SELECT * FROM budget_history
@@ -188,8 +156,6 @@ def get_budget_history(db_path: Path, budget_id: str) -> list[dict]:
             (budget_id,),
         )
         return [dict(row) for row in cursor.fetchall()]
-    finally:
-        conn.close()
 
 
 __all__ = [

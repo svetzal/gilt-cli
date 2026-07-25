@@ -63,9 +63,11 @@ Callers catching recoverable I/O/parse failures at those boundaries use the shar
 ## Transaction ID (Do Not Change)
 
 Deterministic SHA-256 hash, first 16 hex chars:
-```
+
+```text
 SHA-256("account_id|date|amount|description")[:16]
 ```
+
 Values exactly as written to output columns. CLI commands accept 8-char prefixes. Any change requires a migration plan for existing ledgers.
 
 ## Key Data Models
@@ -103,6 +105,7 @@ Batch operations: always show preview table and count before confirming.
 ## Transfer Linking
 
 Implemented in `gilt.transfer.linker.link_transfers`, run post-ingest.
+
 - Parameters: `window_days=3`, `epsilon_direct=0.0`, `epsilon_interac=0.0`, `fee_max_amount=3.00`, `fee_day_window=1` (canonical values in `gilt.transfer._constants`)
 - Writes metadata to matched transactions under `primary.metadata.transfer` with: role, counterparty_account_id, counterparty_transaction_id, amount, method, score, fee_txn_ids
 - Idempotent: updates existing transfer blocks non-destructively
@@ -110,6 +113,7 @@ Implemented in `gilt.transfer.linker.link_transfers`, run post-ingest.
 ## LLM Integration
 
 Uses **mojentic** for local LLM inference (via Ollama). Duplicate detection flow:
+
 1. Find candidate pairs (same account/amount/date, different descriptions)
 2. LLM analyzes with structured output → `DuplicateAssessment`
 3. Interactive mode records feedback → `PromptManager` for learning
@@ -128,6 +132,7 @@ class DescribeSomething:
 Config: `python_files = "*_spec.py"`, `python_classes = "Describe*"`, `python_functions = "it_should_*"`, `testpaths = ["src"]`
 
 **Red-Green-Refactor workflow:**
+
 1. Write failing test describing desired behavior
 2. Implement simplest solution to make test pass
 3. Refactor to reveal intent, eliminate duplication
@@ -156,6 +161,7 @@ Never restate the ledger schema in test fixtures — write groups via `write_led
 ## GUI Patterns
 
 GUI business logic lives in `src/gilt/gui/services/`:
+
 - `transaction_service.py`, `category_service.py`, `budget_service.py`, `import_service.py`
 
 Services are UI-agnostic and testable independently (functional core). Views/dialogs handle I/O (imperative shell). Dependencies are explicit through injection.
@@ -212,6 +218,7 @@ Complex CLI commands are split into three cohesive modules following the **funct
 **Shared formatting**: the 5-column base row for transaction tables is `base_match_row(account_id, txn)` from `formatting.py`. The 6-column category-preview row is `category_preview_row(account_id, txn, category_path)` — use it instead of inline tuple construction.
 
 **Reference implementations**:
+
 - `categorize.py` / `auto_categorize.py` — mutation helper usage and dry-run pattern
 - `categorize.py` / `categorize_view.py` — two-module split (no review; confirmation via mutation helpers)
 - `recategorize.py` / `recategorize_view.py` — two-module split (no review; confirmation via mutation helpers)
@@ -221,6 +228,7 @@ Complex CLI commands are split into three cohesive modules following the **funct
 ## Common Tasks
 
 ### Adding a CLI Command
+
 1. Create `src/gilt/cli/command/<name>_spec.py` with failing test
 2. Create `src/gilt/cli/command/<name>.py` with `run()` function
 3. Implement simplest solution to pass test
@@ -229,12 +237,14 @@ Complex CLI commands are split into three cohesive modules following the **funct
 6. Refactor, keep tests green
 
 ### Adding a GUI View
+
 1. Create view in `src/gilt/gui/views/<name>.py` as QWidget/QMainWindow
 2. Use service layer (never direct file I/O in views)
 3. Connect signals/slots for async operations
 4. Add to navigation in `main_window.py`
 
 ### Modifying Ledger Schema
+
 1. Update `gilt/model/account.py` — `Transaction` model
 2. Update `gilt/model/ledger_io.py` — CSV parsing/writing
 3. Update all commands that read/write ledgers
@@ -258,6 +268,7 @@ uv publish --index-url https://test.pypi.org/simple/
 **Version management**: Update `version` in `pyproject.toml` `[project]` section before each release. Follow semver — bump minor for features, patch for fixes.
 
 **End-user install** (via pipx or uv):
+
 ```bash
 pipx install "gilt[gui]"
 # or
@@ -265,6 +276,7 @@ uv tool install "gilt[gui]"
 ```
 
 **Pre-release checklist**:
+
 1. All tests pass (`uv run pytest`)
 2. Lint clean (`uv run ruff check .`)
 3. Version bumped in `pyproject.toml`
@@ -346,8 +358,10 @@ Both the transaction and budget projection subsystems follow the **extract-colla
 
 | Module | Responsibility |
 |---|---|
-| `sqlite_connection.py` | `connect(db_path)` context manager — all connection lifecycle goes through this; no `sqlite3.connect` / `try/finally/close` inline |
+| `sqlite_connection.py` | `connect(db_path)` context manager — all connection lifecycle goes through this; no `sqlite3.connect` / `try/finally/close` inline. Enforced by `_module_layout_spec.py` |
 | `event_dispatch.py` | `apply_event_handlers(conn, events, handlers)` — shared dispatch loop; new event types register a handler in the stack's `_HANDLERS` dict |
+
+**Executable enforcement**: `src/gilt/storage/_module_layout_spec.py` is the static guard for connection lifecycle and spec companionship. It fails the build when a module outside `sqlite_connection.py` calls `sqlite3.connect(` or `conn.close()` inline, or when a module under `storage/` lacks a companion `*_spec.py`. Its allowlists are empty by design and must trend to empty.
 
 ### Transaction projection stack
 
@@ -426,6 +440,7 @@ Service modules must never import a UI library (`rich`, `typer`, `PySide6`) and 
 ## Quality Checklist
 
 Before declaring work complete:
+
 - **No real financial data** in any tracked file (grep for institution names, real account IDs, real merchant names)
 - All tests pass (`pytest`)
 - Linting clean (`ruff check .`)
