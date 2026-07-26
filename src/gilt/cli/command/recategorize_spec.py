@@ -13,7 +13,13 @@ from typer.testing import CliRunner
 from gilt.cli.command._errors import CommandAbort
 from gilt.cli.command.recategorize import build_date_selection, run
 from gilt.model.ledger_io import load_ledger_csv
-from gilt.testing import build_workspace_with_ledger, make_group, make_workspace, write_ledger
+from gilt.testing import (
+    build_workspace_with_ledger,
+    make_group,
+    make_recategorize_selection,
+    make_workspace,
+    write_ledger,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -147,10 +153,10 @@ class DescribeRecategorizeCommand:
 
         # Dry-run should not modify
         rc = run(
-            from_category="Business",
-            to_category="Work",
+            selection=make_recategorize_selection(
+                from_category="Business", to_category="Work", write=False
+            ),
             workspace=ws,
-            write=False,
         )
         assert rc == 0
 
@@ -160,10 +166,10 @@ class DescribeRecategorizeCommand:
 
         # Write should rename category but preserve subcategories
         rc = run(
-            from_category="Business",
-            to_category="Work",
+            selection=make_recategorize_selection(
+                from_category="Business", to_category="Work", write=True
+            ),
             workspace=ws,
-            write=True,
         )
         assert rc == 0
 
@@ -206,10 +212,10 @@ class DescribeRecategorizeCommand:
 
         # Rename only Business:Bank Fees to Work:Bank Fees
         rc = run(
-            from_category="Business:Bank Fees",
-            to_category="Work:Bank Fees",
+            selection=make_recategorize_selection(
+                from_category="Business:Bank Fees", to_category="Work:Bank Fees", write=True
+            ),
             workspace=ws,
-            write=True,
         )
         assert rc == 0
 
@@ -240,10 +246,10 @@ class DescribeRecategorizeCommand:
         ledger_path = data_dir / "TEST.csv"
 
         rc = run(
-            from_category="Miscellaneous",
-            to_category="Other",
+            selection=make_recategorize_selection(
+                from_category="Miscellaneous", to_category="Other", write=True
+            ),
             workspace=ws,
-            write=True,
         )
         assert rc == 0
 
@@ -270,10 +276,10 @@ class DescribeRecategorizeCommand:
         )
 
         rc = run(
-            from_category="NonExistent",
-            to_category="Other",
+            selection=make_recategorize_selection(
+                from_category="NonExistent", to_category="Other", write=False
+            ),
             workspace=ws,
-            write=False,
         )
         assert rc == 0
 
@@ -298,10 +304,10 @@ class DescribeRecategorizeCommand:
         )
 
         rc = run(
-            from_category="Business",
-            to_category="Work",
+            selection=make_recategorize_selection(
+                from_category="Business", to_category="Work", write=True
+            ),
             workspace=ws,
-            write=True,
         )
         assert rc == 0
 
@@ -318,10 +324,10 @@ class DescribeRecategorizeCommand:
 
         with pytest.raises(CommandAbort) as exc_info:
             run(
-                from_category="",
-                to_category="Other",
+                selection=make_recategorize_selection(
+                    from_category="", to_category="Other", write=False
+                ),
                 workspace=ws,
-                write=False,
             )
         assert exc_info.value.code == 1
 
@@ -331,10 +337,10 @@ class DescribeRecategorizeCommand:
 
         with pytest.raises(CommandAbort) as exc_info:
             run(
-                from_category="Business",
-                to_category="",
+                selection=make_recategorize_selection(
+                    from_category="Business", to_category="", write=False
+                ),
                 workspace=ws,
-                write=False,
             )
         assert exc_info.value.code == 1
 
@@ -372,10 +378,10 @@ class DescribeSelectionModeFilters:
         )
 
         rc = run(
-            to_category="Work:Subscriptions",
+            selection=make_recategorize_selection(
+                to_category="Work:Subscriptions", desc_prefix="ACME", write=True
+            ),
             workspace=ws,
-            desc_prefix="ACME",
-            write=True,
         )
         assert rc == 0
 
@@ -411,10 +417,10 @@ class DescribeSelectionModeFilters:
         )
 
         rc = run(
-            to_category="Housing:Utilities",
+            selection=make_recategorize_selection(
+                to_category="Housing:Utilities", pattern=r"EXAMPLE.*UTILITY", write=True
+            ),
             workspace=ws,
-            pattern=r"EXAMPLE.*UTILITY",
-            write=True,
         )
         assert rc == 0
 
@@ -457,10 +463,10 @@ class DescribeSelectionModeFilters:
         )
 
         rc = run(
-            to_category="Work:Subscriptions",
+            selection=make_recategorize_selection(
+                to_category="Work:Subscriptions", amount_eq=-18.30, write=True
+            ),
             workspace=ws,
-            amount_eq=-18.30,
-            write=True,
         )
         assert rc == 0
 
@@ -506,11 +512,10 @@ class DescribeSelectionModeFilters:
         )
 
         rc = run(
-            to_category="Groceries",
+            selection=make_recategorize_selection(
+                to_category="Groceries", amount_min=-100.00, amount_max=-10.00, write=True
+            ),
             workspace=ws,
-            amount_min=-100.00,
-            amount_max=-10.00,
-            write=True,
         )
         assert rc == 0
 
@@ -548,10 +553,10 @@ class DescribeSelectionModeFilters:
         )
 
         rc = run(
-            to_category="Work:Subscriptions",
+            selection=make_recategorize_selection(
+                to_category="Work:Subscriptions", account="MYBANK_CC", write=True
+            ),
             workspace=ws,
-            account="MYBANK_CC",
-            write=True,
         )
         assert rc == 0
 
@@ -602,11 +607,13 @@ class DescribeSelectionModeFilters:
         )
 
         rc = run(
-            to_category="Work:Subscriptions",
+            selection=make_recategorize_selection(
+                to_category="Work:Subscriptions",
+                date_from=date(2025, 3, 1),
+                date_to=date(2025, 9, 30),
+                write=True,
+            ),
             workspace=ws,
-            date_from=date(2025, 3, 1),
-            date_to=date(2025, 9, 30),
-            write=True,
         )
         assert rc == 0
 
@@ -658,10 +665,10 @@ class DescribeSelectionModeFilters:
         from gilt.util.fy import fiscal_year_range
 
         rc = run(
-            to_category="Work:Subscriptions",
+            selection=make_recategorize_selection(
+                to_category="Work:Subscriptions", fy_range=fiscal_year_range("FY25"), write=True
+            ),
             workspace=ws,
-            fy_range=fiscal_year_range("FY25"),
-            write=True,
         )
         assert rc == 0
 
@@ -719,12 +726,14 @@ class DescribeSelectionModeCombined:
         )
 
         rc = run(
-            to_category="Work:Subscriptions",
+            selection=make_recategorize_selection(
+                to_category="Work:Subscriptions",
+                desc_prefix="ACME CORP subscription",
+                amount_eq=-18.30,
+                account="MYBANK_CC",
+                write=False,
+            ),
             workspace=ws,
-            desc_prefix="ACME CORP subscription",
-            amount_eq=-18.30,
-            account="MYBANK_CC",
-            write=False,
         )
         assert rc == 0
 
@@ -753,10 +762,10 @@ class DescribeSelectionModeCombined:
         )
 
         rc = run(
-            to_category="Housing:Utilities",
+            selection=make_recategorize_selection(
+                to_category="Housing:Utilities", desc_prefix="EXAMPLE UTILITY", write=True
+            ),
             workspace=ws,
-            desc_prefix="EXAMPLE UTILITY",
-            write=True,
         )
         assert rc == 0
 
@@ -792,11 +801,13 @@ class DescribeSelectionModeCombined:
         )
 
         rc = run(
-            to_category="Work:Subscriptions",
+            selection=make_recategorize_selection(
+                to_category="Work:Subscriptions",
+                from_category="Entertainment",
+                account="TEST",
+                write=True,
+            ),
             workspace=ws,
-            from_category="Entertainment",
-            account="TEST",
-            write=True,
         )
         assert rc == 0
 
@@ -820,11 +831,10 @@ class DescribeSelectionModeValidation:
         ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
         with pytest.raises(CommandAbort) as exc_info:
             run(
-                to_category="Work",
+                selection=make_recategorize_selection(
+                    to_category="Work", desc_prefix="ACME", pattern=r"ACME.*", write=False
+                ),
                 workspace=ws,
-                desc_prefix="ACME",
-                pattern=r"ACME.*",
-                write=False,
             )
         assert exc_info.value.code == 1
 
@@ -832,11 +842,10 @@ class DescribeSelectionModeValidation:
         ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
         with pytest.raises(CommandAbort) as exc_info:
             run(
-                to_category="Work",
+                selection=make_recategorize_selection(
+                    to_category="Work", amount_eq=-18.30, amount_min=-20.00, write=False
+                ),
                 workspace=ws,
-                amount_eq=-18.30,
-                amount_min=-20.00,
-                write=False,
             )
         assert exc_info.value.code == 1
 
@@ -845,10 +854,10 @@ class DescribeSelectionModeValidation:
         ws = make_workspace(tmp_path, init_dirs=["ledger_data_dir"])
         with pytest.raises(CommandAbort) as exc_info:
             run(
-                to_category="Work",
+                selection=make_recategorize_selection(
+                    to_category="Work", from_category=None, write=False
+                ),
                 workspace=ws,
-                from_category=None,
-                write=False,
             )
         assert exc_info.value.code == 1
 
@@ -870,10 +879,8 @@ class DescribeSelectionModeValidation:
         )
 
         rc = run(
-            to_category="Work",
+            selection=make_recategorize_selection(to_category="Work", account="TEST", write=False),
             workspace=ws,
-            account="TEST",
-            write=False,
         )
         assert rc == 0
 

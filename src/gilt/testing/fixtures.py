@@ -156,10 +156,41 @@ def make_category_config(**kwargs) -> CategoryConfig:
     return CategoryConfig(categories=categories, **kwargs)
 
 
+def make_categorize_request(**kwargs):
+    """Factory for gilt.cli.command.categorize.CategorizeRequest.
+
+    Every CategorizeRequest field already defaults to a safe "nothing selected"
+    value (None/False), so this is a thin constructor wrapper rather than an
+    injector of synthetic values — tests specify exactly the fields their
+    scenario needs (e.g. txid, description, category) without an implicit
+    default silently adding an unintended selection mode.
+    """
+    from gilt.cli.command.categorize import CategorizeRequest
+
+    return CategorizeRequest(**kwargs)
+
+
+def make_recategorize_selection(**kwargs):
+    """Factory for gilt.cli.command.recategorize.RecategorizeSelection.
+
+    Every field except ``to_category`` already defaults to a safe "no filter"
+    value, so this is a thin constructor wrapper rather than an injector of
+    synthetic values — tests specify exactly the selection fields their
+    scenario needs without an implicit default silently narrowing the
+    selection (e.g. an implicit ``from_category`` would break selection-mode
+    tests that intentionally omit it).
+    """
+    from gilt.cli.command.recategorize import RecategorizeSelection
+
+    return RecategorizeSelection(**kwargs)
+
+
 __all__ = [
     "make_transaction",
     "make_group",
     "make_pair",
     "make_match",
     "make_category_config",
+    "make_categorize_request",
+    "make_recategorize_selection",
 ]

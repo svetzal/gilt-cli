@@ -16,8 +16,6 @@ import typer
 from gilt.workspace import Workspace
 
 APP_HELP = "Gilt CLI (local-only)"
-HELP_ACCOUNT_DISPLAY = "Account ID to display (e.g., MYBANK_CHQ)"
-HELP_ACCOUNT_WITH_TX = "Account ID containing the transaction (e.g., MYBANK_CHQ)"
 
 app = typer.Typer(no_args_is_help=True, add_completion=False, help=APP_HELP)
 

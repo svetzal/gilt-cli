@@ -4,7 +4,13 @@ from __future__ import annotations
 
 import typer
 
-from gilt.cli.registration._dispatch import HELP_WRITE, dispatch
+from gilt.cli.registration._dispatch import command_kwargs, dispatch
+from gilt.cli.registration._options import (
+    amount_option,
+    description_option,
+    force_option,
+    write_option,
+)
 
 
 def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -16,10 +22,8 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         global_install: bool = typer.Option(
             False, "--global", help="Install to ~/.claude/skills/gilt/ (global)"
         ),
-        force: bool = typer.Option(
-            False,
-            "--force",
-            help="Bypass version guard (overrides the refusal to overwrite a newer installed version)",
+        force: bool = force_option(
+            "Bypass version guard (overrides the refusal to overwrite a newer installed version)",
         ),
         json_output: bool = typer.Option(
             False, "--json", help="Emit machine-readable JSON output to stdout"
@@ -42,12 +46,7 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         """
         from gilt.cli.command import skill_init as cmd_skill_init
 
-        dispatch(
-            cmd_skill_init.run,
-            global_install=global_install,
-            force=force,
-            json_output=json_output,
-        )
+        dispatch(cmd_skill_init.run, **command_kwargs(ctx))
 
     @app.command()
     def init(ctx: typer.Context):
@@ -88,15 +87,11 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         set_budget: str | None = typer.Option(
             None, "--set-budget", help="Set budget for a category"
         ),
-        description: str | None = typer.Option(
-            None, "--description", help="Description for new category"
-        ),
-        amount: float | None = typer.Option(None, "--amount", help="Budget amount"),
+        description: str | None = description_option("Description for new category", short=None),
+        amount: float | None = amount_option("Budget amount", short=None),
         period: str = typer.Option("monthly", "--period", help="Budget period (monthly or yearly)"),
-        force: bool = typer.Option(
-            False, "--force", help="Skip confirmations when removing used categories"
-        ),
-        write: bool = typer.Option(False, "--write", help=HELP_WRITE),
+        force: bool = force_option("Skip confirmations when removing used categories"),
+        write: bool = write_option(),
     ):
         """Manage categories: add, remove, or set budget.
 
@@ -110,15 +105,4 @@ def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         """
         from gilt.cli.command import category as cmd_category
 
-        dispatch(
-            cmd_category.run,
-            add=add,
-            remove=remove,
-            set_budget=set_budget,
-            description=description,
-            amount=amount,
-            period=period,
-            force=force,
-            workspace=ws_fn(ctx),
-            write=write,
-        )
+        dispatch(cmd_category.run, **command_kwargs(ctx, workspace=ws_fn(ctx)))

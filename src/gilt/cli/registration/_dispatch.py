@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import Any, NoReturn
 
 import typer
@@ -33,6 +33,38 @@ def dispatch(run: Callable[..., int], /, **kwargs: Any) -> NoReturn:
         print_error(str(exc))
         raise typer.Exit(code=1) from exc
     raise typer.Exit(code=code)
+
+
+def command_kwargs(
+    ctx: typer.Context,
+    *,
+    drop: Iterable[str] = (),
+    rename: dict[str, str] | None = None,
+    **extra: Any,
+) -> dict[str, Any]:
+    """Forward parsed Typer options to a command's ``run()`` without restating their names.
+
+    Copies ``ctx.params`` (the parsed option values for the current command), removes
+    any keys named in *drop*, renames any keys named in *rename* (``{old: new}``), then
+    overlays *extra* keyword arguments on top.
+
+    Raises:
+        KeyError: if a *drop* or *rename* key is not present in ``ctx.params``.
+    """
+    kwargs = dict(ctx.params)
+
+    for key in drop:
+        if key not in kwargs:
+            raise KeyError(f"command_kwargs: cannot drop unknown key {key!r}")
+        del kwargs[key]
+
+    for old_key, new_key in (rename or {}).items():
+        if old_key not in kwargs:
+            raise KeyError(f"command_kwargs: cannot rename unknown key {old_key!r}")
+        kwargs[new_key] = kwargs.pop(old_key)
+
+    kwargs.update(extra)
+    return kwargs
 
 
 def build_fy_range(fy: str | None):

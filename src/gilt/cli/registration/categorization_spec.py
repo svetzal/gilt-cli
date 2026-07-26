@@ -102,9 +102,10 @@ class DescribeRecategorize:
 
         assert result.exit_code == 0
         call_kwargs = mock_run.call_args.kwargs
-        assert call_kwargs["date_from"] == date_from
-        assert call_kwargs["date_to"] == date_to
-        assert call_kwargs["fy_range"] == fy_range
+        selection = call_kwargs["selection"]
+        assert selection.date_from == date_from
+        assert selection.date_to == date_to
+        assert selection.fy_range == fy_range
 
 
 class DescribeCategorize:
@@ -131,8 +132,9 @@ class DescribeCategorize:
 
         assert result.exit_code == 0
         call_kwargs = mock_run.call_args.kwargs
-        assert call_kwargs["account"] == "MYBANK_CHQ"
-        assert call_kwargs["write"] is False
+        request = call_kwargs["request"]
+        assert request.account == "MYBANK_CHQ"
+        assert request.write is False
 
 
 class DescribeAutoCategorize:

@@ -5,7 +5,13 @@ from __future__ import annotations
 
 import typer
 
-from gilt.cli.registration._dispatch import HELP_WRITE, dispatch
+from gilt.cli.registration._dispatch import command_kwargs, dispatch
+from gilt.cli.registration._options import (
+    interactive_option,
+    limit_option,
+    min_confidence_option,
+    write_option,
+)
 from gilt.config import DEFAULT_OLLAMA_MODEL
 
 
@@ -22,14 +28,11 @@ def register_duplicates(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-a
         amount_tolerance: float = typer.Option(
             0.001, "--amount-tolerance", help="Acceptable difference in amounts"
         ),
-        min_confidence: float = typer.Option(
-            0.0, "--min-confidence", help="Minimum confidence threshold to display (0.0-1.0)"
+        min_confidence: float = min_confidence_option(
+            "Minimum confidence threshold to display (0.0-1.0)"
         ),
-        interactive: bool = typer.Option(
-            False,
-            "--interactive",
-            "-i",
-            help="Enable interactive mode to confirm/deny each duplicate",
+        interactive: bool = interactive_option(
+            "Enable interactive mode to confirm/deny each duplicate",
         ),
         use_llm: bool = typer.Option(
             False, "--llm", help="Use LLM instead of ML (slower, no training needed)"
@@ -51,16 +54,7 @@ def register_duplicates(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-a
         """
         from gilt.cli.command import duplicates as cmd_duplicates
 
-        dispatch(
-            cmd_duplicates.run,
-            workspace=ws_fn(ctx),
-            model=model,
-            max_days_apart=max_days_apart,
-            amount_tolerance=amount_tolerance,
-            min_confidence=min_confidence,
-            interactive=interactive,
-            use_llm=use_llm,
-        )
+        dispatch(cmd_duplicates.run, **command_kwargs(ctx, workspace=ws_fn(ctx)))
 
 
 def register_mark_duplicate(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -73,7 +67,7 @@ def register_mark_duplicate(app: typer.Typer, ws_fn) -> None:  # type: ignore[ty
         duplicate_txid: str = typer.Option(
             ..., "--duplicate", "-d", help="Transaction ID to mark as duplicate (8+ char prefix)"
         ),
-        write: bool = typer.Option(False, "--write", help=HELP_WRITE),
+        write: bool = write_option(),
     ):
         """Manually mark a specific pair of transactions as duplicates.
 
@@ -97,13 +91,7 @@ def register_mark_duplicate(app: typer.Typer, ws_fn) -> None:  # type: ignore[ty
         """
         from gilt.cli.command import mark_duplicate as cmd_mark_duplicate
 
-        dispatch(
-            cmd_mark_duplicate.run,
-            primary_txid=primary_txid,
-            duplicate_txid=duplicate_txid,
-            workspace=ws_fn(ctx),
-            write=write,
-        )
+        dispatch(cmd_mark_duplicate.run, **command_kwargs(ctx, workspace=ws_fn(ctx)))
 
 
 def register_diagnose_duplicates(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -135,7 +123,7 @@ def register_audit_ml(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg
         filter_pattern: str | None = typer.Option(
             None, "--filter", "-f", help="Regex pattern to filter descriptions"
         ),
-        limit: int = typer.Option(20, "--limit", "-n", help="Maximum examples to show"),
+        limit: int = limit_option("Maximum examples to show", default=20),
     ):
         """Audit ML classifier training data and decisions.
 
@@ -154,13 +142,7 @@ def register_audit_ml(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg
         """
         from gilt.cli.command import audit_ml as cmd_audit_ml
 
-        dispatch(
-            cmd_audit_ml.run,
-            workspace=ws_fn(ctx),
-            mode=mode,
-            filter_pattern=filter_pattern,
-            limit=limit,
-        )
+        dispatch(cmd_audit_ml.run, **command_kwargs(ctx, workspace=ws_fn(ctx)))
 
 
 def register_prompt_stats(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -184,11 +166,7 @@ def register_prompt_stats(app: typer.Typer, ws_fn) -> None:  # type: ignore[type
         """
         from gilt.cli.command import prompt_stats as cmd_prompt_stats
 
-        dispatch(
-            cmd_prompt_stats.run,
-            workspace=ws_fn(ctx),
-            generate_update=generate_update,
-        )
+        dispatch(cmd_prompt_stats.run, **command_kwargs(ctx, workspace=ws_fn(ctx)))
 
 
 def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]

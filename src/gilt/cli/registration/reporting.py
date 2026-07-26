@@ -6,23 +6,36 @@ from pathlib import Path
 
 import typer
 
-from gilt.cli.registration._dispatch import HELP_WRITE, build_fy_range, dispatch
-
-HELP_ACCOUNT_DISPLAY = "Account ID to display (e.g., MYBANK_CHQ)"
-HELP_ACCOUNT_WITH_TX = "Account ID containing the transaction (e.g., MYBANK_CHQ)"
+from gilt.cli.registration._dispatch import build_fy_range, command_kwargs, dispatch
+from gilt.cli.registration._options import (
+    HELP_ACCOUNT_DISPLAY,
+    HELP_ACCOUNT_WITH_TX,
+    account_option,
+    amount_option,
+    category_option,
+    date_from_option,
+    date_to_option,
+    desc_prefix_option,
+    description_option,
+    fy_option,
+    include_uncategorized_option,
+    limit_option,
+    month_option,
+    pattern_option,
+    txid_option,
+    write_option,
+    year_option,
+    yes_option,
+)
 
 
 def register_ytd(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command()
     def ytd(
         ctx: typer.Context,
-        account: str = typer.Option(..., "--account", "-a", help=HELP_ACCOUNT_DISPLAY),
-        year: int | None = typer.Option(
-            None, "--year", "-y", help="Year to filter (defaults to current year)"
-        ),
-        limit: int | None = typer.Option(
-            None, "--limit", "-n", min=1, help="Max number of rows to show (after sorting)"
-        ),
+        account: str = account_option(HELP_ACCOUNT_DISPLAY, required=True),
+        year: int | None = year_option("Year to filter (defaults to current year)"),
+        limit: int | None = limit_option("Max number of rows to show (after sorting)", min=1),
         default_currency: str | None = typer.Option(
             None,
             "--default-currency",
@@ -56,27 +69,15 @@ def register_ytd(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         """
         from gilt.cli.command import ytd as cmd_ytd
 
-        dispatch(
-            cmd_ytd.run,
-            account=account,
-            year=year,
-            workspace=ws_fn(ctx),
-            limit=limit,
-            default_currency=default_currency,
-            include_duplicates=include_duplicates,
-            raw=raw,
-            compare=compare,
-        )
+        dispatch(cmd_ytd.run, **command_kwargs(ctx, workspace=ws_fn(ctx)))
 
 
 def register_status(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command()
     def status(
         ctx: typer.Context,
-        fy: str | None = typer.Option(
-            None,
-            "--fy",
-            help="Fiscal year for Mojility columns (Nov 1 – Oct 31). Accepts FY25, fy25, FY2025.",
+        fy: str | None = fy_option(
+            "Fiscal year for Mojility columns (Nov 1 – Oct 31). Accepts FY25, fy25, FY2025.",
         ),
         stale_threshold: int = typer.Option(
             14,
@@ -99,10 +100,13 @@ def register_status(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
 
         dispatch(
             cmd_status.run,
-            fy_range=build_fy_range(fy),
-            fy_label=fy,
-            stale_threshold=stale_threshold,
-            workspace=ws_fn(ctx),
+            **command_kwargs(
+                ctx,
+                drop={"fy"},
+                fy_range=build_fy_range(fy),
+                fy_label=fy,
+                workspace=ws_fn(ctx),
+            ),
         )
 
 
@@ -110,20 +114,14 @@ def register_summary(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command()
     def summary(
         ctx: typer.Context,
-        category: str | None = typer.Option(
-            None, "--category", "-c", help="Drill into one category's subcategories"
+        category: str | None = category_option("Drill into one category's subcategories"),
+        year: int | None = year_option("Calendar year (default: current)"),
+        fy: str | None = fy_option(
+            "Fiscal year (Nov 1 – Oct 31). Accepts FY25, fy25, FY2025.",
         ),
-        year: int | None = typer.Option(
-            None, "--year", "-y", help="Calendar year (default: current)"
-        ),
-        fy: str | None = typer.Option(
-            None,
-            "--fy",
-            help="Fiscal year (Nov 1 – Oct 31). Accepts FY25, fy25, FY2025.",
-        ),
-        account: str | None = typer.Option(None, "--account", "-a", help="Account ID to filter"),
-        include_uncategorized: bool = typer.Option(
-            False, "--include-uncategorized", help="Include rows where category is null"
+        account: str | None = account_option("Account ID to filter"),
+        include_uncategorized: bool = include_uncategorized_option(
+            "Include rows where category is null"
         ),
     ):
         """Display category or subcategory spending summary.
@@ -154,13 +152,13 @@ def register_summary(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
 
         dispatch(
             cmd_summary.run,
-            year=year,
-            fy_range=build_fy_range(fy),
-            fy_label=fy,
-            account=account,
-            category=category,
-            include_uncategorized=include_uncategorized,
-            workspace=ws_fn(ctx),
+            **command_kwargs(
+                ctx,
+                drop={"fy"},
+                fy_range=build_fy_range(fy),
+                fy_label=fy,
+                workspace=ws_fn(ctx),
+            ),
         )
 
 
@@ -168,15 +166,9 @@ def register_budget(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command()
     def budget(
         ctx: typer.Context,
-        year: int | None = typer.Option(
-            None, "--year", "-y", help="Year to report (default: current year)"
-        ),
-        month: int | None = typer.Option(
-            None, "--month", "-m", help="Month to report (1-12, requires --year)"
-        ),
-        category: str | None = typer.Option(
-            None, "--category", "-c", help="Filter to specific category"
-        ),
+        year: int | None = year_option("Year to report (default: current year)"),
+        month: int | None = month_option("Month to report (1-12, requires --year)"),
+        category: str | None = category_option("Filter to specific category"),
     ):
         """Display budget summary comparing actual spending vs budgeted amounts.
 
@@ -191,32 +183,22 @@ def register_budget(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         """
         from gilt.cli.command import budget as cmd_budget
 
-        dispatch(
-            cmd_budget.run,
-            year=year,
-            month=month,
-            category=category,
-            workspace=ws_fn(ctx),
-        )
+        dispatch(cmd_budget.run, **command_kwargs(ctx, workspace=ws_fn(ctx)))
 
 
 def register_report(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command()
     def report(
         ctx: typer.Context,
-        year: int | None = typer.Option(
-            None, "--year", "-y", help="Year to report (default: current year)"
-        ),
-        month: int | None = typer.Option(
-            None, "--month", "-m", help="Month to report (1-12, requires --year)"
-        ),
+        year: int | None = year_option("Year to report (default: current year)"),
+        month: int | None = month_option("Month to report (1-12, requires --year)"),
         output: Path | None = typer.Option(
             None,
             "--output",
             "-o",
             help="Output path (without extension, default: reports/budget_report_YYYY[-MM])",
         ),
-        write: bool = typer.Option(False, "--write", help=HELP_WRITE),
+        write: bool = write_option(),
     ):
         """Generate budget report as markdown and Word document (.docx).
 
@@ -234,13 +216,12 @@ def register_report(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         """
         from gilt.cli.command import report as cmd_report
 
+        # output is a Path option: ctx.params holds the raw string typer parsed it from,
+        # not the Path typer's own argument-binding converts it to, so it's passed
+        # explicitly here (the already-converted local variable).
         dispatch(
             cmd_report.run,
-            year=year,
-            month=month,
-            output=output,
-            workspace=ws_fn(ctx),
-            write=write,
+            **command_kwargs(ctx, workspace=ws_fn(ctx), output=output),
         )
 
 
@@ -248,7 +229,7 @@ def register_show(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command()
     def show(
         ctx: typer.Context,
-        txid: str = typer.Option(..., "--txid", "-t", help="Transaction ID prefix (8+ characters)"),
+        txid: str = txid_option("Transaction ID prefix (8+ characters)", required=True),
     ):
         """Show all stored fields for a single transaction.
 
@@ -270,19 +251,13 @@ def register_history(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     def history(
         ctx: typer.Context,
         pattern: str = typer.Argument(..., help="Substring to search in transaction descriptions"),
-        account: str | None = typer.Option(
-            None, "--account", "-a", help="Restrict to this account ID"
+        account: str | None = account_option("Restrict to this account ID"),
+        include_uncategorized: bool = include_uncategorized_option(
+            "Include uncategorized transactions"
         ),
-        include_uncategorized: bool = typer.Option(
-            False, "--include-uncategorized", help="Include uncategorized transactions"
-        ),
-        limit: int = typer.Option(10, "--limit", "-n", help="Maximum result rows (default 10)"),
-        date_from: str | None = typer.Option(
-            None, "--date-from", help="Start date (YYYY-MM-DD, inclusive)"
-        ),
-        date_to: str | None = typer.Option(
-            None, "--date-to", help="End date (YYYY-MM-DD, inclusive)"
-        ),
+        limit: int = limit_option("Maximum result rows (default 10)", default=10),
+        date_from: str | None = date_from_option("Start date (YYYY-MM-DD, inclusive)"),
+        date_to: str | None = date_to_option("End date (YYYY-MM-DD, inclusive)"),
     ):
         """Show categorization history for transactions matching a description pattern.
 
@@ -300,50 +275,30 @@ def register_history(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         """
         from gilt.cli.command import history as cmd_history
 
-        dispatch(
-            cmd_history.run,
-            pattern=pattern,
-            account=account,
-            include_uncategorized=include_uncategorized,
-            limit=limit,
-            date_from=date_from,
-            date_to=date_to,
-            workspace=ws_fn(ctx),
-        )
+        dispatch(cmd_history.run, **command_kwargs(ctx, workspace=ws_fn(ctx)))
 
 
 def register_note(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command()
     def note(
         ctx: typer.Context,
-        account: str = typer.Option(..., "--account", "-a", help=HELP_ACCOUNT_WITH_TX),
-        txid: str | None = typer.Option(
-            None, "--txid", "-t", help="Transaction ID prefix (TxnID8 as shown in tables)"
+        account: str = account_option(HELP_ACCOUNT_WITH_TX, required=True),
+        txid: str | None = txid_option("Transaction ID prefix (TxnID8 as shown in tables)"),
+        description: str | None = description_option("Exact description to match (batch mode)"),
+        desc_prefix: str | None = desc_prefix_option(
+            "Description prefix to match (batch mode, case-insensitive)",
         ),
-        description: str | None = typer.Option(
-            None, "--description", "-d", help="Exact description to match (batch mode)"
+        pattern: str | None = pattern_option(
+            "Regex pattern to match description (batch mode, case-insensitive)",
         ),
-        desc_prefix: str | None = typer.Option(
-            None,
-            "--desc-prefix",
-            "-p",
-            help="Description prefix to match (batch mode, case-insensitive)",
-        ),
-        pattern: str | None = typer.Option(
-            None,
-            "--pattern",
-            help="Regex pattern to match description (batch mode, case-insensitive)",
-        ),
-        amount: float | None = typer.Option(
-            None, "--amount", "-m", help="Exact amount to match (batch mode)"
-        ),
+        amount: float | None = amount_option("Exact amount to match (batch mode)"),
         note_text: str = typer.Option(
             ..., "--note", "-n", help="Note text to set on the transaction(s)"
         ),
-        yes: bool = typer.Option(
-            False, "--yes", "-y", "-r", help="Assume 'yes' for all confirmations in batch mode"
+        yes: bool = yes_option(
+            "Assume 'yes' for all confirmations in batch mode", extra_opts=("-r",)
         ),
-        write: bool = typer.Option(False, "--write", help=HELP_WRITE),
+        write: bool = write_option(),
     ):
         """Attach or update notes on transactions in the account ledger.
 
@@ -357,16 +312,7 @@ def register_note(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
 
         dispatch(
             cmd_note.run,
-            account=account,
-            txid=txid,
-            note_text=note_text,
-            description=description,
-            desc_prefix=desc_prefix,
-            pattern=pattern,
-            amount=amount,
-            assume_yes=yes,
-            workspace=ws_fn(ctx),
-            write=write,
+            **command_kwargs(ctx, rename={"yes": "assume_yes"}, workspace=ws_fn(ctx)),
         )
 
 

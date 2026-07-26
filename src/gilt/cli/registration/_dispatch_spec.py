@@ -9,7 +9,7 @@ import pytest
 import typer
 
 from gilt.cli.command._errors import CommandAbort
-from gilt.cli.registration._dispatch import build_fy_range, dispatch
+from gilt.cli.registration._dispatch import build_fy_range, command_kwargs, dispatch
 from gilt.model.errors import LedgerLoadError
 
 
@@ -53,6 +53,60 @@ class DescribeDispatch:
         assert exc_info.value.exit_code == 1
         mock_print_error.assert_called_once()
         assert "MYBANK_CHQ.csv" in mock_print_error.call_args[0][0]
+
+
+class _FakeContext:
+    """Minimal stand-in for typer.Context — command_kwargs only reads ``.params``."""
+
+    def __init__(self, params: dict):
+        self.params = params
+
+
+class DescribeCommandKwargs:
+    def it_should_pass_through_ctx_params_unchanged(self):
+        ctx = _FakeContext({"account": "MYBANK_CHQ", "write": False})
+
+        assert command_kwargs(ctx) == {"account": "MYBANK_CHQ", "write": False}
+
+    def it_should_drop_named_keys(self):
+        ctx = _FakeContext({"account": "MYBANK_CHQ", "fy": "FY25", "write": False})
+
+        result = command_kwargs(ctx, drop={"fy"})
+
+        assert result == {"account": "MYBANK_CHQ", "write": False}
+
+    def it_should_rename_named_keys(self):
+        ctx = _FakeContext({"yes": True, "write": False})
+
+        result = command_kwargs(ctx, rename={"yes": "assume_yes"})
+
+        assert result == {"assume_yes": True, "write": False}
+
+    def it_should_overlay_extra_kwargs_on_top_of_ctx_params(self):
+        ctx = _FakeContext({"account": "MYBANK_CHQ", "write": False})
+
+        result = command_kwargs(ctx, workspace="ws-object")
+
+        assert result == {"account": "MYBANK_CHQ", "write": False, "workspace": "ws-object"}
+
+    def it_should_let_extra_override_a_ctx_param_of_the_same_name(self):
+        ctx = _FakeContext({"account": "MYBANK_CHQ"})
+
+        result = command_kwargs(ctx, account="OVERRIDDEN")
+
+        assert result == {"account": "OVERRIDDEN"}
+
+    def it_should_raise_key_error_for_an_unknown_drop_key(self):
+        ctx = _FakeContext({"account": "MYBANK_CHQ"})
+
+        with pytest.raises(KeyError):
+            command_kwargs(ctx, drop={"nonexistent"})
+
+    def it_should_raise_key_error_for_an_unknown_rename_key(self):
+        ctx = _FakeContext({"account": "MYBANK_CHQ"})
+
+        with pytest.raises(KeyError):
+            command_kwargs(ctx, rename={"nonexistent": "renamed"})
 
 
 class DescribeResolveFyRange:

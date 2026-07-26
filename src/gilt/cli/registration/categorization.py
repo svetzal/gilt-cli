@@ -7,48 +7,48 @@ from pathlib import Path
 
 import typer
 
-from gilt.cli.registration._dispatch import HELP_WRITE, build_fy_range, dispatch
+from gilt.cli.registration._dispatch import build_fy_range, command_kwargs, dispatch
+from gilt.cli.registration._options import (
+    account_option,
+    amount_option,
+    category_option,
+    date_from_option,
+    date_to_option,
+    desc_prefix_option,
+    description_option,
+    fy_option,
+    interactive_option,
+    limit_option,
+    min_confidence_option,
+    pattern_option,
+    txid_option,
+    write_option,
+    year_option,
+    yes_option,
+)
 
 
 def register_categorize(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command()
     def categorize(
         ctx: typer.Context,
-        account: str | None = typer.Option(
-            None, "--account", "-a", help="Account ID (omit to categorize across all accounts)"
+        account: str | None = account_option("Account ID (omit to categorize across all accounts)"),
+        txid: str | None = txid_option("Transaction ID prefix (single mode)"),
+        description: str | None = description_option("Exact description to match (batch mode)"),
+        desc_prefix: str | None = desc_prefix_option(
+            "Description prefix to match (batch mode, case-insensitive)"
         ),
-        txid: str | None = typer.Option(
-            None, "--txid", "-t", help="Transaction ID prefix (single mode)"
+        pattern: str | None = pattern_option(
+            "Regex pattern to match description (batch mode, case-insensitive)"
         ),
-        description: str | None = typer.Option(
-            None, "--description", "-d", help="Exact description to match (batch mode)"
-        ),
-        desc_prefix: str | None = typer.Option(
-            None,
-            "--desc-prefix",
-            "-p",
-            help="Description prefix to match (batch mode, case-insensitive)",
-        ),
-        pattern: str | None = typer.Option(
-            None,
-            "--pattern",
-            help="Regex pattern to match description (batch mode, case-insensitive)",
-        ),
-        amount: float | None = typer.Option(
-            None, "--amount", "-m", help="Exact amount to match (batch mode)"
-        ),
-        category: str | None = typer.Option(
-            None,
-            "--category",
-            "-c",
-            help="Category name (supports 'Category:Subcategory' syntax)",
+        amount: float | None = amount_option("Exact amount to match (batch mode)"),
+        category: str | None = category_option(
+            "Category name (supports 'Category:Subcategory' syntax)"
         ),
         subcategory: str | None = typer.Option(
             None, "--subcategory", "-s", help="Subcategory name (alternative to colon syntax)"
         ),
-        yes: bool = typer.Option(
-            False, "--yes", "-y", help="Assume 'yes' for all confirmations in batch mode"
-        ),
+        yes: bool = yes_option("Assume 'yes' for all confirmations in batch mode"),
         txid_file: Path | None = typer.Option(
             None,
             "--txid-file",
@@ -59,7 +59,7 @@ def register_categorize(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-a
             "--from-stdin",
             help="Read '<txid-prefix> <category>' pairs from stdin",
         ),
-        write: bool = typer.Option(False, "--write", help=HELP_WRITE),
+        write: bool = write_option(),
     ):
         """Categorize transactions (single, batch, or file-batch mode).
 
@@ -85,23 +85,19 @@ def register_categorize(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-a
         Safety: dry-run by default. Use --write to persist changes.
         """
         from gilt.cli.command import categorize as cmd_categorize
+        from gilt.cli.command.categorize import CategorizeRequest
 
-        dispatch(
-            cmd_categorize.run,
-            account=account,
-            txid=txid,
-            description=description,
-            desc_prefix=desc_prefix,
-            pattern=pattern,
-            amount=amount,
-            category=category,
-            subcategory=subcategory,
-            assume_yes=yes,
-            txid_file=txid_file,
-            from_stdin=from_stdin,
-            workspace=ws_fn(ctx),
-            write=write,
+        # txid_file is a Path option: ctx.params holds the raw string typer parsed it
+        # from, not the Path typer's own argument-binding converts it to, so it's passed
+        # explicitly here (the already-converted local variable).
+        request = CategorizeRequest(
+            **command_kwargs(
+                ctx,
+                rename={"yes": "assume_yes"},
+                txid_file=txid_file,
+            )
         )
+        dispatch(cmd_categorize.run, request=request, workspace=ws_fn(ctx))
 
 
 def register_recategorize(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -114,15 +110,11 @@ def register_recategorize(app: typer.Typer, ws_fn) -> None:  # type: ignore[type
         to_cat: str = typer.Option(
             ..., "--to", help="New category name (supports 'Category:Subcategory')"
         ),
-        account: str | None = typer.Option(
-            None, "--account", "-a", help="Restrict selection to this account ID"
+        account: str | None = account_option("Restrict selection to this account ID"),
+        desc_prefix: str | None = desc_prefix_option(
+            "Description prefix filter (case-insensitive)"
         ),
-        desc_prefix: str | None = typer.Option(
-            None, "--desc-prefix", "-p", help="Description prefix filter (case-insensitive)"
-        ),
-        pattern: str | None = typer.Option(
-            None, "--pattern", help="Regex pattern filter on descriptions"
-        ),
+        pattern: str | None = pattern_option("Regex pattern filter on descriptions"),
         amount_eq: float | None = typer.Option(
             None, "--amount-eq", help="Exact signed amount to match"
         ),
@@ -132,18 +124,12 @@ def register_recategorize(app: typer.Typer, ws_fn) -> None:  # type: ignore[type
         amount_max: float | None = typer.Option(
             None, "--amount-max", help="Maximum signed amount (inclusive)"
         ),
-        date_from_str: str | None = typer.Option(
-            None, "--date-from", help="Start date (YYYY-MM-DD, inclusive)"
+        date_from_str: str | None = date_from_option("Start date (YYYY-MM-DD, inclusive)"),
+        date_to_str: str | None = date_to_option("End date (YYYY-MM-DD, inclusive)"),
+        fy: str | None = fy_option(
+            "Fiscal year to filter (Nov 1 – Oct 31). Accepts FY25, fy25, FY2025.",
         ),
-        date_to_str: str | None = typer.Option(
-            None, "--date-to", help="End date (YYYY-MM-DD, inclusive)"
-        ),
-        fy: str | None = typer.Option(
-            None,
-            "--fy",
-            help="Fiscal year to filter (Nov 1 – Oct 31). Accepts FY25, fy25, FY2025.",
-        ),
-        write: bool = typer.Option(False, "--write", help=HELP_WRITE),
+        write: bool = write_option(),
     ):
         """Rename a category or recategorize a filtered selection.
 
@@ -162,6 +148,7 @@ def register_recategorize(app: typer.Typer, ws_fn) -> None:  # type: ignore[type
         Safety: dry-run by default. Use --write to persist changes.
         """
         from gilt.cli.command import recategorize as cmd_recategorize
+        from gilt.cli.command.recategorize import RecategorizeSelection
         from gilt.cli.console import console as _console
 
         date_selection = cmd_recategorize.build_date_selection(date_from_str, date_to_str, fy)
@@ -170,31 +157,24 @@ def register_recategorize(app: typer.Typer, ws_fn) -> None:  # type: ignore[type
             raise typer.Exit(code=1)
         date_from, date_to, fy_range = date_selection
 
-        dispatch(
-            cmd_recategorize.run,
-            from_category=from_cat,
-            to_category=to_cat,
-            account=account,
-            desc_prefix=desc_prefix,
-            pattern=pattern,
-            amount_eq=amount_eq,
-            amount_min=amount_min,
-            amount_max=amount_max,
-            date_from=date_from,
-            date_to=date_to,
-            fy_range=fy_range,
-            workspace=ws_fn(ctx),
-            write=write,
+        selection = RecategorizeSelection(
+            **command_kwargs(
+                ctx,
+                drop={"date_from_str", "date_to_str", "fy"},
+                rename={"from_cat": "from_category", "to_cat": "to_category"},
+                date_from=date_from,
+                date_to=date_to,
+                fy_range=fy_range,
+            )
         )
+        dispatch(cmd_recategorize.run, selection=selection, workspace=ws_fn(ctx))
 
 
 def register_auto_categorize(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command(name="auto-categorize")
     def auto_categorize(
         ctx: typer.Context,
-        account: str | None = typer.Option(
-            None, "--account", "-a", help="Account ID to filter (omit for all accounts)"
-        ),
+        account: str | None = account_option("Account ID to filter (omit for all accounts)"),
         confidence: float = typer.Option(
             0.7,
             "--confidence",
@@ -206,16 +186,12 @@ def register_auto_categorize(app: typer.Typer, ws_fn) -> None:  # type: ignore[t
         min_samples: int = typer.Option(
             5, "--min-samples", min=1, help="Minimum samples per category for training"
         ),
-        interactive: bool = typer.Option(
-            False, "--interactive", "-i", help="Enable interactive review mode"
-        ),
-        limit: int | None = typer.Option(
-            None, "--limit", "-n", min=1, help="Max number of transactions to auto-categorize"
-        ),
+        interactive: bool = interactive_option("Enable interactive review mode"),
+        limit: int | None = limit_option("Max number of transactions to auto-categorize", min=1),
         explain: bool = typer.Option(
             False, "--explain", help="Print top-3 category candidates with calibrated confidences"
         ),
-        write: bool = typer.Option(False, "--write", help=HELP_WRITE),
+        write: bool = write_option(),
     ):
         """Auto-categorize transactions using ML classifier.
 
@@ -234,35 +210,19 @@ def register_auto_categorize(app: typer.Typer, ws_fn) -> None:  # type: ignore[t
         """
         from gilt.cli.command import auto_categorize as cmd_auto_categorize
 
-        dispatch(
-            cmd_auto_categorize.run,
-            account=account,
-            confidence=confidence,
-            min_samples=min_samples,
-            interactive=interactive,
-            limit=limit,
-            explain=explain,
-            workspace=ws_fn(ctx),
-            write=write,
-        )
+        dispatch(cmd_auto_categorize.run, **command_kwargs(ctx, workspace=ws_fn(ctx)))
 
 
 def register_uncategorized(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command()
     def uncategorized(
         ctx: typer.Context,
-        account: str | None = typer.Option(
-            None, "--account", "-a", help="Account ID to filter (omit for all accounts)"
+        account: str | None = account_option("Account ID to filter (omit for all accounts)"),
+        year: int | None = year_option("Calendar year to filter"),
+        fy: str | None = fy_option(
+            "Fiscal year to filter (Nov 1 – Oct 31). Accepts FY25, fy25, FY2025.",
         ),
-        year: int | None = typer.Option(None, "--year", "-y", help="Calendar year to filter"),
-        fy: str | None = typer.Option(
-            None,
-            "--fy",
-            help="Fiscal year to filter (Nov 1 – Oct 31). Accepts FY25, fy25, FY2025.",
-        ),
-        limit: int | None = typer.Option(
-            None, "--limit", "-n", min=1, help="Max number of transactions to show"
-        ),
+        limit: int | None = limit_option("Max number of transactions to show", min=1),
         min_amount: float | None = typer.Option(
             None, "--min-amount", help="Minimum absolute amount to include"
         ),
@@ -290,13 +250,13 @@ def register_uncategorized(app: typer.Typer, ws_fn) -> None:  # type: ignore[typ
 
         dispatch(
             cmd_uncategorized.run,
-            account=account,
-            year=year,
-            limit=limit,
-            min_amount=min_amount,
-            fy_range=build_fy_range(fy),
-            fy_label=fy,
-            workspace=ws_fn(ctx),
+            **command_kwargs(
+                ctx,
+                drop={"fy"},
+                fy_range=build_fy_range(fy),
+                fy_label=fy,
+                workspace=ws_fn(ctx),
+            ),
         )
 
 
@@ -324,16 +284,12 @@ def register_infer_rules(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-
         apply: bool = typer.Option(
             False, "--apply", help="Apply rules to uncategorized transactions"
         ),
-        write: bool = typer.Option(False, "--write", help=HELP_WRITE),
+        write: bool = write_option(),
         min_evidence: int = typer.Option(
             3, "--min-evidence", min=1, help="Minimum categorizations to infer a rule"
         ),
-        min_confidence: float = typer.Option(
-            0.9,
-            "--min-confidence",
-            min=0.0,
-            max=1.0,
-            help="Minimum consistency to infer a rule",
+        min_confidence: float = min_confidence_option(
+            "Minimum consistency to infer a rule", default=0.9, min=0.0, max=1.0
         ),
         export: str | None = typer.Option(None, "--export", help="Export rules to JSON file"),
     ):
@@ -353,15 +309,7 @@ def register_infer_rules(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-
         """
         from gilt.cli.command import infer_rules as cmd_infer_rules
 
-        dispatch(
-            cmd_infer_rules.run,
-            workspace=ws_fn(ctx),
-            apply=apply,
-            write=write,
-            min_evidence=min_evidence,
-            min_confidence=min_confidence,
-            export=export,
-        )
+        dispatch(cmd_infer_rules.run, **command_kwargs(ctx, workspace=ws_fn(ctx)))
 
 
 def register(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]

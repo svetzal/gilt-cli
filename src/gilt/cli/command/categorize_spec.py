@@ -17,6 +17,7 @@ from gilt.model.ledger_io import load_ledger_csv
 from gilt.testing import (
     build_projections_from_csvs,
     build_workspace_with_ledger,
+    make_categorize_request,
     make_group,
     write_ledger,
 )
@@ -32,21 +33,16 @@ class DescribeCategorizeValidation:
 
         # No mode specified
         with pytest.raises(CommandAbort) as exc_info_no_mode:
-            run(
-                category="Housing",
-                workspace=ws,
-                write=False,
-            )
+            run(request=make_categorize_request(category="Housing", write=False), workspace=ws)
         assert exc_info_no_mode.value.code == 1
 
         # Multiple modes
         with pytest.raises(CommandAbort) as exc_info_multi:
             run(
-                txid="abcd1234",
-                description="Test",
-                category="Housing",
+                request=make_categorize_request(
+                    txid="abcd1234", description="Test", category="Housing", write=False
+                ),
                 workspace=ws,
-                write=False,
             )
         assert exc_info_multi.value.code == 1
 
@@ -68,11 +64,10 @@ class DescribeCategorizeValidation:
 
         with pytest.raises(CommandAbort) as exc_info:
             run(
-                account="TEST",
-                txid="abcd1234",
-                category="NonExistent",
+                request=make_categorize_request(
+                    account="TEST", txid="abcd1234", category="NonExistent", write=False
+                ),
                 workspace=ws,
-                write=False,
             )
         assert exc_info.value.code == 1
 
@@ -99,11 +94,10 @@ class DescribeCategorizeSingleMode:
 
         # Dry-run should not modify
         rc = run(
-            account="TEST",
-            txid="abcd1234",
-            category="Housing",
+            request=make_categorize_request(
+                account="TEST", txid="abcd1234", category="Housing", write=False
+            ),
             workspace=ws,
-            write=False,
         )
         assert rc == 0
 
@@ -112,12 +106,10 @@ class DescribeCategorizeSingleMode:
 
         # Write should categorize
         rc = run(
-            account="TEST",
-            txid="abcd1234",
-            category="Housing",
+            request=make_categorize_request(
+                account="TEST", txid="abcd1234", category="Housing", write=True, assume_yes=True
+            ),
             workspace=ws,
-            write=True,
-            assume_yes=True,
         )
         assert rc == 0
 
@@ -150,13 +142,15 @@ class DescribeCategorizeSingleMode:
 
         # Using colon syntax
         rc = run(
-            account="TEST",
-            txid="abcd1234",
-            category="Housing",
-            subcategory="Rent",
+            request=make_categorize_request(
+                account="TEST",
+                txid="abcd1234",
+                category="Housing",
+                subcategory="Rent",
+                write=True,
+                assume_yes=True,
+            ),
             workspace=ws,
-            write=True,
-            assume_yes=True,
         )
         assert rc == 0
 
@@ -208,11 +202,10 @@ class DescribeCategorizeSingleMode:
         build_projections_from_csvs(ws.ledger_data_dir, ws.projections_path)
 
         rc = run(
-            txid=target_txid[:8],  # no account= — must resolve globally
-            category="Shopping",
+            request=make_categorize_request(
+                txid=target_txid[:8], category="Shopping", write=True, assume_yes=True
+            ),
             workspace=ws,
-            write=True,
-            assume_yes=True,
         )
         assert rc == 0
 
@@ -272,18 +265,19 @@ class DescribeCategorizeSingleMode:
 
         # Path A: single --txid
         rc_a = run(
-            txid=target_txid[:8],
-            category="Shopping",
+            request=make_categorize_request(
+                txid=target_txid[:8], category="Shopping", write=True, assume_yes=True
+            ),
             workspace=workspace_a,
-            write=True,
-            assume_yes=True,
         )
         assert rc_a == 0
 
         # Path B: --txid-file with one entry
         batch_file = path_b / "batch.txt"
         batch_file.write_text(f"{target_txid[:8]} Shopping\n")
-        rc_b = run(workspace=workspace_b, txid_file=batch_file, write=True)
+        rc_b = run(
+            request=make_categorize_request(txid_file=batch_file, write=True), workspace=workspace_b
+        )
         assert rc_b == 0
 
         # Both paths must produce identical ledger contents
@@ -322,10 +316,8 @@ class DescribeCategorizeSingleMode:
 
         with pytest.raises(CommandAbort) as exc_info:
             run(
-                txid="abcd1234",  # No account specified, ambiguous
-                category="Housing",
+                request=make_categorize_request(txid="abcd1234", category="Housing", write=False),
                 workspace=ws,
-                write=False,
             )
         assert exc_info.value.code == 1
 
@@ -365,12 +357,14 @@ class DescribeCategorizeBatchMode:
         ledger_path = ws.ledger_data_dir / "TEST.csv"
 
         rc = run(
-            account="TEST",
-            description="SPOTIFY",
-            category="Entertainment",
+            request=make_categorize_request(
+                account="TEST",
+                description="SPOTIFY",
+                category="Entertainment",
+                write=True,
+                assume_yes=True,
+            ),
             workspace=ws,
-            write=True,
-            assume_yes=True,
         )
         assert rc == 0
 
@@ -411,12 +405,14 @@ class DescribeCategorizeBatchMode:
         ledger_path = ws.ledger_data_dir / "TEST.csv"
 
         rc = run(
-            account="TEST",
-            desc_prefix="AMAZON",
-            category="Shopping",
+            request=make_categorize_request(
+                account="TEST",
+                desc_prefix="AMAZON",
+                category="Shopping",
+                write=True,
+                assume_yes=True,
+            ),
             workspace=ws,
-            write=True,
-            assume_yes=True,
         )
         assert rc == 0
 
@@ -450,11 +446,10 @@ class DescribeCategorizeBatchMode:
 
         # No account specified - should categorize in all accounts
         rc = run(
-            description="SPOTIFY",
-            category="Entertainment",
+            request=make_categorize_request(
+                description="SPOTIFY", category="Entertainment", write=True, assume_yes=True
+            ),
             workspace=ws,
-            write=True,
-            assume_yes=True,
         )
         assert rc == 0
 
@@ -490,13 +485,15 @@ class DescribeCategorizeBatchMode:
 
         # Only categorize the -12.95 fee
         rc = run(
-            account="TEST",
-            description="Monthly Fee",
-            amount=-12.95,
-            category="Banking",
+            request=make_categorize_request(
+                account="TEST",
+                description="Monthly Fee",
+                amount=-12.95,
+                category="Banking",
+                write=True,
+                assume_yes=True,
+            ),
             workspace=ws,
-            write=True,
-            assume_yes=True,
         )
         assert rc == 0
 
@@ -521,11 +518,10 @@ class DescribeCategorizeBatchMode:
         )
 
         rc = run(
-            account="TEST",
-            description="NONEXISTENT",
-            category="Housing",
+            request=make_categorize_request(
+                account="TEST", description="NONEXISTENT", category="Housing", write=False
+            ),
             workspace=ws,
-            write=False,
         )
         assert rc == 0  # No error, just no matches
 
@@ -558,12 +554,14 @@ class DescribeCategorizeRecategorization:
 
         # Should succeed but show warning (check return code is 0)
         rc = run(
-            account="TEST",
-            description="SPOTIFY",
-            category="Shopping",
+            request=make_categorize_request(
+                account="TEST",
+                description="SPOTIFY",
+                category="Shopping",
+                write=True,
+                assume_yes=True,
+            ),
             workspace=ws,
-            write=True,
-            assume_yes=True,
         )
         assert rc == 0
 
@@ -614,12 +612,14 @@ class DescribeCategorizePatternMode:
 
         # Categorize using regex pattern
         rc = run(
-            account="TEST",
-            pattern=r"Payment - WWW Payment - \d+ EXAMPLE UTILITY",
-            category="Housing:Utilities",
+            request=make_categorize_request(
+                account="TEST",
+                pattern=r"Payment - WWW Payment - \d+ EXAMPLE UTILITY",
+                category="Housing:Utilities",
+                write=True,
+                assume_yes=True,
+            ),
             workspace=ws,
-            write=True,
-            assume_yes=True,
         )
         assert rc == 0
 
@@ -649,11 +649,10 @@ class DescribeCategorizePatternMode:
         # Invalid regex should return error code
         with pytest.raises(CommandAbort) as exc_info:
             run(
-                account="TEST",
-                pattern=r"[invalid(regex",  # Unclosed bracket
-                category="Housing",
+                request=make_categorize_request(
+                    account="TEST", pattern=r"[invalid(regex", category="Housing", write=False
+                ),
                 workspace=ws,
-                write=False,
             )
         assert exc_info.value.code == 1  # Error code for invalid pattern
 
@@ -728,11 +727,7 @@ class DescribeCategorizeBatchFile:
         batch_file = tmp_path / "batch.txt"
         batch_file.write_text(f"{txid1} Banking:Fees\n{txid2} Shopping\n")
 
-        rc = run(
-            workspace=ws,
-            txid_file=batch_file,
-            write=True,
-        )
+        rc = run(request=make_categorize_request(txid_file=batch_file, write=True), workspace=ws)
         assert rc == 0
 
         groups = load_ledger_csv(
@@ -751,11 +746,7 @@ class DescribeCategorizeBatchFile:
         batch_file = tmp_path / "batch.txt"
         batch_file.write_text(f"{txid1} Banking:Fees\n{txid2} Shopping\n")
 
-        rc = run(
-            workspace=ws,
-            txid_file=batch_file,
-            write=False,
-        )
+        rc = run(request=make_categorize_request(txid_file=batch_file, write=False), workspace=ws)
         assert rc == 0
 
         # Ledger must be unchanged
@@ -772,11 +763,7 @@ class DescribeCategorizeBatchFile:
 
         monkeypatch.setattr(sys, "stdin", StringIO(f"{txid1} Shopping\n"))
 
-        rc = run(
-            workspace=ws,
-            from_stdin=True,
-            write=True,
-        )
+        rc = run(request=make_categorize_request(from_stdin=True, write=True), workspace=ws)
         assert rc == 0
 
         groups = load_ledger_csv(
@@ -814,7 +801,7 @@ class DescribeCategorizeBatchFile:
         batch_file = tmp_path / "batch.txt"
         batch_file.write_text(f"{txid1[:8]} Dining Out:Fast Food\n")
 
-        rc = run(workspace=ws, txid_file=batch_file, write=True)
+        rc = run(request=make_categorize_request(txid_file=batch_file, write=True), workspace=ws)
         assert rc == 0
 
         groups = load_ledger_csv(
@@ -853,7 +840,7 @@ class DescribeCategorizeBatchFile:
         batch_file = tmp_path / "batch.txt"
         batch_file.write_text(f"{txid_a[:8]} Shopping\n{txid_b[:8]} Shopping\n")
 
-        rc = run(workspace=ws, txid_file=batch_file, write=True)
+        rc = run(request=make_categorize_request(txid_file=batch_file, write=True), workspace=ws)
         assert rc == 0
 
         for _acct, ledger_file in [("ACCT1", "ACCT1.csv"), ("ACCT2", "ACCT2.csv")]:
@@ -870,7 +857,10 @@ class DescribeCategorizeBatchFile:
         batch_file = tmp_path / "batch.txt"
         batch_file.write_text(f"{txid1} Shopping\n")
 
-        rc = run(workspace=ws, account="TEST", txid_file=batch_file, write=True)
+        rc = run(
+            request=make_categorize_request(account="TEST", txid_file=batch_file, write=True),
+            workspace=ws,
+        )
         assert rc == 0
 
         groups = load_ledger_csv(
@@ -913,7 +903,7 @@ class DescribeCategorizeBatchFile:
         batch_file.write_text("aaaa1111 Shopping\n")
 
         with pytest.raises(CommandAbort) as exc_info:
-            run(workspace=ws, txid_file=batch_file, write=True)
+            run(request=make_categorize_request(txid_file=batch_file, write=True), workspace=ws)
         assert exc_info.value.code == 1
 
         # Ledger must be unchanged
@@ -933,7 +923,7 @@ class DescribeCategorizeBatchFile:
         batch_file.write_text(f"{txid1} Shopping\n{txid2} NonExistentCategory\n")
 
         with pytest.raises(CommandAbort) as exc_info:
-            run(workspace=ws, txid_file=batch_file, write=True)
+            run(request=make_categorize_request(txid_file=batch_file, write=True), workspace=ws)
         assert exc_info.value.code == 1
 
         # All-or-nothing: neither transaction should be updated
@@ -960,17 +950,25 @@ class DescribeCategorizeBatchFile:
 
         # Combining --txid-file with --txid should fail
         with pytest.raises(CommandAbort) as exc_info1:
-            run(workspace=ws, txid_file=batch_file, txid="aaaa1111")
+            run(
+                request=make_categorize_request(txid_file=batch_file, txid="aaaa1111"), workspace=ws
+            )
         assert exc_info1.value.code == 1
 
         # Combining --txid-file with --category should fail
         with pytest.raises(CommandAbort) as exc_info2:
-            run(workspace=ws, txid_file=batch_file, category="Shopping")
+            run(
+                request=make_categorize_request(txid_file=batch_file, category="Shopping"),
+                workspace=ws,
+            )
         assert exc_info2.value.code == 1
 
         # Combining --from-stdin with --description should fail
         with pytest.raises(CommandAbort) as exc_info3:
-            run(workspace=ws, from_stdin=True, description="SAMPLE STORE")
+            run(
+                request=make_categorize_request(from_stdin=True, description="SAMPLE STORE"),
+                workspace=ws,
+            )
         assert exc_info3.value.code == 1
 
     def it_should_not_persist_file_batch_in_dry_run(self, tmp_path):
@@ -982,7 +980,7 @@ class DescribeCategorizeBatchFile:
         batch_file = tmp_path / "batch.txt"
         batch_file.write_text(f"{txid1} Shopping\n{txid2} Shopping\n")
 
-        rc = run(workspace=ws, txid_file=batch_file, write=False)
+        rc = run(request=make_categorize_request(txid_file=batch_file, write=False), workspace=ws)
         assert rc == 0
 
         # Ledger must be unchanged — no categories written

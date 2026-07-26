@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from gilt.testing.fixtures import (
+    make_categorize_request,
     make_category_config,
     make_group,
     make_match,
     make_pair,
+    make_recategorize_selection,
     make_transaction,
 )
 from gilt.testing.workspace import (
@@ -21,6 +23,8 @@ __all__ = [
     "make_pair",
     "make_match",
     "make_category_config",
+    "make_categorize_request",
+    "make_recategorize_selection",
     "make_workspace",
     "write_ledger",
     "build_projections_from_csvs",

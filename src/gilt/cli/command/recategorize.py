@@ -44,21 +44,19 @@ from ._errors import CommandAbort
 
 @dataclass(frozen=True)
 class RecategorizeSelection:
-    from_category: str | None
     to_category: str
-    to_cat: str
-    to_subcat: str | None
-    account: str | None
-    desc_prefix: str | None
-    pattern: str | None
-    amount_eq: float | None
-    amount_min: float | None
-    amount_max: float | None
-    date_from: date | None
-    date_to: date | None
-    fy_range: tuple[date, date] | None
-    write: bool
-    service: TransactionOperationsService | None
+    from_category: str | None = None
+    account: str | None = None
+    desc_prefix: str | None = None
+    pattern: str | None = None
+    amount_eq: float | None = None
+    amount_min: float | None = None
+    amount_max: float | None = None
+    date_from: date | None = None
+    date_to: date | None = None
+    fy_range: tuple[date, date] | None = None
+    write: bool = False
+    service: TransactionOperationsService | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -66,26 +64,22 @@ class RecategorizeSelection:
 # ---------------------------------------------------------------------------
 
 
-def _validate_selection_flags(
-    desc_prefix: str | None,
-    pattern: str | None,
-    amount_eq: float | None,
-    amount_min: float | None,
-    amount_max: float | None,
-) -> str | None:
+def _validate_selection_flags(selection: RecategorizeSelection) -> str | None:
     """Validate mutually exclusive selection flags.
 
     Returns an error message string if invalid, or None if valid.
     """
-    if desc_prefix is not None and pattern is not None:
+    if selection.desc_prefix is not None and selection.pattern is not None:
         return "--desc-prefix and --pattern cannot both be set; choose one"
 
-    if amount_eq is not None and (amount_min is not None or amount_max is not None):
+    if selection.amount_eq is not None and (
+        selection.amount_min is not None or selection.amount_max is not None
+    ):
         return "--amount-eq cannot be combined with --amount-min or --amount-max"
 
-    if pattern is not None:
+    if selection.pattern is not None:
         try:
-            re.compile(pattern, re.IGNORECASE)
+            re.compile(selection.pattern, re.IGNORECASE)
         except re.error as exc:
             return f"Invalid regex pattern: {exc}"
 
@@ -98,13 +92,7 @@ def _validate_selection_flags(
 
 
 def _build_transaction_filter(
-    account: str | None,
-    date_from: date | None,
-    date_to: date | None,
-    fy_range: tuple[date, date] | None,
-    amount_eq: float | None,
-    amount_min: float | None,
-    amount_max: float | None,
+    selection: RecategorizeSelection,
     from_cat: str | None,
     from_subcat: str | None,
 ) -> TransactionFilter:
@@ -112,22 +100,22 @@ def _build_transaction_filter(
 
     fy_range takes precedence over date_from/date_to when both are supplied.
     """
-    if fy_range is not None:
-        effective_fy_range = fy_range
-    elif date_from is not None or date_to is not None:
+    if selection.fy_range is not None:
+        effective_fy_range = selection.fy_range
+    elif selection.date_from is not None or selection.date_to is not None:
         effective_fy_range = (
-            date_from or date.min,
-            date_to or date.max,
+            selection.date_from or date.min,
+            selection.date_to or date.max,
         )
     else:
         effective_fy_range = None
 
     return TransactionFilter(
-        account_id=account,
+        account_id=selection.account,
         fy_range=effective_fy_range,
-        amount_eq=amount_eq,
-        amount_min=amount_min,
-        amount_max=amount_max,
+        amount_eq=selection.amount_eq,
+        amount_min=selection.amount_min,
+        amount_max=selection.amount_max,
         category=from_cat,
         subcategory=from_subcat,
     )
@@ -236,15 +224,14 @@ def _build_text_matches(
     return find_matches_by_criteria(groups_by_account, criteria, service)
 
 
-def _run_selection_mode(selection: RecategorizeSelection, workspace: Workspace) -> int:
+def _run_selection_mode(
+    selection: RecategorizeSelection,
+    to_cat: str,
+    to_subcat: str | None,
+    workspace: Workspace,
+) -> int:
     """Handle selection mode: filter rows then apply to_category."""
-    flag_error = _validate_selection_flags(
-        selection.desc_prefix,
-        selection.pattern,
-        selection.amount_eq,
-        selection.amount_min,
-        selection.amount_max,
-    )
+    flag_error = _validate_selection_flags(selection)
     if flag_error is not None:
         print_error(flag_error)
         raise CommandAbort(1)
@@ -259,17 +246,7 @@ def _run_selection_mode(selection: RecategorizeSelection, workspace: Workspace) 
 
     all_rows = load_account_transactions(workspace, None)
 
-    criteria = _build_transaction_filter(
-        account=selection.account,
-        date_from=selection.date_from,
-        date_to=selection.date_to,
-        fy_range=selection.fy_range,
-        amount_eq=selection.amount_eq,
-        amount_min=selection.amount_min,
-        amount_max=selection.amount_max,
-        from_cat=from_cat,
-        from_subcat=from_subcat,
-    )
+    criteria = _build_transaction_filter(selection, from_cat, from_subcat)
     all_candidates = [Transaction.from_projection_row(row) for row in all_rows]
     filtered_transactions = TransactionQueryService().find_matching(all_candidates, criteria)
 
@@ -301,12 +278,12 @@ def _run_selection_mode(selection: RecategorizeSelection, workspace: Workspace) 
     return run_persisted_mutation(
         matches=all_matches,
         display=display,
-        confirm_prompt=f"Recategorize {total_matched} transaction(s) to '{format_category_path(selection.to_cat, selection.to_subcat)}'?",
+        confirm_prompt=f"Recategorize {total_matched} transaction(s) to '{format_category_path(to_cat, to_subcat)}'?",
         assume_yes=False,
         write=selection.write,
         workspace=workspace,
         persist=lambda ready: persist_categorization_matches(
-            all_matches, selection.to_cat, selection.to_subcat, ready, workspace, source="user"
+            all_matches, to_cat, to_subcat, ready, workspace, source="user"
         ),
         on_success=lambda: recategorize_view.print_recategorized_success(total_matched),
     )
@@ -326,78 +303,51 @@ def _build_to_category(to_category: str) -> tuple[str, str | None]:
     return to_cat, to_subcat
 
 
-def run(
-    *,
-    to_category: str,
-    workspace: Workspace,
-    from_category: str | None = None,
-    account: str | None = None,
-    desc_prefix: str | None = None,
-    pattern: str | None = None,
-    amount_eq: float | None = None,
-    amount_min: float | None = None,
-    amount_max: float | None = None,
-    date_from: date | None = None,
-    date_to: date | None = None,
-    fy_range: tuple[date, date] | None = None,
-    write: bool = False,
-    service: TransactionOperationsService | None = None,
-) -> int:
+def run(*, selection: RecategorizeSelection, workspace: Workspace) -> int:
     """Rename a category or recategorize a filtered selection.
 
     Modes:
 
     **Rename mode** (no selection flags):
-      Renames every transaction with ``from_category`` to ``to_category``.
-      ``from_category`` is required in this mode.
+      Renames every transaction with ``selection.from_category`` to
+      ``selection.to_category``. ``selection.from_category`` is required in
+      this mode.
 
     **Selection mode** (one or more selection flags are present):
-      Applies ``to_category`` to the subset of transactions matching the
-      supplied filters.  ``from_category`` is optional; when supplied it
-      further restricts the selection to that existing category.
+      Applies ``selection.to_category`` to the subset of transactions matching
+      the supplied filters. ``selection.from_category`` is optional; when
+      supplied it further restricts the selection to that existing category.
 
-    Selection flags: ``account``, ``desc_prefix``, ``pattern``,
-    ``amount_eq``, ``amount_min``, ``amount_max``, ``date_from``,
-    ``date_to``, ``fy_range``.
+    Selection flags: ``selection.account``, ``selection.desc_prefix``,
+    ``selection.pattern``, ``selection.amount_eq``, ``selection.amount_min``,
+    ``selection.amount_max``, ``selection.date_from``, ``selection.date_to``,
+    ``selection.fy_range``.
 
     Args:
-        to_category: New category name (supports ``"Category:Subcategory"`` syntax)
+        selection: The parsed selection/rename request
         workspace: Workspace for resolving data paths
-        from_category: Original category name — required in rename mode,
-            optional narrowing filter in selection mode
-        account: Restrict to this account ID
-        desc_prefix: Description prefix filter (case-insensitive)
-        pattern: Regex pattern filter on descriptions
-        amount_eq: Exact (signed) amount to match
-        amount_min: Minimum amount (signed, inclusive)
-        amount_max: Maximum amount (signed, inclusive)
-        date_from: Start date (inclusive)
-        date_to: End date (inclusive)
-        fy_range: Fiscal-year date range as ``(start, end)``
-        write: Persist changes (default: dry-run)
-        service: Injected TransactionOperationsService (for testing)
 
     Returns:
         Exit code (0 success, 1 error)
     """
-    to_cat, to_subcat = _build_to_category(to_category)
+    to_cat, to_subcat = _build_to_category(selection.to_category)
     selection_mode = any(
         x is not None
         for x in (
-            desc_prefix,
-            pattern,
-            amount_eq,
-            amount_min,
-            amount_max,
-            account,
-            date_from,
-            date_to,
-            fy_range,
+            selection.desc_prefix,
+            selection.pattern,
+            selection.amount_eq,
+            selection.amount_min,
+            selection.amount_max,
+            selection.account,
+            selection.date_from,
+            selection.date_to,
+            selection.fy_range,
         )
     )
 
     if not selection_mode:
-        if not from_category:
+        if not selection.from_category:
             print_error(
                 "Specify --from to rename a category, or add selection flags "
                 "(--desc-prefix, --pattern, --amount-eq, --account, --date-from/--date-to, --fy) "
@@ -405,32 +355,15 @@ def run(
             )
             raise CommandAbort(1)
         return _run_rename_mode(
-            from_category=from_category,
-            to_category=to_category,
+            from_category=selection.from_category,
+            to_category=selection.to_category,
             to_cat=to_cat,
             to_subcat=to_subcat,
             workspace=workspace,
-            write=write,
+            write=selection.write,
         )
 
-    selection = RecategorizeSelection(
-        from_category=from_category,
-        to_category=to_category,
-        to_cat=to_cat,
-        to_subcat=to_subcat,
-        account=account,
-        desc_prefix=desc_prefix,
-        pattern=pattern,
-        amount_eq=amount_eq,
-        amount_min=amount_min,
-        amount_max=amount_max,
-        date_from=date_from,
-        date_to=date_to,
-        fy_range=fy_range,
-        write=write,
-        service=service,
-    )
-    return _run_selection_mode(selection, workspace)
+    return _run_selection_mode(selection, to_cat, to_subcat, workspace)
 
 
 def build_date_selection(

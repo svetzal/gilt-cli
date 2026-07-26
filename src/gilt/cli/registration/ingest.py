@@ -6,14 +6,22 @@ from pathlib import Path
 
 import typer
 
-from gilt.cli.registration._dispatch import HELP_WRITE, build_fy_range, dispatch
+from gilt.cli.registration._dispatch import build_fy_range, command_kwargs, dispatch
+from gilt.cli.registration._options import (
+    account_option,
+    category_option,
+    fy_option,
+    interactive_option,
+    write_option,
+    year_option,
+)
 
 
 def register_ingest(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command()
     def ingest(
         ctx: typer.Context,
-        write: bool = typer.Option(False, "--write", help=HELP_WRITE),
+        write: bool = write_option(),
     ):
         """Ingest and normalize raw CSVs into standardized per-account ledgers.
 
@@ -21,17 +29,15 @@ def register_ingest(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         """
         from gilt.cli.command import ingest as cmd_ingest
 
-        dispatch(cmd_ingest.run, workspace=ws_fn(ctx), write=write)
+        dispatch(cmd_ingest.run, **command_kwargs(ctx, workspace=ws_fn(ctx)))
 
 
 def register_reingest(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command()
     def reingest(
         ctx: typer.Context,
-        account: str = typer.Option(
-            ..., "--account", "-a", help="Account ID to reingest (e.g., MYBANK_CC)"
-        ),
-        write: bool = typer.Option(False, "--write", help=HELP_WRITE),
+        account: str = account_option("Account ID to reingest (e.g., MYBANK_CC)", required=True),
+        write: bool = write_option(),
     ):
         """Purge and re-ingest all transactions for a single account.
 
@@ -48,7 +54,7 @@ def register_reingest(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg
         """
         from gilt.cli.command import reingest as cmd_reingest
 
-        dispatch(cmd_reingest.run, account=account, workspace=ws_fn(ctx), write=write)
+        dispatch(cmd_reingest.run, **command_kwargs(ctx, workspace=ws_fn(ctx)))
 
 
 def register_ingest_receipts(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -60,16 +66,10 @@ def register_ingest_receipts(app: typer.Typer, ws_fn) -> None:  # type: ignore[t
             "--source",
             help="Root directory containing receipt JSON files (recursive scan)",
         ),
-        write: bool = typer.Option(False, "--write", help=HELP_WRITE),
-        year: int | None = typer.Option(
-            None, "--year", "-y", help="Only process receipts from this year"
-        ),
-        account: str | None = typer.Option(
-            None, "--account", "-a", help="Limit matching to this account"
-        ),
-        interactive: bool = typer.Option(
-            False, "--interactive", "-i", help="Interactively resolve ambiguous matches"
-        ),
+        write: bool = write_option(),
+        year: int | None = year_option("Only process receipts from this year"),
+        account: str | None = account_option("Limit matching to this account"),
+        interactive: bool = interactive_option("Interactively resolve ambiguous matches"),
     ):
         """Ingest receipt JSON sidecar files and enrich matching bank transactions.
 
@@ -86,14 +86,12 @@ def register_ingest_receipts(app: typer.Typer, ws_fn) -> None:  # type: ignore[t
         """
         from gilt.cli.command import ingest_receipts as cmd_ingest_receipts
 
+        # source is a Path option: ctx.params holds the raw string typer parsed it from,
+        # not the Path typer's own argument-binding converts it to, so it's passed
+        # explicitly here (the already-converted local variable).
         dispatch(
             cmd_ingest_receipts.run,
-            workspace=ws_fn(ctx),
-            source=source,
-            write=write,
-            year=year,
-            account=account,
-            interactive=interactive,
+            **command_kwargs(ctx, workspace=ws_fn(ctx), source=source),
         )
 
 
@@ -106,21 +104,16 @@ def register_receipts(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg
             "--by-account",
             help="Group by account_id instead of subcategory",
         ),
-        fy: str | None = typer.Option(
-            None,
-            "--fy",
-            help="Fiscal year filter (Nov 1 – Oct 31). Accepts FY25, fy25, FY2025.",
+        fy: str | None = fy_option(
+            "Fiscal year filter (Nov 1 – Oct 31). Accepts FY25, fy25, FY2025.",
         ),
         missing: bool = typer.Option(
             False,
             "--missing",
             help="List individual transactions without receipts instead of the summary table",
         ),
-        category: str = typer.Option(
-            "Mojility",
-            "--category",
-            "-c",
-            help="Category to report on (default: Mojility)",
+        category: str = category_option(
+            "Category to report on (default: Mojility)", default="Mojility"
         ),
     ):
         """Display receipt attachment coverage for categorised transactions.
@@ -140,12 +133,13 @@ def register_receipts(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg
 
         dispatch(
             cmd_receipts.run,
-            category=category,
-            by_account=by_account,
-            fy_range=build_fy_range(fy),
-            fy_label=fy,
-            missing=missing,
-            workspace=ws_fn(ctx),
+            **command_kwargs(
+                ctx,
+                drop={"fy"},
+                fy_range=build_fy_range(fy),
+                fy_label=fy,
+                workspace=ws_fn(ctx),
+            ),
         )
 
 

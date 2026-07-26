@@ -2,6 +2,7 @@ from __future__ import annotations
 
 """Categorize transactions (single or batch mode)."""
 
+import dataclasses
 import logging
 import sys
 from dataclasses import dataclass
@@ -52,18 +53,20 @@ class ResolvedEntry:
 
 @dataclass(frozen=True)
 class CategorizeRequest:
-    account: str | None
-    txid: str | None
-    description: str | None
-    desc_prefix: str | None
-    pattern: str | None
-    amount: float | None
-    category: str
-    subcategory: str | None
-    assume_yes: bool
-    write: bool
-    service: TransactionOperationsService | None
-    categorization_service: CategorizationService | None
+    account: str | None = None
+    txid: str | None = None
+    description: str | None = None
+    desc_prefix: str | None = None
+    pattern: str | None = None
+    amount: float | None = None
+    category: str | None = None
+    subcategory: str | None = None
+    assume_yes: bool = False
+    write: bool = False
+    service: TransactionOperationsService | None = None
+    categorization_service: CategorizationService | None = None
+    txid_file: Path | None = None
+    from_stdin: bool = False
 
 
 def _find_single_txid(
@@ -290,11 +293,16 @@ def _persist_file_batch(
         updated_txn = group.primary.model_copy(
             update={"category": entry.category, "subcategory": entry.subcategory}
         )
-        preview_matches.append((entry.account_id, TransactionGroup(
-            group_id=group.group_id,
-            primary=updated_txn,
-            splits=group.splits,
-        )))
+        preview_matches.append(
+            (
+                entry.account_id,
+                TransactionGroup(
+                    group_id=group.group_id,
+                    primary=updated_txn,
+                    splits=group.splits,
+                ),
+            )
+        )
 
     def persist(ready) -> None:
         persist_row_categorizations(
@@ -327,17 +335,10 @@ def _run_single_batch(request: CategorizeRequest, workspace: Workspace) -> int:
     service, categorization_service, category, subcategory, single_mode = _validate_inputs(
         request, workspace
     )
-    request = CategorizeRequest(
-        account=request.account,
-        txid=request.txid,
-        description=request.description,
-        desc_prefix=request.desc_prefix,
-        pattern=request.pattern,
-        amount=request.amount,
+    request = dataclasses.replace(
+        request,
         category=category,
         subcategory=subcategory,
-        assume_yes=request.assume_yes,
-        write=request.write,
         service=service,
         categorization_service=categorization_service,
     )
@@ -363,52 +364,44 @@ def _run_single_batch(request: CategorizeRequest, workspace: Workspace) -> int:
     )
 
 
-def run(
-    *,
-    account: str | None = None,
-    txid: str | None = None,
-    description: str | None = None,
-    desc_prefix: str | None = None,
-    pattern: str | None = None,
-    amount: float | None = None,
-    category: str | None = None,
-    subcategory: str | None = None,
-    assume_yes: bool = False,
-    workspace: Workspace,
-    write: bool = False,
-    service: TransactionOperationsService | None = None,
-    categorization_service: CategorizationService | None = None,
-    txid_file: Path | None = None,
-    from_stdin: bool = False,
-) -> int:
+def run(*, request: CategorizeRequest, workspace: Workspace) -> int:
     """Categorize transactions in ledger files.
 
     Modes:
-    - Single: --txid to target one transaction
-    - Batch: --description, --desc-prefix, or --pattern
-      (optionally with --amount) to target multiple
-    - File batch: --txid-file or --from-stdin to apply many txid→category mappings at once
+    - Single: request.txid to target one transaction
+    - Batch: request.description, request.desc_prefix, or request.pattern
+      (optionally with request.amount) to target multiple
+    - File batch: request.txid_file or request.from_stdin to apply many
+      txid→category mappings at once
 
     Category specification:
-    - Use --category "Category" for category only
-    - Use --category "Category" --subcategory "Subcategory" OR
-    - Use --category "Category:Subcategory" (shorthand)
+    - Use request.category "Category" for category only
+    - Use request.category "Category" and request.subcategory "Subcategory" OR
+    - Use request.category "Category:Subcategory" (shorthand)
 
     Scope:
-    - --account ACCOUNT: Categorize in one account
-    - (no --account): Categorize across all accounts
+    - request.account set: Categorize in one account
+    - request.account unset: Categorize across all accounts
 
-    Safety: dry-run by default; pass --write to persist changes.
+    Safety: dry-run by default; pass request.write=True to persist changes.
 
     Returns:
         Exit code (0 success, 1 error)
     """
-    file_batch_mode = txid_file is not None or from_stdin
+    file_batch_mode = request.txid_file is not None or request.from_stdin
 
     if file_batch_mode:
         # Reject combinations of file-batch with single/batch flags
         if any(
-            v is not None for v in [txid, description, desc_prefix, pattern, category, subcategory]
+            v is not None
+            for v in [
+                request.txid,
+                request.description,
+                request.desc_prefix,
+                request.pattern,
+                request.category,
+                request.subcategory,
+            ]
         ):
             print_error(
                 "--txid-file / --from-stdin cannot be combined with "
@@ -417,34 +410,20 @@ def run(
             raise CommandAbort(1)
         return _run_file_batch(
             workspace=workspace,
-            account=account,
-            txid_file=txid_file,
-            from_stdin=from_stdin,
-            write=write,
-            service=service,
-            categorization_service=categorization_service,
+            account=request.account,
+            txid_file=request.txid_file,
+            from_stdin=request.from_stdin,
+            write=request.write,
+            service=request.service,
+            categorization_service=request.categorization_service,
         )
 
-    if category is None:
+    if request.category is None:
         print_error(
             "--category is required (or use --txid-file / --from-stdin for file batch mode)"
         )
         raise CommandAbort(1)
 
-    request = CategorizeRequest(
-        account=account,
-        txid=txid,
-        description=description,
-        desc_prefix=desc_prefix,
-        pattern=pattern,
-        amount=amount,
-        category=category,
-        subcategory=subcategory,
-        assume_yes=assume_yes,
-        write=write,
-        service=service,
-        categorization_service=categorization_service,
-    )
     return _run_single_batch(request, workspace)
 
 

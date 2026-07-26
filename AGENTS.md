@@ -217,6 +217,16 @@ Complex CLI commands are split into three cohesive modules following the **funct
 
 **Shared formatting**: the 5-column base row for transaction tables is `base_match_row(account_id, txn)` from `formatting.py`. The 6-column category-preview row is `category_preview_row(account_id, txn, category_path)` — use it instead of inline tuple construction.
 
+### Option vocabulary
+
+Flag identity — long name, short flag, Python type, and any min/max constraints — is declared exactly once, in `gilt/cli/registration/_options.py`. Each shared flag (used by two or more commands) has one factory function there, e.g. `account_option(help, *, required=False)`; registration wrappers call the factory and pass only the per-command `help` text, never restating `"--account"` / `"-a"`. Flags used by exactly one command stay declared inline in their own registration module (YAGNI) — do not pre-emptively factor out single-use flags.
+
+Registration wrappers forward parsed options to a command's `run()` via `command_kwargs(ctx, *, drop=(), rename=None, **extra)` from `_dispatch.py`, never by restating every kwarg individually. `command_kwargs` copies `ctx.params`, drops/renames the named keys, then overlays `extra`. Path-typed options are a documented exception: `ctx.params` holds the raw string Typer parsed the value from, not the `Path` its own argument-binding converts it to, so Path options (`--events-db`, `--output`, `--source`, `--txid-file`, …) are always passed as `extra` overrides using the already-converted local variable — never left to flow through from `ctx.params`.
+
+A command's request dataclass (e.g. `CategorizeRequest`, `RecategorizeSelection`) is the sole parameter vocabulary for its `run()` — `run()` takes `*, request: SomeRequest, workspace: Workspace` (or `selection:` where that reads better) rather than a long keyword-only signature that duplicates the dataclass fields. Every dataclass field has a default so `command_kwargs(ctx, ...)` output can be unpacked directly into the constructor.
+
+**Executable enforcement**: `src/gilt/cli/registration/_module_layout_spec.py` is the static guard for the option vocabulary. It fails the build when a registration module (other than `_options.py`) hand-rolls a `typer.Option(` literal for a flag already declared as a factory, when a `dispatch(` call site passes more than two explicit keyword arguments besides `workspace` instead of routing through `command_kwargs`, or when a flag long-name string is declared literally more than once across `registration/*.py`. Its allowlists are empty by design and must trend to empty. `src/gilt/cli/registration/_cli_surface_spec.py` is the companion golden-snapshot spec — it pins every command's option identity (long name, short flag, type, default, help) so refactors to the registration layer can be verified to produce zero user-visible CLI change.
+
 **Reference implementations**:
 
 - `categorize.py` / `auto_categorize.py` — mutation helper usage and dry-run pattern
