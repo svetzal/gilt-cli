@@ -37,6 +37,31 @@ class DescribeDetectColumns:
         result = _detect_columns(["Date", "Description", "Amount"])
         assert result["date"] == "Date"
 
+    def it_should_detect_rbc_bank_us_posted_date_column(self):
+        result = _detect_columns(
+            ["Customer Number", "Account Currency", "Routing Number",
+             "Account Number", "Account Type", "Transaction Posted Date",
+             "Transaction Posted Time", "Amount", "Type", "Description", "FITID"]
+        )
+        assert result["date"] == "Transaction Posted Date"
+
+    def it_should_detect_account_currency_column(self):
+        result = _detect_columns(["Transaction Posted Date", "Description",
+                                  "Amount", "Account Currency"])
+        assert result["currency"] == "Account Currency"
+
+    def it_should_resolve_every_required_role_for_an_rbc_bank_us_header(self):
+        result = _detect_columns(
+            ["Customer Number", "Account Currency", "Routing Number",
+             "Account Number", "Account Type", "Transaction Posted Date",
+             "Transaction Posted Time", "Amount", "Type", "Description", "FITID"]
+        )
+        assert find_missing_columns(result, {}) == []
+
+    def it_should_still_prefer_plain_date_over_posted_date(self):
+        result = _detect_columns(["Date", "Transaction Posted Date", "Description", "Amount"])
+        assert result["date"] == "Date"
+
     def it_should_detect_transaction_date_variant(self):
         result = _detect_columns(["Transaction Date", "Memo", "CAD$"])
         assert result["date"] == "Transaction Date"

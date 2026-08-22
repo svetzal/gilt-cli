@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Column detection now recognizes RBC Bank (US) exports: `Transaction Posted Date`
+  maps to the date role and `Account Currency` to the currency role. These files
+  previously failed ingest with "Missing required columns: date".
+
 ## [0.6.0] - 2026-05-29
 
 ### Added

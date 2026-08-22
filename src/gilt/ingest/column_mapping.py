@@ -25,7 +25,13 @@ def _detect_columns(cols: list[str]) -> dict[str, str | None]:
     Pure function — no side effects.
     """
     return {
-        "date": _first_match(["Date", "Transaction Date", "Posted Date", "date"], cols),
+        "date": _first_match(
+            # "Transaction Posted Date" is RBC Bank (US); it must precede the
+            # shorter names because _first_match takes the first candidate
+            # present, not the longest.
+            ["Date", "Transaction Date", "Transaction Posted Date", "Posted Date", "date"],
+            cols,
+        ),
         "desc1": _first_match(
             [
                 "Description 1",
@@ -45,7 +51,7 @@ def _detect_columns(cols: list[str]) -> dict[str, str | None]:
         "desc2": _first_match(["Description 2"], cols),
         "amount": _first_match(["CAD$", "Amount", "amount"], cols),
         "usd": _first_match(["USD$"], cols),
-        "currency": _first_match(["Currency", "currency"], cols),
+        "currency": _first_match(["Currency", "currency", "Account Currency"], cols),
     }
 
 
