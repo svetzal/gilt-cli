@@ -21,8 +21,23 @@ HASH_ALGO_SPEC = (
 )
 
 
-def build_transaction_id(account_id: str, date: str, amount, description: str) -> str:
+def build_transaction_id(
+    account_id: str, date: str, amount, description: str, occurrence: int = 0
+) -> str:
+    """Build the stable content hash that identifies a transaction.
+
+    Banks legitimately post identical transactions on the same day: two equal
+    transfers, two identical card charges. Those share account, date, amount and
+    description, so without a discriminator they hash alike and every copy after
+    the first is dropped as a duplicate during the ledger merge.
+
+    ``occurrence`` is the zero-based index of a row within its group of identical
+    rows. Only the second and later occurrences carry a suffix, so every id
+    issued before this parameter existed remains valid.
+    """
     base = f"{account_id}|{date}|{amount}|{description}"
+    if occurrence:
+        base = f"{base}|#{occurrence}"
     return hashlib.sha256(base.encode("utf-8")).hexdigest()[:16]
 
 
@@ -137,12 +152,25 @@ def _build_transaction_dataframe(
     out["notes"] = None
     out["source_file"] = input_path.name
 
-    # Compute transaction_id hash (frozen spec)
-    out["transaction_id"] = out.apply(
-        lambda row: build_transaction_id(
-            row["account_id"], row["date"], row["amount"], row["description"]
-        ),
-        axis=1,
+    # Compute transaction_id hash (frozen spec). Rows identical in account,
+    # date, amount and description get an occurrence index so the second and
+    # later copies survive the ledger merge instead of collapsing into the first.
+    identity = (
+        out["account_id"].astype(str)
+        + "|" + out["date"].astype(str)
+        + "|" + out["amount"].astype(str)
+        + "|" + out["description"].astype(str)
     )
+    occurrences = identity.groupby(identity).cumcount()
+    out["transaction_id"] = [
+        build_transaction_id(account_id, date, amount, description, occurrence)
+        for account_id, date, amount, description, occurrence in zip(
+            out["account_id"],
+            out["date"],
+            out["amount"],
+            out["description"],
+            occurrences,
+        )
+    ]
 
     return out

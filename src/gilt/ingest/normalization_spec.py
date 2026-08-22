@@ -19,6 +19,21 @@ from gilt.ingest.normalization import (
 
 
 class DescribeBuildTransactionId:
+    def it_should_leave_the_first_occurrence_hash_unchanged(self):
+        """Occurrence 0 must equal the pre-existing frozen hash, so ids already
+        issued (and the categorizations keyed to them) stay valid."""
+        without = build_transaction_id("MYBANK_CHQ", "2024-01-15", -42.50, "EXAMPLE UTILITY")
+        with_zero = build_transaction_id(
+            "MYBANK_CHQ", "2024-01-15", -42.50, "EXAMPLE UTILITY", 0
+        )
+        assert without == with_zero
+
+    def it_should_distinguish_identical_same_day_transactions(self):
+        first = build_transaction_id("MYBANK_CHQ", "2024-01-15", -500.00, "TRANSFER", 0)
+        second = build_transaction_id("MYBANK_CHQ", "2024-01-15", -500.00, "TRANSFER", 1)
+        third = build_transaction_id("MYBANK_CHQ", "2024-01-15", -500.00, "TRANSFER", 2)
+        assert len({first, second, third}) == 3
+
     def it_should_produce_a_16_hex_char_string(self):
         result = build_transaction_id("MYBANK_CHQ", "2024-01-15", -42.50, "EXAMPLE UTILITY")
         assert len(result) == 16
@@ -152,6 +167,39 @@ class DescribeResolveDescriptionSeries:
 
 
 class DescribeBuildTransactionDataframe:
+    def it_should_give_identical_same_day_rows_distinct_transaction_ids(self):
+        """Two equal transfers posted the same day are separate transactions.
+        Sharing a transaction_id would drop the second at the ledger merge."""
+        df = pd.DataFrame({
+            "Date": ["2025-01-03", "2025-01-03", "2025-01-03"],
+            "Description": ["TRANSFER TO CARD", "TRANSFER TO CARD", "DEPOSIT"],
+            "Amount": ["-500.00", "-500.00", "1000.00"],
+        })
+        column_map = {"date": "Date", "desc1": "Description", "desc2": None,
+                      "amount": "Amount", "usd": None, "currency": None}
+        result = _build_transaction_dataframe(
+            df, column_map, {}, "MYBANK_CHQ", "expenses_negative", Path("mybank.csv")
+        )
+        assert result["transaction_id"].nunique() == 3
+
+    def it_should_keep_the_first_of_a_duplicate_pair_on_the_legacy_hash(self):
+        """Backward compatibility: adding a second identical row must not change
+        the id already assigned to the first."""
+        column_map = {"date": "Date", "desc1": "Description", "desc2": None,
+                      "amount": "Amount", "usd": None, "currency": None}
+        single = _build_transaction_dataframe(
+            pd.DataFrame({"Date": ["2025-01-03"], "Description": ["TRANSFER"],
+                          "Amount": ["-500.00"]}),
+            column_map, {}, "MYBANK_CHQ", "expenses_negative", Path("mybank.csv"),
+        )
+        paired = _build_transaction_dataframe(
+            pd.DataFrame({"Date": ["2025-01-03", "2025-01-03"],
+                          "Description": ["TRANSFER", "TRANSFER"],
+                          "Amount": ["-500.00", "-500.00"]}),
+            column_map, {}, "MYBANK_CHQ", "expenses_negative", Path("mybank.csv"),
+        )
+        assert single["transaction_id"].iloc[0] in set(paired["transaction_id"])
+
     def it_should_produce_all_standard_schema_columns(self):
         df = pd.DataFrame({
             "Date": ["2024-01-15"],

@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- Identical transactions posted on the same day (same account, date, amount and
+  description) no longer collapse into one. `build_transaction_id` now takes an
+  occurrence index, so the second and later copies get distinct ids and survive
+  the ledger merge. Previously every copy after the first was silently dropped.
+  Occurrence 0 keeps the original hash, so existing ids and the categorizations
+  keyed to them are unaffected. Re-ingest affected source CSVs to recover the
+  lost rows.
+
 ### Added
 - Column detection now recognizes RBC Bank (US) exports: `Transaction Posted Date`
   maps to the date role and `Account Currency` to the currency role. These files
