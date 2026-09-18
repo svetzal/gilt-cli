@@ -2,7 +2,7 @@
   "gates": [
     {
       "name": "test",
-      "command": "uv run pytest",
+      "command": "uv run --all-extras pytest",
       "required": true
     },
     {
