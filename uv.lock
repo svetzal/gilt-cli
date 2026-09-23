@@ -30,7 +30,7 @@ wheels = [
 
 [[package]]
 name = "anthropic"
-version = "1.7.0"
+version = "1.8.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -41,9 +41,9 @@ dependencies = [
     { name = "sniffio" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a4/8b/4210dd090000ba35d07cee9105530794911d955788c3992b4882df49eaac/anthropic-1.7.0.tar.gz", hash = "sha256:0ab1b04668606ba1ae93f6d9e8dcc2e0c4f0debebd4eea4773a3a595f0836db1", size = 1181035, upload-time = "2026-09-18T16:13:05.262Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/65/b8/f4de0e90bbd641e86a1d6b20e017442033a2c1d2f5381799f82057115bd7/anthropic-1.8.0.tar.gz", hash = "sha256:9c1783ed90f409617749a61c5ab98e20624a572626f2e0a15cea03ed8e1401e5", size = 1221762, upload-time = "2026-09-22T16:25:38.167Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c0/dc/74995efda028421917f4caabd24db1373ee0742573a2363fff1a21191441/anthropic-1.7.0-py3-none-any.whl", hash = "sha256:6b681b6ee00f232bb54f50f9a0d6d30e7be368c1b6f754bfd470c8385b8b6058", size = 1255606, upload-time = "2026-09-18T16:13:03.725Z" },
+    { url = "https://files.pythonhosted.org/packages/5b/18/5d25a703b66ba34e9277f875f692a3bea3b0ff4d47ee5d188521a01cdd2a/anthropic-1.8.0-py3-none-any.whl", hash = "sha256:79a4516a21e64fd7b15be1a49ebf544bd6376c96a971a77365358823a2717bc6", size = 1348276, upload-time = "2026-09-22T16:25:36.515Z" },
 ]
 
 [[package]]
@@ -967,7 +967,7 @@ wheels = [
 
 [[package]]
 name = "openai"
-version = "3.16.2"
+version = "3.19.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -977,9 +977,9 @@ dependencies = [
     { name = "sniffio" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e2/c6/770171ef28854d8092ee2c3df68ef97d127362b28771e6b423c948894e07/openai-3.16.2.tar.gz", hash = "sha256:e129455fc6a744276cda63a9e2f0759207bc0cf24afc4cf356bf5029e631e955", size = 1696266, upload-time = "2026-09-18T21:27:23.586Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e5/87/563fce6df3a12bbb5274b1432559c7cf267d1603d85d8a959b5c286d0d22/openai-3.19.0.tar.gz", hash = "sha256:890174cae80a47357035477532b6eabbc3d31220f021896dcc2640943e87b78d", size = 1714573, upload-time = "2026-09-23T00:08:48.075Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/17/72/2b1fe3e303db76ab2ba0c2de2b57822869bcb588db82334d4ff3aea8acf2/openai-3.16.2-py3-none-any.whl", hash = "sha256:660a7f8307e6605342ae84ff4425412e7cd19e5e9b298f975502df2a1a9a5d5f", size = 2053568, upload-time = "2026-09-18T21:27:20.885Z" },
+    { url = "https://files.pythonhosted.org/packages/78/0a/45e7073e637f3586eaa5af23a3de58776d5c322d12b77bdba7e2be09ca7a/openai-3.19.0-py3-none-any.whl", hash = "sha256:eaa59585332e54abf71c8011d9bfdb3b4aecead73a0aad977e979756756d42df", size = 2070187, upload-time = "2026-09-23T00:08:45.884Z" },
 ]
 
 [[package]]
@@ -1137,11 +1137,11 @@ wheels = [
 
 [[package]]
 name = "platformdirs"
-version = "4.11.11"
+version = "4.11.12"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/f8/13/f870dd0b42690138e4e37a76b5138e5690ed4365a77071bb092d59037da0/platformdirs-4.11.11.tar.gz", hash = "sha256:b0befe8a90759e4a9a8b9820d434ae226a6549063210b596da0038a7a05aede4", size = 39949, upload-time = "2026-09-19T01:18:47.259Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ea/dd/65804b0c2925a1c821a05502ea57517b69a073ff400d25ab9faa3a2cf012/platformdirs-4.11.12.tar.gz", hash = "sha256:e8dc1cb58f1153fd7f61db1374317770baababec2480b37b8f01c6cc25b45267", size = 40016, upload-time = "2026-09-22T01:02:36.973Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/39/be/3ae887e84c38c4dd1c549cd5825adc93f48069a94fe1cb8ac52a9da16f15/platformdirs-4.11.11-py3-none-any.whl", hash = "sha256:972ea6b2b387155a536226a0750e46923d731d459a387c4a255c583ed2f64547", size = 24992, upload-time = "2026-09-19T01:18:45.825Z" },
+    { url = "https://files.pythonhosted.org/packages/ec/2b/69de6317fbf48865bb12aa56c9cfcfff46b3add0cd45250725d96146dce0/platformdirs-4.11.12-py3-none-any.whl", hash = "sha256:b1ba966ac76153d9985a0787ffab951e7c18416189873d4e4ddb2c8a04a0a254", size = 24976, upload-time = "2026-09-22T01:02:35.742Z" },
 ]
 
 [[package]]
@@ -1247,15 +1247,15 @@ wheels = [
 
 [[package]]
 name = "pymdown-extensions"
-version = "12.0.1"
+version = "12.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "markdown" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/eb/7e/53144b512818c75d459523e3a91d9bf7b65cd6a1dfb964fe690adc8b3670/pymdown_extensions-12.0.1.tar.gz", hash = "sha256:88fe2c97fb9153b9f2cc1da59f1d7c7cb74971110daf33cccb2a5514e0f7e970", size = 866904, upload-time = "2026-09-15T23:20:33.187Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2a/94/858e0163cb4d83d6d8234018a01792c749a56daee41794cac7d6c46661e8/pymdown_extensions-12.1.tar.gz", hash = "sha256:fdb8f47f5d7fd069d10ef2a7d8908e613d7865ff0419d544a0ffd3984e884f11", size = 868245, upload-time = "2026-09-23T00:08:42Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8c/30/c866b3ca8ad5cca79a3ee1a55c12d61d3e72381e5eadbfdaceb6006ebc84/pymdown_extensions-12.0.1-py3-none-any.whl", hash = "sha256:15d629e8035892b93d788a8424ccea754d4aa3cec247a64cbfe7b15089c9ad7f", size = 276957, upload-time = "2026-09-15T23:20:31.551Z" },
+    { url = "https://files.pythonhosted.org/packages/36/d1/98313da89960a604402266a115311b510254900ff1295ea426403f9423cc/pymdown_extensions-12.1-py3-none-any.whl", hash = "sha256:4a254b771acfcddc6c110a7f4590d818f1f849e2d5aacf69b4b07c8dd2a9700d", size = 277069, upload-time = "2026-09-23T00:08:40.069Z" },
 ]
 
 [[package]]
@@ -1661,14 +1661,14 @@ wheels = [
 
 [[package]]
 name = "serpapi"
-version = "1.1.1"
+version = "1.1.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/10/04/0ddff4164197234a0f54f07a6407877b9379228b206e3cc1382b56f20e4f/serpapi-1.1.1.tar.gz", hash = "sha256:821c28a710599e14dfe0b7461e9615160671e6c6021e8b8ecefd59756dc3ede6", size = 75851, upload-time = "2026-09-08T13:35:06.607Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d7/cb/9b20af90c3481b424d988104be3a8ec096971b0fa2aaa6b4263e27e92503/serpapi-1.1.2.tar.gz", hash = "sha256:c4a16b5c99c3b34469cef12a3c9c74be18912324baad74d67d1d8820d4401b24", size = 76556, upload-time = "2026-09-22T05:40:13.884Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0e/2a/1835cc02fa36503e62ba198d67c7745661dcbfc4c67ffc28a61964e758ac/serpapi-1.1.1-py3-none-any.whl", hash = "sha256:ce0a5267db4d4721e24eb3df801cee428165740b72aeff5e2861aa9e9982c901", size = 11289, upload-time = "2026-09-08T13:35:05.301Z" },
+    { url = "https://files.pythonhosted.org/packages/8b/3f/543ef4d3f5004134ce2bdc3f79313cfae37e739a29db4477febed918e55d/serpapi-1.1.2-py3-none-any.whl", hash = "sha256:446943df71e8afde69906be7e918b44c8d6cdcb84e69c37d01112c313945b384", size = 11288, upload-time = "2026-09-22T05:40:12.733Z" },
 ]
 
 [[package]]
