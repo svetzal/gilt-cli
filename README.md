@@ -164,17 +164,14 @@ gilt ingest
 # Actually write the normalized ledgers
 gilt ingest --write
 
-# Use custom paths
-gilt ingest --config config/accounts.yml \
-               --ingest-dir ingest \
-               --output-dir data/accounts \
-               --write
+# Import directly from a saved export directory
+gilt --data-dir ~/finances ingest --source ~/bank-exports --write
 ```
 
 **Options:**
-- `--config PATH`: Path to accounts.yml (default: `config/accounts.yml`)
-- `--ingest-dir PATH`: Directory with raw bank CSVs (default: `ingest`)
-- `--output-dir PATH`: Directory to write ledgers (default: `data/accounts`)
+
+- `--source PATH`: Read CSVs from this directory instead of the workspace's `ingest/`.
+  Filenames must match the account source patterns. Source files remain in place.
 - `--write`: Persist changes (default: dry-run)
 
 **Workflow:**

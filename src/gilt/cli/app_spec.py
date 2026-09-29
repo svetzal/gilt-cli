@@ -154,7 +154,7 @@ class DescribeCommandDelegation:
         ):
             runner.invoke(app, ["ingest"])
 
-        mock_run.assert_called_once_with(workspace=ws, write=False)
+        mock_run.assert_called_once_with(workspace=ws, write=False, source=None)
 
     def it_should_delegate_note_to_run_with_write_flag(self, tmp_path):
         from typer.testing import CliRunner

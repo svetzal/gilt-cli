@@ -95,13 +95,16 @@ def run(
     *,
     workspace: Workspace,
     write: bool = False,
+    source: Path | None = None,
 ) -> int:
     """Ingest and normalize raw CSVs into standardized per-account ledgers.
 
     Dry-run by default (write=False). Returns an exit code.
     """
     ingestion_service = IngestionService(accounts=load_accounts_config(workspace.accounts_config))
-    ingestion_plan = ingestion_service.build_ingestion_plan(workspace.ingest_dir)
+    ingestion_plan = ingestion_service.build_ingestion_plan(
+        source if source is not None else workspace.ingest_dir
+    )
 
     return mutations.run_confirmed_mutation(
         matches=list(ingestion_plan.files),

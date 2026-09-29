@@ -91,3 +91,29 @@ class DescribeIngestRunDryRun:
 
         # Output directory should not have been created
         assert not ws.ledger_data_dir.exists()
+
+
+class DescribeExternalIngestSource:
+    def it_should_preview_external_files_without_writing_workspace(self, tmp_path, mocker):
+        ws = Workspace(root=tmp_path / "workspace")
+        source = tmp_path / "exports"
+        source.mkdir()
+        (source / "example.csv").write_text("Date,Description,Amount\n2025-01-10,SAMPLE,-25\n")
+        apply = mocker.patch("gilt.cli.command.ingest._run_ingest")
+        display = mocker.patch("gilt.cli.command.ingest.display_plan")
+
+        assert run(workspace=ws, source=source) == 0
+        assert display.call_args.args[1] == 1
+        apply.assert_not_called()
+        assert not ws.root.exists()
+
+    def it_should_pass_external_files_to_writer(self, tmp_path, mocker):
+        ws = Workspace(root=tmp_path / "workspace")
+        source = tmp_path / "exports"
+        source.mkdir()
+        export = source / "example.csv"
+        export.write_text("Date,Description,Amount\n2025-01-10,SAMPLE,-25\n")
+        apply = mocker.patch("gilt.cli.command.ingest._run_ingest", return_value=0)
+
+        assert run(workspace=ws, source=source, write=True) == 0
+        assert apply.call_args.args[2].files[0][0] == export

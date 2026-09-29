@@ -536,6 +536,16 @@ EXPECTED_SURFACE: list[tuple] = [
     ),
     (
         "ingest",
+        "source",
+        ("--source",),
+        (),
+        "TyperPath",
+        False,
+        None,
+        "Directory containing bank CSV exports (default: workspace ingest/)",
+    ),
+    (
+        "ingest",
         "write",
         ("--write",),
         (),

@@ -76,3 +76,16 @@ class DescribeIngestReceipts:
         assert call_kwargs["account"] == "MYBANK_CC"
         assert call_kwargs["write"] is False
         assert call_kwargs["workspace"] is ws
+
+
+class DescribeExternalSource:
+    def it_should_pass_source_as_path_to_command(self, tmp_path):
+        with patch("gilt.cli.command.ingest.run", return_value=0) as run:
+            result = CliRunner().invoke(app, ["ingest", "--source", str(tmp_path)])
+        assert result.exit_code == 0
+        assert run.call_args.kwargs["source"] == tmp_path
+        assert run.call_args.kwargs["write"] is False
+
+    def it_should_reject_missing_source_directory(self, tmp_path):
+        result = CliRunner().invoke(app, ["ingest", "--source", str(tmp_path / "missing")])
+        assert result.exit_code != 0

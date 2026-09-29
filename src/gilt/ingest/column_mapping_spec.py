@@ -163,3 +163,9 @@ class DescribeFindMissingColumns:
                       "amount": None, "usd": "USD$"}
         result = find_missing_columns(column_map, {})
         assert "amount" not in result
+
+
+class DescribeSubDescription:
+    def it_should_preserve_secondary_details_from_bank_exports(self):
+        result = _detect_columns(["Date", "Description", "Sub-description", "Amount"])
+        assert result["desc2"] == "Sub-description"

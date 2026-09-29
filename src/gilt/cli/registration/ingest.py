@@ -12,6 +12,7 @@ from gilt.cli.registration._options import (
     category_option,
     fy_option,
     interactive_option,
+    source_option,
     write_option,
     year_option,
 )
@@ -21,6 +22,10 @@ def register_ingest(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
     @app.command()
     def ingest(
         ctx: typer.Context,
+        source: Path | None = source_option(
+            "Directory containing bank CSV exports (default: workspace ingest/)",
+            validate=True,
+        ),
         write: bool = write_option(),
     ):
         """Ingest and normalize raw CSVs into standardized per-account ledgers.
@@ -29,7 +34,7 @@ def register_ingest(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
         """
         from gilt.cli.command import ingest as cmd_ingest
 
-        dispatch(cmd_ingest.run, **command_kwargs(ctx, workspace=ws_fn(ctx)))
+        dispatch(cmd_ingest.run, **command_kwargs(ctx, workspace=ws_fn(ctx), source=source))
 
 
 def register_reingest(app: typer.Typer, ws_fn) -> None:  # type: ignore[type-arg]
@@ -61,10 +66,8 @@ def register_ingest_receipts(app: typer.Typer, ws_fn) -> None:  # type: ignore[t
     @app.command(name="ingest-receipts")
     def ingest_receipts(
         ctx: typer.Context,
-        source: Path = typer.Option(
-            ...,
-            "--source",
-            help="Root directory containing receipt JSON files (recursive scan)",
+        source: Path = source_option(
+            "Root directory containing receipt JSON files (recursive scan)", required=True,
         ),
         write: bool = write_option(),
         year: int | None = year_option("Only process receipts from this year"),

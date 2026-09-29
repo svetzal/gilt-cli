@@ -119,6 +119,13 @@ def date_to_option(help: str):
     return typer.Option(None, "--date-to", help=help)
 
 
+def source_option(help: str, *, required: bool = False, validate: bool = False):
+    return typer.Option(
+        ... if required else None, "--source", help=help,
+        exists=validate, file_okay=not validate, readable=validate,
+    )
+
+
 __all__ = [
     "HELP_ACCOUNT_DISPLAY",
     "HELP_ACCOUNT_WITH_TX",
@@ -142,6 +149,7 @@ __all__ = [
     "pattern_option",
     "projections_db_option",
     "txid_option",
+    "source_option",
     "write_option",
     "year_option",
     "yes_option",

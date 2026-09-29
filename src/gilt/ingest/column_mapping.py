@@ -48,7 +48,7 @@ def _detect_columns(cols: list[str]) -> dict[str, str | None]:
             ],
             cols,
         ),
-        "desc2": _first_match(["Description 2"], cols),
+        "desc2": _first_match(["Description 2", "Sub-description"], cols),
         "amount": _first_match(["CAD$", "Amount", "amount"], cols),
         "usd": _first_match(["USD$"], cols),
         "currency": _first_match(["Currency", "currency", "Account Currency"], cols),
