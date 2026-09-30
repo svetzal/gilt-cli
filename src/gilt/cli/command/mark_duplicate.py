@@ -46,6 +46,7 @@ def run(
     duplicate_txid: str,
     workspace: Workspace,
     write: bool = False,
+    yes: bool = False,
 ) -> int:
     """Mark a specific pair of transactions as duplicates.
 
@@ -58,6 +59,9 @@ def run(
         duplicate_txid: Transaction ID to mark as duplicate (8+ char prefix)
         workspace: Workspace for resolving data paths
         write: Persist changes (default: dry-run)
+        yes: Skip the description prompt and keep the primary transaction's
+            description, so the command runs unattended. Still a dry run unless
+            ``write`` is also set.
 
     Returns:
         Exit code (0 = success, 1 = error)
@@ -68,6 +72,9 @@ def run(
 
         # Confirm and persist
         gilt mark-duplicate --primary a1b2c3d4 --duplicate e5f6g7h8 --write
+
+        # Unattended: keep the primary description, no prompt
+        gilt mark-duplicate --primary a1b2c3d4 --duplicate e5f6g7h8 --yes --write
     """
     if not workspace.ledger_data_dir.exists():
         print_error(f"Data directory not found: {workspace.ledger_data_dir}")
@@ -93,7 +100,11 @@ def run(
     primary_txn = preparation.primary_txn
     duplicate_txn = preparation.duplicate_txn
     display_comparison(primary_txn, duplicate_txn)
-    canonical_description = prompt_description_choice(primary_txn, duplicate_txn)
+    canonical_description = (
+        primary_txn["canonical_description"]
+        if yes
+        else prompt_description_choice(primary_txn, duplicate_txn)
+    )
 
     def apply() -> int:
         print_rebuilding()

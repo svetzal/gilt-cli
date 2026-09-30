@@ -235,3 +235,63 @@ class DescribeMarkDuplicate:
         )
 
         assert result == 1
+
+    def it_should_skip_description_prompt_and_keep_primary_when_yes(
+        self, mock_projections, tmp_path
+    ):
+        """--yes --write marks the pair non-interactively using the primary description."""
+        _, event_store = mock_projections
+        workspace = Workspace(root=tmp_path)
+
+        with patch("gilt.cli.command.mark_duplicate_review.Prompt.ask") as mock_ask:
+            result = mark_duplicate.run(
+                primary_txid="abc12345",
+                duplicate_txid="def98765",
+                workspace=workspace,
+                write=True,
+                yes=True,
+            )
+
+        assert result == 0
+        mock_ask.assert_not_called()
+        events = event_store.get_events_by_type("DuplicateConfirmed")
+        assert len(events) == 1
+        assert events[0].canonical_description == "PAYMENT TO MERCHANT"
+
+    def it_should_prompt_for_description_without_yes(self, mock_projections, tmp_path):
+        """Without --yes the interactive description prompt still appears."""
+        workspace = Workspace(root=tmp_path)
+
+        with patch(
+            "gilt.cli.command.mark_duplicate_review.Prompt.ask", return_value="1"
+        ) as mock_ask:
+            result = mark_duplicate.run(
+                primary_txid="abc12345",
+                duplicate_txid="def98765",
+                workspace=workspace,
+                write=False,
+            )
+
+        assert result == 0
+        mock_ask.assert_called_once()
+
+    def it_should_change_nothing_with_yes_but_without_write(
+        self, mock_projections, tmp_path, capsys
+    ):
+        """--yes alone stays a dry run: no prompt, no event emitted."""
+        _, event_store = mock_projections
+        workspace = Workspace(root=tmp_path)
+
+        with patch("gilt.cli.command.mark_duplicate_review.Prompt.ask") as mock_ask:
+            result = mark_duplicate.run(
+                primary_txid="abc12345",
+                duplicate_txid="def98765",
+                workspace=workspace,
+                write=False,
+                yes=True,
+            )
+
+        assert result == 0
+        mock_ask.assert_not_called()
+        assert event_store.get_events_by_type("DuplicateConfirmed") == []
+        assert "--write" in capsys.readouterr().out

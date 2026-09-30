@@ -263,6 +263,7 @@ uv run gilt receipts --fy FY25 --missing        # List transactions without rece
 uv run gilt duplicates                          # ML-based scan
 uv run gilt duplicates --interactive            # Train ML with feedback
 uv run gilt mark-duplicate -p abc12345 -d def67890 --write
+uv run gilt mark-duplicate -p abc12345 -d def67890 --yes --write  # No prompt; keeps primary description
 uv run gilt diagnose-duplicates                 # Read-only: report orphaned/stale states
 ```
 

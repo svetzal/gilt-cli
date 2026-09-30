@@ -1320,6 +1320,9 @@ gilt mark-duplicate --primary a1b2c3d4 --duplicate e5f6g7h8
 
 # Confirm and persist (you'll choose which description to keep)
 gilt mark-duplicate -p a1b2c3d4 -d e5f6g7h8 --write
+
+# Unattended: skip the prompt and keep the primary's description
+gilt mark-duplicate -p a1b2c3d4 -d e5f6g7h8 --yes --write
 ```
 
 **When to use this:**

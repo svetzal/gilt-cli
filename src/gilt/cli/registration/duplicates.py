@@ -11,6 +11,7 @@ from gilt.cli.registration._options import (
     limit_option,
     min_confidence_option,
     write_option,
+    yes_option,
 )
 from gilt.config import DEFAULT_OLLAMA_MODEL
 
@@ -68,6 +69,9 @@ def register_mark_duplicate(app: typer.Typer, ws_fn) -> None:  # type: ignore[ty
             ..., "--duplicate", "-d", help="Transaction ID to mark as duplicate (8+ char prefix)"
         ),
         write: bool = write_option(),
+        yes: bool = yes_option(
+            "Skip the description prompt and keep the primary transaction's description"
+        ),
     ):
         """Manually mark a specific pair of transactions as duplicates.
 
@@ -78,10 +82,13 @@ def register_mark_duplicate(app: typer.Typer, ws_fn) -> None:  # type: ignore[ty
         transaction is hidden from all calculations but preserved in the event store.
 
         You'll be prompted to choose which description to keep for the primary transaction.
+        Pass --yes to skip the prompt and keep the primary's description (unattended use);
+        --write is still required to persist.
 
         Examples:
           gilt mark-duplicate --primary a1b2c3d4 --duplicate e5f6g7h8
           gilt mark-duplicate -p a1b2c3d4 -d e5f6g7h8 --write
+          gilt mark-duplicate -p a1b2c3d4 -d e5f6g7h8 --yes --write
 
         Transaction IDs:
           You can use 8-character prefixes instead of full transaction IDs.

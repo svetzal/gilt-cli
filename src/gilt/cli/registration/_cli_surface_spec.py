@@ -635,6 +635,16 @@ EXPECTED_SURFACE: list[tuple] = [
         "Persist changes (default: dry-run)",
     ),
     (
+        "mark-duplicate",
+        "yes",
+        ("--yes", "-y"),
+        (),
+        "BoolParamType",
+        False,
+        False,
+        "Skip the description prompt and keep the primary transaction's description",
+    ),
+    (
         "migrate-to-events",
         "budget_projections_db",
         ("--budget-projections-db",),

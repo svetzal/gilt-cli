@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- `gilt mark-duplicate --yes / -y` skips the description prompt and keeps the primary
+  transaction's description, so the command can run unattended. It is still a dry run
+  unless `--write` is also passed.
+
 ### Fixed
 - Identical transactions posted on the same day (same account, date, amount and
   description) no longer collapse into one. `build_transaction_id` now takes an

@@ -74,6 +74,24 @@ class DescribeMarkDuplicate:
         assert call_kwargs["duplicate_txid"] == "def67890"
         assert call_kwargs["write"] is False
         assert call_kwargs["workspace"] is ws
+        assert call_kwargs["yes"] is False
+
+    def it_should_map_yes_flag_to_run(self):
+        runner = CliRunner()
+        ws = MagicMock()
+
+        with (
+            patch("gilt.cli.app.Workspace.resolve", return_value=ws),
+            patch("gilt.cli.command.mark_duplicate.run", return_value=0) as mock_run,
+        ):
+            result = runner.invoke(
+                app,
+                ["mark-duplicate", "-p", "abc12345", "-d", "def67890", "--yes"],
+            )
+
+        assert result.exit_code == 0
+        assert mock_run.call_args.kwargs["yes"] is True
+        assert mock_run.call_args.kwargs["write"] is False
 
 
 class DescribeDiagnoseDuplicates:

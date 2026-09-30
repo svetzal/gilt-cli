@@ -335,12 +335,16 @@ Manually mark a specific pair of transactions as duplicates.
 | `--primary`, `-p` | String | **required** | Transaction ID to keep (8+ char prefix) |
 | `--duplicate`, `-d` | String | **required** | Transaction ID to mark as duplicate (8+ char prefix) |
 | `--write` | Bool | `False` | **Persist changes (dry-run by default)** |
+| `--yes`, `-y` | Bool | `False` | Skip the description prompt; keep the primary's description |
 
 The primary is kept; the duplicate is hidden from budgets/reports but preserved in the event store.
+Without `--yes` you are prompted to choose which description to keep. `--yes` makes the command
+unattended; it is still a dry run unless `--write` is also passed.
 
 ```bash
 uv run gilt mark-duplicate -p a1b2c3d4 -d e5f6g7h8
 uv run gilt mark-duplicate -p a1b2c3d4 -d e5f6g7h8 --write
+uv run gilt mark-duplicate -p a1b2c3d4 -d e5f6g7h8 --yes --write
 ```
 
 ---
