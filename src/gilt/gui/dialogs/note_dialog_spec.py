@@ -36,6 +36,16 @@ class DescribeNoteDialog:
         dialog = NoteDialog()
         assert dialog.windowTitle() == "Edit Note"
 
+    def it_should_empty_the_note_when_clear_is_clicked(self):
+        from PySide6.QtWidgets import QPushButton
+
+        dialog = NoteDialog(current_note="to be cleared")
+        clear_button = next(b for b in dialog.findChildren(QPushButton) if b.text() == "Clear")
+
+        clear_button.click()
+
+        assert dialog.get_note() == ""
+
     def it_should_reflect_updated_text_in_get_note(self):
         dialog = NoteDialog(current_note="original")
         dialog.note_edit.setPlainText("updated note")

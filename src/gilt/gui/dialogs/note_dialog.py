@@ -77,7 +77,7 @@ class NoteDialog(QDialog):
 
         # Clear button
         clear_btn = QPushButton("Clear")
-        clear_btn.clicked.connect(lambda: self.note_edit.clear())
+        clear_btn.clicked.connect(self.note_edit.clear)
         button_layout.addWidget(clear_btn)
 
         button_layout.addStretch()
