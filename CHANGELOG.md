@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Security
+- Bump transitive dev dependency `msgpack` 1.2.2 -> 1.2.4 (via `pip-audit` ->
+  `cachecontrol`) to remediate CVE-2026-114613 (fixed in 1.2.3). Lockfile only;
+  no runtime dependency change.
+
 ### Added
 - `gilt mark-duplicate --yes / -y` skips the description prompt and keeps the primary
   transaction's description, so the command can run unattended. It is still a dry run
