@@ -108,7 +108,7 @@ All mutation operations default to dry-run mode:
 def categorize_transactions(
     transactions: List[Transaction],
     category: str,
-    write: bool = False  # Always defaults to False
+    write: bool = False,  # Always defaults to False
 ) -> Result:
     # Perform operation
     if write:
@@ -146,11 +146,10 @@ Qt signals for loose coupling:
 class CategoryService(QObject):
     categories_modified = Signal()  # Emitted after changes
 
+
 class CategoriesView(QWidget):
     def __init__(self):
-        self.service.categories_modified.connect(
-            self.reload_categories
-        )
+        self.service.categories_modified.connect(self.reload_categories)
 ```
 
 ## Key Algorithms
@@ -160,12 +159,7 @@ class CategoriesView(QWidget):
 Deterministic hash for duplicate detection:
 
 ```python
-def generate_transaction_id(
-    account_id: str,
-    date: str,
-    amount: float,
-    description: str
-) -> str:
+def generate_transaction_id(account_id: str, date: str, amount: float, description: str) -> str:
     content = f"{account_id}|{date}|{amount}|{description}"
     hash = hashlib.sha256(content.encode()).hexdigest()
     return hash[:16]  # First 16 characters
@@ -186,11 +180,7 @@ See [Transfer Linking](technical/transfer-linking.md) for details.
 Automatic period conversion:
 
 ```python
-def prorate_budget(
-    amount: float,
-    period: BudgetPeriod,
-    target_period: BudgetPeriod
-) -> float:
+def prorate_budget(amount: float, period: BudgetPeriod, target_period: BudgetPeriod) -> float:
     if period == BudgetPeriod.MONTHLY:
         if target_period == BudgetPeriod.YEARLY:
             return amount * 12
@@ -225,11 +215,7 @@ def test_import_and_categorize_workflow():
     result = import_service.import_file("test.csv", write=True)
 
     # Categorize
-    categorize_service.categorize(
-        result.transactions[0].transaction_id,
-        "Housing:Rent",
-        write=True
-    )
+    categorize_service.categorize(result.transactions[0].transaction_id, "Housing:Rent", write=True)
 
     # Verify persisted
     ledger = load_ledger_csv("MYBANK_CHQ.csv")

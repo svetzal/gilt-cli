@@ -121,8 +121,12 @@ def date_to_option(help: str):
 
 def source_option(help: str, *, required: bool = False, validate: bool = False):
     return typer.Option(
-        ... if required else None, "--source", help=help,
-        exists=validate, file_okay=not validate, readable=validate,
+        ... if required else None,
+        "--source",
+        help=help,
+        exists=validate,
+        file_okay=not validate,
+        readable=validate,
     )
 
 

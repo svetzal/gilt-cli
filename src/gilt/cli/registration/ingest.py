@@ -67,7 +67,8 @@ def register_ingest_receipts(app: typer.Typer, ws_fn) -> None:  # type: ignore[t
     def ingest_receipts(
         ctx: typer.Context,
         source: Path = source_option(
-            "Root directory containing receipt JSON files (recursive scan)", required=True,
+            "Root directory containing receipt JSON files (recursive scan)",
+            required=True,
         ),
         write: bool = write_option(),
         year: int | None = year_option("Only process receipts from this year"),

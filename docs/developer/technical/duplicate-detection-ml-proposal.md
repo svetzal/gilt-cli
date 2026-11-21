@@ -167,14 +167,12 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import Levenshtein
 
+
 class DuplicateFeatureExtractor:
     def __init__(self):
         # Use character n-grams for bank description variations
         self.vectorizer = TfidfVectorizer(
-            analyzer='char_wb',
-            ngram_range=(2, 4),
-            lowercase=True,
-            max_features=500
+            analyzer="char_wb", ngram_range=(2, 4), lowercase=True, max_features=500
         )
 
     def build_features(self, pair: TransactionPair) -> np.ndarray:
@@ -185,10 +183,7 @@ class DuplicateFeatureExtractor:
         cosine_sim = cosine_similarity(desc1_vec, desc2_vec)[0, 0]
 
         # Character-level similarity
-        levenshtein_ratio = Levenshtein.ratio(
-            pair.txn1_description,
-            pair.txn2_description
-        )
+        levenshtein_ratio = Levenshtein.ratio(pair.txn1_description, pair.txn2_description)
 
         # Token overlap
         tokens1 = set(pair.txn1_description.lower().split())
@@ -200,16 +195,18 @@ class DuplicateFeatureExtractor:
         date_diff = abs((pair.txn1_date - pair.txn2_date).days)
         same_account = float(pair.txn1_account == pair.txn2_account)
 
-        return np.array([
-            cosine_sim,
-            levenshtein_ratio,
-            token_overlap,
-            amount_match,
-            date_diff,
-            same_account,
-            len(pair.txn1_description),
-            len(pair.txn2_description),
-        ])
+        return np.array(
+            [
+                cosine_sim,
+                levenshtein_ratio,
+                token_overlap,
+                amount_match,
+                date_diff,
+                same_account,
+                len(pair.txn1_description),
+                len(pair.txn2_description),
+            ]
+        )
 ```
 
 #### Phase 2: Model Training (2-3 hours)
@@ -220,14 +217,11 @@ Create `src/gilt/ml/duplicate_classifier.py`:
 import lightgbm as lgb
 from sklearn.model_selection import train_test_split
 
+
 class DuplicateClassifier:
     def __init__(self):
         self.model = lgb.LGBMClassifier(
-            objective='binary',
-            n_estimators=100,
-            max_depth=5,
-            learning_rate=0.05,
-            random_state=42
+            objective="binary", n_estimators=100, max_depth=5, learning_rate=0.05, random_state=42
         )
         self.feature_extractor = DuplicateFeatureExtractor()
 
@@ -252,7 +246,7 @@ class DuplicateClassifier:
         return DuplicateAssessment(
             is_duplicate=is_duplicate,
             confidence=proba if is_duplicate else (1 - proba),
-            reasoning=reasoning
+            reasoning=reasoning,
         )
 ```
 
@@ -371,16 +365,18 @@ def compare_llm_vs_ml(test_pairs: List[TransactionPair]):
         llm_result = llm_detector.assess_duplicate(pair)
         ml_result = ml_detector.assess_duplicate(pair)
 
-        results.append({
-            'pair': pair,
-            'llm_duplicate': llm_result.is_duplicate,
-            'llm_confidence': llm_result.confidence,
-            'ml_duplicate': ml_result.is_duplicate,
-            'ml_confidence': ml_result.confidence,
-            'agreement': llm_result.is_duplicate == ml_result.is_duplicate
-        })
+        results.append(
+            {
+                "pair": pair,
+                "llm_duplicate": llm_result.is_duplicate,
+                "llm_confidence": llm_result.confidence,
+                "ml_duplicate": ml_result.is_duplicate,
+                "ml_confidence": ml_result.confidence,
+                "agreement": llm_result.is_duplicate == ml_result.is_duplicate,
+            }
+        )
 
-    agreement_rate = sum(r['agreement'] for r in results) / len(results)
+    agreement_rate = sum(r["agreement"] for r in results) / len(results)
     return results, agreement_rate
 ```
 

@@ -34,4 +34,10 @@ def find_by_account(rows: list[dict], account: str | None) -> list[dict]:
     return [row for row in rows if row.get("account_id") == account]
 
 
-__all__ = ["group_by_account", "match_from_row", "match_from_transaction", "find_uncategorized", "find_by_account"]
+__all__ = [
+    "group_by_account",
+    "match_from_row",
+    "match_from_transaction",
+    "find_uncategorized",
+    "find_by_account",
+]

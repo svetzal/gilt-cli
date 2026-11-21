@@ -11,6 +11,11 @@
       "required": true
     },
     {
+      "name": "format",
+      "command": "uv run ruff format --check .",
+      "required": true
+    },
+    {
       "name": "build",
       "command": "uv build",
       "required": true

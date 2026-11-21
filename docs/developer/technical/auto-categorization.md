@@ -269,8 +269,8 @@ The `train()` method returns detailed metrics:
         "Entertainment:Streaming",
         "Groceries",
         "Housing:Utilities",
-        ...
-    ]
+        ...,
+    ],
 }
 ```
 

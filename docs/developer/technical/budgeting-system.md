@@ -193,8 +193,7 @@ The `BudgetService` aggregates spending:
 
 ```python
 def get_spending_by_category(
-    year: int,
-    month: Optional[int] = None
+    year: int, month: Optional[int] = None
 ) -> Dict[Tuple[str, str], float]:
     """Get spending grouped by (category, subcategory)."""
     spending = defaultdict(float)
@@ -230,9 +229,7 @@ Budgets are automatically prorated for the reporting period:
 **Implementation**:
 ```python
 def prorate_budget(
-    amount: float,
-    budget_period: BudgetPeriod,
-    report_period: BudgetPeriod
+    amount: float, budget_period: BudgetPeriod, report_period: BudgetPeriod
 ) -> float:
     """Prorate budget amount for reporting period."""
     if budget_period == report_period:
@@ -253,10 +250,7 @@ def prorate_budget(
 Calculate budget status with percentage:
 
 ```python
-def calculate_budget_status(
-    budgeted: float,
-    actual: float
-) -> BudgetStatus:
+def calculate_budget_status(budgeted: float, actual: float) -> BudgetStatus:
     """Calculate budget status and percentage."""
     remaining = budgeted - actual
     if budgeted > 0:
@@ -266,17 +260,13 @@ def calculate_budget_status(
 
     # Color coding
     if percent > 100:
-        status = "over"    # Red
+        status = "over"  # Red
     elif percent > 90:
-        status = "warning" # Yellow
+        status = "warning"  # Yellow
     else:
-        status = "good"    # Green
+        status = "good"  # Green
 
-    return BudgetStatus(
-        remaining=remaining,
-        percent=percent,
-        status=status
-    )
+    return BudgetStatus(remaining=remaining, percent=percent, status=status)
 ```
 
 ## CLI Commands
@@ -529,12 +519,9 @@ Test budget calculations:
 ```python
 def test_prorate_monthly_to_yearly():
     """Monthly budget * 12 = yearly."""
-    amount = prorate_budget(
-        500.0,
-        BudgetPeriod.MONTHLY,
-        BudgetPeriod.YEARLY
-    )
+    amount = prorate_budget(500.0, BudgetPeriod.MONTHLY, BudgetPeriod.YEARLY)
     assert amount == 6000.0
+
 
 def test_budget_status_over():
     """Over 100% should be 'over' status."""
@@ -554,11 +541,7 @@ def test_categorize_and_budget_report():
     import_service.import_file("test.csv", write=True)
 
     # Categorize
-    categorize_service.categorize(
-        desc_prefix="GROCERY",
-        category="Food:Groceries",
-        write=True
-    )
+    categorize_service.categorize(desc_prefix="GROCERY", category="Food:Groceries", write=True)
 
     # Generate budget report
     summary = budget_service.get_budget_summary(2025, 10)

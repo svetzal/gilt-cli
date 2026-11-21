@@ -43,15 +43,10 @@ a1b2c3d4e5f60789,2025-11-16,"GROCERY STORE",-45.67,CAD,MYBANK_CHQ,"GROCERY STORE
 Transaction IDs are deterministic hashes:
 
 ```python
-def generate_transaction_id(
-    account_id: str,
-    date: str,
-    amount: float,
-    description: str
-) -> str:
+def generate_transaction_id(account_id: str, date: str, amount: float, description: str) -> str:
     """Generate unique, deterministic ID."""
     content = f"{account_id}|{date}|{amount}|{description}"
-    hash_bytes = hashlib.sha256(content.encode('utf-8')).digest()
+    hash_bytes = hashlib.sha256(content.encode("utf-8")).digest()
     return hash_bytes.hex()[:16]  # First 16 hex chars
 ```
 
@@ -154,13 +149,17 @@ categories:
 from pydantic import BaseModel
 from typing import Optional, List
 
+
 class ImportHints(BaseModel):
     """Optional import hints for parsing."""
+
     header_row: int = 0
     date_format: Optional[str] = None
 
+
 class Account(BaseModel):
     """Account configuration."""
+
     account_id: str
     description: str
     source_patterns: List[str]
@@ -172,23 +171,31 @@ class Account(BaseModel):
 ```python
 from enum import Enum
 
+
 class BudgetPeriod(str, Enum):
     """Budget period enum."""
+
     MONTHLY = "monthly"
     YEARLY = "yearly"
 
+
 class Budget(BaseModel):
     """Budget configuration."""
+
     amount: float
     period: BudgetPeriod
 
+
 class Subcategory(BaseModel):
     """Subcategory definition."""
+
     name: str
     description: Optional[str] = None
 
+
 class Category(BaseModel):
     """Category with optional budget."""
+
     name: str
     description: Optional[str] = None
     budget: Optional[Budget] = None
@@ -201,8 +208,10 @@ class Category(BaseModel):
 ```python
 from datetime import date
 
+
 class Transaction(BaseModel):
     """Single transaction."""
+
     transaction_id: str
     date: date
     description: str
@@ -222,6 +231,7 @@ class Transaction(BaseModel):
 ```python
 class TransactionGroup(BaseModel):
     """Group of transactions for an account."""
+
     account_id: str
     transactions: List[Transaction]
 

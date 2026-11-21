@@ -308,15 +308,10 @@ gilt/
 ### Implementation
 
 ```python
-def generate_transaction_id(
-    account_id: str,
-    date: str,
-    amount: float,
-    description: str
-) -> str:
+def generate_transaction_id(account_id: str, date: str, amount: float, description: str) -> str:
     """Generate deterministic transaction ID."""
     content = f"{account_id}|{date}|{amount}|{description}"
-    hash_bytes = hashlib.sha256(content.encode('utf-8')).digest()
+    hash_bytes = hashlib.sha256(content.encode("utf-8")).digest()
     return hash_bytes.hex()[:16]  # First 16 hex chars
 ```
 
@@ -392,11 +387,7 @@ try:
     result = service.categorize(txids, category, write=True)
     self.show_success("Categorized successfully")
 except (OSError, ValueError, UnicodeDecodeError) as e:
-    QMessageBox.critical(
-        self,
-        "Categorization Failed",
-        f"Error: {str(e)}\n\nPlease try again."
-    )
+    QMessageBox.critical(self, "Categorization Failed", f"Error: {str(e)}\n\nPlease try again.")
 ```
 
 ## Testing Strategy

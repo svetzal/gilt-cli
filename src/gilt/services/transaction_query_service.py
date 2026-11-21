@@ -102,16 +102,11 @@ def _passes_amount_filter(t: Transaction, criteria: TransactionFilter) -> bool:
         return False
     if criteria.min_abs_amount is not None and abs(t.amount) < criteria.min_abs_amount:
         return False
-    return not (
-        criteria.max_abs_amount is not None and abs(t.amount) > criteria.max_abs_amount
-    )
+    return not (criteria.max_abs_amount is not None and abs(t.amount) > criteria.max_abs_amount)
 
 
 def _passes_category_filter(t: Transaction, criteria: TransactionFilter) -> bool:
-    if (
-        criteria.category is not None
-        and (t.category or "").lower() != criteria.category.lower()
-    ):
+    if criteria.category is not None and (t.category or "").lower() != criteria.category.lower():
         return False
     if criteria.categories is not None and (t.category or "").lower() not in {
         c.lower() for c in criteria.categories
@@ -129,9 +124,7 @@ def _passes_text_filter(t: Transaction, criteria: TransactionFilter) -> bool:
     if criteria.search_text is None:
         return True
     needle = criteria.search_text.lower()
-    return needle in (t.description or "").lower() or needle in (
-        t.counterparty or ""
-    ).lower()
+    return needle in (t.description or "").lower() or needle in (t.counterparty or "").lower()
 
 
 class TransactionQueryService:

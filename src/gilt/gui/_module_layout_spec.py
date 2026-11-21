@@ -135,9 +135,7 @@ class DescribeGuiModuleLayout:
             if "self.worker =" not in source:
                 continue
             has_cleanup = (
-                "def cleanupPage" in source
-                or "def reject" in source
-                or "def closeEvent" in source
+                "def cleanupPage" in source or "def reject" in source or "def closeEvent" in source
             )
             if not has_cleanup:
                 violations.append(
@@ -159,9 +157,8 @@ class DescribeSpecCoverage:
             spec_path = path.parent / f"{stem}_spec.py"
             if not spec_path.exists():
                 missing_specs.append(str(path.relative_to(GUI_DIR)))
-        assert missing_specs == [], (
-            "Missing spec files for GUI shell modules:\n"
-            + "\n".join(f"  {s}" for s in missing_specs)
+        assert missing_specs == [], "Missing spec files for GUI shell modules:\n" + "\n".join(
+            f"  {s}" for s in missing_specs
         )
 
     def it_should_keep_allowlists_empty(self):

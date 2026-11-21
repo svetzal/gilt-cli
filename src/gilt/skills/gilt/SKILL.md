@@ -342,10 +342,10 @@ workspace = Workspace.resolve()
 workspace = Workspace(root=Path("/tmp/test"))
 
 # Access paths as properties
-workspace.event_store_path      # root / "data" / "events.db"
-workspace.projections_path      # root / "data" / "projections.db"
-workspace.ledger_data_dir       # root / "data" / "accounts"
-workspace.categories_config     # root / "config" / "categories.yml"
+workspace.event_store_path  # root / "data" / "events.db"
+workspace.projections_path  # root / "data" / "projections.db"
+workspace.ledger_data_dir  # root / "data" / "accounts"
+workspace.categories_config  # root / "config" / "categories.yml"
 ```
 
 The `EventSourcingService` also accepts `workspace=` to derive its paths:
