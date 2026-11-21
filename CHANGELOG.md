@@ -15,6 +15,9 @@ All notable changes to this project will be documented in this file.
   unless `--write` is also passed.
 
 ### Fixed
+- CI and release quality checks install all optional dependencies and headless Qt
+  libraries, and run the full test gate with the offscreen Qt platform so GUI
+  tests can collect and run.
 - Identical transactions posted on the same day (same account, date, amount and
   description) no longer collapse into one. `build_transaction_id` now takes an
   occurrence index, so the second and later copies get distinct ids and survive
